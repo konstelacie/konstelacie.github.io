@@ -2,14 +2,15 @@
 /**
  * Canonical & SEO audit for citimtedasom.sk (static site)
  *
- * - Scans all *.html files
- * - Injects/updates canonical tag into <head>
- * - Injects/updates og:url for indexable pages
- * - Verifies no canonicals point to citimtedasom.online or github.io
- * - Prints summary: total html, canonicals present, indexable in sitemap
+ * Checks and optionally fixes:
+ * - canonical tag (host, trailing slash, no index.html, no query params)
+ * - og:url for indexable pages only
  *
- * Usage: node scripts/canonical-audit.js [--dry-run]
- *   --dry-run: report only, do not modify files
+ * NEVER changes meta robots.
+ *
+ * Usage:
+ *   node scripts/canonical-audit.js --check   (default: report only, no writes, exit non-zero on issues)
+ *   node scripts/canonical-audit.js --fix    (write canonical/og:url fixes)
  */
 
 const fs = require('fs');
@@ -63,13 +64,20 @@ function getOgUrl(html) {
   return m ? m[1] : null;
 }
 
+function canonicalIsValid(url) {
+  if (!url || !url.startsWith(HOST)) return false;
+  if (url.includes('index.html')) return false;
+  if (url.includes('?')) return false;
+  return url === HOST + '/' || url.endsWith('/');
+}
+
 function injectCanonical(html, canonicalUrl) {
   const existing = /<link\s+rel="canonical"\s+href="[^"]+"\s*\/?>/;
   const tag = `<link rel="canonical" href="${canonicalUrl}" />`;
   if (existing.test(html)) {
     return html.replace(existing, tag);
   }
-  return html.replace(/<meta\s+name="viewport"[^>]*\/?>/, (m) => m + '\n  ' + tag);
+  return html.replace(/(<meta\s+name="viewport"[^>]*\/?>)/, (m) => m + '\n  ' + tag);
 }
 
 function injectOgUrl(html, ogUrl) {
@@ -86,18 +94,96 @@ function injectOgUrl(html, ogUrl) {
   if (afterCanonical) {
     return html.replace(afterCanonical[1], afterCanonical[1] + '\n  ' + tag);
   }
-  return html.replace(/<meta\s+name="viewport"[^>]*\/?>/, (m) => m + '\n  ' + tag);
+  return html.replace(/(<meta\s+name="viewport"[^>]*\/?>)/, (m) => m + '\n  ' + tag);
 }
 
-function main() {
-  const dryRun = process.argv.includes('--dry-run');
-  const htmlFiles = findHtmlFiles(ROOT);
+function runCheck(htmlFiles) {
+  const missingCanonical = [];
+  const canonicalMismatch = [];
+  const badDomains = [];
+  const indexableMissingOgUrl = [];
 
-  let canonicalCount = 0;
-  let ogUrlCount = 0;
-  const badCanonicals = [];
+  for (const fp of htmlFiles) {
+    const rel = path.relative(ROOT, fp);
+    const html = fs.readFileSync(fp, 'utf8');
+    const canonPath = filePathToCanonicalPath(fp);
+    const canonUrl = filePathToCanonicalUrl(fp);
+    const isIndexable = INDEXABLE_PATHS.has(canonPath);
+
+    if (hasBadCanonical(html)) {
+      badDomains.push({ rel, url: getCanonicalUrl(html) || '(in og:url or elsewhere)' });
+    }
+
+    const current = getCanonicalUrl(html);
+    if (!current) {
+      missingCanonical.push(rel);
+    } else if (current !== canonUrl || !canonicalIsValid(current)) {
+      canonicalMismatch.push({ rel, expected: canonUrl, found: current });
+    }
+
+    if (isIndexable) {
+      const og = getOgUrl(html);
+      if (!og || og !== canonUrl) {
+        indexableMissingOgUrl.push({ rel, expected: canonUrl, found: og || '(missing)' });
+      }
+    }
+  }
+
+  return {
+    total: htmlFiles.length,
+    missingCanonical,
+    canonicalMismatch,
+    badDomains,
+    indexableMissingOgUrl,
+    hasIssues: Boolean(
+      missingCanonical.length ||
+      canonicalMismatch.length ||
+      badDomains.length ||
+      indexableMissingOgUrl.length
+    ),
+  };
+}
+
+function printReport(report) {
+  console.log('--- Canonical & SEO audit ---');
+  console.log(`Total HTML files: ${report.total}`);
+  console.log('');
+
+  if (report.missingCanonical.length) {
+    console.log('Missing canonical:');
+    report.missingCanonical.forEach((p) => console.log(`  - ${p}`));
+    console.log('');
+  }
+
+  if (report.canonicalMismatch.length) {
+    console.log('Canonical mismatch (expected vs found):');
+    report.canonicalMismatch.forEach(({ rel, expected, found }) =>
+      console.log(`  - ${rel}\n    expected: ${expected}\n    found: ${found}`)
+    );
+    console.log('');
+  }
+
+  if (report.badDomains.length) {
+    console.log('Bad domains (citimtedasom.online, github.io):');
+    report.badDomains.forEach(({ rel, url }) => console.log(`  - ${rel}: ${url}`));
+    console.log('');
+  }
+
+  if (report.indexableMissingOgUrl.length) {
+    console.log('Indexable pages missing or wrong og:url:');
+    report.indexableMissingOgUrl.forEach(({ rel, expected, found }) =>
+      console.log(`  - ${rel}\n    expected: ${expected}\n    found: ${found}`)
+    );
+    console.log('');
+  }
+
+  if (!report.hasIssues) {
+    console.log('No issues found.');
+  }
+}
+
+function runFix(htmlFiles) {
   const updated = [];
-  const indexableInSitemap = [];
 
   for (const fp of htmlFiles) {
     let html = fs.readFileSync(fp, 'utf8');
@@ -105,49 +191,54 @@ function main() {
     const canonUrl = filePathToCanonicalUrl(fp);
     const isIndexable = INDEXABLE_PATHS.has(canonPath);
 
-    if (hasBadCanonical(html)) {
-      badCanonicals.push({ path: path.relative(ROOT, fp), url: getCanonicalUrl(html) });
-    }
-
     const currentCanonical = getCanonicalUrl(html);
-    const expectedCanonical = canonUrl;
-    const needsCanonical = !currentCanonical || currentCanonical !== expectedCanonical;
+    const needsCanonical = !currentCanonical || currentCanonical !== canonUrl;
 
     const currentOgUrl = getOgUrl(html);
-    const needsOgUrl = isIndexable && (!currentOgUrl || currentOgUrl !== expectedCanonical);
+    const needsOgUrl = isIndexable && (!currentOgUrl || currentOgUrl !== canonUrl);
 
-    if (currentCanonical) canonicalCount++;
-    if (currentOgUrl && isIndexable) ogUrlCount++;
-    if (isIndexable) indexableInSitemap.push(canonUrl);
+    if (needsCanonical) html = injectCanonical(html, canonUrl);
+    if (needsOgUrl) html = injectOgUrl(html, canonUrl);
 
-    if ((needsCanonical || needsOgUrl) && !dryRun) {
-      if (needsCanonical) html = injectCanonical(html, expectedCanonical);
-      if (needsOgUrl) html = injectOgUrl(html, expectedCanonical);
+    if (needsCanonical || needsOgUrl) {
       fs.writeFileSync(fp, html, 'utf8');
       updated.push(path.relative(ROOT, fp));
     }
   }
 
-  console.log('--- Canonical & SEO audit ---');
-  console.log(`Total HTML files: ${htmlFiles.length}`);
-  console.log(`Pages with canonical: ${canonicalCount}`);
-  console.log(`Indexable pages with og:url: ${ogUrlCount}`);
-  console.log(`Indexable URLs (sitemap): ${indexableInSitemap.length}`);
-  console.log('');
+  return updated;
+}
 
-  if (badCanonicals.length) {
-    console.log('WARNING: Bad canonicals (citimtedasom.online or github.io):');
-    badCanonicals.forEach(({ path: p, url }) => console.log(`  - ${p}: ${url}`));
-    console.log('');
+function main() {
+  const args = process.argv.slice(2);
+  const fixMode = args.includes('--fix');
+  const checkMode = args.includes('--check') || (!fixMode && args.length === 0);
+  const mode = fixMode ? 'fix' : 'check';
+
+  const htmlFiles = findHtmlFiles(ROOT);
+
+  if (mode === 'check') {
+    const report = runCheck(htmlFiles);
+    printReport(report);
+    process.exit(report.hasIssues ? 1 : 0);
   }
 
-  if (updated.length) {
-    console.log('Updated files:');
-    updated.forEach((p) => console.log(`  - ${p}`));
-  } else if (dryRun) {
-    console.log('No changes needed (or use without --dry-run to apply).');
-  } else {
-    console.log('No files modified.');
+  if (mode === 'fix') {
+    const report = runCheck(htmlFiles);
+    if (report.hasIssues) {
+      const updated = runFix(htmlFiles);
+      console.log('--- Fix mode: applied changes ---');
+      if (updated.length) {
+        updated.forEach((p) => console.log(`  - ${p}`));
+      } else {
+        console.log('No files modified (issues may be non-fixable, e.g. bad domains).');
+      }
+      console.log('');
+      console.log('Run --check again to verify:');
+      console.log('  node scripts/canonical-audit.js --check');
+    } else {
+      console.log('No issues to fix.');
+    }
   }
 }
 

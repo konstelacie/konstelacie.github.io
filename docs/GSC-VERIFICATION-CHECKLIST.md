@@ -59,8 +59,9 @@ Use this checklist after deploying the canonical/SEO changes to resolve "Alterna
 ## 5. Monitor coverage
 
 - [ ] In GSC → **Pages** (or Coverage), monitor after a few days:
-  - "Indexed" count for the 3 canonical URLs
-  - "Alternate page with proper canonical tag" should decrease as Google reprocesses
+  - "Indexed" count for the 3 canonical URLs (homepage + 2 articles)
+  - "Alternate page with proper canonical tag" may persist for a while – this is expected
+  - Success metric: canonical URLs get indexed; alternates (e.g. `/index.html`) stay as alternates
 - [ ] Noindex pages should remain excluded; only the 3 indexable URLs should be indexed
 
 ---
