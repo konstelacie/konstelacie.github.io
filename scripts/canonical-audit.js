@@ -192,7 +192,10 @@ function runFix(htmlFiles) {
     const isIndexable = INDEXABLE_PATHS.has(canonPath);
 
     const currentCanonical = getCanonicalUrl(html);
-    const needsCanonical = !currentCanonical || currentCanonical !== canonUrl;
+    const needsCanonical =
+      !currentCanonical ||
+      currentCanonical !== canonUrl ||
+      !canonicalIsValid(currentCanonical);
 
     const currentOgUrl = getOgUrl(html);
     const needsOgUrl = isIndexable && (!currentOgUrl || currentOgUrl !== canonUrl);
@@ -211,9 +214,8 @@ function runFix(htmlFiles) {
 
 function main() {
   const args = process.argv.slice(2);
-  const fixMode = args.includes('--fix');
-  const checkMode = args.includes('--check') || (!fixMode && args.length === 0);
-  const mode = fixMode ? 'fix' : 'check';
+  // --fix present → fix; otherwise → check (default with no args)
+  const mode = args.includes('--fix') ? 'fix' : 'check';
 
   const htmlFiles = findHtmlFiles(ROOT);
 
