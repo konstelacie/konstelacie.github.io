@@ -37,6 +37,8 @@
 
 ```
 project-root/
+├── docs/
+│   └── PRACTICES.md        # Project conventions (this file)
 ├── src/
 │   ├── app.js              # Express app, EJS config
 │   ├── views/              # EJS templates

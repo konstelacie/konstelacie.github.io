@@ -5,7 +5,7 @@ alwaysApply: true
 
 # citimtedasom.sk – Project Practices
 
-**Full reference:** See `PRACTICES.md` in project root.
+**Full reference:** See `docs/PRACTICES.md`.
 
 **Deployment:** alwaysdata (not GitHub Pages).
 
@@ -30,4 +30,4 @@ Never use `../` or `../../` for assets; root-relative paths work from any page d
 
 ## CSS variables
 
-Use design tokens from `:root` in site.css. Never hardcode colors or spacing; use `var(--color-primary)`, `var(--spacing-section)` etc. See PRACTICES.md for full list.
+Use design tokens from `:root` in site.css. Never hardcode colors or spacing; use `var(--color-primary)`, `var(--spacing-section)` etc. See docs/PRACTICES.md for full list.
