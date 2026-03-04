@@ -27,7 +27,7 @@
 <a href="../other-funnel/">Other</a>
 ```
 
-**Why:** Root-relative paths work the same from any page depth. They survive restructuring and work reliably on GitHub Pages.
+**Why:** Root-relative paths work the same from any page depth. They survive restructuring and work reliably regardless of deployment.
 
 ---
 
