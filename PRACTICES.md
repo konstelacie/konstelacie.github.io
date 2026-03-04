@@ -2,6 +2,8 @@
 
 **For AI assistants (Cursor, Copilot, etc.):** Follow these rules when editing this codebase. Apply them consistently.
 
+**Deployment:** We deploy on alwaysdata (not GitHub Pages).
+
 ---
 
 ## Links and Asset Paths

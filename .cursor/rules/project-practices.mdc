@@ -7,6 +7,8 @@ alwaysApply: true
 
 **Full reference:** See `PRACTICES.md` in project root.
 
+**Deployment:** alwaysdata (not GitHub Pages).
+
 ## Critical: Root-Relative Paths
 
 Use `/`-prefixed paths for all internal URLs:
