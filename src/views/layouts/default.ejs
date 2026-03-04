@@ -1,0 +1,17 @@
+<!DOCTYPE html>
+<html lang="sk">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="<%= typeof description !== 'undefined' ? description : 'citimtedasom.sk' %>">
+  <title><%= typeof title !== 'undefined' ? title : 'citimtedasom.sk' %></title>
+  <link rel="stylesheet" href="/assets/css/site.css">
+  <%- typeof extraStyles !== 'undefined' && extraStyles ? extraStyles : '' %>
+</head>
+<body>
+  <%- include('../partials/header') %>
+  <%- body %>
+  <%- include('../partials/footer') %>
+  <%- typeof extraScripts !== 'undefined' && extraScripts ? extraScripts : '' %>
+</body>
+</html>

@@ -35,12 +35,38 @@
 
 ## File Structure
 
-- **`/`** – Main site (`index.html`)
-- **`/assets/css/`** – Styles (`site.css` = base, `funnel.css` = funnel blocks)
-- **`/assets/js/`** – Scripts (`funnel.js` = shared funnel logic)
-- **`/funnels/{name}/`** – Each funnel has `index.html` at `funnels/{name}/`
+```
+project-root/
+├── src/
+│   ├── app.js              # Express app, EJS config
+│   ├── views/              # EJS templates
+│   │   ├── layouts/        # default.ejs
+│   │   ├── partials/       # header.ejs, footer.ejs
+│   │   ├── index.ejs       # Home page
+│   │   └── funnels/        # views/funnels/{name}.ejs
+│   └── routes/
+├── public/assets/          # Static files (served at /assets/...)
+│   ├── css/                # site.css, funnel.css
+│   └── js/                 # funnel.js
+├── server.js               # Entry point
+├── sitemap.xml
+└── robots.txt
+```
 
-New funnels: add `funnels/{name}/index.html` and update `sitemap.xml`.
+- **`/`** – Home page (rendered from `views/index.ejs`)
+- **`/assets/`** – Static assets from `public/assets/` (CSS, JS)
+- **`/funnels/{name}/`** – Funnel pages (rendered from `views/funnels/{name}.ejs`)
+
+New funnels: add `src/views/funnels/{name}.ejs`, add route in `src/routes/funnels.js`, update `sitemap.xml`.
+
+---
+
+## EJS Templates
+
+- Layout: `views/layouts/default.ejs` wraps all pages.
+- Partials: `header.ejs`, `footer.ejs` in `views/partials/`.
+- Pass `title`, `description`, `home`, `extraStyles`, `extraScripts` from routes.
+- New funnels: create `views/funnels/{name}.ejs` and register in `src/routes/funnels.js`.
 
 ---
 

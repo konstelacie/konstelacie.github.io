@@ -1,0 +1,14 @@
+<header class="site-header">
+  <div class="container">
+    <% if (typeof home !== 'undefined' && home) { %>
+      <span class="brand">citimtedasom.sk</span>
+    <% } else { %>
+      <a href="/" class="brand">citimtedasom.sk</a>
+    <% } %>
+    <nav class="nav">
+      <% if (typeof home === 'undefined' || !home) { %>
+        <a href="/">Index</a>
+      <% } %>
+    </nav>
+  </div>
+</header>
