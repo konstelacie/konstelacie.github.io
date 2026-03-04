@@ -1,0 +1,25 @@
+---
+description: Project conventions – root-relative links, structure, funnel patterns
+alwaysApply: true
+---
+
+# citimtedasom.sk – Project Practices
+
+**Full reference:** See `PRACTICES.md` in project root.
+
+## Critical: Root-Relative Paths
+
+Use `/`-prefixed paths for all internal URLs:
+
+- Styles: `href="/assets/css/site.css"`
+- Scripts: `src="/assets/js/funnel.js"`
+- Links: `href="/funnels/pilot/"`, `href="/"`
+
+Never use `../` or `../../` for assets; root-relative paths work from any page depth.
+
+## Structure
+
+- Base styles → `assets/css/site.css`
+- Funnel styles → `assets/css/funnel.css`
+- Funnel logic → `assets/js/funnel.js`
+- New funnels → `funnels/{name}/index.html` + add to `sitemap.xml`
