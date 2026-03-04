@@ -1,0 +1,37 @@
+/* Funnel section blocks – layout and spacing */
+
+.funnel-hero {
+  padding: 3rem 0;
+}
+
+.funnel-video {
+  padding: 2rem 0;
+}
+
+.funnel-video .container {
+  max-width: 720px;
+}
+
+.funnel-summary {
+  padding: 2rem 0;
+}
+
+.funnel-cta {
+  padding: 2rem 0;
+}
+
+.funnel-how {
+  padding: 2rem 0;
+}
+
+.funnel-audience {
+  padding: 2rem 0;
+}
+
+.funnel-chatbot {
+  padding: 2rem 0;
+}
+
+.funnel-lead {
+  padding: 2rem 0;
+}
