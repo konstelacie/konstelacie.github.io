@@ -52,9 +52,23 @@ New funnels: add `funnels/{name}/index.html` and update `sitemap.xml`.
 
 ## CSS
 
+- **Design tokens** – Colors and spacing live in `:root` in `site.css`. Use `var(--variable-name)` instead of hardcoding values.
 - **Base styles** go in `site.css`.
 - **Funnel-specific** layout/spacing goes in `funnel.css`.
 - Use existing classes (`.container`, `.prose`, `.cta`, `.muted`) before adding new ones.
+
+### Available variables
+
+| Token | Purpose |
+|-------|---------|
+| `--color-text`, `--color-text-secondary`, `--color-text-muted` | Text colors |
+| `--color-bg`, `--color-border` | Background, borders |
+| `--color-primary`, `--color-primary-hover`, `--color-on-primary` | CTA / accents |
+| `--spacing-sm`, `--spacing-md`, `--spacing-container`, `--spacing-gap`, `--spacing-section`, `--spacing-section-lg`, `--spacing-footer` | Spacing |
+| `--max-width-content`, `--max-width-narrow` | Layout widths |
+| `--radius-pill` | Pill-shaped buttons |
+
+Add new tokens to `:root` when a value is reused; avoid hardcoding `#hex` or raw `px`/`rem` in new rules.
 
 ---
 

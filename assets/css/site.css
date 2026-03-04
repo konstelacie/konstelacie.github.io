@@ -1,3 +1,30 @@
+/* Design tokens */
+:root {
+  /* Colors */
+  --color-text: #0f172a;
+  --color-text-secondary: #334155;
+  --color-text-muted: #64748b;
+  --color-bg: #ffffff;
+  --color-border: #e2e8f0;
+  --color-primary: #0f172a;
+  --color-primary-hover: #1e293b;
+  --color-on-primary: #ffffff;
+
+  /* Spacing */
+  --spacing-sm: 12px;
+  --spacing-md: 16px;
+  --spacing-container: 24px;
+  --spacing-gap: 24px;
+  --spacing-section: 2rem;
+  --spacing-section-lg: 3rem;
+  --spacing-footer: 48px;
+
+  /* Layout */
+  --max-width-content: 900px;
+  --max-width-narrow: 720px;
+  --radius-pill: 999px;
+}
+
 *,
 *::before,
 *::after {
@@ -12,8 +39,8 @@ html {
 
 body {
   margin: 0;
-  color: #0f172a;
-  background: #ffffff;
+  color: var(--color-text);
+  background: var(--color-bg);
 }
 
 a {
@@ -26,14 +53,14 @@ a:hover {
 }
 
 .container {
-  max-width: 900px;
+  max-width: var(--max-width-content);
   margin: 0 auto;
-  padding: 24px;
+  padding: var(--spacing-container);
 }
 
 .site-header {
-  border-bottom: 1px solid #e2e8f0;
-  background: #ffffff;
+  border-bottom: 1px solid var(--color-border);
+  background: var(--color-bg);
 }
 
 .site-header .container {
@@ -41,7 +68,7 @@ a:hover {
   flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
-  gap: 12px 24px;
+  gap: var(--spacing-sm) var(--spacing-gap);
 }
 
 .brand {
@@ -52,12 +79,12 @@ a:hover {
 .nav {
   display: flex;
   flex-wrap: wrap;
-  gap: 12px 16px;
+  gap: var(--spacing-sm) var(--spacing-md);
   font-size: 0.95rem;
 }
 
 .nav a {
-  color: #334155;
+  color: var(--color-text-secondary);
 }
 
 .prose h1,
@@ -83,24 +110,24 @@ a:hover {
   align-items: center;
   justify-content: center;
   padding: 0.6rem 1.1rem;
-  border-radius: 999px;
-  background: #0f172a;
-  color: #ffffff;
+  border-radius: var(--radius-pill);
+  background: var(--color-primary);
+  color: var(--color-on-primary);
   font-weight: 600;
   text-decoration: none;
 }
 
 .cta:hover {
   text-decoration: none;
-  background: #1e293b;
+  background: var(--color-primary-hover);
 }
 
 .muted {
-  color: #64748b;
+  color: var(--color-text-muted);
   font-size: 0.9rem;
 }
 
 .site-footer {
-  border-top: 1px solid #e2e8f0;
-  margin-top: 48px;
+  border-top: 1px solid var(--color-border);
+  margin-top: var(--spacing-footer);
 }

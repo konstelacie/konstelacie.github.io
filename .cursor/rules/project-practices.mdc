@@ -23,3 +23,7 @@ Never use `../` or `../../` for assets; root-relative paths work from any page d
 - Funnel styles → `assets/css/funnel.css`
 - Funnel logic → `assets/js/funnel.js`
 - New funnels → `funnels/{name}/index.html` + add to `sitemap.xml`
+
+## CSS variables
+
+Use design tokens from `:root` in site.css. Never hardcode colors or spacing; use `var(--color-primary)`, `var(--spacing-section)` etc. See PRACTICES.md for full list.
