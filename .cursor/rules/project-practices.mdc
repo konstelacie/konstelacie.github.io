@@ -5,7 +5,11 @@ alwaysApply: true
 
 # citimtedasom.sk – Project Practices
 
-**Full reference:** See `docs/PRACTICES.md`.
+## Docs
+
+- **Full reference:** `docs/PRACTICES.md`
+- **Session pricing:** `docs/SESSION-PRICING.md` — payment options, UX, copy
+- **PseudoChat:** `docs/PSEUDOCHAT.md` — widget flows, API
 
 **Deployment:** alwaysdata (not GitHub Pages).
 
