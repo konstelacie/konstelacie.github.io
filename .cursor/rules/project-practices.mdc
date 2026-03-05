@@ -8,13 +8,16 @@ alwaysApply: true
 ## Docs
 
 - **Full reference:** `docs/PRACTICES.md`
-- **DB migrations:** `docs/DB-MIGRATIONS.md` — how migrations work, schema_migrations, commands
+- **API:** `docs/API.md` — current endpoints reference
+- **DB migrations:** `docs/DB-MIGRATIONS.md` — migrations, schema_migrations, commands
 - **Session pricing:** `docs/SESSION-PRICING.md` — payment options, UX, copy
 - **PseudoChat:** `docs/PSEUDOCHAT.md` — widget flows, API
 - **Stripe:** `docs/STRIPE-ARCHITECTURE.md` — payment integration, webhooks, API design
 - **Reservation system:** `docs/RESERVATION-SYSTEM-ARCHITECTURE.md` — booking flows, slots, API, domain model
 
 **Deployment:** alwaysdata (not GitHub Pages).
+
+**Naming:** File names in English; user-facing (URLs, copy) in Slovak; dev/code in English.
 
 ## Dev Phase: Data & Schema
 

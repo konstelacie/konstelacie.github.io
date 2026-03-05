@@ -2,6 +2,8 @@
 
 **For AI assistants (Cursor, Copilot, etc.):** This document defines the technical architecture for Stripe payment integration. Use it when implementing payment flows, webhooks, or database models. Do not duplicate pricing logic—see `docs/SESSION-PRICING.md` for amounts and rules.
 
+**Schema source of truth:** The current `payments` table is in `src/db/migrations/001_initial.sql` and uses `provider`, `provider_ref`, `reservation_id`, `amount_cents`, status `pending`/`completed`/`failed`/`refunded`. The table design below is the target for Stripe integration; actual schema may differ until implemented.
+
 ---
 
 ## 1. Stripe Integration Overview

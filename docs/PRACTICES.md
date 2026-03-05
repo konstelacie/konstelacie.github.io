@@ -48,36 +48,61 @@ When we go live, we will introduce proper migrations and ALTER/UPDATE flows. Unt
 
 ---
 
+## Naming and Conventions
+
+| Rule | Meaning |
+|------|---------|
+| **File names** | **MUST be in English.** Variables, functions, classes, file paths—all developer-facing identifiers use English. |
+| **User-facing content** | May be Slovak (lang of site). URLs (e.g. `/rezervacia/`), labels, copy, meta—Slovak is fine. |
+| **Dev language of code** | English. Comments, log messages, commit messages—English. |
+
+---
+
 ## File Structure
 
 ```
 project-root/
 ├── docs/
-│   ├── PRACTICES.md        # Project conventions (this file)
-│   ├── PSEUDOCHAT.md       # PseudoChat widget (flows, API, integration)
-│   ├── SESSION-PRICING.md  # Session pricing model, payment options, UX
-│   └── STRIPE-ARCHITECTURE.md  # Stripe integration (Checkout, webhooks, API)
+│   ├── PRACTICES.md                    # Project conventions (this file)
+│   ├── API.md                          # API reference (current endpoints)
+│   ├── DB-MIGRATIONS.md                # DB migrations, env vars, commands
+│   ├── PSEUDOCHAT.md                   # PseudoChat widget (flows, API, integration)
+│   ├── RESERVATION-SYSTEM-ARCHITECTURE.md  # Booking/reservation design
+│   ├── SESSION-PRICING.md              # Session pricing model, payment options, UX
+│   └── STRIPE-ARCHITECTURE.md          # Stripe integration (Checkout, webhooks, API)
 ├── src/
-│   ├── app.js              # Express app, EJS config
-│   ├── views/              # EJS templates
-│   │   ├── layouts/        # default.ejs
-│   │   ├── partials/       # header.ejs, footer.ejs
-│   │   ├── index.ejs       # Home page
-│   │   └── funnels/        # views/funnels/{name}.ejs
-│   └── routes/
-├── public/assets/          # Static files (served at /assets/...)
-│   ├── css/                # site.css, funnel.css
-│   └── js/                 # funnel.js
-├── server.js               # Entry point
+│   ├── app.js                          # Express app, EJS config
+│   ├── config/                         # App config (database, etc.)
+│   ├── db/                             # Migrations, repositories
+│   ├── middleware/
+│   ├── routes/
+│   │   ├── api/                        # /api/slots, /api/reservations
+│   │   ├── booking.js                  # /rezervacia/
+│   │   ├── funnels.js                  # /funnels/*
+│   │   ├── health.js                   # /health
+│   │   ├── index.js                    # /
+│   │   └── static.js                   # sitemap, robots
+│   └── views/
+│       ├── layouts/                    # default.ejs
+│       ├── partials/                   # header.ejs, footer.ejs
+│       ├── index.ejs                   # Home page
+│       ├── rezervacia.ejs              # Booking page (route: /rezervacia/)
+│       └── funnels/                    # views/funnels/{name}.ejs
+├── public/assets/
+│   ├── css/                            # site.css, funnel.css, pseudochat.css
+│   └── js/                             # funnel.js, booking.js, funnel-chatbot.js, pseudochat/
+├── scripts/                            # db-migrate.js
+├── server.js                           # Entry point
 ├── sitemap.xml
 └── robots.txt
 ```
 
-- **`/`** – Home page (rendered from `views/index.ejs`)
-- **`/assets/`** – Static assets from `public/assets/` (CSS, JS)
-- **`/funnels/{name}/`** – Funnel pages (rendered from `views/funnels/{name}.ejs`)
+- **`/`** – Home page (`views/index.ejs`)
+- **`/assets/`** – Static assets from `public/assets/`
+- **`/funnels/{name}/`** – Funnel pages (`views/funnels/{name}.ejs`)
+- **`/rezervacia/`** – Booking page (`views/rezervacia.ejs`, `public/assets/js/booking.js`)
 
-New funnels: add `src/views/funnels/{name}.ejs`, add route in `src/routes/funnels.js`, update `sitemap.xml`.
+New funnels: add `views/funnels/{name}.ejs`, register in `routes/funnels.js`, update `sitemap.xml`.
 
 ---
 
@@ -134,4 +159,5 @@ Add new tokens to `:root` when a value is reused; avoid hardcoding `#hex` or raw
 1. Keep links and asset paths root-relative.
 2. Match existing patterns (header/footer structure, `.container` usage).
 3. Add new funnel pages to `sitemap.xml`.
-4. Use Slovak (`sk`) for user-facing content.
+4. Use Slovak for user-facing content (copy, URLs, meta).
+5. Use English for file names, code identifiers, comments.

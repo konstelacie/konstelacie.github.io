@@ -12,7 +12,7 @@ Set in `.env` (or environment):
 | `DB_PORT` | MySQL port (default: 3306) |
 | `DB_USER` | MySQL user |
 | `DB_PASSWORD` | MySQL password |
-| `DB_NAME` | Database name (default: citimtedasom) |
+| `DB_NAME` | Database name (default: citim_teda_som) |
 
 ## How it works
 

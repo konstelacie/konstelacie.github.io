@@ -2,6 +2,8 @@
 
 **For AI assistants (Cursor, Copilot, etc.):** This document defines the technical architecture for the booking/reservation system. Use it when implementing slots, reservations, payments, or admin. Do not duplicate pricing or Stripe logic—see `docs/SESSION-PRICING.md` and `docs/STRIPE-ARCHITECTURE.md`.
 
+**Schema source of truth:** The current database schema is in `src/db/migrations/001_initial.sql`. The domain model and tables in sections 3–4 describe the target design; implemented schema may differ (e.g. slot status `open`/`blocked`/`cancelled`, reservation status `draft`/`pending_payment`/`expired`). Check `001_initial.sql` for actual columns and enums.
+
 ---
 
 ## 1) Goals & Non-Goals
