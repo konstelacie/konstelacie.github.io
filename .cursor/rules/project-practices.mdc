@@ -21,6 +21,7 @@ We are **not live yet**. No legacy data to protect.
 
 - **Refactors:** Do hard dev refactors without legacy support. No backward compatibility for old data.
 - **Database:** Use **drop/create** for schema changes and **delete/insert** for data. Avoid `ALTER`, `UPDATE`, or migration scripts until we go live.
+- **Migration file:** When schema changes, always edit `src/db/migrations/001_initial.sql`. Do not add new migration files—we always recreate the database while not live; git tracks history.
 
 ## Critical: Root-Relative Paths
 
