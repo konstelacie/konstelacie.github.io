@@ -4,6 +4,7 @@ const path = require('path');
 const indexRouter = require('./routes/index');
 const funnelsRouter = require('./routes/funnels');
 const staticRouter = require('./routes/static');
+const healthRouter = require('./routes/health');
 
 const app = express();
 
@@ -29,5 +30,6 @@ app.use('/assets', express.static(path.join(projectRoot, 'public', 'assets')));
 app.use('/', indexRouter);
 app.use('/funnels', funnelsRouter);
 app.use('/', staticRouter);
+app.use('/', healthRouter);
 
 module.exports = app;
