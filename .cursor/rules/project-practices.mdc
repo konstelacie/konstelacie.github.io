@@ -15,6 +15,13 @@ alwaysApply: true
 
 **Deployment:** alwaysdata (not GitHub Pages).
 
+## Dev Phase: Data & Schema
+
+We are **not live yet**. No legacy data to protect.
+
+- **Refactors:** Do hard dev refactors without legacy support. No backward compatibility for old data.
+- **Database:** Use **drop/create** for schema changes and **delete/insert** for data. Avoid `ALTER`, `UPDATE`, or migration scripts until we go live.
+
 ## Critical: Root-Relative Paths
 
 Use `/`-prefixed paths for all internal URLs:

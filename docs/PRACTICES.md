@@ -6,6 +6,20 @@
 
 ---
 
+## Dev Phase: Data & Schema
+
+**We are not live yet.** There is no legacy data to protect.
+
+| Rule | Meaning |
+|------|---------|
+| **Hard refactors** | Do dev refactors without legacy support. No backward compatibility for old data structures. |
+| **Schema changes** | Use **drop/create** (drop table, create table). No `ALTER TABLE` or migration scripts. |
+| **Data changes** | Use **delete/insert** (delete rows, insert new). Avoid `UPDATE` for structural changes. |
+
+When we go live, we will introduce proper migrations and ALTER/UPDATE flows. Until then, keep schema and data changes simple and destructive.
+
+---
+
 ## Links and Asset Paths
 
 ### Use root-relative URLs
