@@ -1,0 +1,100 @@
+-- 001_initial.sql
+-- Minimal schema for citimtedasom.sk (Phase 2A)
+-- MySQL 8+ compatible, utf8mb4, UTC timestamps
+
+-- schema_migrations: tracks applied migrations (runner creates first; IF NOT EXISTS for idempotency)
+CREATE TABLE IF NOT EXISTS schema_migrations (
+  id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  filename VARCHAR(255) NOT NULL UNIQUE,
+  applied_at DATETIME(3) DEFAULT CURRENT_TIMESTAMP(3)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- users: identity by email
+CREATE TABLE users (
+  id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  email VARCHAR(255) NOT NULL UNIQUE,
+  name VARCHAR(255) NULL,
+  created_at DATETIME(3) DEFAULT CURRENT_TIMESTAMP(3),
+  updated_at DATETIME(3) DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- slots: bookable time slots (admin-created)
+CREATE TABLE slots (
+  id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  start_at DATETIME(3) NOT NULL,
+  end_at DATETIME(3) NOT NULL,
+  timezone VARCHAR(64) NOT NULL DEFAULT 'Europe/Bratislava',
+  status ENUM('open','blocked','cancelled') NOT NULL DEFAULT 'open',
+  capacity INT NOT NULL DEFAULT 1,
+  created_at DATETIME(3) DEFAULT CURRENT_TIMESTAMP(3),
+  updated_at DATETIME(3) DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3),
+  INDEX idx_slots_start_at (start_at),
+  INDEX idx_slots_status_start (status, start_at)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- slot_locks: 15-minute locks for public booking flow
+CREATE TABLE slot_locks (
+  id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  slot_id BIGINT UNSIGNED NOT NULL,
+  lock_token CHAR(36) NOT NULL UNIQUE,
+  email VARCHAR(255) NULL,
+  expires_at DATETIME(3) NOT NULL,
+  created_at DATETIME(3) DEFAULT CURRENT_TIMESTAMP(3),
+  INDEX idx_slot_locks_slot_id (slot_id),
+  INDEX idx_slot_locks_expires (expires_at),
+  CONSTRAINT fk_slot_locks_slot FOREIGN KEY (slot_id) REFERENCES slots(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- reservations: created after lock, before payment
+CREATE TABLE reservations (
+  id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  slot_id BIGINT UNSIGNED NOT NULL,
+  user_id BIGINT UNSIGNED NULL,
+  email VARCHAR(255) NOT NULL,
+  status ENUM('draft','pending_payment','confirmed','cancelled','expired') NOT NULL DEFAULT 'draft',
+  lock_token CHAR(36) NULL,
+  created_at DATETIME(3) DEFAULT CURRENT_TIMESTAMP(3),
+  updated_at DATETIME(3) DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3),
+  INDEX idx_reservations_email_created (email, created_at),
+  INDEX idx_reservations_slot_id (slot_id),
+  INDEX idx_reservations_status_created (status, created_at),
+  CONSTRAINT fk_reservations_slot FOREIGN KEY (slot_id) REFERENCES slots(id),
+  CONSTRAINT fk_reservations_user FOREIGN KEY (user_id) REFERENCES users(id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- payments: generic (no Stripe integration yet)
+CREATE TABLE payments (
+  id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  user_id BIGINT UNSIGNED NULL,
+  reservation_id BIGINT UNSIGNED NULL,
+  provider ENUM('none','stripe') NOT NULL DEFAULT 'none',
+  provider_ref VARCHAR(255) NULL,
+  payment_type ENUM('deposit','session','topup') NOT NULL,
+  amount_cents INT NOT NULL,
+  currency CHAR(3) NOT NULL DEFAULT 'eur',
+  status ENUM('pending','completed','failed','refunded') NOT NULL DEFAULT 'pending',
+  created_at DATETIME(3) DEFAULT CURRENT_TIMESTAMP(3),
+  updated_at DATETIME(3) DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3),
+  INDEX idx_payments_reservation (reservation_id),
+  INDEX idx_payments_user (user_id),
+  INDEX idx_payments_provider_ref (provider, provider_ref),
+  INDEX idx_payments_status_created (status, created_at),
+  CONSTRAINT fk_payments_user FOREIGN KEY (user_id) REFERENCES users(id),
+  CONSTRAINT fk_payments_reservation FOREIGN KEY (reservation_id) REFERENCES reservations(id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- audit_logs: minimal
+CREATE TABLE audit_logs (
+  id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  actor_type ENUM('anon','user','admin','system') NOT NULL DEFAULT 'system',
+  actor_id BIGINT UNSIGNED NULL,
+  action VARCHAR(100) NOT NULL,
+  entity_type VARCHAR(50) NULL,
+  entity_id BIGINT UNSIGNED NULL,
+  ip VARCHAR(45) NULL,
+  user_agent VARCHAR(255) NULL,
+  payload_json JSON NULL,
+  created_at DATETIME(3) DEFAULT CURRENT_TIMESTAMP(3),
+  INDEX idx_audit_logs_action_created (action, created_at),
+  INDEX idx_audit_logs_entity (entity_type, entity_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
