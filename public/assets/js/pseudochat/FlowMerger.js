@@ -43,5 +43,6 @@ export function mergeFlow(baseFlow, derivedFlow) {
   for (const [id, node] of Object.entries(derivedFlow.nodes || {})) {
     merged.nodes[id] = mergeNode(baseFlow.nodes[id], node);
   }
+  delete merged.extends;
   return merged;
 }
