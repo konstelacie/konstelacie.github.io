@@ -38,7 +38,8 @@
 ```
 project-root/
 ├── docs/
-│   └── PRACTICES.md        # Project conventions (this file)
+│   ├── PRACTICES.md        # Project conventions (this file)
+│   └── PSEUDOCHAT.md       # PseudoChat widget (flows, API, integration)
 ├── src/
 │   ├── app.js              # Express app, EJS config
 │   ├── views/              # EJS templates
@@ -105,6 +106,7 @@ Add new tokens to `:root` when a value is reused; avoid hardcoding `#hex` or raw
 ## JavaScript
 
 - `funnel.js` exposes `window.funnel` (video, chatbot, cta).
+- **PseudoChat widget** – Decision-tree chat; see `docs/PSEUDOCHAT.md`.
 - Keep logic in IIFE or modules; avoid global variables.
 - Call `funnel.video.embed(url)` etc. from page-specific inline scripts when needed.
 
