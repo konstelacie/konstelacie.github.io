@@ -2,6 +2,13 @@
 -- Minimal schema for citimtedasom.sk (Phase 2A)
 -- MySQL 8+ compatible, utf8mb4, UTC timestamps
 
+-- Ensure database exists
+CREATE DATABASE IF NOT EXISTS `citim_teda_som`
+  DEFAULT CHARACTER SET utf8mb4
+  DEFAULT COLLATE utf8mb4_unicode_ci;
+
+USE `citim_teda_som`;
+
 -- schema_migrations: tracks applied migrations (runner creates first; IF NOT EXISTS for idempotency)
 CREATE TABLE IF NOT EXISTS schema_migrations (
   id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
