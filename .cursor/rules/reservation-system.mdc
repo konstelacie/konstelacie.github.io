@@ -1,0 +1,16 @@
+---
+description: Reservation/booking system architecture – entities, API, flows
+globs: ["src/**/*reservation*", "src/**/*slot*", "src/**/*booking*", "src/routes/**", "src/db/**"]
+---
+
+# Reservation System
+
+**Architecture:** `docs/RESERVATION-SYSTEM-ARCHITECTURE.md`
+
+When implementing booking, slots, reservations, or payments:
+
+- Follow the domain model and API contract in the architecture doc
+- Use UTC for DB timestamps; display in Europe/Bratislava
+- Slot lock = 15 min; validate lock before create reservation
+- Payment confirmation = webhook only (see `docs/STRIPE-ARCHITECTURE.md`)
+- Pricing rules from `docs/SESSION-PRICING.md`

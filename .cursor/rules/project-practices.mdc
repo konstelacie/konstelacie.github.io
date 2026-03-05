@@ -11,6 +11,7 @@ alwaysApply: true
 - **Session pricing:** `docs/SESSION-PRICING.md` — payment options, UX, copy
 - **PseudoChat:** `docs/PSEUDOCHAT.md` — widget flows, API
 - **Stripe:** `docs/STRIPE-ARCHITECTURE.md` — payment integration, webhooks, API design
+- **Reservation system:** `docs/RESERVATION-SYSTEM-ARCHITECTURE.md` — booking flows, slots, API, domain model
 
 **Deployment:** alwaysdata (not GitHub Pages).
 
