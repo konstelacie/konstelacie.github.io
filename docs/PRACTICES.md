@@ -86,7 +86,7 @@ project-root/
 │       ├── layouts/                    # default.ejs
 │       ├── partials/                   # header.ejs, footer.ejs
 │       ├── index.ejs                   # Home page
-│       ├── rezervacia.ejs              # Booking page (route: /rezervacia/)
+│       ├── booking.ejs                  # Booking page (route: /rezervacia/)
 │       └── funnels/                    # views/funnels/{name}.ejs
 ├── public/assets/
 │   ├── css/                            # site.css, funnel.css, pseudochat.css
@@ -100,7 +100,7 @@ project-root/
 - **`/`** – Home page (`views/index.ejs`)
 - **`/assets/`** – Static assets from `public/assets/`
 - **`/funnels/{name}/`** – Funnel pages (`views/funnels/{name}.ejs`)
-- **`/rezervacia/`** – Booking page (`views/rezervacia.ejs`, `public/assets/js/booking.js`)
+- **`/rezervacia/`** – Booking page (`views/booking.ejs`, `public/assets/js/booking.js`)
 
 New funnels: add `views/funnels/{name}.ejs`, register in `routes/funnels.js`, update `sitemap.xml`.
 

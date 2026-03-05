@@ -3,7 +3,7 @@ const express = require('express');
 const router = express.Router();
 
 router.get('/rezervacia/', (req, res) => {
-  res.render('rezervacia', {
+  res.render('booking', {
     layout: 'layouts/default',
     title: 'Rezervácia termínu – citimtedasom.sk',
     description: 'Rezervuj si termín na rodinné konstelácie.',

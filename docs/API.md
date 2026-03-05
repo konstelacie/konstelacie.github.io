@@ -135,3 +135,12 @@ INSERT INTO slots (start_at, end_at, timezone, status, capacity) VALUES
 ('2026-03-06 10:00:00', '2026-03-06 11:00:00', 'Europe/Bratislava', 'open', 1),
 ('2026-03-07 14:00:00', '2026-03-07 15:00:00', 'Europe/Bratislava', 'open', 1);
 ```
+
+---
+
+## Not yet implemented (details to be added when available)
+
+- `GET /api/reservations/:id/status` — reservation status polling
+- `POST /api/reservations/:id/cancel` — cancel reservation
+- Payment endpoints (Stripe checkout)
+- Admin endpoints (e.g. slot creation)
