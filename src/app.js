@@ -3,6 +3,7 @@ const path = require('path');
 
 const indexRouter = require('./routes/index');
 const funnelsRouter = require('./routes/funnels');
+const bookingRouter = require('./routes/booking');
 const staticRouter = require('./routes/static');
 const healthRouter = require('./routes/health');
 const apiRouter = require('./routes/api');
@@ -31,6 +32,7 @@ app.use('/assets', express.static(path.join(projectRoot, 'public', 'assets')));
 // Routes (more specific first)
 app.use('/api', apiRouter);
 app.use('/funnels', funnelsRouter);
+app.use('/', bookingRouter);
 app.use('/', indexRouter);
 app.use('/', staticRouter);
 app.use('/', healthRouter);

@@ -1,0 +1,46 @@
+<main>
+  <section class="booking-section prose">
+    <div class="container">
+      <h1>Rezervácia termínu</h1>
+      <p>Vyber si dátum a dostupný termín. Po výbere máš 15 minút na dokončenie rezervácie.</p>
+      <p class="muted">Rezervácia zatiaľ neznamená zaplatenie. Platba bude v ďalšom kroku.</p>
+
+      <!-- Date selector -->
+      <div class="booking-date-row">
+        <button type="button" id="booking-prev-day" class="booking-nav-btn" aria-label="Predchádzajúci deň">←</button>
+        <input type="date" id="booking-date" class="booking-date-input" aria-label="Dátum">
+        <button type="button" id="booking-next-day" class="booking-nav-btn" aria-label="Nasledujúci deň">→</button>
+      </div>
+
+      <!-- Slots list -->
+      <div id="booking-slots-container" class="booking-slots">
+        <p id="booking-slots-loading" class="muted">Načítavam termíny…</p>
+        <div id="booking-slots-list" class="booking-slots-list" hidden></div>
+        <p id="booking-slots-empty" class="muted" hidden>Pre tento dátum nie sú dostupné žiadne termíny.</p>
+        <p id="booking-slots-error" class="booking-error" hidden></p>
+      </div>
+
+      <!-- Hold banner (hidden until lock) -->
+      <div id="booking-hold-banner" class="booking-hold-banner" hidden>
+        <p><strong>Termín je dočasne podržaný na 15 minút.</strong> Dokonči rezerváciu.</p>
+        <p id="booking-countdown" class="booking-countdown">15:00</p>
+      </div>
+
+      <!-- Email form (hidden until lock) -->
+      <form id="booking-email-form" class="booking-email-form" hidden>
+        <label for="booking-email">E-mail (povinné)</label>
+        <input type="email" id="booking-email" name="email" required placeholder="vas@email.sk" autocomplete="email">
+        <p id="booking-email-error" class="booking-error" hidden></p>
+        <button type="submit" id="booking-submit-btn" class="cta">Potvrdiť rezerváciu</button>
+      </form>
+
+      <!-- Success panel (hidden until reservation created) -->
+      <div id="booking-success" class="booking-success" hidden>
+        <h2>Rezervácia je vytvorená</h2>
+        <p>Stav: <strong id="booking-success-status">pending_payment</strong></p>
+        <p class="muted">Ďalší krok: platba (zatiaľ nie je implementovaná)</p>
+        <p class="muted">Rezervácia #<span id="booking-success-id"></span></p>
+      </div>
+    </div>
+  </section>
+</main>

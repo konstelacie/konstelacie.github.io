@@ -14,6 +14,23 @@ export const publicFlowConstellations = {
       messages: [
         'Ahoj, som Ľudmil. Pomôžem ti sa zorientovať v rodinných a systémových konsteláciách. Čo ťa zaujíma?',
       ],
+      options: [
+        { id: 'orientovat', label: 'Chcem sa nezáväzne zorientovať', next: 'faq' },
+        { id: 'cena', label: 'Cena a priebeh', next: 'cenaPriebeh' },
+        { id: 'termin', label: 'Termín / rezervácia', next: 'terminRezervacia' },
+        { id: 'odkaz', label: 'Chcem zanechať odkaz', next: 'inputOdkaz' },
+        { id: 'otazka', label: 'Mám konkrétnu otázku', next: 'inputOtazka' },
+      ],
+    },
+    terminRezervacia: {
+      type: 'action',
+      messages: [
+        'Môžeš si rezervovať termín priamo tu. Otvorí sa ti stránka s výberom dátumov.',
+      ],
+      options: [
+        { id: 'otvorit', label: 'Otvoriť rezerváciu', next: 'welcome', action: 'OPEN_URL', actionPayload: { url: '/rezervacia/' } },
+        { id: 'spat', label: 'Späť', next: 'welcome' },
+      ],
     },
     cenaPriebeh: {
       messages: [
