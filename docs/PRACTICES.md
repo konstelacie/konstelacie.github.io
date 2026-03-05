@@ -40,7 +40,8 @@ project-root/
 ├── docs/
 │   ├── PRACTICES.md        # Project conventions (this file)
 │   ├── PSEUDOCHAT.md       # PseudoChat widget (flows, API, integration)
-│   └── SESSION-PRICING.md  # Session pricing model, payment options, UX
+│   ├── SESSION-PRICING.md  # Session pricing model, payment options, UX
+│   └── STRIPE-ARCHITECTURE.md  # Stripe integration (Checkout, webhooks, API)
 ├── src/
 │   ├── app.js              # Express app, EJS config
 │   ├── views/              # EJS templates

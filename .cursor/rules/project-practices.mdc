@@ -10,6 +10,7 @@ alwaysApply: true
 - **Full reference:** `docs/PRACTICES.md`
 - **Session pricing:** `docs/SESSION-PRICING.md` — payment options, UX, copy
 - **PseudoChat:** `docs/PSEUDOCHAT.md` — widget flows, API
+- **Stripe:** `docs/STRIPE-ARCHITECTURE.md` — payment integration, webhooks, API design
 
 **Deployment:** alwaysdata (not GitHub Pages).
 
