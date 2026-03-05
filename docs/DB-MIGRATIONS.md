@@ -14,6 +14,18 @@ Set in `.env` (or environment):
 | `DB_PASSWORD` | MySQL password |
 | `DB_NAME` | Database name (default: citimtedasom) |
 
+## How it works
+
+The migration runner (`scripts/db-migrate.js`) uses a **schema_migrations** table to track which migration files have already been applied. This makes runs idempotent: you can run `npm run db:migrate` multiple times safely—already-applied files are skipped.
+
+| Component | Purpose |
+|-----------|---------|
+| `schema_migrations` table | Stores `filename` of each applied migration and `applied_at` timestamp |
+| `ensureSchemaMigrations()` | Creates the table on first run (IF NOT EXISTS) |
+| Runner logic | Reads applied filenames, runs only pending `.sql` files, then records each |
+
+**Do not modify** the migration infra (`scripts/db-migrate.js`, `schema_migrations` table in `001_initial.sql`) without explicit human approval. See project rules. You may suggest changes but must not apply them automatically.
+
 ## Commands
 
 ```bash

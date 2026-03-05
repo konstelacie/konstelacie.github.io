@@ -8,6 +8,7 @@ alwaysApply: true
 ## Docs
 
 - **Full reference:** `docs/PRACTICES.md`
+- **DB migrations:** `docs/DB-MIGRATIONS.md` — how migrations work, schema_migrations, commands
 - **Session pricing:** `docs/SESSION-PRICING.md` — payment options, UX, copy
 - **PseudoChat:** `docs/PSEUDOCHAT.md` — widget flows, API
 - **Stripe:** `docs/STRIPE-ARCHITECTURE.md` — payment integration, webhooks, API design
@@ -22,6 +23,10 @@ We are **not live yet**. No legacy data to protect.
 - **Refactors:** Do hard dev refactors without legacy support. No backward compatibility for old data.
 - **Database:** Use **drop/create** for schema changes and **delete/insert** for data. Avoid `ALTER`, `UPDATE`, or migration scripts until we go live.
 - **Migration file:** When schema changes, always edit `src/db/migrations/001_initial.sql`. Do not add new migration files—we always recreate the database while not live; git tracks history.
+
+## Migration infra (do not touch)
+
+**Do not modify** `scripts/db-migrate.js` or the `schema_migrations` table (in `001_initial.sql`) unless the human explicitly asks to change migration behavior. You may **suggest** changes but must **not apply** them without approval. The system is intentionally minimal and should remain unchanged during other tasks.
 
 ## Critical: Root-Relative Paths
 
