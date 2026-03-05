@@ -39,7 +39,8 @@
 project-root/
 ├── docs/
 │   ├── PRACTICES.md        # Project conventions (this file)
-│   └── PSEUDOCHAT.md       # PseudoChat widget (flows, API, integration)
+│   ├── PSEUDOCHAT.md       # PseudoChat widget (flows, API, integration)
+│   └── SESSION-PRICING.md  # Session pricing model, payment options, UX
 ├── src/
 │   ├── app.js              # Express app, EJS config
 │   ├── views/              # EJS templates
