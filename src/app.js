@@ -15,6 +15,10 @@ app.set('view engine', 'ejs');
 app.set('views', path.join(__dirname, 'views'));
 app.use(require('express-ejs-layouts'));
 
+// Stripe webhook needs raw body for signature verification (must be before express.json)
+const stripeWebhookRouter = require('./routes/api/stripe');
+app.use('/api/stripe/webhook', express.raw({ type: 'application/json' }), stripeWebhookRouter);
+
 // Middleware
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
