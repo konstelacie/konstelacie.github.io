@@ -246,12 +246,13 @@
   async function revokeSlot() {
     if (!lockToken || !lockedSlotId) return;
     try {
-      const res = await fetch(`/api/slots/${lockedSlotId}/lock`, {
-        method: 'DELETE',
+      const res = await fetch('/api/revoke', {
+        method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ lockToken }),
+        body: JSON.stringify({ slotId: lockedSlotId, lockToken }),
       });
-      if (res.ok || res.status === 404) {
+      const data = await res.json().catch(() => ({}));
+      if (res.ok && data.revoked) {
         if (countdownInterval) {
           clearInterval(countdownInterval);
           countdownInterval = null;

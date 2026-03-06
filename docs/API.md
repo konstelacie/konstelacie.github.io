@@ -87,14 +87,14 @@ curl -X POST http://localhost:3000/api/slots/1/lock \
 
 ---
 
-## DELETE /api/slots/:slotId/lock
+## POST /api/revoke
 
-Revoke (release) a slot lock. Requires the lock token from the original lock.
+Revoke (release) a slot lock. Uses POST with JSON body.
 
 **Body:**
 
 ```json
-{ "lockToken": "550e8400-e29b-41d4-a716-446655440000" }
+{ "slotId": 1, "lockToken": "550e8400-e29b-41d4-a716-446655440000" }
 ```
 
 **Response 200:**
@@ -102,6 +102,8 @@ Revoke (release) a slot lock. Requires the lock token from the original lock.
 ```json
 { "ok": true, "revoked": true }
 ```
+
+`revoked: false` when the lock was not found or already expired.
 
 ---
 

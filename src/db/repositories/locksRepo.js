@@ -39,9 +39,10 @@ async function deleteLock(slotId, lockToken) {
   const pool = getPool();
   if (!pool) throw new Error('Database not configured');
 
+  const token = typeof lockToken === 'string' ? lockToken.trim() : String(lockToken || '').trim();
   const [result] = await pool.execute(
     'DELETE FROM slot_locks WHERE slot_id = ? AND lock_token = ?',
-    [slotId, lockToken]
+    [Number(slotId), token]
   );
   return result.affectedRows > 0;
 }

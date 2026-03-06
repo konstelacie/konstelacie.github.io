@@ -1,7 +1,7 @@
 const express = require('express');
 const crypto = require('crypto');
 const { asyncHandler, ApiError } = require('../../middleware/apiError');
-const { validateSlotId, validateDateRange, validateEmail, validateLockToken } = require('../../middleware/validators');
+const { validateSlotId, validateDateRange, validateEmail } = require('../../middleware/validators');
 const slotsRepo = require('../../db/repositories/slotsRepo');
 const locksRepo = require('../../db/repositories/locksRepo');
 const auditRepo = require('../../db/repositories/auditRepo');
@@ -120,21 +120,6 @@ router.post(
       lockToken,
       expiresAt: expiresAt.toISOString(),
     });
-  })
-);
-
-router.delete(
-  '/:slotId/lock',
-  asyncHandler(async (req, res) => {
-    const slotId = validateSlotId(req.params.slotId);
-    const lockToken = validateLockToken(req.body?.lockToken ?? null);
-
-    const deleted = await locksRepo.deleteLock(slotId, lockToken);
-    if (deleted) {
-      await auditRepo.log('lock_revoked', 'slot', slotId, { lockToken: lockToken.slice(0, 8) + '...' });
-    }
-
-    res.json({ ok: true, revoked: deleted });
   })
 );
 
