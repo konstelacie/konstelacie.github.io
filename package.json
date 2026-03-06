@@ -6,7 +6,8 @@
     "dev": "node --watch server.js",
     "db:migrate": "node scripts/db-migrate.js",
     "db:status": "node scripts/db-migrate.js --status",
-    "db:seed-slots": "node scripts/seed-slots.js"
+    "db:seed-slots": "node scripts/seed-slots.js",
+    "db:reset": "node scripts/db-reset.js"
   },
   "engines": {
     "node": ">=20"
