@@ -72,7 +72,8 @@ project-root/
 │   ├── POST-PAYMENT-CLIENT-JOURNEY.md  # Post-payment / post-booking flow (planning, open questions)
 │   ├── RESERVATION-SYSTEM-ARCHITECTURE.md  # Booking/reservation design
 │   ├── SESSION-PRICING.md              # Session pricing model, payment options, UX
-│   └── STRIPE-ARCHITECTURE.md          # Stripe integration (Checkout, webhooks, API)
+│   ├── STRIPE-ARCHITECTURE.md          # Stripe integration (Checkout, webhooks, API)
+│   └── EMAILING.md                     # Emailing (transactional, operator-assisted; planning, open questions)
 ├── src/
 │   ├── app.js                          # Express app, EJS config
 │   ├── config/                         # App config (database, etc.)

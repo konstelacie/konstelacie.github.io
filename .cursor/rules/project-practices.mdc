@@ -15,6 +15,7 @@ alwaysApply: true
 - **PseudoChat:** `docs/PSEUDOCHAT.md` — widget flows, API
 - **Stripe:** `docs/STRIPE-ARCHITECTURE.md` — payment integration, webhooks, API design
 - **Reservation system:** `docs/RESERVATION-SYSTEM-ARCHITECTURE.md` — booking flows, slots, API, domain model
+- **Emailing:** `docs/EMAILING.md` — transactional, operator-assisted emails; planning, open questions
 
 **Deployment:** alwaysdata (not GitHub Pages).
 
