@@ -4,11 +4,13 @@
 
 **Deployment:** We deploy on alwaysdata (not GitHub Pages).
 
+**Phase:** We are in **early dev phase**—not live yet. Testing and release flows are in `docs/STRIPE-ARCHITECTURE.md` (Section 10).
+
 ---
 
 ## Dev Phase: Data & Schema
 
-**We are not live yet.** There is no legacy data to protect.
+**We are in early dev phase.** We are not live yet. There is no legacy data to protect.
 
 | Rule | Meaning |
 |------|---------|

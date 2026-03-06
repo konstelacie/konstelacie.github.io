@@ -297,7 +297,19 @@ Attach to Checkout Session `metadata`:
 
 ---
 
-## 10. Future Extensions
+## 10. Testing & Release Phases
+
+*We are still in early dev phase.* The flow below applies once development is done.
+
+| Phase | Environment | Stripe vars | Notes |
+|-------|--------------|-------------|-------|
+| **1. Local testing** | localhost | Test keys (`sk_test_...`, `pk_test_...`). Webhook secret from `stripe listen`. | Run `stripe listen --forward-to localhost:PORT/api/stripe/webhook`. Use `stripe trigger checkout.session.completed` to test. Update `.env` with the `whsec_...` from CLI output. |
+| **2. Staging on alwaysdata** | alwaysdata (test) | Same test keys. Webhook secret from [Stripe Dashboard → Webhooks](https://dashboard.stripe.com/webhooks) → Add endpoint → `https://your-app.alwaysdata.net/api/stripe/webhook`. | Deploy code. Configure webhook in Stripe Dashboard (test mode). Test full flow end-to-end. |
+| **3. Live** | alwaysdata (prod) | Live keys (`sk_live_...`, `pk_live_...`). New webhook secret for live endpoint. | Switch env vars on alwaysdata. Add separate live webhook in Stripe Dashboard. Test with small real payment before going fully live. |
+
+---
+
+## 11. Future Extensions
 
 | Capability | Notes |
 |------------|-------|
