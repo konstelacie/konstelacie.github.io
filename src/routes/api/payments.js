@@ -31,6 +31,71 @@ function validateAmount(raw, paymentType) {
   return amount * 100; // euros → cents
 }
 
+router.get(
+  '/status',
+  asyncHandler(async (req, res) => {
+    const sessionId = req.query.session_id;
+    if (!sessionId || typeof sessionId !== 'string' || !sessionId.startsWith('cs_')) {
+      return res.status(400).json({ ok: false, error: 'Valid session_id (Stripe Checkout Session ID) required' });
+    }
+
+    const pool = getPool();
+    if (!pool) throw new ApiError('INTERNAL_ERROR', 'Database not configured', 503);
+
+    const [paymentRows] = await pool.execute(
+      `SELECT p.id, p.reservation_id, p.status AS payment_status, p.amount_cents, p.paid_at
+       FROM payments p
+       WHERE p.provider_ref = ? LIMIT 1`,
+      [sessionId]
+    );
+    const payment = paymentRows[0];
+    if (!payment) {
+      return res.status(404).json({ ok: false, error: 'Payment not found' });
+    }
+
+    let reservation = null;
+    let slot = null;
+    if (payment.reservation_id) {
+      const [resRows] = await pool.execute(
+        `SELECT r.id, r.status AS reservation_status, r.slot_id
+         FROM reservations r WHERE r.id = ?`,
+        [payment.reservation_id]
+      );
+      reservation = resRows[0];
+      if (reservation) {
+        const [slotRows] = await pool.execute(
+          'SELECT start_at, end_at, timezone FROM slots WHERE id = ?',
+          [reservation.slot_id]
+        );
+        slot = slotRows[0];
+      }
+    }
+
+    res.json({
+      ok: true,
+      payment: {
+        status: payment.payment_status,
+        amountCents: payment.amount_cents,
+        paidAt: payment.paid_at ? payment.paid_at.toISOString() : null,
+      },
+      reservation: reservation
+        ? {
+            id: reservation.id,
+            status: reservation.reservation_status,
+            slotId: reservation.slot_id,
+          }
+        : null,
+      slot: slot
+        ? {
+            startAt: slot.start_at.toISOString(),
+            endAt: slot.end_at.toISOString(),
+            timezone: slot.timezone,
+          }
+        : null,
+    });
+  })
+);
+
 router.post(
   '/start',
   asyncHandler(async (req, res) => {

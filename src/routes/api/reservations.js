@@ -7,6 +7,53 @@ const { getPool } = require('../../db');
 
 const router = express.Router();
 
+function validateReservationId(raw) {
+  const id = parseInt(raw, 10);
+  if (!Number.isInteger(id) || id <= 0) {
+    throw new ApiError('VALIDATION_ERROR', 'Reservation ID must be a positive integer', 400);
+  }
+  return id;
+}
+
+router.get(
+  '/:id/status',
+  asyncHandler(async (req, res) => {
+    const id = validateReservationId(req.params.id);
+    const pool = getPool();
+    if (!pool) throw new ApiError('INTERNAL_ERROR', 'Database not configured', 503);
+
+    const [rows] = await pool.execute(
+      `SELECT r.id, r.slot_id, r.status AS reservation_status, s.start_at, s.end_at, s.timezone
+       FROM reservations r
+       JOIN slots s ON s.id = r.slot_id
+       WHERE r.id = ?`,
+      [id]
+    );
+    const row = rows[0];
+    if (!row) {
+      throw new ApiError('NOT_FOUND', 'Reservation not found', 404);
+    }
+
+    const [paymentRows] = await pool.execute(
+      'SELECT status FROM payments WHERE reservation_id = ? ORDER BY created_at DESC LIMIT 1',
+      [id]
+    );
+    const paymentStatus = paymentRows[0]?.status ?? null;
+
+    res.json({
+      ok: true,
+      id: row.id,
+      status: row.reservation_status,
+      slotId: row.slot_id,
+      startsAt: row.start_at.toISOString(),
+      endsAt: row.end_at.toISOString(),
+      timezone: row.timezone,
+      paymentStatus: paymentStatus,
+      paymentUrl: null,
+    });
+  })
+);
+
 function validatePaymentChoice(rawPaymentType, rawAmount) {
   const paymentType = rawPaymentType === 'full' ? 'full' : 'deposit';
   if (paymentType === 'full') {

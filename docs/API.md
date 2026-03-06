@@ -205,6 +205,84 @@ Client should redirect the user to `url` (e.g. `window.location.href = data.url`
 
 ---
 
+## GET /api/payments/status
+
+Get payment and reservation status by Stripe Checkout Session ID. Used by the success page to display confirmation and poll until webhook has processed.
+
+**Query params:**
+
+- `session_id` (required): Stripe Checkout Session ID (`cs_...`) from the success URL
+
+**Example:**
+
+```bash
+curl "http://localhost:3000/api/payments/status?session_id=cs_test_..."
+```
+
+**Response 200:**
+
+```json
+{
+  "ok": true,
+  "payment": {
+    "status": "completed",
+    "amountCents": 1000,
+    "paidAt": "2026-03-05T18:10:00.000Z"
+  },
+  "reservation": {
+    "id": 1,
+    "status": "confirmed",
+    "slotId": 1
+  },
+  "slot": {
+    "startAt": "2026-03-05T18:00:00.000Z",
+    "endAt": "2026-03-05T19:00:00.000Z",
+    "timezone": "Europe/Bratislava"
+  }
+}
+```
+
+When payment is still pending (webhook not yet processed), `payment.status` is `"pending"` and `paidAt` is null.
+
+**Errors:**
+
+- 400: Missing or invalid `session_id`
+- 404: Payment not found
+
+---
+
+## GET /api/reservations/:id/status
+
+Get reservation status for polling. Returns reservation, slot, and payment status.
+
+**Example:**
+
+```bash
+curl "http://localhost:3000/api/reservations/1/status"
+```
+
+**Response 200:**
+
+```json
+{
+  "ok": true,
+  "id": 1,
+  "status": "confirmed",
+  "slotId": 1,
+  "startsAt": "2026-03-05T18:00:00.000Z",
+  "endsAt": "2026-03-05T19:00:00.000Z",
+  "timezone": "Europe/Bratislava",
+  "paymentStatus": "completed",
+  "paymentUrl": null
+}
+```
+
+**Errors:**
+
+- 404: Reservation not found
+
+---
+
 ## Seed data (optional)
 
 To create a few slots for testing:
@@ -220,6 +298,5 @@ INSERT INTO slots (start_at, end_at, timezone, status, capacity) VALUES
 
 ## Not yet implemented (details to be added when available)
 
-- `GET /api/reservations/:id/status` — reservation status polling
 - `POST /api/reservations/:id/cancel` — cancel reservation
 - Admin endpoints (e.g. slot creation)

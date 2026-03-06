@@ -20,3 +20,14 @@
 .funnel-lead {
   padding: var(--spacing-section) 0;
 }
+
+/* Success page states */
+.success-state {
+  margin-top: var(--spacing-md);
+}
+.success-details {
+  margin: var(--spacing-md) 0;
+}
+.success-detail {
+  display: inline-block;
+}

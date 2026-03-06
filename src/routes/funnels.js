@@ -47,6 +47,7 @@ router.get('/pilot/success', (req, res) => {
     title: 'Platba dokončená – Pilot',
     description: 'Ďakujeme, platba je dokončená.',
     extraStyles: '<link rel="stylesheet" href="/assets/css/funnel.css">',
+    extraScripts: '<script src="/assets/js/success-page.js"></script>',
   });
 });
 

@@ -2,7 +2,24 @@
   <section class="funnel-hero">
     <div class="container">
       <h1>Ďakujeme, platba je dokončená</h1>
-      <p class="muted">Tvoja rezervácia je potvrdená. O ďalších krokoch ťa budeme informovať e-mailom.</p>
+
+      <div id="success-loading" class="success-state">
+        <p class="muted">Potvrdzujeme tvoju platbu. Chvíľu to môže trvať…</p>
+      </div>
+
+      <div id="success-confirmed" class="success-state" hidden>
+        <p>Tvoja rezervácia je potvrdená.</p>
+        <p class="success-details">
+          <span id="success-slot" class="success-detail"></span><br>
+          <span id="success-amount" class="success-detail muted"></span>
+        </p>
+        <p class="muted">O ďalších krokoch ťa budeme informovať e-mailom.</p>
+      </div>
+
+      <div id="success-error" class="success-state" hidden>
+        <p class="muted">Nepodarilo sa načítať potvrdenie platby.</p>
+        <p id="success-error-message" class="muted"></p>
+      </div>
     </div>
   </section>
 
