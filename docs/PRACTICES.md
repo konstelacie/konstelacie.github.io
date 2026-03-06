@@ -69,6 +69,7 @@ project-root/
 │   ├── API.md                          # API reference (current endpoints)
 │   ├── DB-MIGRATIONS.md                # DB migrations, env vars, commands
 │   ├── PSEUDOCHAT.md                   # PseudoChat widget (flows, API, integration)
+│   ├── POST-PAYMENT-CLIENT-JOURNEY.md  # Post-payment / post-booking flow (planning, open questions)
 │   ├── RESERVATION-SYSTEM-ARCHITECTURE.md  # Booking/reservation design
 │   ├── SESSION-PRICING.md              # Session pricing model, payment options, UX
 │   └── STRIPE-ARCHITECTURE.md          # Stripe integration (Checkout, webhooks, API)
