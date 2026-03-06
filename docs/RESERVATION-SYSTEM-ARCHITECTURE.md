@@ -65,6 +65,7 @@
 - **Lock duration:** 15 minutes from lock creation.
 - **Lock creation:** `POST /api/slots/:slotId/lock` returns `lockToken` and `expiresAt`.
 - **Lock usage:** `lockToken` required for `POST create reservation` and `POST start payment`.
+- **Manual revoke:** `POST /api/revoke` with body `{ slotId, lockToken }` releases the lock before expiry.
 - **Unlock:** Automatic on expiry; cron cleans expired locks; reads treat expired locks as unlocked.
 
 ---
@@ -221,6 +222,11 @@ Index: `(entity_type, entity_id)`, `(created_at)`.
 - Body: `{ email?: string, userId?: number }` (one of email or userId for returning user).
 - Response: `{ lockToken, expiresAt, slotId }`.
 - Errors: 400 (slot invalid), 409 (slot locked or reserved).
+
+**POST /api/revoke**
+- Body: `{ slotId, lockToken }`.
+- Response: `{ ok, revoked }`. `revoked: false` when lock not found or expired.
+- Errors: 400 (invalid params).
 
 **GET /api/reservations/:id/status**
 - Query: `lockToken` (optional, for pending).
