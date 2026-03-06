@@ -87,16 +87,18 @@ Bookable time slots. Admin-created. See `docs/RESERVATION-SYSTEM-ARCHITECTURE.md
 
 Links user + slot. Created after lock, before payment. See `docs/RESERVATION-SYSTEM-ARCHITECTURE.md` for flows.
 
-| Column     | Type         | Description                                                       |
-|------------|--------------|-------------------------------------------------------------------|
-| id         | PK           | Auto-increment                                                    |
-| slot_id    | FK → slots   | NOT NULL                                                          |
-| user_id    | FK → users   | NULL                                                              |
-| email      | VARCHAR(255) | NOT NULL                                                          |
-| status     | ENUM         | draft, pending_payment, confirmed, cancelled, expired             |
-| lock_token | CHAR(36)     | NULL (stored for traceability)                                    |
-| created_at | DATETIME(3)  |                                                                   |
-| updated_at | DATETIME(3)  |                                                                   |
+| Column       | Type         | Description                                                       |
+|--------------|--------------|-------------------------------------------------------------------|
+| id           | PK           | Auto-increment                                                    |
+| slot_id      | FK → slots   | NOT NULL                                                          |
+| user_id      | FK → users   | NULL                                                              |
+| email        | VARCHAR(255) | NOT NULL                                                          |
+| status       | ENUM         | draft, pending_payment, confirmed, cancelled, expired             |
+| payment_type | ENUM         | deposit, full — user's payment choice at creation                 |
+| lock_token   | CHAR(36)     | NULL (stored for traceability)                                    |
+| cancelled_at | DATETIME(3)  | NULL. Set when status = cancelled                                |
+| created_at   | DATETIME(3)  |                                                                   |
+| updated_at   | DATETIME(3)  |                                                                   |
 
 **Indexes:** `(email, created_at)`, `(slot_id)`, `(status, created_at)`.
 

@@ -2,7 +2,7 @@
 
 **For AI assistants (Cursor, Copilot, etc.):** This document defines the technical architecture for the booking/reservation system. Use it when implementing slots, reservations, payments, or admin. Do not duplicate pricing or Stripe logic—see `docs/SESSION-PRICING.md` and `docs/STRIPE-ARCHITECTURE.md`.
 
-**Schema source of truth:** `src/db/migrations/001_initial.sql`. For full schema reference (tables, columns, indexes, relationships), see `docs/DB-SCHEMA.md`. The domain model in sections 3–4 describes the target design; implemented schema may differ.
+**Schema source of truth:** `src/db/migrations/001_initial.sql`. For full schema reference (tables, columns, indexes, relationships), see `docs/DB-SCHEMA.md`. Sections 3–4 describe the domain model and schema; they match the implementation.
 
 ---
 
@@ -88,38 +88,38 @@
 ### Key fields
 
 **User**
-- `id`, `email` (unique), `name` (nullable), `is_guest` (boolean), `created_at`, `updated_at`.
+- `id`, `email` (unique), `name` (nullable), `created_at`, `updated_at`.
 
 **Slot**
-- `id`, `starts_at` (TIMESTAMP), `ends_at` (TIMESTAMP), `status` (available | reserved | completed | cancelled), `created_at`, `updated_at`.
+- `id`, `start_at` (DATETIME), `end_at` (DATETIME), `timezone`, `status` (open | blocked | cancelled), `capacity`, `created_at`, `updated_at`.
 
 **SlotLock**
-- `id`, `slot_id` (FK), `lock_token` (unique, UUID), `email` (nullable), `user_id` (nullable), `expires_at` (TIMESTAMP), `created_at`.
+- `id`, `slot_id` (FK), `lock_token` (unique, UUID), `email` (nullable), `expires_at` (DATETIME), `created_at`.
 
 **Reservation**
-- `id`, `slot_id` (FK), `user_id` (FK), `status` (pending | confirmed | cancelled | completed), `payment_type` (deposit | full), `lock_token_used` (nullable), `created_at`, `updated_at`, `cancelled_at` (nullable).
+- `id`, `slot_id` (FK), `user_id` (FK, nullable), `email`, `status` (draft | pending_payment | confirmed | cancelled | expired), `payment_type` (deposit | full), `lock_token` (nullable), `cancelled_at` (nullable), `created_at`, `updated_at`.
 
 **Payment**
-- Per `docs/STRIPE-ARCHITECTURE.md`: `id`, `user_id`, `session_id` (→ reservations), `stripe_session_id`, `payment_type`, `amount`, `currency`, `status`, `created_at`, `paid_at`.
+- Per `docs/DB-SCHEMA.md`: `id`, `user_id`, `reservation_id`, `provider`, `provider_ref` (Stripe session ID), `payment_type` (deposit | session | topup), `amount_cents`, `currency`, `status`, `paid_at`, `created_at`, `updated_at`.
 
 **AuditLog**
-- `id`, `action` (string), `entity_type`, `entity_id`, `actor_type` (user | admin | system), `actor_id` (nullable), `payload_json` (JSON), `ip` (nullable), `created_at`.
+- `id`, `action`, `entity_type`, `entity_id`, `actor_type` (anon | user | admin | system), `actor_id` (nullable), `payload_json`, `ip`, `user_agent`, `created_at`.
 
 **AdminUser**
 - `id`, `email`, `password_hash`, `created_at`, `last_login_at` (nullable).
 
 ### Indexes
-- `slots`: `(starts_at)`, `(status, starts_at)`.
+- `slots`: `(start_at)`, `(status, start_at)`.
 - `slot_locks`: `(slot_id)`, `(lock_token)` unique, `(expires_at)`.
-- `reservations`: `(slot_id)`, `(user_id)`, `(status)`.
-- `payments`: `(user_id)`, `(stripe_session_id)` unique.
-- `audit_logs`: `(entity_type, entity_id)`, `(created_at)`.
+- `reservations`: `(slot_id)`, `(email, created_at)`, `(status, created_at)`.
+- `payments`: `(reservation_id)`, `(user_id)`, UNIQUE `(provider_ref)`.
+- `audit_logs`: `(action, created_at)`, `(entity_type, entity_id)`.
 
 ### Enums
-- **Slot status:** `available`, `reserved`, `completed`, `cancelled`.
+- **Slot status:** `open`, `blocked`, `cancelled`.
 - **SlotLock:** no status; validity by `expires_at`.
-- **Reservation status:** `pending`, `confirmed`, `cancelled`, `completed`.
-- **Payment status:** `pending`, `paid`, `failed`, `expired`, `refunded` (per Stripe doc).
+- **Reservation status:** `draft`, `pending_payment`, `confirmed`, `cancelled`, `expired`.
+- **Payment status:** `pending`, `completed`, `failed`, `expired`, `refunded` (per Stripe doc).
 
 ---
 
@@ -137,21 +137,22 @@
 | id | BIGINT UNSIGNED AUTO_INCREMENT | PK |
 | email | VARCHAR(255) | NOT NULL, UNIQUE |
 | name | VARCHAR(255) | NULL |
-| is_guest | TINYINT(1) DEFAULT 0 | |
-| created_at | TIMESTAMP DEFAULT CURRENT_TIMESTAMP | |
-| updated_at | TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE | |
+| created_at | DATETIME(3) | DEFAULT CURRENT_TIMESTAMP |
+| updated_at | DATETIME(3) | ON UPDATE CURRENT_TIMESTAMP |
 
 **slots**
 | Column | Type | Constraints |
 |--------|------|-------------|
 | id | BIGINT UNSIGNED AUTO_INCREMENT | PK |
-| starts_at | TIMESTAMP | NOT NULL, INDEX |
-| ends_at | TIMESTAMP | NOT NULL |
-| status | ENUM('available','reserved','completed','cancelled') DEFAULT 'available' | INDEX |
-| created_at | TIMESTAMP | |
-| updated_at | TIMESTAMP | |
+| start_at | DATETIME(3) | NOT NULL, INDEX |
+| end_at | DATETIME(3) | NOT NULL |
+| timezone | VARCHAR(64) | DEFAULT 'Europe/Bratislava' |
+| status | ENUM('open','blocked','cancelled') DEFAULT 'open' | INDEX |
+| capacity | INT | DEFAULT 1 |
+| created_at | DATETIME(3) | |
+| updated_at | DATETIME(3) | |
 
-Index: `(status, starts_at)` for availability queries.
+Index: `(status, start_at)` for availability queries.
 
 **slot_locks**
 | Column | Type | Constraints |
@@ -160,9 +161,8 @@ Index: `(status, starts_at)` for availability queries.
 | slot_id | BIGINT UNSIGNED | NOT NULL, FK → slots(id), ON DELETE CASCADE |
 | lock_token | CHAR(36) | NOT NULL, UNIQUE |
 | email | VARCHAR(255) | NULL |
-| user_id | BIGINT UNSIGNED | NULL, FK → users(id) |
-| expires_at | TIMESTAMP | NOT NULL, INDEX |
-| created_at | TIMESTAMP | |
+| expires_at | DATETIME(3) | NOT NULL, INDEX |
+| created_at | DATETIME(3) | |
 
 Index: `(expires_at)` for cleanup.
 
@@ -171,33 +171,35 @@ Index: `(expires_at)` for cleanup.
 |--------|------|-------------|
 | id | BIGINT UNSIGNED AUTO_INCREMENT | PK |
 | slot_id | BIGINT UNSIGNED | NOT NULL, FK → slots(id) |
-| user_id | BIGINT UNSIGNED | NOT NULL, FK → users(id) |
-| status | ENUM('pending','confirmed','cancelled','completed') DEFAULT 'pending' | INDEX |
-| payment_type | ENUM('deposit','full') | NOT NULL |
-| lock_token_used | CHAR(36) | NULL |
-| created_at | TIMESTAMP | |
-| updated_at | TIMESTAMP | |
-| cancelled_at | TIMESTAMP | NULL |
+| user_id | BIGINT UNSIGNED | NULL, FK → users(id) |
+| email | VARCHAR(255) | NOT NULL |
+| status | ENUM('draft','pending_payment','confirmed','cancelled','expired') DEFAULT 'draft' | INDEX |
+| payment_type | ENUM('deposit','full') | NOT NULL DEFAULT 'deposit' |
+| lock_token | CHAR(36) | NULL |
+| cancelled_at | DATETIME(3) | NULL |
+| created_at | DATETIME(3) | |
+| updated_at | DATETIME(3) | |
 
-Unique: `(slot_id)` where status IN ('pending','confirmed') — one active reservation per slot.
+Unique: `(slot_id)` where status IN ('pending_payment','confirmed') — one active reservation per slot.
 
 **payments**
-- Per `docs/STRIPE-ARCHITECTURE.md`; `session_id` maps to `reservations.id`.
+- Per `docs/DB-SCHEMA.md`; `reservation_id` maps to `reservations.id`; `provider_ref` stores Stripe session ID.
 
 **audit_logs**
 | Column | Type | Constraints |
 |--------|------|-------------|
 | id | BIGINT UNSIGNED AUTO_INCREMENT | PK |
-| action | VARCHAR(64) | NOT NULL |
-| entity_type | VARCHAR(32) | NOT NULL |
-| entity_id | BIGINT UNSIGNED | NULL |
-| actor_type | ENUM('user','admin','system') | |
+| actor_type | ENUM('anon','user','admin','system') | DEFAULT 'system' |
 | actor_id | BIGINT UNSIGNED | NULL |
-| payload_json | JSON | NULL |
+| action | VARCHAR(100) | NOT NULL |
+| entity_type | VARCHAR(50) | NULL |
+| entity_id | BIGINT UNSIGNED | NULL |
 | ip | VARCHAR(45) | NULL |
-| created_at | TIMESTAMP | |
+| user_agent | VARCHAR(255) | NULL |
+| payload_json | JSON | NULL |
+| created_at | DATETIME(3) | |
 
-Index: `(entity_type, entity_id)`, `(created_at)`.
+Index: `(action, created_at)`, `(entity_type, entity_id)`.
 
 **admin_users**
 | Column | Type | Constraints |
@@ -216,7 +218,7 @@ Index: `(entity_type, entity_id)`, `(created_at)`.
 
 **GET /api/slots**
 - Query: `from` (ISO date), `to` (ISO date), `timezone` (optional, default Europe/Bratislava).
-- Response: `{ slots: [{ id, startsAt, endsAt, status, isLocked? }] }`.
+- Response: `{ slots: [{ id, startAt, endAt, status, isLocked? }] }`.
 - Errors: 400 (invalid params).
 
 **POST /api/slots/:slotId/lock**
