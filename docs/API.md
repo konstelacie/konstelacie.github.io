@@ -151,6 +151,60 @@ curl -X POST http://localhost:3000/api/reservations \
 
 ---
 
+## POST /api/payments/start
+
+Create a Stripe Checkout Session for a pending reservation. Returns the Stripe-hosted payment URL for redirect. See `docs/STRIPE-ARCHITECTURE.md` and `docs/SESSION-PRICING.md`.
+
+**Body:**
+
+```json
+{
+  "reservationId": 1,
+  "paymentType": "deposit",
+  "amount": null
+}
+```
+
+- `reservationId` (required): Positive integer — reservation ID from `POST /api/reservations`.
+- `paymentType` (required): `"deposit"` or `"full"` — must match the reservation.
+- `amount` (required when `paymentType` is `"full"`): Integer in euros, minimum 45.
+
+**Example (deposit):**
+
+```bash
+curl -X POST http://localhost:3000/api/payments/start \
+  -H "Content-Type: application/json" \
+  -d '{"reservationId":1,"paymentType":"deposit"}'
+```
+
+**Example (full payment):**
+
+```bash
+curl -X POST http://localhost:3000/api/payments/start \
+  -H "Content-Type: application/json" \
+  -d '{"reservationId":1,"paymentType":"full","amount":85}'
+```
+
+**Response 200:**
+
+```json
+{
+  "ok": true,
+  "url": "https://checkout.stripe.com/c/pay/cs_..."
+}
+```
+
+Client should redirect the user to `url` (e.g. `window.location.href = data.url`).
+
+**Errors:**
+
+- 400: `VALIDATION_ERROR` — invalid body, amount &lt; 45 when full, or paymentType mismatch.
+- 404: `NOT_FOUND` — reservation not found.
+- 409: `CONFLICT` — reservation not pending payment, or payment already in progress.
+- 503: `INTERNAL_ERROR` — Stripe or database not configured.
+
+---
+
 ## Seed data (optional)
 
 To create a few slots for testing:
@@ -168,5 +222,4 @@ INSERT INTO slots (start_at, end_at, timezone, status, capacity) VALUES
 
 - `GET /api/reservations/:id/status` — reservation status polling
 - `POST /api/reservations/:id/cancel` — cancel reservation
-- Payment endpoints (Stripe checkout)
 - Admin endpoints (e.g. slot creation)
