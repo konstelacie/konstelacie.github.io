@@ -7,13 +7,26 @@ const { getPool } = require('../../db');
 
 const router = express.Router();
 
+function validatePaymentChoice(rawPaymentType, rawAmount) {
+  const paymentType = rawPaymentType === 'full' ? 'full' : 'deposit';
+  if (paymentType === 'full') {
+    const amount = parseInt(rawAmount, 10);
+    if (!Number.isInteger(amount) || amount < 45) {
+      throw new ApiError('VALIDATION_ERROR', 'amount must be at least 45 when paymentType is full', 400);
+    }
+    return { paymentType, amount };
+  }
+  return { paymentType, amount: null };
+}
+
 router.post(
   '/',
   asyncHandler(async (req, res) => {
-    const { slotId: rawSlotId, lockToken: rawLockToken, email: rawEmail } = req.body ?? {};
+    const { slotId: rawSlotId, lockToken: rawLockToken, email: rawEmail, paymentType: rawPaymentType, amount: rawAmount } = req.body ?? {};
     const slotId = validateSlotId(rawSlotId);
     const lockToken = validateLockToken(rawLockToken);
     const email = validateEmail(rawEmail, true);
+    const { paymentType, amount } = validatePaymentChoice(rawPaymentType, rawAmount);
 
     const pool = getPool();
     if (!pool) throw new Error('Database not configured');
@@ -75,8 +88,8 @@ router.post(
       }
 
       const [insRes] = await conn.execute(
-        "INSERT INTO reservations (slot_id, user_id, email, status, lock_token) VALUES (?, ?, ?, 'pending_payment', ?)",
-        [slotId, userId, email, lockToken]
+        'INSERT INTO reservations (slot_id, user_id, email, status, payment_type, lock_token) VALUES (?, ?, ?, \'pending_payment\', ?, ?)',
+        [slotId, userId, email, paymentType, lockToken]
       );
       reservationId = insRes.insertId;
 

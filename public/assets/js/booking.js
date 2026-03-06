@@ -232,6 +232,7 @@
       clearStoredLock();
       $('booking-hold-banner').hidden = true;
       $('booking-email-form').hidden = true;
+      $('booking-payment-choice').hidden = true;
       updateDayNavState();
       loadSlots();
     }
@@ -263,6 +264,7 @@
         clearStoredLock();
         $('booking-hold-banner').hidden = true;
         $('booking-email-form').hidden = true;
+        $('booking-payment-choice').hidden = true;
         updateDayNavState();
         loadSlots();
       }
@@ -314,22 +316,49 @@
     return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email || '');
   }
 
-  async function submitReservation(email) {
-    const submitBtn = $('booking-submit-btn');
+  function showPaymentChoice() {
+    $('booking-email-form').hidden = true;
+    $('booking-payment-choice').hidden = false;
+    $('booking-payment-error').hidden = true;
+  }
+
+  function showEmailForm() {
+    $('booking-payment-choice').hidden = true;
+    $('booking-email-form').hidden = false;
+  }
+
+  function getPaymentChoice() {
+    const path = document.querySelector('input[name="paymentPath"]:checked')?.value;
+    if (path === 'deposit') return { paymentType: 'deposit', amount: null };
+    const fullAmount = document.querySelector('input[name="fullAmount"]:checked')?.value;
+    let amount = 45;
+    if (fullAmount === 'custom') {
+      const custom = parseInt($('booking-custom-amount').value, 10);
+      amount = isNaN(custom) ? 45 : Math.max(45, custom);
+    } else if (fullAmount) {
+      amount = parseInt(fullAmount, 10) || 45;
+    }
+    return { paymentType: 'full', amount };
+  }
+
+  async function submitReservation(email, paymentType, amount) {
+    const submitBtn = $('booking-payment-submit');
     submitBtn.disabled = true;
-    $('booking-email-error').hidden = true;
+    $('booking-payment-error').hidden = true;
 
     try {
+      const body = { slotId: lockedSlotId, lockToken, email, paymentType };
+      if (paymentType === 'full') body.amount = amount;
       const res = await fetch('/api/reservations', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ slotId: lockedSlotId, lockToken, email }),
+        body: JSON.stringify(body),
       });
       const data = await res.json();
 
       if (!res.ok) {
-        $('booking-email-error').textContent = userMessage(data.error);
-        $('booking-email-error').hidden = false;
+        $('booking-payment-error').textContent = userMessage(data.error);
+        $('booking-payment-error').hidden = false;
         submitBtn.disabled = false;
         return;
       }
@@ -345,14 +374,15 @@
 
       $('booking-hold-banner').hidden = true;
       $('booking-email-form').hidden = true;
+      $('booking-payment-choice').hidden = true;
       $('booking-success').hidden = false;
       $('booking-success-status').textContent = data.reservation?.status || 'pending_payment';
       $('booking-success-id').textContent = data.reservation?.id || '';
 
       loadSlots();
     } catch (e) {
-      $('booking-email-error').textContent = 'Niečo sa pokazilo. Skús neskôr.';
-      $('booking-email-error').hidden = false;
+      $('booking-payment-error').textContent = 'Niečo sa pokazilo. Skús neskôr.';
+      $('booking-payment-error').hidden = false;
       submitBtn.disabled = false;
     }
   }
@@ -443,8 +473,36 @@
         $('booking-email-error').hidden = false;
         return;
       }
-      submitReservation(email);
+      $('booking-email-error').hidden = true;
+      showPaymentChoice();
     });
+
+    const paymentForm = $('booking-payment-form');
+    const paymentBackBtn = $('booking-payment-back');
+    if (paymentForm) {
+      paymentForm.addEventListener('submit', (e) => {
+        e.preventDefault();
+        const email = $('booking-email').value.trim();
+        const { paymentType, amount } = getPaymentChoice();
+        if (paymentType === 'full' && amount < 45) {
+          $('booking-payment-error').textContent = 'Minimálna suma pri plnej platbe je 45 €.';
+          $('booking-payment-error').hidden = false;
+          return;
+        }
+        submitReservation(email, paymentType, amount);
+      });
+    }
+    if (paymentBackBtn) {
+      paymentBackBtn.addEventListener('click', showEmailForm);
+    }
+
+    const customAmountInput = $('booking-custom-amount');
+    if (customAmountInput) {
+      customAmountInput.addEventListener('change', () => {
+        const customRadio = document.getElementById('full-amount-custom');
+        if (customRadio) customRadio.checked = true;
+      });
+    }
 
     loadSlots();
   }

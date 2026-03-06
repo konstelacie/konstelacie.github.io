@@ -109,9 +109,9 @@ Revoke (release) a slot lock. Uses POST with JSON body.
 
 ## POST /api/reservations
 
-Create a reservation from a valid lock. Target API includes `paymentType` and `amount`; current implementation may not yet support payment choice—see `docs/RESERVATION-SYSTEM-ARCHITECTURE.md` §5.
+Create a reservation from a valid lock. Requires `paymentType` and `amount` when `paymentType` is `full`. See `docs/SESSION-PRICING.md` for amounts.
 
-**Body (target):**
+**Body:**
 
 ```json
 {
@@ -123,9 +123,8 @@ Create a reservation from a valid lock. Target API includes `paymentType` and `a
 }
 ```
 
-For full payment: `"paymentType": "full"`, `"amount"` required (min 45 €). For reservation: `"paymentType": "deposit"`, `"amount"` omitted.
-
-**Body (current implementation):** `{ slotId, lockToken, email }` — payment choice not yet implemented.
+- For reservation: `"paymentType": "deposit"`, `"amount"` omitted.
+- For full payment: `"paymentType": "full"`, `"amount"` required (min 45, in euros).
 
 **Example:**
 

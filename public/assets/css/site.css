@@ -271,3 +271,143 @@ a:hover {
   border: 1px solid var(--color-border);
   border-radius: 4px;
 }
+
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* Payment choice step */
+.booking-payment-choice {
+  margin: var(--spacing-section) 0;
+}
+
+.booking-payment-intro {
+  margin-bottom: var(--spacing-md);
+  color: var(--color-text-secondary);
+}
+
+.booking-payment-form fieldset {
+  border: none;
+  padding: 0;
+  margin: 0;
+}
+
+.booking-payment-options {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-md);
+}
+
+.booking-payment-option {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--spacing-sm);
+  padding: var(--spacing-md);
+  border: 1px solid var(--color-border);
+  border-radius: 4px;
+  cursor: pointer;
+  background: var(--color-bg);
+}
+
+.booking-payment-option:hover {
+  border-color: var(--color-primary);
+  background: rgba(15, 23, 42, 0.02);
+}
+
+.booking-payment-option input[type="radio"]:checked + .booking-payment-option-content {
+  font-weight: 500;
+}
+
+.booking-payment-option:has(input:checked) {
+  border-color: var(--color-primary);
+  background: rgba(15, 23, 42, 0.04);
+}
+
+.booking-payment-option-content {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  flex: 1;
+}
+
+.booking-payment-desc {
+  font-size: 0.9rem;
+  color: var(--color-text-secondary);
+}
+
+.booking-payment-amount {
+  display: block;
+  margin-top: 0.25rem;
+  font-weight: 600;
+}
+
+.booking-payment-amounts {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin-top: var(--spacing-sm);
+  padding-left: 1.5rem;
+}
+
+.booking-amount-opt {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  cursor: pointer;
+  font-size: 0.95rem;
+}
+
+.booking-amount-opt input[type="radio"] {
+  margin: 0;
+}
+
+.booking-amount-recommended {
+  font-weight: 500;
+}
+
+.booking-custom-amount-input {
+  width: 4rem;
+  padding: 0.25rem 0.5rem;
+  border: 1px solid var(--color-border);
+  border-radius: 4px;
+  font-size: 1rem;
+}
+
+.booking-payment-amounts {
+  display: none;
+}
+
+.booking-payment-option:has(#payment-full:checked) .booking-payment-amounts {
+  display: flex;
+}
+
+.booking-payment-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--spacing-sm);
+  margin-top: var(--spacing-md);
+}
+
+.booking-back-btn {
+  padding: 0.5rem 1rem;
+  font-size: 0.9rem;
+  color: var(--color-text-muted);
+  background: none;
+  border: 1px solid var(--color-border);
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.booking-back-btn:hover {
+  color: var(--color-text);
+  border-color: var(--color-text-muted);
+}

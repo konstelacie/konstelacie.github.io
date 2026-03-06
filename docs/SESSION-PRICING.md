@@ -71,7 +71,7 @@ Users may select one of several suggested options or enter their own amount.
 | 85 € | recommended amount |
 | 105 € | supportive amount |
 
-**Custom amount:** Allowed, with a minimum of 45 €.
+**Custom amount:** Allowed, with a minimum of 45 €. When the user selects custom, the input defaults to 125 €.
 
 **UI copy:**
 
@@ -99,7 +99,7 @@ Users may optionally contribute more.
 | 85 € | recommended amount |
 | 105 € | supportive amount |
 
-**Custom amount:** Allowed.
+**Custom amount:** Allowed. When the user selects custom, the input defaults to 125 €.
 
 ---
 
