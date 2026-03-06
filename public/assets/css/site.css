@@ -132,7 +132,7 @@ a:hover {
   margin-top: var(--spacing-footer);
 }
 
-/* Booking page (/rezervacia/) */
+/* Booking (embedded in pilot funnel) */
 .booking-date-row {
   display: flex;
   align-items: center;

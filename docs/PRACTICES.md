@@ -77,7 +77,7 @@ project-root/
 │   ├── middleware/
 │   ├── routes/
 │   │   ├── api/                        # /api/slots, /api/reservations
-│   │   ├── booking.js                  # /rezervacia/
+│   │   ├── booking.js                  # Embedded in pilot funnel
 │   │   ├── funnels.js                  # /funnels/*
 │   │   ├── health.js                   # /health
 │   │   ├── index.js                    # /
@@ -86,7 +86,6 @@ project-root/
 │       ├── layouts/                    # default.ejs
 │       ├── partials/                   # header.ejs, footer.ejs
 │       ├── index.ejs                   # Home page
-│       ├── booking.ejs                  # Booking page (route: /rezervacia/)
 │       └── funnels/                    # views/funnels/{name}.ejs
 ├── public/assets/
 │   ├── css/                            # site.css, funnel.css, pseudochat.css
@@ -100,7 +99,7 @@ project-root/
 - **`/`** – Home page (`views/index.ejs`)
 - **`/assets/`** – Static assets from `public/assets/`
 - **`/funnels/{name}/`** – Funnel pages (`views/funnels/{name}.ejs`)
-- **`/rezervacia/`** – Booking page (`views/booking.ejs`, `public/assets/js/booking.js`)
+- **Booking** – Embedded in pilot funnel; CTA "Rezervovať sedenie" reveals form inline (`public/assets/js/booking.js`)
 
 New funnels: add `views/funnels/{name}.ejs`, register in `routes/funnels.js`, update `sitemap.xml`.
 

@@ -87,6 +87,7 @@
     const loading = $('booking-slots-loading');
     const empty = $('booking-slots-empty');
     const err = $('booking-slots-error');
+    if (!list || !loading || !empty || !err) return;
 
     loading.hidden = true;
     err.hidden = true;
@@ -125,14 +126,20 @@
   }
 
   async function loadSlots() {
-    selectedDate = $('booking-date').value;
+    const dateEl = $('booking-date');
+    const loadingEl = $('booking-slots-loading');
+    if (!dateEl || !loadingEl) return;
+    selectedDate = dateEl.value;
     const from = parseQueryFrom();
     const to = getMaxDate();
 
-    $('booking-slots-loading').hidden = false;
-    $('booking-slots-list').hidden = true;
-    $('booking-slots-empty').hidden = true;
-    $('booking-slots-error').hidden = true;
+    loadingEl.hidden = false;
+    const listEl = $('booking-slots-list');
+    const emptyEl = $('booking-slots-empty');
+    const errEl = $('booking-slots-error');
+    if (listEl) listEl.hidden = true;
+    if (emptyEl) emptyEl.hidden = true;
+    if (errEl) errEl.hidden = true;
 
     try {
       const data = await fetchSlots(from, to);
@@ -256,15 +263,33 @@
   }
 
   function init() {
-    const fromParam = parseQueryFrom();
     const dateInput = $('booking-date');
+    if (!dateInput) return;
+
+    if (location.hash === '#booking') {
+      document.getElementById('booking-section')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      history.replaceState(null, '', location.pathname + location.search);
+    }
+    window.addEventListener('pseudochat:option_clicked', (e) => {
+      if (e.detail?.optionId === 'termin') {
+        document.getElementById('booking-section')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }
+    });
+
+    const fromParam = parseQueryFrom();
     dateInput.min = getMinDate();
     dateInput.max = getMaxDate();
     dateInput.value = fromParam;
 
     dateInput.addEventListener('change', loadSlots);
 
-    $('booking-prev-day').addEventListener('click', () => {
+    const prevBtn = $('booking-prev-day');
+    const nextBtn = $('booking-next-day');
+    const slotsList = $('booking-slots-list');
+    const emailForm = $('booking-email-form');
+    if (!prevBtn || !nextBtn || !slotsList || !emailForm) return;
+
+    prevBtn.addEventListener('click', () => {
       const d = new Date(dateInput.value);
       d.setDate(d.getDate() - 1);
       const next = formatDateForInput(d);
@@ -272,7 +297,7 @@
       loadSlots();
     });
 
-    $('booking-next-day').addEventListener('click', () => {
+    nextBtn.addEventListener('click', () => {
       const d = new Date(dateInput.value);
       d.setDate(d.getDate() + 1);
       const next = formatDateForInput(d);
@@ -280,14 +305,14 @@
       loadSlots();
     });
 
-    $('booking-slots-list').addEventListener('click', (e) => {
+    slotsList.addEventListener('click', (e) => {
       const btn = e.target.closest('.booking-slot');
       if (btn && !btn.disabled && btn.dataset.slotId) {
         lockSlot(Number(btn.dataset.slotId));
       }
     });
 
-    $('booking-email-form').addEventListener('submit', (e) => {
+    emailForm.addEventListener('submit', (e) => {
       e.preventDefault();
       const email = $('booking-email').value.trim();
       if (!validateEmail(email)) {
