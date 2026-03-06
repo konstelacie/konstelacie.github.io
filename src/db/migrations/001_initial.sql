@@ -69,7 +69,7 @@ CREATE TABLE reservations (
   CONSTRAINT fk_reservations_user FOREIGN KEY (user_id) REFERENCES users(id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- payments: generic (no Stripe integration yet)
+-- payments: Stripe Checkout integration (provider_ref = cs_... for Stripe; UNIQUE for V1)
 CREATE TABLE payments (
   id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
   user_id BIGINT UNSIGNED NULL,
@@ -79,15 +79,24 @@ CREATE TABLE payments (
   payment_type ENUM('deposit','session','topup') NOT NULL,
   amount_cents INT NOT NULL,
   currency CHAR(3) NOT NULL DEFAULT 'eur',
-  status ENUM('pending','completed','failed','refunded') NOT NULL DEFAULT 'pending',
+  status ENUM('pending','completed','failed','expired','refunded') NOT NULL DEFAULT 'pending',
+  paid_at DATETIME(3) NULL,
   created_at DATETIME(3) DEFAULT CURRENT_TIMESTAMP(3),
   updated_at DATETIME(3) DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3),
   INDEX idx_payments_reservation (reservation_id),
   INDEX idx_payments_user (user_id),
   INDEX idx_payments_provider_ref (provider, provider_ref),
+  UNIQUE INDEX idx_payments_stripe_session (provider_ref),
   INDEX idx_payments_status_created (status, created_at),
   CONSTRAINT fk_payments_user FOREIGN KEY (user_id) REFERENCES users(id),
   CONSTRAINT fk_payments_reservation FOREIGN KEY (reservation_id) REFERENCES reservations(id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- webhook_events: idempotency for Stripe webhooks (evt_...)
+CREATE TABLE webhook_events (
+  id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  stripe_event_id VARCHAR(255) NOT NULL UNIQUE,
+  processed_at DATETIME(3) DEFAULT CURRENT_TIMESTAMP(3)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- audit_logs: minimal
