@@ -1,7 +1,7 @@
 const express = require('express');
 const crypto = require('crypto');
 const { asyncHandler, ApiError } = require('../../middleware/apiError');
-const { validateSlotId, validateDateRange, validateEmail } = require('../../middleware/validators');
+const { validateSlotId, validateDateRange, validateEmail, validateLockToken } = require('../../middleware/validators');
 const slotsRepo = require('../../db/repositories/slotsRepo');
 const locksRepo = require('../../db/repositories/locksRepo');
 const auditRepo = require('../../db/repositories/auditRepo');
@@ -13,13 +13,16 @@ const LOCK_DURATION_MS = 15 * 60 * 1000;
 router.get(
   '/',
   asyncHandler(async (req, res) => {
-    const { from, to } = req.query;
+    const { from, to, lockToken: clientLockToken } = req.query;
     const { from: f, to: t } = validateDateRange(from, to);
 
     const rows = await slotsRepo.listSlotsWithLocks(f, t);
 
+    const clientToken = typeof clientLockToken === 'string' ? clientLockToken.trim() : null;
     const slots = rows.map((r) => {
       const hasLock = r.lock_id != null;
+      const rowToken = r.lock_token != null ? String(r.lock_token).trim() : null;
+      const isMyLock = hasLock && clientToken && rowToken && rowToken === clientToken;
       return {
         id: r.id,
         startAt: r.start_at.toISOString(),
@@ -28,6 +31,7 @@ router.get(
         status: r.status,
         capacity: r.capacity,
         isLocked: hasLock,
+        isMyLock: !!isMyLock,
         lockExpiresAt: hasLock ? r.lock_expires_at.toISOString() : null,
       };
     });
@@ -116,6 +120,21 @@ router.post(
       lockToken,
       expiresAt: expiresAt.toISOString(),
     });
+  })
+);
+
+router.delete(
+  '/:slotId/lock',
+  asyncHandler(async (req, res) => {
+    const slotId = validateSlotId(req.params.slotId);
+    const lockToken = validateLockToken(req.body?.lockToken ?? null);
+
+    const deleted = await locksRepo.deleteLock(slotId, lockToken);
+    if (deleted) {
+      await auditRepo.log('lock_revoked', 'slot', slotId, { lockToken: lockToken.slice(0, 8) + '...' });
+    }
+
+    res.json({ ok: true, revoked: deleted });
   })
 );
 

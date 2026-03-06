@@ -13,6 +13,51 @@
 
   const $ = (id) => document.getElementById(id);
 
+  const STORAGE_KEY = 'booking_lock';
+
+  function storeLock() {
+    try {
+      sessionStorage.setItem(STORAGE_KEY, JSON.stringify({
+        lockToken,
+        lockedSlotId,
+        expiresAt,
+        lockedSlotDate: selectedDate,
+      }));
+    } catch (_) {}
+  }
+
+  function clearStoredLock() {
+    try {
+      sessionStorage.removeItem(STORAGE_KEY);
+    } catch (_) {}
+  }
+
+  function getStoredLock() {
+    try {
+      const raw = sessionStorage.getItem(STORAGE_KEY);
+      if (!raw) return null;
+      const data = JSON.parse(raw);
+      if (!data.lockToken || !data.lockedSlotId || !data.expiresAt) return null;
+      if (new Date(data.expiresAt).getTime() <= Date.now()) {
+        clearStoredLock();
+        return null;
+      }
+      return data;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  function updateDayNavState() {
+    const disabled = !!lockToken;
+    const prevBtn = $('booking-prev-day');
+    const nextBtn = $('booking-next-day');
+    const dateInput = $('booking-date');
+    if (prevBtn) prevBtn.disabled = disabled;
+    if (nextBtn) nextBtn.disabled = disabled;
+    if (dateInput) dateInput.disabled = disabled;
+  }
+
   function formatTimeLocal(iso) {
     const d = new Date(iso);
     return new Intl.DateTimeFormat('sk-SK', {
@@ -65,8 +110,10 @@
     return ERROR_MESSAGES[code] || ERROR_MESSAGES.INTERNAL_ERROR;
   }
 
-  async function fetchSlots(from, to) {
-    const res = await fetch(`/api/slots?from=${from}&to=${to}`);
+  async function fetchSlots(from, to, token = null, signal = null) {
+    let url = `/api/slots?from=${from}&to=${to}`;
+    if (token) url += `&lockToken=${encodeURIComponent(token)}`;
+    const res = await fetch(url, { signal: signal || undefined });
     const data = await res.json();
     if (!res.ok) throw new Error(data.error || 'API_ERROR');
     return data;
@@ -93,6 +140,7 @@
     err.hidden = true;
 
     if (!slots || slots.length === 0) {
+      list.innerHTML = '';
       list.hidden = true;
       empty.hidden = false;
       return;
@@ -104,7 +152,7 @@
       .map((s) => {
         const timeRange = `${formatTimeLocal(s.startAt)} – ${formatTimeLocal(s.endAt)}`;
         const selectable = s.status === 'open' && !s.isLocked && !lockToken;
-        const statusText = s.isLocked ? 'Podržané' : s.status === 'blocked' || s.status === 'cancelled' ? 'Nedostupný' : '';
+        const statusText = s.isMyLock ? 'Podržané pre teba' : s.isLocked ? 'Podržané' : s.status === 'blocked' || s.status === 'cancelled' ? 'Nedostupný' : '';
         return `
           <button type="button" class="booking-slot ${selectable ? '' : 'booking-slot--disabled'}"
             data-slot-id="${s.id}" ${!selectable ? 'disabled' : ''}>
@@ -125,29 +173,45 @@
     err.hidden = false;
   }
 
+  let loadAbortController = null;
+
   async function loadSlots() {
     const dateEl = $('booking-date');
     const loadingEl = $('booking-slots-loading');
     if (!dateEl || !loadingEl) return;
-    selectedDate = dateEl.value;
-    const from = parseQueryFrom();
+    const requestedDate = dateEl.value;
+    selectedDate = requestedDate;
+    const from = dateEl.min;
     const to = getMaxDate();
+
+    if (loadAbortController) loadAbortController.abort();
+    loadAbortController = new AbortController();
+    const signal = loadAbortController.signal;
 
     loadingEl.hidden = false;
     const listEl = $('booking-slots-list');
     const emptyEl = $('booking-slots-empty');
     const errEl = $('booking-slots-error');
-    if (listEl) listEl.hidden = true;
+    if (listEl) {
+      listEl.hidden = true;
+      listEl.innerHTML = '';
+    }
     if (emptyEl) emptyEl.hidden = true;
     if (errEl) errEl.hidden = true;
 
     try {
-      const data = await fetchSlots(from, to);
+      const data = await fetchSlots(from, to, lockToken, signal);
+      if (signal.aborted) return;
+      if (dateEl.value !== requestedDate) return;
       slotsByDate = groupSlotsByDate(data.slots || []);
-      const daySlots = slotsByDate[selectedDate] || [];
+      const daySlots = slotsByDate[requestedDate] || [];
       renderSlots(daySlots);
     } catch (e) {
+      if (e.name === 'AbortError' || signal.aborted) return;
+      if (dateEl.value !== requestedDate) return;
       showSlotsError('Termíny nie sú dostupné');
+    } finally {
+      if (!signal.aborted) loadingEl.hidden = true;
     }
   }
 
@@ -165,8 +229,10 @@
       lockToken = null;
       expiresAt = null;
       lockedSlotId = null;
+      clearStoredLock();
       $('booking-hold-banner').hidden = true;
       $('booking-email-form').hidden = true;
+      updateDayNavState();
       loadSlots();
     }
   }
@@ -175,6 +241,31 @@
     if (countdownInterval) clearInterval(countdownInterval);
     updateCountdown();
     countdownInterval = setInterval(updateCountdown, 1000);
+  }
+
+  async function revokeSlot() {
+    if (!lockToken || !lockedSlotId) return;
+    try {
+      const res = await fetch(`/api/slots/${lockedSlotId}/lock`, {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ lockToken }),
+      });
+      if (res.ok || res.status === 404) {
+        if (countdownInterval) {
+          clearInterval(countdownInterval);
+          countdownInterval = null;
+        }
+        lockToken = null;
+        expiresAt = null;
+        lockedSlotId = null;
+        clearStoredLock();
+        $('booking-hold-banner').hidden = true;
+        $('booking-email-form').hidden = true;
+        updateDayNavState();
+        loadSlots();
+      }
+    } catch (_) {}
   }
 
   async function lockSlot(slotId) {
@@ -203,11 +294,13 @@
       lockToken = data.lockToken;
       expiresAt = data.expiresAt;
       lockedSlotId = data.slotId;
+      storeLock();
 
       $('booking-hold-banner').hidden = false;
       $('booking-email-form').hidden = false;
       $('booking-email').value = '';
       $('booking-email-error').hidden = true;
+      updateDayNavState();
       startCountdown();
       loadSlots();
     } catch (e) {
@@ -247,6 +340,7 @@
       lockToken = null;
       expiresAt = null;
       lockedSlotId = null;
+      clearStoredLock();
 
       $('booking-hold-banner').hidden = true;
       $('booking-email-form').hidden = true;
@@ -276,20 +370,47 @@
       }
     });
 
-    const fromParam = parseQueryFrom();
     dateInput.min = getMinDate();
     dateInput.max = getMaxDate();
-    dateInput.value = fromParam;
 
-    dateInput.addEventListener('change', loadSlots);
+    const storedLock = getStoredLock();
+    if (storedLock) {
+      lockToken = storedLock.lockToken;
+      lockedSlotId = storedLock.lockedSlotId;
+      expiresAt = storedLock.expiresAt;
+      if (storedLock.lockedSlotDate) {
+        const d = storedLock.lockedSlotDate;
+        if (d >= dateInput.min && d <= dateInput.max) dateInput.value = d;
+      }
+      selectedDate = dateInput.value;
+      $('booking-hold-banner').hidden = false;
+      $('booking-email-form').hidden = false;
+      $('booking-email').value = '';
+      $('booking-email-error').hidden = true;
+      updateCountdown();
+      startCountdown();
+      updateDayNavState();
+    } else {
+      dateInput.value = parseQueryFrom();
+      updateDayNavState();
+    }
+
+    dateInput.addEventListener('change', () => {
+      if (lockToken) return;
+      loadSlots();
+    });
 
     const prevBtn = $('booking-prev-day');
     const nextBtn = $('booking-next-day');
     const slotsList = $('booking-slots-list');
     const emailForm = $('booking-email-form');
+    const revokeBtn = $('booking-revoke-btn');
     if (!prevBtn || !nextBtn || !slotsList || !emailForm) return;
 
+    if (revokeBtn) revokeBtn.addEventListener('click', revokeSlot);
+
     prevBtn.addEventListener('click', () => {
+      if (lockToken) return;
       const d = new Date(dateInput.value);
       d.setDate(d.getDate() - 1);
       const next = formatDateForInput(d);
@@ -298,6 +419,7 @@
     });
 
     nextBtn.addEventListener('click', () => {
+      if (lockToken) return;
       const d = new Date(dateInput.value);
       d.setDate(d.getDate() + 1);
       const next = formatDateForInput(d);

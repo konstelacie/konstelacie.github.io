@@ -14,6 +14,7 @@ List available slots in a date range.
 
 - `from` (required): ISO date YYYY-MM-DD
 - `to` (required): ISO date YYYY-MM-DD (max 31 days range)
+- `lockToken` (optional): UUID to identify slots held by the current user; adds `isMyLock` to matching slots
 
 **Example:**
 
@@ -82,6 +83,24 @@ curl -X POST http://localhost:3000/api/slots/1/lock \
   "message": "Slot is already locked",
   "details": { "retryAfterSeconds": 523 }
 }
+```
+
+---
+
+## DELETE /api/slots/:slotId/lock
+
+Revoke (release) a slot lock. Requires the lock token from the original lock.
+
+**Body:**
+
+```json
+{ "lockToken": "550e8400-e29b-41d4-a716-446655440000" }
+```
+
+**Response 200:**
+
+```json
+{ "ok": true, "revoked": true }
 ```
 
 ---
