@@ -92,9 +92,9 @@
 
       <div id="booking-success" class="booking-success" hidden>
         <h3>Rezervácia je vytvorená</h3>
-        <p>Stav: <strong id="booking-success-status">pending_payment</strong></p>
-        <p class="muted">Ďalší krok: platba (zatiaľ nie je implementovaná)</p>
-        <p class="muted">Rezervácia #<span id="booking-success-id"></span></p>
+        <p id="booking-success-pending" class="muted">Presmerovávam na platbu…</p>
+        <p id="booking-success-failed" class="booking-error" hidden></p>
+        <button type="button" id="booking-payment-retry" class="cta" hidden>Skúsiť platbu znova</button>
       </div>
     </div>
   </section>

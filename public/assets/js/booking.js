@@ -341,6 +341,37 @@
     return { paymentType: 'full', amount };
   }
 
+  async function startPayment(reservationId, paymentType, amount) {
+    const payBody = { reservationId, paymentType };
+    if (paymentType === 'full') payBody.amount = amount;
+
+    const payRes = await fetch('/api/payments/start', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payBody),
+    });
+    const payData = await payRes.json();
+
+    if (!payRes.ok) {
+      return { ok: false, error: userMessage(payData.error) || 'Platba sa nepodarila spustiť. Skús znova.' };
+    }
+    if (!payData.url) {
+      return { ok: false, error: 'Platba sa nepodarila spustiť. Skús znova.' };
+    }
+    return { ok: true, url: payData.url };
+  }
+
+  function showPaymentFailure(message) {
+    $('booking-hold-banner').hidden = true;
+    $('booking-email-form').hidden = true;
+    $('booking-payment-choice').hidden = true;
+    $('booking-success').hidden = false;
+    $('booking-success-pending').hidden = true;
+    $('booking-success-failed').textContent = message;
+    $('booking-success-failed').hidden = false;
+    $('booking-payment-retry').hidden = false;
+  }
+
   async function submitReservation(email, paymentType, amount) {
     const submitBtn = $('booking-payment-submit');
     submitBtn.disabled = true;
@@ -363,6 +394,14 @@
         return;
       }
 
+      const reservationId = data.reservation?.id;
+      if (!reservationId) {
+        $('booking-payment-error').textContent = 'Rezervácia bola vytvorená, ale platba sa nepodarila spustiť.';
+        $('booking-payment-error').hidden = false;
+        submitBtn.disabled = false;
+        return;
+      }
+
       if (countdownInterval) {
         clearInterval(countdownInterval);
         countdownInterval = null;
@@ -375,11 +414,22 @@
       $('booking-hold-banner').hidden = true;
       $('booking-email-form').hidden = true;
       $('booking-payment-choice').hidden = true;
+      $('booking-payment-error').hidden = true;
       $('booking-success').hidden = false;
-      $('booking-success-status').textContent = data.reservation?.status || 'pending_payment';
-      $('booking-success-id').textContent = data.reservation?.id || '';
+      $('booking-success-pending').hidden = false;
+      $('booking-success-pending').textContent = 'Presmerovávam na platbu…';
+      $('booking-success-failed').hidden = true;
+      $('booking-payment-retry').hidden = true;
 
-      loadSlots();
+      const result = await startPayment(reservationId, paymentType, amount);
+
+      if (result.ok) {
+        window.location.href = result.url;
+        return;
+      }
+
+      showPaymentFailure(result.error);
+      window.pendingPaymentRetry = { reservationId, paymentType, amount };
     } catch (e) {
       $('booking-payment-error').textContent = 'Niečo sa pokazilo. Skús neskôr.';
       $('booking-payment-error').hidden = false;
@@ -501,6 +551,27 @@
       customAmountInput.addEventListener('change', () => {
         const customRadio = document.getElementById('full-amount-custom');
         if (customRadio) customRadio.checked = true;
+      });
+    }
+
+    const paymentRetryBtn = $('booking-payment-retry');
+    if (paymentRetryBtn) {
+      paymentRetryBtn.addEventListener('click', async () => {
+        const pending = window.pendingPaymentRetry;
+        if (!pending) return;
+        paymentRetryBtn.disabled = true;
+        $('booking-success-failed').hidden = true;
+        $('booking-success-pending').hidden = false;
+        $('booking-success-pending').textContent = 'Presmerovávam na platbu…';
+        const result = await startPayment(pending.reservationId, pending.paymentType, pending.amount);
+        if (result.ok) {
+          window.location.href = result.url;
+          return;
+        }
+        $('booking-success-pending').hidden = true;
+        $('booking-success-failed').textContent = result.error;
+        $('booking-success-failed').hidden = false;
+        paymentRetryBtn.disabled = false;
       });
     }
 
