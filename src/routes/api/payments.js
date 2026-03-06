@@ -81,8 +81,8 @@ router.post(
     }
 
     const baseUrl = process.env.BASE_URL || (req.protocol + '://' + req.get('host'));
-    const successUrl = `${baseUrl}/funnels/pilot/?payment=success&session_id={CHECKOUT_SESSION_ID}`;
-    const cancelUrl = `${baseUrl}/funnels/pilot/?payment=cancelled`;
+    const successUrl = `${baseUrl}/funnels/pilot/success?session_id={CHECKOUT_SESSION_ID}`;
+    const cancelUrl = `${baseUrl}/funnels/pilot/cancel`;
 
     const stripe = new Stripe(stripeSecret);
     const session = await stripe.checkout.sessions.create({

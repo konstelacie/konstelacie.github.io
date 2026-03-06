@@ -41,4 +41,22 @@ router.get('/pilot/', (req, res) => {
   });
 });
 
+router.get('/pilot/success', (req, res) => {
+  res.render('funnels/pilot-success', {
+    layout: 'layouts/default',
+    title: 'Platba dokončená – Pilot',
+    description: 'Ďakujeme, platba je dokončená.',
+    extraStyles: '<link rel="stylesheet" href="/assets/css/funnel.css">',
+  });
+});
+
+router.get('/pilot/cancel', (req, res) => {
+  res.render('funnels/pilot-cancel', {
+    layout: 'layouts/default',
+    title: 'Platba zrušená – Pilot',
+    description: 'Platba bola zrušená.',
+    extraStyles: '<link rel="stylesheet" href="/assets/css/funnel.css">',
+  });
+});
+
 module.exports = router;
