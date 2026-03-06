@@ -7,6 +7,7 @@ const auditRepo = require('../../db/repositories/auditRepo');
 
 const slotsRouter = require('./slots');
 const reservationsRouter = require('./reservations');
+const paymentsRouter = require('./payments');
 
 const router = express.Router();
 
@@ -29,5 +30,6 @@ router.post(
 
 router.use('/slots', slotsRouter);
 router.use('/reservations', reservationsRouter);
+router.use('/payments', paymentsRouter);
 
 module.exports = router;
