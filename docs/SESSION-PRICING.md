@@ -19,6 +19,12 @@ To achieve this, the system combines:
 
 ---
 
+## Flow context
+
+After selecting a slot and entering email, the user chooses one of the two payment paths below. Confirmation is shown only after successful payment (see `docs/RESERVATION-SYSTEM-ARCHITECTURE.md`).
+
+---
+
 ## First Session Pricing
 
 Users choose between two payment paths.

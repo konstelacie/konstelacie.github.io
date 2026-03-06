@@ -33,17 +33,18 @@
 
 ## 2) User Flows (V1)
 
-### Flow A: First-time user booking (min 10 € reservation)
+### Flow A: First-time user booking
 1. User visits booking page (no auth).
 2. User selects date range; system returns available slots.
 3. User selects slot → **POST lock slot** (15 min lock).
-4. User enters email (and optionally name); system sends magic link or creates guest identity.
-5. User completes identity (magic link or minimal signup).
-6. User chooses “Reserve for 10 €” (reservation path).
-7. **POST create reservation** (links slot + user + payment type).
-8. **POST start payment** → Stripe Checkout for 10 € deposit.
-9. User pays on Stripe; webhook confirms → reservation status = `confirmed`.
-10. User sees confirmation page; email sent (optional).
+4. User enters email (and optionally name); system creates or finds user by email.
+5. User chooses payment path: **reservation only** (10 €) or **full payment now** (45 €+). See `docs/SESSION-PRICING.md` for amounts and labels.
+6. **POST create reservation** (links slot + user + payment type).
+7. **POST start payment** → Stripe Checkout (deposit or full amount).
+8. User pays on Stripe; webhook confirms → reservation status = `confirmed`.
+9. User sees confirmation page; email sent (optional).
+
+*V2: Magic link / passwordless auth may add identity step before payment choice; V1 uses email only.*
 
 ### Flow B: Returning user booking
 1. User logs in to client zone (`/zona/`).
@@ -236,8 +237,8 @@ Index: `(entity_type, entity_id)`, `(created_at)`.
 ### Authenticated (user or lockToken)
 
 **POST /api/reservations**
-- Body: `{ slotId, lockToken, paymentType: 'deposit'|'full', amount?: number }`. Amount required for full payment.
-- Headers: `Authorization: Bearer <token>` or `X-Lock-Token: <lockToken>`.
+- Body: `{ slotId, lockToken, email, paymentType: 'deposit'|'full', amount?: number }`. `email` required for first-time users; `amount` required when `paymentType: 'full'`.
+- Headers: `Authorization: Bearer <token>` (returning user) or `X-Lock-Token: <lockToken>` (first-time).
 - Response: `{ id, status, slotId, paymentUrl }`.
 - Errors: 400, 401, 409 (slot no longer available).
 
