@@ -1,0 +1,30 @@
+---
+description: Stripe payment integration – Checkout, webhooks, schema mapping
+globs: ["src/routes/api/stripe*", "src/**/payment*", "src/**/payments*"]
+---
+
+# Stripe / Payments
+
+**Architecture:** `docs/STRIPE-ARCHITECTURE.md` | **Schema:** `docs/DB-SCHEMA.md` | **Pricing:** `docs/SESSION-PRICING.md`
+
+## Schema mapping (actual columns)
+
+| Stripe / doc term | Actual column |
+|-------------------|---------------|
+| stripe_session_id | `payments.provider_ref` |
+| session_id (reservation) | `payments.reservation_id` |
+| paid | `payments.status = 'completed'` |
+| paid_at | `payments.paid_at` |
+
+## Webhook implementation notes
+
+- **Lookup payment:** `WHERE provider_ref = session.id` (session.id = cs_...)
+- **Idempotency:** Check `webhook_events` for `event.id` before processing; insert after success
+- **On checkout.session.completed:** Update payment `status='completed'`, `paid_at=NOW()`, reservation `status='confirmed'`
+- **Raw body:** Webhook route uses `express.raw()` — must be before `express.json()` in app.js
+
+## Payment creation (POST /api/payments/start)
+
+- Create payment row with `provider='stripe'`, `provider_ref=null` (set after session created), or create after `stripe.checkout.sessions.create()` with `provider_ref=session.id`
+- Include `reservationId` in Checkout Session metadata for webhook reconciliation
+- Return `{ url: session.url }` for client redirect

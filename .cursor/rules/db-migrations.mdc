@@ -5,7 +5,7 @@ globs: ["scripts/db-migrate.js", "src/db/migrations/*.sql"]
 
 # Migration infra
 
-**Documentation:** `docs/DB-MIGRATIONS.md`
+**Documentation:** `docs/DB-MIGRATIONS.md` (commands, env vars) | `docs/DB-SCHEMA.md` (schema reference)
 
 **Do not modify without human approval:**
 - `scripts/db-migrate.js` (runner logic)
@@ -13,4 +13,4 @@ globs: ["scripts/db-migrate.js", "src/db/migrations/*.sql"]
 
 You may **suggest** changes but must **not apply** them. The migration infra is intentionally minimal.
 
-**Allowed:** Editing `001_initial.sql` to add or change application tables (users, slots, etc.) per project practices.
+**Allowed:** Editing `001_initial.sql` to add or change application tables (users, slots, etc.) per project practices. After schema changes, update `docs/DB-SCHEMA.md` to match.

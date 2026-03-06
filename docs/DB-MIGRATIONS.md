@@ -1,6 +1,6 @@
 # DB Migrations
 
-How to run database migrations for citimtedasom.sk.
+How to run database migrations for citimtedasom.sk. For schema structure, tables, and relationships, see `docs/DB-SCHEMA.md`.
 
 ## Required env vars
 

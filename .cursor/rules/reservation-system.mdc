@@ -5,7 +5,7 @@ globs: ["src/**/*reservation*", "src/**/*slot*", "src/**/*booking*", "src/routes
 
 # Reservation System
 
-**Architecture:** `docs/RESERVATION-SYSTEM-ARCHITECTURE.md`
+**Architecture:** `docs/RESERVATION-SYSTEM-ARCHITECTURE.md` | **Schema:** `docs/DB-SCHEMA.md`
 
 When implementing booking, slots, reservations, or payments:
 

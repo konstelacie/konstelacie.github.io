@@ -2,7 +2,7 @@
 
 **For AI assistants (Cursor, Copilot, etc.):** This document defines the technical architecture for Stripe payment integration. Use it when implementing payment flows, webhooks, or database models. Do not duplicate pricing logic—see `docs/SESSION-PRICING.md` for amounts and rules.
 
-**Schema source of truth:** The current `payments` table is in `src/db/migrations/001_initial.sql` and uses `provider`, `provider_ref`, `reservation_id`, `amount_cents`, status `pending`/`completed`/`failed`/`refunded`. The table design below is the target for Stripe integration; actual schema may differ until implemented.
+**Schema source of truth:** `src/db/migrations/001_initial.sql`. For full schema reference (tables, columns, indexes), see `docs/DB-SCHEMA.md`. Implemented columns: `reservation_id`, `provider_ref` (Stripe session ID), `amount_cents`, `paid_at`, status `pending`/`completed`/`failed`/`expired`/`refunded`. The table design below is conceptual; `docs/DB-SCHEMA.md` reflects the actual schema.
 
 ### Required env vars
 
@@ -199,13 +199,17 @@ Other events (e.g. `payment_intent.succeeded`) may be logged but are not the pri
 
 ## 6. Database Model
 
+**Full schema:** See `docs/DB-SCHEMA.md` for tables, columns, indexes, and relationships.
+
 ### Tables Overview
 
 | Table | Purpose |
 |-------|---------|
 | `users` | User accounts (auth). Referenced by `payments.user_id`. |
-| `sessions` (or `bookings`) | Reservation/session records. Links to `payments` via `session_id`. |
+| `reservations` | Reservation records. Links to `payments` via `reservation_id`. |
 | `payments` | Payment records. One row per Stripe Checkout Session. |
+
+*Note: In this doc, "session" refers to Stripe Checkout Session; `reservation` is our DB entity. Schema uses `reservation_id`, `provider_ref` (for cs_...).*
 
 ### Payments Table
 
