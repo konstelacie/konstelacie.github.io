@@ -14,6 +14,8 @@ Set in `.env` (or environment):
 | `DB_PASSWORD` | MySQL password |
 | `DB_NAME` | Database name (default: citim_teda_som) |
 
+For Stripe vars (`STRIPE_SECRET_KEY`, `STRIPE_PUBLIC_KEY`, `STRIPE_WEBHOOK_SECRET`), see `docs/STRIPE-ARCHITECTURE.md`.
+
 ## How it works
 
 The migration runner (`scripts/db-migrate.js`) uses a **schema_migrations** table to track which migration files have already been applied. This makes runs idempotent: you can run `npm run db:migrate` multiple times safely—already-applied files are skipped.

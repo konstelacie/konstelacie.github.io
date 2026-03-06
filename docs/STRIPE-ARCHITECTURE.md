@@ -4,6 +4,16 @@
 
 **Schema source of truth:** The current `payments` table is in `src/db/migrations/001_initial.sql` and uses `provider`, `provider_ref`, `reservation_id`, `amount_cents`, status `pending`/`completed`/`failed`/`refunded`. The table design below is the target for Stripe integration; actual schema may differ until implemented.
 
+### Required env vars
+
+Set in `.env` (or environment):
+
+| Variable | Description |
+|----------|-------------|
+| `STRIPE_SECRET_KEY` | Secret key (`sk_test_...` / `sk_live_...`). Server-side API calls. From [Stripe Dashboard → API keys](https://dashboard.stripe.com/apikeys). |
+| `STRIPE_PUBLIC_KEY` | Publishable key (`pk_test_...` / `pk_live_...`). Client-side only if needed (e.g. Elements). |
+| `STRIPE_WEBHOOK_SECRET` | Webhook signing secret (`whsec_...`). For signature verification. From [Stripe Dashboard → Webhooks](https://dashboard.stripe.com/webhooks) or Stripe CLI when using `stripe listen`. |
+
 ---
 
 ## 1. Stripe Integration Overview
