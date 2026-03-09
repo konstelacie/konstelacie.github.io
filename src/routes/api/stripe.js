@@ -3,8 +3,35 @@ const Stripe = require('stripe');
 const { asyncHandler } = require('../../middleware/apiError');
 const { getPool } = require('../../db');
 const auditRepo = require('../../db/repositories/auditRepo');
+const emailService = require('../../services/emailService');
 
 const router = express.Router();
+
+async function sendConfirmationEmailAsync(paymentId, reservationId) {
+  const pool = getPool();
+  if (!pool) return;
+
+  const [rows] = await pool.execute(
+    `SELECT r.email, s.start_at, s.end_at, s.timezone, p.amount_cents, p.currency
+     FROM reservations r
+     JOIN slots s ON r.slot_id = s.id
+     JOIN payments p ON p.reservation_id = r.id
+     WHERE r.id = ? AND p.id = ? LIMIT 1`,
+    [reservationId, paymentId]
+  );
+  const row = rows[0];
+  if (!row) return;
+
+  await emailService.sendReservationConfirmation(
+    {
+      to: row.email,
+      slot: { start_at: row.start_at, end_at: row.end_at, timezone: row.timezone },
+      amountCents: row.amount_cents,
+      currency: row.currency,
+    },
+    { entity_type: 'reservation', entity_id: reservationId }
+  );
+}
 
 async function isEventAlreadyProcessed(pool, eventId) {
   const [rows] = await pool.execute(
@@ -87,6 +114,12 @@ router.post(
             stripeSessionId: session.id,
             reservationId: payment.reservation_id,
           });
+
+          if (payment.reservation_id) {
+            sendConfirmationEmailAsync(payment.id, payment.reservation_id).catch((err) => {
+              console.error('[email] Confirmation send failed:', err);
+            });
+          }
         } catch (err) {
           await conn.rollback();
           throw err;
