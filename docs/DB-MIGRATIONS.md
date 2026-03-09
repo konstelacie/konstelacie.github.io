@@ -14,7 +14,7 @@ Set in `.env` (or environment):
 | `DB_PASSWORD` | MySQL password |
 | `DB_NAME` | Database name (default: citim_teda_som) |
 
-For Stripe vars (`STRIPE_SECRET_KEY`, `STRIPE_PUBLIC_KEY`, `STRIPE_WEBHOOK_SECRET`), see `docs/STRIPE-ARCHITECTURE.md`.
+For Stripe vars (`STRIPE_SECRET_KEY`, `STRIPE_PUBLIC_KEY`, `STRIPE_WEBHOOK_SECRET`), see `docs/STRIPE-ARCHITECTURE.md`. For Resend (`RESEND_API_KEY`, `RESEND_FROM_EMAIL`, `RESEND_FROM_NAME`), see `docs/EMAILING.md`.
 
 ## How it works
 

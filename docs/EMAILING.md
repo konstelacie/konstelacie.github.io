@@ -4,6 +4,16 @@
 
 **Related docs:** `docs/RESERVATION-SYSTEM-ARCHITECTURE.md`, `docs/STRIPE-ARCHITECTURE.md`, `docs/SESSION-PRICING.md`, `docs/POST-PAYMENT-CLIENT-JOURNEY.md`.
 
+### Required env vars (Resend)
+
+Set in `.env` (or environment):
+
+| Variable | Description |
+|----------|-------------|
+| `RESEND_API_KEY` | API key from [Resend Dashboard → API Keys](https://resend.com/api-keys). |
+| `RESEND_FROM_EMAIL` | Sender address (must use verified domain in Resend). |
+| `RESEND_FROM_NAME` | Sender display name (default: citimtedasom.sk). |
+
 ---
 
 ## 1. Purpose of This Document

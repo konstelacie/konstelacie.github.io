@@ -10,4 +10,11 @@ module.exports = {
     password: process.env.DB_PASSWORD || '',
     database: process.env.DB_NAME || 'citim_teda_som',
   },
+  email: {
+    resend: {
+      apiKey: process.env.RESEND_API_KEY || '',
+      fromEmail: process.env.RESEND_FROM_EMAIL || '',
+      fromName: process.env.RESEND_FROM_NAME || 'citimtedasom.sk',
+    },
+  },
 };
