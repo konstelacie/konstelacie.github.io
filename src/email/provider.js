@@ -1,7 +1,15 @@
+const { Resend } = require('resend');
 const config = require('../config');
+
+const resend = new Resend(config.email?.resend?.apiKey || '');
 
 function isConfigured() {
   return !!(config.email?.resend?.apiKey && config.email?.resend?.fromEmail);
+}
+
+function buildFrom() {
+  const { fromName, fromEmail } = config.email?.resend || {};
+  return fromName && fromEmail ? `${fromName} <${fromEmail}>` : '';
 }
 
 /**
@@ -17,8 +25,24 @@ async function sendEmail(to, subject, html, metadata = {}) {
     console.warn('[email] Resend not configured; skipping send');
     return { ok: false, skipped: true };
   }
-  // TODO: call Resend API
-  throw new Error('Not implemented');
+
+  const from = buildFrom();
+  const replyTo = config.email?.resend?.fromEmail || '';
+
+  const { data, error } = await resend.emails.send({
+    from,
+    to,
+    reply_to: replyTo,
+    subject,
+    html,
+  });
+
+  if (error) {
+    console.error('[email] Resend send failed:', error);
+    return { ok: false };
+  }
+
+  return { ok: true, messageId: data?.id };
 }
 
 module.exports = { sendEmail, isConfigured };
