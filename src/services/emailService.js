@@ -1,6 +1,7 @@
 const path = require('path');
 const ejs = require('ejs');
 const emailProvider = require('../email/provider');
+const emailSentLogRepo = require('../db/repositories/emailSentLogRepo');
 
 const EMAIL_TEMPLATES_DIR = path.join(__dirname, '..', 'templates', 'emails');
 
@@ -58,7 +59,20 @@ async function sendReservationConfirmation({ to, slot, amountCents, currency = '
     }
   );
 
-  return emailProvider.sendEmail(to, 'Rezervácia potvrdená', html, metadata);
+  const result = await emailProvider.sendEmail(to, 'Rezervácia potvrdená', html, metadata);
+
+  if (result.ok && result.messageId) {
+    await emailSentLogRepo.log({
+      recipientEmail: to,
+      templateId: 'reservation-confirmation',
+      entityType: metadata.entity_type,
+      entityId: metadata.entity_id,
+      providerMessageId: result.messageId,
+      actorType: 'system',
+    });
+  }
+
+  return result;
 }
 
 module.exports = {

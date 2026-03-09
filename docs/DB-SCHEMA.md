@@ -147,6 +147,26 @@ Idempotency for Stripe webhooks. One row per processed `evt_...` event.
 
 ---
 
+### email_sent_log
+
+Audit trail for transactional emails. See `docs/EMAILING.md`.
+
+| Column             | Type         | Description                              |
+|--------------------|--------------|------------------------------------------|
+| id                 | PK           | Auto-increment                            |
+| recipient_email    | VARCHAR(255) | NOT NULL                                 |
+| template_id        | VARCHAR(100) | NOT NULL (e.g. reservation-confirmation) |
+| entity_type        | VARCHAR(50)  | NULL (e.g. reservation)                  |
+| entity_id          | BIGINT       | NULL                                     |
+| provider_message_id | VARCHAR(255) | NULL (Resend message ID)                 |
+| actor_type         | ENUM         | anon, user, admin, system (default: system) |
+| actor_id           | BIGINT       | NULL                                     |
+| sent_at            | DATETIME(3)  | When sent                                |
+
+**Indexes:** `(recipient_email)`, `(entity_type, entity_id)`, `(sent_at)`.
+
+---
+
 ### audit_logs
 
 Logging for critical actions. See `docs/RESERVATION-SYSTEM-ARCHITECTURE.md`.
@@ -178,6 +198,7 @@ users ←── reservations ──→ slots
 slot_locks → slots
 payments → reservations
 webhook_events (standalone)
+email_sent_log (standalone)
 audit_logs (standalone)
 ```
 
