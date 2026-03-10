@@ -30,10 +30,12 @@
   function showState(state, data) {
     const loadingEl = document.getElementById('success-loading');
     const confirmedEl = document.getElementById('success-confirmed');
+    const processingEl = document.getElementById('success-processing');
     const errorEl = document.getElementById('success-error');
 
     if (loadingEl) loadingEl.hidden = state !== 'loading';
     if (confirmedEl) confirmedEl.hidden = state !== 'confirmed';
+    if (processingEl) processingEl.hidden = state !== 'processing';
     if (errorEl) errorEl.hidden = state !== 'error';
 
     if (state === 'confirmed' && data) {
@@ -75,7 +77,7 @@
             return;
           }
           if (attempts >= MAX_POLL_ATTEMPTS) {
-            showState('confirmed', data);
+            showState('processing');
             return;
           }
           showState('loading');
