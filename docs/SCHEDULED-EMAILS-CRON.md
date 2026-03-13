@@ -100,14 +100,34 @@ Reject with 401 if missing or invalid.
 }
 ```
 
-### 4.4 alwaysdata Setup
+### 4.4 alwaysdata Setup Guide
 
-1. Admin → Advanced → Scheduled tasks
-2. New task:
-   - **URL:** `https://your-app.alwaysdata.net/api/cron/run`
-   - **Method:** POST (or GET with query param)
-   - **Headers:** `X-Cron-Secret: <CRON_SECRET>` (if supported)
-   - **Schedule:** e.g. every 15–30 min (`*/30 * * * *`)
+When deploying to production on alwaysdata:
+
+**1. Set `CRON_SECRET` in environment**
+
+- Admin → Sites → your site → Environment variables
+- Add `CRON_SECRET` with a strong random value (e.g. `openssl rand -hex 32`)
+
+**2. Create scheduled task**
+
+- Admin → Advanced → Scheduled tasks
+- New task:
+  - **Command:** Leave empty if using URL
+  - **URL:** `https://your-account.alwaysdata.net/api/cron/run` (replace with your site URL)
+  - **Method:** POST or GET (alwaysdata supports both)
+  - **Headers (if supported):** `X-Cron-Secret: <your-CRON_SECRET>`
+  - **Alternative:** Use query param: `https://.../api/cron/run?secret=<CRON_SECRET>` (less secure; secret may appear in logs)
+
+**3. Schedule**
+
+- **Frequency:** Every 30 minutes (recommended for pre-session reminders)
+- **Crontab:** `*/30 * * * *` (every 30 min) or `0 * * * *` (every hour)
+
+**4. Verify**
+
+- After deploy, trigger manually from alwaysdata task panel or `curl` with secret
+- Check response: `{"ok":true,"jobs":[...]}`
 
 ---
 

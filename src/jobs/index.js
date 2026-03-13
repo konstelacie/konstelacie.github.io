@@ -3,8 +3,10 @@
  * See docs/SCHEDULED-EMAILS-CRON.md.
  */
 
+const preSessionReminder = require('./preSessionReminder');
+
 const jobs = [
-  // Pre-session reminder, newsletter, etc. added in later phases
+  preSessionReminder,
 ];
 
 /**

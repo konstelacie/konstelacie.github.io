@@ -75,6 +75,41 @@ async function sendReservationConfirmation({ to, slot, amountCents, currency = '
   return result;
 }
 
+/**
+ * Send pre-session reminder email (24h before slot).
+ * @param {object} params
+ * @param {string} params.to - Recipient email
+ * @param {object} params.slot - { start_at, end_at, timezone }
+ * @param {object} [metadata] - Optional metadata for logging (entity_type, entity_id)
+ * @returns {Promise<{ok: boolean, skipped?: boolean, messageId?: string}>}
+ */
+async function sendPreSessionReminder({ to, slot }, metadata = {}) {
+  const slotDateFormatted = formatSlotDate(slot.start_at);
+  const slotTimeFormatted = formatSlotTime(slot.start_at);
+  const timezone = slot.timezone || 'Europe/Bratislava';
+
+  const html = await ejs.renderFile(
+    path.join(EMAIL_TEMPLATES_DIR, 'pre-session-reminder.ejs'),
+    { slotDateFormatted, slotTimeFormatted, timezone }
+  );
+
+  const result = await emailProvider.sendEmail(to, 'Pripomienka sedenia zajtra', html, metadata);
+
+  if (result.ok && result.messageId) {
+    await emailSentLogRepo.log({
+      recipientEmail: to,
+      templateId: 'pre-session-reminder',
+      entityType: metadata.entity_type,
+      entityId: metadata.entity_id,
+      providerMessageId: result.messageId,
+      actorType: 'system',
+    });
+  }
+
+  return result;
+}
+
 module.exports = {
   sendReservationConfirmation,
+  sendPreSessionReminder,
 };
