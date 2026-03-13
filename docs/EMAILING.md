@@ -110,6 +110,22 @@ This doc is a thinking input. Final decisions will be captured elsewhere once ma
 
 **Open:** One vs. multiple; exact content; timing. See `docs/POST-PAYMENT-CLIENT-JOURNEY.md` Section 2.
 
+**First suggested format (Meet / how to join):**
+
+```
+Online sedenie prebehne cez Google Meet.
+
+Link na pripojenie:
+[meet link]
+
+Môžete sa pripojiť 2–3 minúty pred začiatkom.
+
+Ak chcete, môžete si spojenie pokojne otestovať aj skôr – 
+otvorí sa vám náhľad kamery a mikrofónu.
+
+Ak by Meet u vás nefungoval, môžeme použiť aj inú platformu.
+```
+
 ### 4.2 Follow-Up After Session
 
 **When:** Session has taken place (operator marks complete or system infers).
