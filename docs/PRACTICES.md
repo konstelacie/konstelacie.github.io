@@ -73,7 +73,8 @@ project-root/
 │   ├── RESERVATION-SYSTEM-ARCHITECTURE.md  # Booking/reservation design
 │   ├── SESSION-PRICING.md              # Session pricing model, payment options, UX
 │   ├── STRIPE-ARCHITECTURE.md          # Stripe integration (Checkout, webhooks, API)
-│   └── EMAILING.md                     # Emailing (transactional, operator-assisted; planning, open questions)
+│   ├── EMAILING.md                     # Emailing (transactional, operator-assisted; planning, open questions)
+│   └── SCHEDULED-EMAILS-CRON.md        # Timed emails (personal, bulk), cron endpoint, newsletter, special messages
 ├── src/
 │   ├── app.js                          # Express app, EJS config
 │   ├── config/                         # App config (database, etc.)

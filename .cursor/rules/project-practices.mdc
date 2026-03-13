@@ -16,6 +16,7 @@ alwaysApply: true
 - **Stripe:** `docs/STRIPE-ARCHITECTURE.md` — payment integration, webhooks, API design
 - **Reservation system:** `docs/RESERVATION-SYSTEM-ARCHITECTURE.md` — booking flows, slots, API, domain model
 - **Emailing:** `docs/EMAILING.md` — transactional, operator-assisted emails; planning, open questions
+- **Scheduled emails & cron:** `docs/SCHEDULED-EMAILS-CRON.md` — timed emails (personal, bulk), cron endpoint, newsletter, special messages
 
 **Deployment:** alwaysdata (not GitHub Pages).
 

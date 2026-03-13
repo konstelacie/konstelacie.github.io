@@ -2,7 +2,7 @@
 
 **For AI assistants (Cursor, Copilot, etc.):** This document maps the emailing space for the project. It is an early input/thinking document—not a final architecture decision. Treat most things as open questions, options, and decision points. Do not prematurely lock the project into one exact implementation.
 
-**Related docs:** `docs/RESERVATION-SYSTEM-ARCHITECTURE.md`, `docs/STRIPE-ARCHITECTURE.md`, `docs/SESSION-PRICING.md`, `docs/POST-PAYMENT-CLIENT-JOURNEY.md`.
+**Related docs:** `docs/RESERVATION-SYSTEM-ARCHITECTURE.md`, `docs/STRIPE-ARCHITECTURE.md`, `docs/SESSION-PRICING.md`, `docs/POST-PAYMENT-CLIENT-JOURNEY.md`, `docs/SCHEDULED-EMAILS-CRON.md` (timed emails, cron, newsletter, bulk).
 
 ### Required env vars (Resend)
 
