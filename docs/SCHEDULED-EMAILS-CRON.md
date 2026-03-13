@@ -10,7 +10,7 @@
 
 - **Personal timed emails** — One recipient per send; triggered by schedule (e.g. pre-session reminder 24h before slot).
 - **Bulk timed emails** — Same template, many recipients; used for reminders batch, newsletter, or special messages.
-- **Cron endpoint** — HTTP endpoint hit by alwaysdata scheduled tasks; runs all due jobs.
+- **Cron endpoint** — HTTP endpoint hit by alwaysdata scheduled tasks every 15 minutes; processes all due jobs and attempts to send all emails that are due.
 
 **Existing:** Transactional emails (reservation confirmation) are already implemented. See `src/services/emailService.js`, `src/email/provider.js`, `docs/EMAILING.md`.
 
@@ -121,8 +121,8 @@ When deploying to production on alwaysdata:
 
 **3. Schedule**
 
-- **Frequency:** Every 30 minutes (recommended for pre-session reminders)
-- **Crontab:** `*/30 * * * *` (every 30 min) or `0 * * * *` (every hour)
+- **Frequency:** Every 15 minutes
+- **Crontab:** `*/15 * * * *` (every 15 min)
 
 **4. Verify**
 
@@ -161,6 +161,8 @@ module.exports = {
 ### 5.3 Orchestrator
 
 `jobs.runAll()` iterates over registered jobs, runs each, aggregates results. Jobs run sequentially to avoid overload; parallelisation can be added later if needed.
+
+**Cron handler flow:** Before `runAll()`, acquire advisory lock (Section 10). If lock not acquired, return immediately. After `runAll()` (in `finally`), release lock. Each job sends all due emails; per-email retries (Section 11) handle Resend rate limits and transient errors.
 
 ---
 
@@ -239,30 +241,106 @@ src/
 For deterministic reminders (e.g. 24h before):
 
 - **Window:** Slot `start_at` in [now + 23h 30m, now + 24h 30m]
-- **Cron frequency:** Every 30 min
+- **Cron frequency:** Every 15 min
 - **Effect:** Each slot falls into exactly one window; no duplicates, no gaps
 
 ---
 
-## 10. Open Questions
+## 10. Cron Concurrency & Overlapping Runs
+
+### 10.1 Problem
+
+Cron runs every 15 minutes. A run may exceed 15 minutes (many due emails, Resend rate limits, slow network). A new run can start while the previous one is still executing.
+
+### 10.2 Design Goals
+
+- **Single active run:** Only one cron run should process jobs at a time.
+- **Graceful exit:** If a run is already active, the new run exits immediately (no duplicate work, no race conditions).
+- **Max retries:** Per-email retries are bounded so a stuck run eventually finishes and frees the lock.
+
+### 10.3 Advisory Lock
+
+Use a DB advisory lock (or a dedicated `cron_lock` table) to prevent overlapping runs:
+
+- **Acquire lock** at start of `/api/cron/run` (e.g. `GET_LOCK('cron_run', 0)` — non-blocking).
+- **If lock not acquired:** Return 200 with `{ ok: true, skipped: "previous run still active" }`. Do not process jobs.
+- **Release lock** in `finally` when run completes (success or error).
+
+**Alternative:** `cron_lock` table with `(lock_key, acquired_at, expires_at)`. Acquire = INSERT with `expires_at = NOW() + 20 min`; release = DELETE. New run checks: if row exists and `acquired_at` is recent, skip.
+
+### 10.4 Race Conditions
+
+If multiple instances somehow run (e.g. alwaysdata misfire, manual trigger):
+
+- **Idempotency** (Section 8) protects against duplicate sends: `email_sent_log` ensures each template+entity is sent at most once.
+- **Lock** reduces the chance; idempotency handles the rest.
+- Jobs should not assume exclusive access; always check `wasAlreadySent` before sending.
+
+---
+
+## 11. Retries & Resend Rate Limits
+
+### 11.1 Resend Constraints
+
+- **Rate limit:** Default 2 requests/second per team. 429 with `rate_limit_exceeded` when exceeded.
+- **Quotas:** Daily/monthly limits; 429 with `daily_quota_exceeded` or `monthly_quota_exceeded`.
+- **Transient errors:** 500, 503; `application_error`, `internal_server_error` — retry recommended.
+- **Headers:** `retry-after` (seconds) and `ratelimit-remaining` help with backoff.
+
+**Implication:** When sending many due emails in one cron run, hitting 429 is likely. Retries are essential.
+
+### 11.2 Per-Email Retry Strategy
+
+| Step | Action |
+|------|--------|
+| 1 | Send email. On success → log, continue. |
+| 2 | On 429 (rate limit): wait `retry-after` seconds (or min 2s), retry. Max 3 retries per email. |
+| 3 | On 429 (quota exceeded): do not retry this run; log; next cron run will retry (idempotency allows it). |
+| 4 | On 5xx: exponential backoff (e.g. 2s, 4s, 8s); max 3 retries per email. |
+| 5 | After max retries: log error, continue to next email. Do not block entire run. |
+
+### 11.3 Throttling Within a Run
+
+To reduce 429s:
+
+- **Pacing:** Insert small delay between sends (e.g. 500–600 ms) to stay under 2 req/s.
+- **Batch API:** Resend Batch API supports up to 100 emails per request; consider for newsletter/special messages. For personal reminders (one per reservation), individual sends with pacing may suffice.
+
+### 11.4 Max Retries to Free the Cron
+
+- **Per email:** Max 3 retries. After that, skip and log; next cron run will retry (item still due; idempotency prevents double-send if first attempt eventually succeeded).
+- **Per run:** No global retry loop. One pass over due items; each item gets up to 3 attempts.
+- **Effect:** A run with many rate-limited emails will take longer but eventually finish. Lock is released when run completes, so the next scheduled cron can proceed.
+
+### 11.5 Dead-Letter / Manual Recovery
+
+Items that fail after max retries remain "due" (no `email_sent_log` entry). They will be picked up by the next cron run. If Resend is down or quota is exhausted for an extended period, consider:
+
+- Admin view of failed sends (from logs or a `email_send_failures` table).
+- Manual retry trigger or "retry failed" job.
+- Alerting when failure rate exceeds a threshold.
+
+---
+
+## 12. Open Questions
 
 1. **Newsletter scope** — When to build; consent table design; unsubscribe flow.
 2. **Special messages** — Admin UI scope; segment definition (query vs. manual list).
 3. **Multiple reminder timings** — 7d, 24h, 1h before; one job with param vs. separate jobs.
-4. **Rate limiting** — Resend limits; batch size per cron run.
-5. **Retries** — Failed sends; retry strategy; dead-letter handling.
+4. **Dead-letter handling** — Admin view of failed sends; manual retry; alerting.
 
 ---
 
-## 11. Implementation Order
+## 13. Implementation Order
 
 | Phase | Items |
 |-------|-------|
 | **1** | Cron route, CRON_SECRET, jobs index |
 | **2** | Pre-session reminder job, template, reservationsRepo query |
-| **3** | (Future) Post-session, doplatok |
-| **4** | (Future) Newsletter: consent, unsubscribe, batch job |
-| **5** | (Future) Special messages: admin UI, broadcast job |
+| **3** | Advisory lock (Section 10); retry logic with Resend 429/5xx handling (Section 11) |
+| **4** | (Future) Post-session, doplatok |
+| **5** | (Future) Newsletter: consent, unsubscribe, batch job |
+| **6** | (Future) Special messages: admin UI, broadcast job |
 
 ---
 

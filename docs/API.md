@@ -298,7 +298,7 @@ INSERT INTO slots (start_at, end_at, timezone, status, capacity) VALUES
 
 ## POST /api/cron/run (GET also supported)
 
-**Cron endpoint** for scheduled jobs. See `docs/SCHEDULED-EMAILS-CRON.md`.
+**Cron endpoint** for scheduled jobs. Intended to run every 15 minutes via alwaysdata scheduled task. Processes all due emails; uses advisory lock to skip if a previous run is still active. See `docs/SCHEDULED-EMAILS-CRON.md` for retries, Resend rate limits, and concurrency.
 
 **Auth:** In production, requires `CRON_SECRET` via header (`Authorization: Bearer <secret>`, `X-Cron-Secret: <secret>`) or query (`?secret=<secret>`). On localhost in development, unauthenticated requests are allowed for easy browser testing.
 
