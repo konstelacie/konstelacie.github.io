@@ -296,6 +296,53 @@ INSERT INTO slots (start_at, end_at, timezone, status, capacity) VALUES
 
 ---
 
+## POST /api/cron/run (GET also supported)
+
+**Cron endpoint** for scheduled jobs. See `docs/SCHEDULED-EMAILS-CRON.md`.
+
+**Auth:** In production, requires `CRON_SECRET` via header (`Authorization: Bearer <secret>`, `X-Cron-Secret: <secret>`) or query (`?secret=<secret>`). On localhost in development, unauthenticated requests are allowed for easy browser testing.
+
+**Example (localhost dev):**
+
+```
+http://localhost:3000/api/cron/run
+```
+
+**Example (production):**
+
+```bash
+curl -X POST https://your-app.alwaysdata.net/api/cron/run \
+  -H "X-Cron-Secret: <CRON_SECRET>"
+```
+
+**Response 200:**
+
+```json
+{
+  "ok": true,
+  "jobs": [
+    {
+      "name": "pre-session-reminder",
+      "sent": 0,
+      "skipped": 0,
+      "errors": []
+    }
+  ]
+}
+```
+
+**Response 401 (production, missing/invalid secret):**
+
+```json
+{
+  "ok": false,
+  "error": "UNAUTHORIZED",
+  "message": "Invalid or missing CRON_SECRET"
+}
+```
+
+---
+
 ## Not yet implemented (details to be added when available)
 
 - `POST /api/reservations/:id/cancel` — cancel reservation

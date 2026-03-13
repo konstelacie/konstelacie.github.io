@@ -17,4 +17,7 @@ module.exports = {
       fromName: process.env.RESEND_FROM_NAME || 'citimtedasom.sk',
     },
   },
+  cron: {
+    secret: process.env.CRON_SECRET || '',
+  },
 };

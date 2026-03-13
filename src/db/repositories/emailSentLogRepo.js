@@ -22,4 +22,24 @@ async function log({ recipientEmail, templateId, entityType, entityId, providerM
   );
 }
 
-module.exports = { log };
+/**
+ * Check if an email was already sent for a given entity (idempotency).
+ * @param {string} templateId - Template identifier (e.g. 'pre-session-reminder')
+ * @param {string} entityType - Entity type (e.g. 'reservation')
+ * @param {number} entityId - Entity ID
+ * @returns {Promise<boolean>} True if already sent
+ */
+async function wasAlreadySent(templateId, entityType, entityId) {
+  const pool = getPool();
+  if (!pool) return false;
+
+  const [rows] = await pool.execute(
+    `SELECT 1 FROM email_sent_log
+     WHERE template_id = ? AND entity_type = ? AND entity_id = ?
+     LIMIT 1`,
+    [templateId, entityType, entityId]
+  );
+  return rows.length > 0;
+}
+
+module.exports = { log, wasAlreadySent };
