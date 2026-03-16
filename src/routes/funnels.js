@@ -11,11 +11,27 @@ function getMaxDateLocal() {
   return d.toLocaleDateString('en-CA', { timeZone: 'Europe/Bratislava' });
 }
 
+/** Default campaign when no variant specified. Override via ?campaign=id or route param. */
+const CAMPAIGNS = {
+  default: {
+    headline: 'Nadpis pilot funnels',
+    subhead: 'Podnadpis – stručný popis ponuky.',
+    videoUrl: null,
+    summary: '<p>Placeholder text pre zhrnutie…</p>',
+  },
+  // Add campaign variants here, e.g.:
+  // 'pattern': { headline: '...', subhead: '...', videoUrl: 'https://...', summary: '<p>...</p>' },
+};
+
 router.get('/pilot/', (req, res) => {
+  const campaignId = req.query.campaign || 'default';
+  const campaign = { ...CAMPAIGNS.default, ...CAMPAIGNS[campaignId] };
+
   res.render('funnels/pilot', {
     layout: 'layouts/default',
     title: 'Pilot – V príprave',
     description: 'Pilot funnel – v príprave.',
+    campaign,
     bookingDateDefault: getTodayLocal(),
     bookingDateMin: getTodayLocal(),
     bookingDateMax: getMaxDateLocal(),

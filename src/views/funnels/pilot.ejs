@@ -1,24 +1,32 @@
 <main>
+  <!-- Campaign block: varies per ad/campaign -->
   <section class="funnel-hero">
     <div class="container">
-      <h1>Nadpis pilot funnels</h1>
-      <p class="muted">Podnadpis – stručný popis ponuky.</p>
+      <h1><%= campaign.headline || 'Nadpis pilot funnels' %></h1>
+      <p class="muted"><%= campaign.subhead || 'Podnadpis – stručný popis ponuky.' %></p>
     </div>
   </section>
 
   <section class="funnel-video">
     <div class="container">
-      <p>[Video tu – bude embed]</p>
+      <% if (campaign.videoUrl) { %>
+        <div class="funnel-video-embed">
+          <iframe src="<%= campaign.videoUrl %>" title="Video" allowfullscreen></iframe>
+        </div>
+      <% } else { %>
+        <p>[Video tu – bude embed]</p>
+      <% } %>
     </div>
   </section>
 
-  <section class="funnel-summary prose">
+  <section class="funnel-video-summary prose">
     <div class="container">
       <h2>Krátke zhrnutie</h2>
-      <p>Placeholder text pre zhrnutie…</p>
+      <%- campaign.summary || '<p>Placeholder text pre zhrnutie…</p>' %>
     </div>
   </section>
 
+  <!-- General block: CTA, how, audience, pricing, FAQ, references, CTA again -->
   <section id="booking-section" class="funnel-cta booking-section prose">
     <div class="container">
       <h2>Vyber si termín</h2>
@@ -106,22 +114,52 @@
     </div>
   </section>
 
-  <section class="funnel-audience">
+  <section class="funnel-audience prose">
     <div class="container">
       <h2>Pre koho to je / nie je</h2>
       <p>Placeholder text pre cieľovú skupinu…</p>
     </div>
   </section>
 
-  <section class="funnel-chatbot">
+  <section class="funnel-pricing prose">
     <div class="container">
-      <p>[Chatbot Ľudmil – tu bude PseudoChat widget]</p>
+      <h2>Cena a platba</h2>
+      <p>Rezervácia sedenia: 10 €. Plná suma: od 45 € (odporúčaná 85 €). Žiadne skryté poplatky.</p>
     </div>
   </section>
 
-  <section class="funnel-lead">
+  <section class="funnel-faq prose">
     <div class="container">
-      <p>[Bonus na email – formulár alebo CTA]</p>
+      <h2>Časté otázky</h2>
+      <dl class="funnel-faq-list">
+        <dt>Čo sú rodinné konstelácie?</dt>
+        <dd>Placeholder odpoveď…</dd>
+        <dt>Pre koho je sedenie vhodné?</dt>
+        <dd>Placeholder odpoveď…</dd>
+        <dt>Ako sedenie prebieha?</dt>
+        <dd>Placeholder odpoveď…</dd>
+        <dt>Koľko to stojí?</dt>
+        <dd>Rezervácia 10 €, plná suma od 45 €. Finálnu sumu môžeš rozhodnúť po sedení.</dd>
+      </dl>
+    </div>
+  </section>
+
+  <section class="funnel-references prose">
+    <div class="container">
+      <h2>Odkazy a zdroje</h2>
+      <p>Placeholder – knihy, články, odkazy na ďalšie informácie…</p>
+    </div>
+  </section>
+
+  <section class="funnel-cta funnel-cta-repeat">
+    <div class="container">
+      <p><a href="#booking-section" class="cta">Rezervovať sedenie – 10 €</a></p>
+    </div>
+  </section>
+
+  <section class="funnel-chatbot">
+    <div class="container">
+      <p>[Chatbot Ľudmil – tu bude PseudoChat widget]</p>
     </div>
   </section>
 </main>
