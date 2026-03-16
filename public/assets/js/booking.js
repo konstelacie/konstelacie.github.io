@@ -442,7 +442,7 @@
     if (!dateInput) return;
 
     if (location.hash === '#booking') {
-      document.getElementById('booking-section')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      document.getElementById('booking')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
       history.replaceState(null, '', location.pathname + location.search);
     }
 
