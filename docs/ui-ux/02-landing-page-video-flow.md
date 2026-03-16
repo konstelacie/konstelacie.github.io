@@ -102,7 +102,7 @@ Recommended order:
 ## What we intentionally do NOT include in v1
 
 - **Email capture** — No newsletter signup, lead magnet, or pop-up. Single action only.
-- **Chatbot** — No chat widget. Reduces complexity and competing entry points.
+- **Chatbot** — No chat widget. Reduces complexity and competing entry points. PseudoChat is parked for remarketing; see `docs/PSEUDOCHAT.md`.
 - **Multiple alternative actions** — No “Learn more,” “Contact us,” or secondary buttons that compete with reservation.
 
 **Reason:** Maintain one clear action and simplify the first release. Secondary actions (email, chatbot) are better suited to remarketing flows once we have data and a clearer picture of drop-off points.

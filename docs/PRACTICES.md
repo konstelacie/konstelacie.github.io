@@ -152,7 +152,7 @@ Add new tokens to `:root` when a value is reused; avoid hardcoding `#hex` or raw
 ## JavaScript
 
 - `funnel.js` exposes `window.funnel` (video, chatbot, cta).
-- **PseudoChat widget** – Decision-tree chat; see `docs/PSEUDOCHAT.md`.
+- **PseudoChat widget** – Decision-tree chat; see `docs/PSEUDOCHAT.md`. **Parked for later use**; not loaded on the first-visit funnel. May be used on remarketing funnels.
 - Keep logic in IIFE or modules; avoid global variables.
 - Call `funnel.video.embed(url)` etc. from page-specific inline scripts when needed.
 

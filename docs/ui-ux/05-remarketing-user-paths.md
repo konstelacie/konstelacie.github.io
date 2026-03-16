@@ -72,7 +72,7 @@ Remarketing ads may:
 
 - **Send users back to the same landing page** — For users who just need a reminder or a second look. The page is unchanged; the user may be more ready.
 - **Send users to a secondary explanation page** — For users who need more content. A page with another video, extended FAQ, or "ask a question" form.
-- **Offer a softer interaction** — e.g. "Ask a question" form, email signup, or chatbot. The ad leads to a low-commitment action, not directly to reservation.
+- **Offer a softer interaction** — e.g. "Ask a question" form, email signup, or chatbot. The ad leads to a low-commitment action, not directly to reservation. The PseudoChat widget is parked for this purpose; see `docs/PSEUDOCHAT.md`.
 
 The choice depends on the remarketing segment and the hypothesis about why they didn't convert.
 

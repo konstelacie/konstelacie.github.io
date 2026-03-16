@@ -37,12 +37,10 @@ router.get('/pilot/', (req, res) => {
     bookingDateMax: getMaxDateLocal(),
     extraStyles: `
       <link rel="stylesheet" href="/assets/css/funnel.css">
-      <link rel="stylesheet" href="/assets/css/pseudochat.css">
     `,
     extraScripts: `
       <script src="/assets/js/booking.js"></script>
       <script src="/assets/js/funnel.js"></script>
-      <script type="module" src="/assets/js/funnel-chatbot.js"></script>
       <script>
         document.addEventListener('DOMContentLoaded',function(){
           var d=document.getElementById('booking-date');

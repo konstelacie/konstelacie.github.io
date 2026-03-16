@@ -125,7 +125,7 @@ These sections are placed *before* or *around* the CTA so users can resolve doub
 
 - **Alternative CTAs** — No "Contact us," "Learn more," or "Sign up for newsletter" as primary or competing actions
 - **Email signup** — No lead capture before or instead of reservation
-- **Chatbot** — No chat widget that could divert attention
+- **Chatbot** — No chat widget that could divert attention. PseudoChat is parked for remarketing; see `docs/PSEUDOCHAT.md`.
 - **Multiple booking options** — One session type, one price point. No "Choose your package" or tier selection in v1
 
 **Reason:** Keep the funnel focused on a single decision. Every extra option increases cognitive load and dilutes the primary action. Secondary paths can be added later based on data and remarketing needs.

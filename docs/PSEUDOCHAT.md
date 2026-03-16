@@ -2,6 +2,10 @@
 
 Configurable decision-tree chat widget for the public site. Looks like a chat (bubbles, typing, quick replies) but uses deterministic flow logic—no AI or backend required. Funnels users into the client zone login when they need real chat.
 
+## Deployment status: parked for later use
+
+**The PseudoChat widget is not used on any live funnel at this time.** It is implemented and ready, but intentionally parked. The first-visit funnel keeps a single CTA (reservation) to reduce decision friction. **Chatbot may be introduced on remarketing funnels** when we want to offer softer next steps (e.g. "Ask a question") to users who have already seen the offer. Until then, the codebase keeps `funnel-chatbot.js`, flows, and styles available for future remarketing pages.
+
 ## Overview
 
 - **Static-site safe** – No server calls, no vendor widgets

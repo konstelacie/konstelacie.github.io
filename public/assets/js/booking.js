@@ -445,11 +445,6 @@
       document.getElementById('booking-section')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
       history.replaceState(null, '', location.pathname + location.search);
     }
-    window.addEventListener('pseudochat:option_clicked', (e) => {
-      if (e.detail?.optionId === 'termin') {
-        document.getElementById('booking-section')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-      }
-    });
 
     dateInput.min = getMinDate();
     dateInput.max = getMaxDate();
