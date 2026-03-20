@@ -1,3 +1,7 @@
 /start.bat
 node_modules/
 .env
+
+# Large creative video exports (GitHub limits; keep masters locally or Git LFS — docs/CREATIVE-MEDIA.md)
+creative/funnel/*.mp4
+creative/facebook-ads/*.mp4
