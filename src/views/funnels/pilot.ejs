@@ -9,12 +9,20 @@
 
   <section class="funnel-video">
     <div class="container">
-      <% if (campaign.videoUrl) { %>
-        <div class="funnel-video-embed">
-          <iframe src="<%= campaign.videoUrl %>" title="Video" allowfullscreen></iframe>
+      <% if (campaignVideo.kind === 'self') { %>
+        <div class="funnel-video-embed"<% if (campaignVideo.videoId) { %> data-video-id="<%= campaignVideo.videoId %>"<% } %>>
+          <video controls playsinline preload="metadata" title="Video">
+            <% campaignVideo.sources.forEach(function (s) { %>
+              <source src="<%= s.src %>"<% if (s.type) { %> type="<%= s.type %>"<% } %>>
+            <% }) %>
+          </video>
+        </div>
+      <% } else if (campaignVideo.kind === 'wistia' || campaignVideo.kind === 'iframe') { %>
+        <div class="funnel-video-embed"<% if (campaignVideo.videoId) { %> data-video-id="<%= campaignVideo.videoId %>"<% } %>>
+          <iframe src="<%= campaignVideo.embedUrl %>" title="Video" allow="autoplay; fullscreen" allowfullscreen></iframe>
         </div>
       <% } else { %>
-        <p>[Video tu – bude embed]</p>
+        <p class="muted">[Video ešte nie je nastavené]</p>
       <% } %>
     </div>
   </section>

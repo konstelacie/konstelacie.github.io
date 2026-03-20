@@ -52,6 +52,59 @@ Related UX notes: `docs/ui-ux/02-landing-page-video-flow.md`, task hacks `docs/t
 
 ---
 
+## Funnel video: logical id and providers
+
+Campaign rows live in `src/routes/funnels.js` (`INSTANCE_CAMPAIGNS`). Resolution for the template is done in `src/config/funnelVideo.js` (`resolveCampaignVideo`).
+
+### `videoId` (logical name)
+
+- **Pattern:** `{funnel}-{role}-r{n}` — kebab-case, English (e.g. `pilot-hero-r1`, `pilot-hero-r2`).
+- **Purpose:** Stable identifier across file renames and when switching **self-hosted** ↔ **Wistia**. Exposed on the embed as `data-video-id` for analytics or JS.
+
+### `video` object
+
+| `provider` | Fields | Rendered as |
+|------------|--------|-------------|
+| `self` | `src` (root-relative path) **or** `sources: [{ src, type? }]` for multiple codecs | `<video><source>…` |
+| `wistia` | `hashedId` (Wistia “hashed ID” from the embed) | iframe → `https://fast.wistia.net/embed/iframe/{hashedId}` |
+
+**Legacy:** `videoUrl` alone (iframe `src`) still works if `video` is omitted—useful for one-off embeds.
+
+**Example — self-hosted file** (filename should match the logical id + extension):
+
+```js
+videoId: 'pilot-hero-r1',
+video: {
+  provider: 'self',
+  src: '/assets/media/funnel/pilot-hero-r1.webm',
+},
+```
+
+**Example — multiple sources (e.g. webm + mp4):**
+
+```js
+videoId: 'pilot-hero-r1',
+video: {
+  provider: 'self',
+  sources: [
+    { src: '/assets/media/funnel/pilot-hero-r1.webm', type: 'video/webm' },
+    { src: '/assets/media/funnel/pilot-hero-r1.mp4', type: 'video/mp4' },
+  ],
+},
+```
+
+**Example — Wistia:**
+
+```js
+videoId: 'pilot-hero-r1',
+video: {
+  provider: 'wistia',
+  hashedId: 'YOUR_WISTIA_HASHED_ID',
+},
+```
+
+---
+
 ## What to commit
 
 - **Usually commit:** final web exports in `public/assets/media/funnel/`, small thumbnails, README/copy notes, lightweight FB exports in `creative/facebook-ads/`.
@@ -62,9 +115,9 @@ Related UX notes: `docs/ui-ux/02-landing-page-video-flow.md`, task hacks `docs/t
 
 ## Checklist when adding a new funnel video
 
-1. Final asset(s) in `public/assets/media/funnel/` with clear English filenames.
-2. Page references `src="/assets/media/funnel/…"` (no `../` asset paths).
-3. Optional: mirror or document the master in `creative/funnel/` if you need parity with source exports.
+1. Choose a **logical** `videoId` (`{funnel}-{role}-r{n}`) and matching filename(s) under `public/assets/media/funnel/`.
+2. Set `video` + `videoId` in `INSTANCE_CAMPAIGNS` for the funnel/campaign (see [Funnel video: logical id and providers](#funnel-video-logical-id-and-providers)).
+3. Optional: mirror masters in `creative/funnel/` if you need parity with source exports.
 
 ---
 

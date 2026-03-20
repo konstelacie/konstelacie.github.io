@@ -81,7 +81,7 @@ project-root/
 │   └── funnel/                         # Funnel video working / masters
 ├── src/
 │   ├── app.js                          # Express app, EJS config
-│   ├── config/                         # App config (database, etc.)
+│   ├── config/                         # App config; funnelVideo.js — campaign video resolution (self / Wistia)
 │   ├── db/                             # Migrations, repositories
 │   ├── middleware/
 │   ├── routes/

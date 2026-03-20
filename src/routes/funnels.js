@@ -1,4 +1,5 @@
 const express = require('express');
+const { resolveCampaignVideo } = require('../config/funnelVideo');
 
 const router = express.Router();
 
@@ -14,16 +15,35 @@ function getMaxDateLocal() {
   return d.toLocaleDateString('en-CA', { timeZone: 'Europe/Bratislava' });
 }
 
-/** Campaign data per funnel instance. Override via ?campaign=id. */
+/**
+ * Campaign data per funnel instance. Override via ?campaign=id.
+ *
+ * Video (see docs/CREATIVE-MEDIA.md):
+ * - `videoId` — stable logical id: `{funnel}-{role}-r{n}` (kebab-case, English).
+ * - `video`: `{ provider: 'self', src }` or `{ provider: 'self', sources: [{ src, type? }] }`
+ *   or `{ provider: 'wistia', hashedId }`.
+ * - Legacy: `videoUrl` only (iframe) still supported if `video` is omitted.
+ */
 const INSTANCE_CAMPAIGNS = {
   pilot: {
     default: {
       headline: 'Nadpis pilot funnels',
       subhead: 'Podnadpis – stručný popis ponuky.',
-      videoUrl: null,
+      videoId: 'pilot-hero-r1',
+      video: {
+        provider: 'self',
+        src: '/assets/media/funnel/pilot-hero-r1.webm',
+      },
       summary: '<p>Placeholder text pre zhrnutie…</p>',
     },
-    // Add campaign variants: 'pattern': { headline: '...', ... },
+    // Example — Wistia: same videoId, swap provider when you move off self-hosted
+    // wistia: {
+    //   videoId: 'pilot-hero-r1',
+    //   video: { provider: 'wistia', hashedId: 'YOUR_WISTIA_HASHED_ID' },
+    //   headline: '…',
+    //   subhead: '…',
+    //   summary: '…',
+    // },
   },
 };
 
@@ -49,6 +69,7 @@ router.get('/:funnelName', (req, res, next) => {
   const campaigns = INSTANCE_CAMPAIGNS[funnelName] || { default: {} };
   const campaignId = req.query.campaign || 'default';
   const campaign = { ...campaigns.default, ...campaigns[campaignId] };
+  const campaignVideo = resolveCampaignVideo(campaign);
 
   const meta = INSTANCE_META[funnelName] || { title: funnelName, description: '' };
 
@@ -57,6 +78,7 @@ router.get('/:funnelName', (req, res, next) => {
     title: meta.title,
     description: meta.description,
     campaign,
+    campaignVideo,
     bookingDateDefault: getTodayLocal(),
     bookingDateMin: getTodayLocal(),
     bookingDateMax: getMaxDateLocal(),

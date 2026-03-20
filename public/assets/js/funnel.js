@@ -6,9 +6,9 @@
 (function () {
   'use strict';
 
-  // --- Video embed ---
-  // When ready: insert iframe into .funnel-video .container
-  // Example: funnel.video.embed('https://www.youtube.com/embed/VIDEO_ID');
+  // --- Video embed (optional client-side override) ---
+  // Server usually renders video from INSTANCE_CAMPAIGNS + resolveCampaignVideo (see src/config/funnelVideo.js).
+  // Example dynamic inject: funnel.video.embed('https://www.youtube.com/embed/VIDEO_ID');
 
   var video = {
     embed: function (url) {
