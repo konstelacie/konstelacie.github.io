@@ -17,6 +17,7 @@ alwaysApply: true
 - **Reservation system:** `docs/RESERVATION-SYSTEM-ARCHITECTURE.md` — booking flows, slots, API, domain model
 - **Emailing:** `docs/EMAILING.md` — transactional, operator-assisted emails; planning, open questions
 - **Scheduled emails & cron:** `docs/SCHEDULED-EMAILS-CRON.md` — timed emails (personal, bulk), cron endpoint, newsletter, special messages
+- **Creative media (FB ads vs funnel video):** `docs/CREATIVE-MEDIA.md` — `creative/`, `public/assets/media/funnel/`
 
 **Deployment:** alwaysdata (not GitHub Pages).
 

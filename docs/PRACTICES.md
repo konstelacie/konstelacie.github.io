@@ -74,7 +74,11 @@ project-root/
 │   ├── SESSION-PRICING.md              # Session pricing model, payment options, UX
 │   ├── STRIPE-ARCHITECTURE.md          # Stripe integration (Checkout, webhooks, API)
 │   ├── EMAILING.md                     # Emailing (transactional, operator-assisted; planning, open questions)
-│   └── SCHEDULED-EMAILS-CRON.md        # Timed emails (personal, bulk), cron endpoint, newsletter, special messages
+│   ├── SCHEDULED-EMAILS-CRON.md        # Timed emails (personal, bulk), cron endpoint, newsletter, special messages
+│   └── CREATIVE-MEDIA.md               # FB ad vs funnel video folders, public `/assets/media/funnel/`
+├── creative/                           # FB ad assets & funnel masters (not all are web-served; see CREATIVE-MEDIA.md)
+│   ├── facebook-ads/                   # Meta Ads exports, campaign folders
+│   └── funnel/                         # Funnel video working / masters
 ├── src/
 │   ├── app.js                          # Express app, EJS config
 │   ├── config/                         # App config (database, etc.)
@@ -94,7 +98,9 @@ project-root/
 │       └── funnels/                    # {name}.ejs instances; _funnel-content, _funnel-success, _funnel-cancel (generic)
 ├── public/assets/
 │   ├── css/                            # site.css, funnel.css, pseudochat.css
-│   └── js/                             # funnel.js, booking.js, pseudochat/ (funnel-chatbot.js parked)
+│   ├── js/                             # funnel.js, booking.js, pseudochat/ (funnel-chatbot.js parked)
+│   └── media/
+│       └── funnel/                     # Funnel page video/audio used on site → `/assets/media/funnel/…`
 ├── scripts/                            # db-migrate.js
 ├── server.js                           # Entry point
 ├── sitemap.xml
@@ -102,7 +108,7 @@ project-root/
 ```
 
 - **`/`** – Home page (`views/index.ejs`)
-- **`/assets/`** – Static assets from `public/assets/`
+- **`/assets/`** – Static assets from `public/assets/` (funnel video files: `public/assets/media/funnel/` → `/assets/media/funnel/…`; see `docs/CREATIVE-MEDIA.md`)
 - **`/{name}`** – Funnel pages (`views/funnels/{name}.ejs`), e.g. `/pilot`
 - **Booking** – Embedded in pilot funnel; CTA "Rezervovať sedenie" reveals form inline (`public/assets/js/booking.js`). Flow: slot → email → payment choice → payment → confirmation (see `docs/RESERVATION-SYSTEM-ARCHITECTURE.md`).
 
