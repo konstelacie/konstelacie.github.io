@@ -1,0 +1,130 @@
+<!-- Generic funnel content: CTA, how, audience, pricing, FAQ, references, CTA again -->
+<section id="booking" class="funnel-cta booking-section prose">
+  <div class="container">
+    <h2>Vyber si termín</h2>
+    <p>Vyber si dátum a termín, ktorý ti vyhovuje.</p>
+    <p class="muted">Termín ti po výbere podržíme 15 minút.</p>
+
+    <div class="booking-date-row">
+      <button type="button" id="booking-prev-day" class="booking-nav-btn" aria-label="Predchádzajúci deň">←</button>
+      <input type="date" id="booking-date" class="booking-date-input" aria-label="Dátum" value="<%= typeof bookingDateDefault !== 'undefined' ? bookingDateDefault : '' %>" min="<%= typeof bookingDateMin !== 'undefined' ? bookingDateMin : '' %>" max="<%= typeof bookingDateMax !== 'undefined' ? bookingDateMax : '' %>">
+      <button type="button" id="booking-next-day" class="booking-nav-btn" aria-label="Nasledujúci deň">→</button>
+    </div>
+
+    <div id="booking-slots-container" class="booking-slots">
+      <p id="booking-slots-loading" class="muted">Načítavam termíny…</p>
+      <div id="booking-slots-list" class="booking-slots-list" hidden></div>
+      <p id="booking-slots-empty" class="muted" hidden>Pre tento dátum nie sú dostupné žiadne termíny.</p>
+      <p id="booking-slots-error" class="booking-error" hidden></p>
+    </div>
+
+    <div id="booking-hold-banner" class="booking-hold-banner" hidden>
+      <p><strong>Tento termín sme pre teba dočasne podržali.</strong> Dokonči rezerváciu do 15 minút.</p>
+      <p id="booking-countdown" class="booking-countdown">15:00</p>
+      <button type="button" id="booking-revoke-btn" class="booking-revoke-btn">Zrušiť podržanie</button>
+    </div>
+
+    <form id="booking-email-form" class="booking-email-form" hidden>
+      <label for="booking-email">E-mail</label>
+      <input type="email" id="booking-email" name="email" required placeholder="vas@email.sk" autocomplete="email">
+      <p id="booking-email-error" class="booking-error" hidden></p>
+      <button type="submit" id="booking-submit-btn" class="cta">Pokračovať</button>
+    </form>
+
+    <div id="booking-payment-choice" class="booking-payment-choice" hidden>
+      <p class="booking-payment-intro">Môžeš si zvoliť sumu, ktorá ti vyhovuje.</p>
+      <form id="booking-payment-form" class="booking-payment-form">
+        <fieldset class="booking-payment-options">
+          <legend class="visually-hidden">Spôsob platby</legend>
+          <label class="booking-payment-option">
+            <input type="radio" name="paymentPath" value="deposit" id="payment-deposit">
+            <span class="booking-payment-option-content">
+              <strong>Rezervovať sedenie</strong>
+              <span class="booking-payment-desc">Zaplať teraz malý poplatok za rezerváciu a finálnu sumu rozhodneš po sedení.</span>
+              <span class="booking-payment-amount">Rezervovať za 10 €</span>
+            </span>
+          </label>
+          <label class="booking-payment-option">
+            <input type="radio" name="paymentPath" value="full" id="payment-full">
+            <span class="booking-payment-option-content">
+              <strong>Zaplatiť plnú sumu teraz</strong>
+              <span class="booking-payment-desc">Minimálna suma: 45 €. Odporúčaná suma: 85 €.</span>
+              <div class="booking-payment-amounts">
+                <label class="booking-amount-opt"><input type="radio" name="fullAmount" value="45"> 45 € <span class="muted">(znížená suma)</span></label>
+                <label class="booking-amount-opt"><input type="radio" name="fullAmount" value="65"> 65 €</label>
+                <label class="booking-amount-opt booking-amount-recommended"><input type="radio" name="fullAmount" value="85" checked> 85 € <span class="muted">(odporúčaná suma)</span></label>
+                <label class="booking-amount-opt"><input type="radio" name="fullAmount" value="105"> 105 € <span class="muted">(podporujúca suma)</span></label>
+                <label class="booking-amount-opt">
+                  <input type="radio" name="fullAmount" value="custom" id="full-amount-custom"> Vlastná suma:
+                  <input type="number" id="booking-custom-amount" min="45" step="1" value="125" class="booking-custom-amount-input" aria-label="Vlastná suma v eurách"> €
+                </label>
+              </div>
+            </span>
+          </label>
+        </fieldset>
+        <p id="booking-payment-error" class="booking-error" hidden></p>
+        <div class="booking-payment-actions">
+          <button type="button" id="booking-payment-back" class="booking-back-btn">Späť na e-mail</button>
+          <button type="submit" id="booking-payment-submit" class="cta">Pokračovať k platbe</button>
+        </div>
+      </form>
+    </div>
+
+    <div id="booking-success" class="booking-success" hidden>
+      <h3>Rezervácia je vytvorená</h3>
+      <p id="booking-success-pending" class="muted">Presmerovávam na platbu…</p>
+      <p id="booking-success-failed" class="booking-error" hidden></p>
+      <button type="button" id="booking-payment-retry" class="cta" hidden>Skúsiť platbu znova</button>
+    </div>
+  </div>
+</section>
+
+<section class="funnel-how prose">
+  <div class="container">
+    <h2>Ako vyzerá sedenie</h2>
+    <p>Placeholder popis priebehu sedenia…</p>
+  </div>
+</section>
+
+<section class="funnel-audience prose">
+  <div class="container">
+    <h2>Pre koho to je / nie je</h2>
+    <p>Placeholder text pre cieľovú skupinu…</p>
+  </div>
+</section>
+
+<section class="funnel-pricing prose">
+  <div class="container">
+    <h2>Cena a platba</h2>
+    <p>Rezervácia sedenia: 10 €. Plná suma: od 45 € (odporúčaná 85 €). Žiadne skryté poplatky.</p>
+  </div>
+</section>
+
+<section class="funnel-faq prose">
+  <div class="container">
+    <h2>Časté otázky</h2>
+    <dl class="funnel-faq-list">
+      <dt>Čo sú rodinné konstelácie?</dt>
+      <dd>Placeholder odpoveď…</dd>
+      <dt>Pre koho je sedenie vhodné?</dt>
+      <dd>Placeholder odpoveď…</dd>
+      <dt>Ako sedenie prebieha?</dt>
+      <dd>Vždy kladiem dôraz na vypočutie klienta, uznanie jeho prežívania a empatiu. Dôležité sú individálne potreby klienta, nie presná štruktúra. Ak navnímam, že je vhodné prejsť ku konštelácii, navrhnem túto možnosť. Nikdy však ku konštelácii nepristupujem nasilu.</dd>
+      <dt>Koľko to stojí?</dt>
+      <dd>Prvá rezervácia stojí 10 €. V prípade nespokojnosti nemusíš nič ďalšie platiť a naše cesty sa môžu v pokoji rozísť. V prípade spokojnosti budeš môcť doplatiť sumu, akú si zvolíš. (Odporúčaná cena za sedenie je 85 €, minimálna 45 €).</dd>
+    </dl>
+  </div>
+</section>
+
+<section class="funnel-references prose">
+  <div class="container">
+    <h2>Odkazy a zdroje</h2>
+    <p>Placeholder – knihy, články, odkazy na ďalšie informácie…</p>
+  </div>
+</section>
+
+<section class="funnel-cta-repeat prose">
+  <div class="container">
+    <p><a href="#booking" class="cta">Vyber si termín</a></p>
+  </div>
+</section>

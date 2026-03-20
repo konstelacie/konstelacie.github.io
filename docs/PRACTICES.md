@@ -31,14 +31,14 @@ When we go live, we will introduce proper migrations and ALTER/UPDATE flows. Unt
 
 - Stylesheets: `href="/assets/css/…"`
 - Scripts: `src="/assets/js/…"`
-- Internal links: `href="/funnels/pilot/"`, `href="/"`
+- Internal links: `href="/pilot"`, `href="/"`
 
 **Examples:**
 ```html
 <!-- ✓ Correct -->
 <link rel="stylesheet" href="/assets/css/site.css">
 <script src="/assets/js/funnel.js"></script>
-<a href="/funnels/pilot/">Pilot</a>
+<a href="/pilot">Pilot</a>
 <a href="/">Home</a>
 
 <!-- ✗ Avoid – relative paths break when file location changes -->
@@ -83,7 +83,7 @@ project-root/
 │   ├── routes/
 │   │   ├── api/                        # /api/slots, /api/reservations
 │   │   ├── booking.js                  # Embedded in pilot funnel
-│   │   ├── funnels.js                  # /funnels/*
+│   │   ├── funnels.js                  # /{name} routes (e.g. /pilot)
 │   │   ├── health.js                   # /health
 │   │   ├── index.js                    # /
 │   │   └── static.js                   # sitemap, robots
@@ -91,7 +91,7 @@ project-root/
 │       ├── layouts/                    # default.ejs
 │       ├── partials/                   # header.ejs, footer.ejs
 │       ├── index.ejs                   # Home page
-│       └── funnels/                    # views/funnels/{name}.ejs
+│       └── funnels/                    # {name}.ejs instances, _funnel-content.ejs (generic)
 ├── public/assets/
 │   ├── css/                            # site.css, funnel.css, pseudochat.css
 │   └── js/                             # funnel.js, booking.js, pseudochat/ (funnel-chatbot.js parked)
@@ -103,7 +103,7 @@ project-root/
 
 - **`/`** – Home page (`views/index.ejs`)
 - **`/assets/`** – Static assets from `public/assets/`
-- **`/funnels/{name}/`** – Funnel pages (`views/funnels/{name}.ejs`)
+- **`/{name}`** – Funnel pages (`views/funnels/{name}.ejs`), e.g. `/pilot`
 - **Booking** – Embedded in pilot funnel; CTA "Rezervovať sedenie" reveals form inline (`public/assets/js/booking.js`). Flow: slot → email → payment choice → payment → confirmation (see `docs/RESERVATION-SYSTEM-ARCHITECTURE.md`).
 
 New funnels: add `views/funnels/{name}.ejs`, register in `routes/funnels.js`, update `sitemap.xml`.
@@ -115,7 +115,7 @@ New funnels: add `views/funnels/{name}.ejs`, register in `routes/funnels.js`, up
 - Layout: `views/layouts/default.ejs` wraps all pages.
 - Partials: `header.ejs`, `footer.ejs` in `views/partials/`.
 - Pass `title`, `description`, `home`, `extraStyles`, `extraScripts` from routes.
-- New funnels: create `views/funnels/{name}.ejs` and register in `src/routes/funnels.js`.
+- New funnels: create `views/funnels/{name}.ejs` (campaign block + `<%- include('_funnel-content') %>`), register in `src/routes/funnels.js`.
 
 ---
 

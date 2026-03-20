@@ -40,7 +40,7 @@ Use `/`-prefixed paths for all internal URLs:
 
 - Styles: `href="/assets/css/site.css"`
 - Scripts: `src="/assets/js/funnel.js"`
-- Links: `href="/funnels/pilot/"`, `href="/"`
+- Links: `href="/pilot"`, `href="/"`
 
 Never use `../` or `../../` for assets; root-relative paths work from any page depth.
 

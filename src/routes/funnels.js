@@ -23,7 +23,7 @@ const CAMPAIGNS = {
   // 'pattern': { headline: '...', subhead: '...', videoUrl: 'https://...', summary: '<p>...</p>' },
 };
 
-router.get('/pilot/', (req, res) => {
+router.get('/pilot', (req, res) => {
   const campaignId = req.query.campaign || 'default';
   const campaign = { ...CAMPAIGNS.default, ...CAMPAIGNS[campaignId] };
 

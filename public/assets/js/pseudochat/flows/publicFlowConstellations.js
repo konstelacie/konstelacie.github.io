@@ -28,7 +28,7 @@ export const publicFlowConstellations = {
         'Môžeš si rezervovať termín priamo tu. Otvorí sa ti stránka s výberom dátumov.',
       ],
       options: [
-        { id: 'otvorit', label: 'Otvoriť rezerváciu', next: 'welcome', action: 'OPEN_URL', actionPayload: { url: '/funnels/pilot/#booking' } },
+        { id: 'otvorit', label: 'Otvoriť rezerváciu', next: 'welcome', action: 'OPEN_URL', actionPayload: { url: '/pilot#booking' } },
         { id: 'spat', label: 'Späť', next: 'welcome' },
       ],
     },

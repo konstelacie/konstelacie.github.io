@@ -34,7 +34,7 @@ app.use('/assets', express.static(path.join(projectRoot, 'public', 'assets')));
 
 // Routes (more specific first)
 app.use('/api', apiRouter);
-app.use('/funnels', funnelsRouter);
+app.use('/', funnelsRouter);
 app.use('/', indexRouter);
 app.use('/', staticRouter);
 app.use('/', healthRouter);
