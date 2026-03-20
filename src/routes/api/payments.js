@@ -3,6 +3,7 @@ const Stripe = require('stripe');
 const { asyncHandler, ApiError } = require('../../middleware/apiError');
 const { getPool } = require('../../db');
 const auditRepo = require('../../db/repositories/auditRepo');
+const { FUNNEL_INSTANCES } = require('../funnels');
 
 const router = express.Router();
 
@@ -29,6 +30,15 @@ function validateAmount(raw, paymentType) {
     throw new ApiError('VALIDATION_ERROR', 'amount must be at least 45 when paymentType is full', 400);
   }
   return amount * 100; // euros → cents
+}
+
+function validateReturnPath(raw) {
+  const path = typeof raw === 'string' ? raw.replace(/\/$/, '').replace(/^\//, '') : '';
+  const name = path || 'pilot';
+  if (!FUNNEL_INSTANCES.includes(name)) {
+    return 'pilot';
+  }
+  return name;
 }
 
 router.get(
@@ -99,7 +109,7 @@ router.get(
 router.post(
   '/start',
   asyncHandler(async (req, res) => {
-    const { reservationId: rawReservationId, paymentType: rawPaymentType, amount: rawAmount } = req.body ?? {};
+    const { reservationId: rawReservationId, paymentType: rawPaymentType, amount: rawAmount, returnPath: rawReturnPath } = req.body ?? {};
     const reservationId = validateReservationId(rawReservationId);
     const paymentType = validatePaymentType(rawPaymentType);
     const amountCents = validateAmount(rawAmount, paymentType);
@@ -145,9 +155,10 @@ router.post(
       paymentTypeForDb = 'session';
     }
 
+    const funnelName = validateReturnPath(rawReturnPath);
     const baseUrl = process.env.BASE_URL || (req.protocol + '://' + req.get('host'));
-    const successUrl = `${baseUrl}/pilot/success?session_id={CHECKOUT_SESSION_ID}`;
-    const cancelUrl = `${baseUrl}/pilot/cancel`;
+    const successUrl = `${baseUrl}/${funnelName}/success?session_id={CHECKOUT_SESSION_ID}`;
+    const cancelUrl = `${baseUrl}/${funnelName}/cancel`;
 
     const stripe = new Stripe(stripeSecret);
     const session = await stripe.checkout.sessions.create({

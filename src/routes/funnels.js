@@ -2,6 +2,9 @@ const express = require('express');
 
 const router = express.Router();
 
+/** Known funnel instances. Add new instances here; routes and payment redirects use this. */
+const FUNNEL_INSTANCES = ['pilot'];
+
 function getTodayLocal() {
   return new Date().toLocaleDateString('en-CA', { timeZone: 'Europe/Bratislava' });
 }
@@ -11,26 +14,48 @@ function getMaxDateLocal() {
   return d.toLocaleDateString('en-CA', { timeZone: 'Europe/Bratislava' });
 }
 
-/** Default campaign when no variant specified. Override via ?campaign=id or route param. */
-const CAMPAIGNS = {
-  default: {
-    headline: 'Nadpis pilot funnels',
-    subhead: 'Podnadpis – stručný popis ponuky.',
-    videoUrl: null,
-    summary: '<p>Placeholder text pre zhrnutie…</p>',
+/** Campaign data per funnel instance. Override via ?campaign=id. */
+const INSTANCE_CAMPAIGNS = {
+  pilot: {
+    default: {
+      headline: 'Nadpis pilot funnels',
+      subhead: 'Podnadpis – stručný popis ponuky.',
+      videoUrl: null,
+      summary: '<p>Placeholder text pre zhrnutie…</p>',
+    },
+    // Add campaign variants: 'pattern': { headline: '...', ... },
   },
-  // Add campaign variants here, e.g.:
-  // 'pattern': { headline: '...', subhead: '...', videoUrl: 'https://...', summary: '<p>...</p>' },
 };
 
-router.get('/pilot', (req, res) => {
-  const campaignId = req.query.campaign || 'default';
-  const campaign = { ...CAMPAIGNS.default, ...CAMPAIGNS[campaignId] };
-
-  res.render('funnels/pilot', {
-    layout: 'layouts/default',
+/** Instance-specific meta (title, description). */
+const INSTANCE_META = {
+  pilot: {
     title: 'Pilot – V príprave',
     description: 'Pilot funnel – v príprave.',
+    successTitle: 'Platba dokončená',
+    cancelTitle: 'Platba zrušená',
+  },
+};
+
+function isValidFunnel(name) {
+  return typeof name === 'string' && FUNNEL_INSTANCES.includes(name);
+}
+
+// Main funnel page: /pilot, /pattern, etc.
+router.get('/:funnelName', (req, res, next) => {
+  const { funnelName } = req.params;
+  if (!isValidFunnel(funnelName)) return next('route');
+
+  const campaigns = INSTANCE_CAMPAIGNS[funnelName] || { default: {} };
+  const campaignId = req.query.campaign || 'default';
+  const campaign = { ...campaigns.default, ...campaigns[campaignId] };
+
+  const meta = INSTANCE_META[funnelName] || { title: funnelName, description: '' };
+
+  res.render(`funnels/${funnelName}`, {
+    layout: 'layouts/default',
+    title: meta.title,
+    description: meta.description,
     campaign,
     bookingDateDefault: getTodayLocal(),
     bookingDateMin: getTodayLocal(),
@@ -55,23 +80,36 @@ router.get('/pilot', (req, res) => {
   });
 });
 
-router.get('/pilot/success', (req, res) => {
-  res.render('funnels/pilot-success', {
+// Success: /pilot/success, /pattern/success, etc.
+router.get('/:funnelName/success', (req, res, next) => {
+  const { funnelName } = req.params;
+  if (!isValidFunnel(funnelName)) return next('route');
+
+  const meta = INSTANCE_META[funnelName] || {};
+  res.render('funnels/_funnel-success', {
     layout: 'layouts/default',
-    title: 'Platba dokončená – Pilot',
+    title: meta.successTitle || 'Platba dokončená',
     description: 'Ďakujeme, platba je dokončená.',
+    backUrl: `/${funnelName}#booking`,
     extraStyles: '<link rel="stylesheet" href="/assets/css/funnel.css">',
     extraScripts: '<script src="/assets/js/success-page.js"></script>',
   });
 });
 
-router.get('/pilot/cancel', (req, res) => {
-  res.render('funnels/pilot-cancel', {
+// Cancel: /pilot/cancel, /pattern/cancel, etc.
+router.get('/:funnelName/cancel', (req, res, next) => {
+  const { funnelName } = req.params;
+  if (!isValidFunnel(funnelName)) return next('route');
+
+  const meta = INSTANCE_META[funnelName] || {};
+  res.render('funnels/_funnel-cancel', {
     layout: 'layouts/default',
-    title: 'Platba zrušená – Pilot',
+    title: meta.cancelTitle || 'Platba zrušená',
     description: 'Platba bola zrušená.',
+    backUrl: `/${funnelName}#booking`,
     extraStyles: '<link rel="stylesheet" href="/assets/css/funnel.css">',
   });
 });
 
 module.exports = router;
+module.exports.FUNNEL_INSTANCES = FUNNEL_INSTANCES;

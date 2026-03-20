@@ -342,7 +342,8 @@
   }
 
   async function startPayment(reservationId, paymentType, amount) {
-    const payBody = { reservationId, paymentType };
+    const returnPath = (window.location.pathname || '').replace(/\/$/, '') || '/pilot';
+    const payBody = { reservationId, paymentType, returnPath };
     if (paymentType === 'full') payBody.amount = amount;
 
     const payRes = await fetch('/api/payments/start', {

@@ -91,7 +91,7 @@ project-root/
 │       ├── layouts/                    # default.ejs
 │       ├── partials/                   # header.ejs, footer.ejs
 │       ├── index.ejs                   # Home page
-│       └── funnels/                    # {name}.ejs instances, _funnel-content.ejs (generic)
+│       └── funnels/                    # {name}.ejs instances; _funnel-content, _funnel-success, _funnel-cancel (generic)
 ├── public/assets/
 │   ├── css/                            # site.css, funnel.css, pseudochat.css
 │   └── js/                             # funnel.js, booking.js, pseudochat/ (funnel-chatbot.js parked)
@@ -106,7 +106,7 @@ project-root/
 - **`/{name}`** – Funnel pages (`views/funnels/{name}.ejs`), e.g. `/pilot`
 - **Booking** – Embedded in pilot funnel; CTA "Rezervovať sedenie" reveals form inline (`public/assets/js/booking.js`). Flow: slot → email → payment choice → payment → confirmation (see `docs/RESERVATION-SYSTEM-ARCHITECTURE.md`).
 
-New funnels: add `views/funnels/{name}.ejs`, register in `routes/funnels.js`, update `sitemap.xml`.
+New funnels: add `views/funnels/{name}.ejs`, add to `FUNNEL_INSTANCES` and `INSTANCE_*` in `routes/funnels.js`, update `sitemap.xml`.
 
 ---
 
@@ -115,7 +115,7 @@ New funnels: add `views/funnels/{name}.ejs`, register in `routes/funnels.js`, up
 - Layout: `views/layouts/default.ejs` wraps all pages.
 - Partials: `header.ejs`, `footer.ejs` in `views/partials/`.
 - Pass `title`, `description`, `home`, `extraStyles`, `extraScripts` from routes.
-- New funnels: create `views/funnels/{name}.ejs` (campaign block + `<%- include('_funnel-content') %>`), register in `src/routes/funnels.js`.
+- New funnels: create `views/funnels/{name}.ejs` (campaign block + `<%- include('_funnel-content') %>`), add to `FUNNEL_INSTANCES` and `INSTANCE_*` in `src/routes/funnels.js`. Success/cancel pages use generic templates with `backUrl` from route.
 
 ---
 

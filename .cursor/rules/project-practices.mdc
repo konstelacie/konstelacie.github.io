@@ -51,7 +51,7 @@ Never use `../` or `../../` for assets; root-relative paths work from any page d
 - Funnel logic → `public/assets/js/funnel.js`
 - Views → `src/views/` (layouts, partials, pages, funnels)
 - Routes → `src/routes/`
-- New funnels → `src/views/funnels/{name}.ejs` + route in `src/routes/funnels.js` + add to `sitemap.xml`
+- New funnels → `src/views/funnels/{name}.ejs` + add to `FUNNEL_INSTANCES` in `src/routes/funnels.js` + add to `sitemap.xml`
 
 ## CSS variables
 
