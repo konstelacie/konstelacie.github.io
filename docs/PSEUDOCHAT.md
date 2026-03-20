@@ -4,7 +4,7 @@ Configurable decision-tree chat widget for the public site. Looks like a chat (b
 
 ## Deployment status: parked for later use
 
-**The PseudoChat widget is not used on any live funnel at this time.** It is implemented and ready, but intentionally parked. The first-visit funnel keeps a single CTA (reservation) to reduce decision friction. **Chatbot may be introduced on remarketing funnels** when we want to offer softer next steps (e.g. "Ask a question") to users who have already seen the offer. Until then, the codebase keeps `funnel-chatbot.js`, flows, and styles available for future remarketing pages.
+**The PseudoChat widget is not used on any live funnel at this time.** It is implemented and ready, but intentionally parked. The first-visit funnel keeps a single CTA (reservation) to reduce decision friction. **Chatbot may be introduced on remarketing funnels** when we want to offer softer next steps (e.g. "Ask a question") to users who have already seen the offer. Until then, the codebase keeps `pseudochat/funnel-chatbot.js`, flows, and styles in the pseudochat folder—clearly separated from the pilot funnel.
 
 ## Overview
 
@@ -40,6 +40,7 @@ public/assets/
     ├── FlowEngine.js
     ├── FlowMerger.js
     ├── StorageAdapter.js
+    ├── funnel-chatbot.js  # parked for remarketing; not used on pilot
     └── flows/
         ├── basePublicFlow.js
         └── publicFlowConstellations.js
@@ -170,6 +171,16 @@ Context = stored `context` object + runtime:
 Store context via `storage.set('context', { ... })` (not used by default flows).
 
 ## Integration
+
+### Remarketing funnel (parked)
+
+To add PseudoChat to a remarketing funnel page, load `pseudochat.css` and the pre-built `funnel-chatbot.js` module. Requires `funnel.js` for `window.funnel.cta.scrollTo`:
+
+```html
+<link rel="stylesheet" href="/assets/css/pseudochat.css">
+<script src="/assets/js/funnel.js"></script>
+<script type="module" src="/assets/js/pseudochat/funnel-chatbot.js"></script>
+```
 
 ### Basic
 

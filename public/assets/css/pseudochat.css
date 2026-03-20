@@ -1,4 +1,11 @@
-/* PseudoChat Widget – uses design tokens from site.css */
+/* PseudoChat Widget – uses design tokens from site.css
+ * Parked for remarketing funnels. Not used on pilot.
+ */
+
+/* Section spacing when chatbot is embedded in funnel layout */
+.funnel-chatbot {
+  padding: var(--spacing-section) 0;
+}
 
 .pseudochat-launcher {
   position: fixed;

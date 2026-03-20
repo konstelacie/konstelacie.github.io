@@ -18,8 +18,7 @@
 .funnel-audience,
 .funnel-pricing,
 .funnel-faq,
-.funnel-references,
-.funnel-chatbot {
+.funnel-references {
   padding: var(--spacing-section) 0;
 }
 

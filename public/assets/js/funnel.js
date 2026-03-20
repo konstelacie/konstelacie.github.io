@@ -1,5 +1,6 @@
 /**
- * Funnel – shared logic for video, CTA, chatbot
+ * Funnel – shared logic for video, CTA.
+ * Used by pilot and other funnel pages.
  */
 
 (function () {
@@ -24,16 +25,6 @@
     }
   };
 
-  // --- Chatbot ---
-  // When ready: load script, init Ľudmil widget
-  // Depends on chosen provider (Tawk.to, Crisp, custom, etc.)
-
-  var chatbot = {
-    init: function () {
-      // placeholder
-    }
-  };
-
   // --- CTA / booking ---
   // Optional: smooth scroll to .funnel-cta, external link handling
 
@@ -44,5 +35,5 @@
     }
   };
 
-  window.funnel = { video: video, chatbot: chatbot, cta: cta };
+  window.funnel = { video: video, cta: cta };
 })();

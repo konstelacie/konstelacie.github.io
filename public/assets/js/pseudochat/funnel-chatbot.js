@@ -1,5 +1,6 @@
 /**
  * Funnel chatbot – initializes PseudoChat widget on funnel pages.
+ * PARKED: Not used on pilot. For remarketing funnels only.
  * Scrolls to CTA when user chooses booking/login path.
  */
 
