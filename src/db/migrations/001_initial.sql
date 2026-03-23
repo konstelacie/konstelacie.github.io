@@ -61,12 +61,16 @@ CREATE TABLE reservations (
   status ENUM('draft','pending_payment','confirmed','cancelled','expired') NOT NULL DEFAULT 'draft',
   payment_type ENUM('deposit','full') NOT NULL DEFAULT 'deposit',
   lock_token CHAR(36) NULL,
+  funnel_name VARCHAR(32) NULL,
+  funnel_campaign VARCHAR(64) NULL,
+  funnel_video_id VARCHAR(128) NULL,
   cancelled_at DATETIME(3) NULL,
   created_at DATETIME(3) DEFAULT CURRENT_TIMESTAMP(3),
   updated_at DATETIME(3) DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3),
   INDEX idx_reservations_email_created (email, created_at),
   INDEX idx_reservations_slot_id (slot_id),
   INDEX idx_reservations_status_created (status, created_at),
+  INDEX idx_reservations_funnel_created (funnel_name, funnel_campaign, created_at),
   CONSTRAINT fk_reservations_slot FOREIGN KEY (slot_id) REFERENCES slots(id),
   CONSTRAINT fk_reservations_user FOREIGN KEY (user_id) REFERENCES users(id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

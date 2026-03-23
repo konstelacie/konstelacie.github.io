@@ -96,11 +96,14 @@ Links user + slot. Created after lock, before payment. See `docs/RESERVATION-SYS
 | status       | ENUM         | draft, pending_payment, confirmed, cancelled, expired             |
 | payment_type | ENUM         | deposit, full — user's payment choice at creation                 |
 | lock_token   | CHAR(36)     | NULL (stored for traceability)                                    |
+| funnel_name  | VARCHAR(32)  | NULL — funnel instance (`pilot`, …) for A/B attribution           |
+| funnel_campaign | VARCHAR(64) | NULL — campaign id from `?campaign=` / `INSTANCE_CAMPAIGNS`     |
+| funnel_video_id | VARCHAR(128) | NULL — logical video id (`videoId` in campaign config)         |
 | cancelled_at | DATETIME(3)  | NULL. Set when status = cancelled                                |
 | created_at   | DATETIME(3)  |                                                                   |
 | updated_at   | DATETIME(3)  |                                                                   |
 
-**Indexes:** `(email, created_at)`, `(slot_id)`, `(status, created_at)`.
+**Indexes:** `(email, created_at)`, `(slot_id)`, `(status, created_at)`, `(funnel_name, funnel_campaign, created_at)`.
 
 **Relations:** `slot_id` → slots, `user_id` → users. Referenced by `payments.reservation_id`.
 

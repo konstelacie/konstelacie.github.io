@@ -119,12 +119,16 @@ Create a reservation from a valid lock. Requires `paymentType` and `amount` when
   "lockToken": "550e8400-e29b-41d4-a716-446655440000",
   "email": "user@domain.com",
   "paymentType": "deposit",
-  "amount": null
+  "amount": null,
+  "funnelName": "pilot",
+  "funnelCampaign": "default",
+  "funnelVideoId": "pilot-hero-r1"
 }
 ```
 
 - For reservation: `"paymentType": "deposit"`, `"amount"` omitted.
 - For full payment: `"paymentType": "full"`, `"amount"` required (min 45, in euros).
+- **Funnel attribution (optional):** `funnelName` (must match a known funnel instance), `funnelCampaign` (must be a key in `INSTANCE_CAMPAIGNS` for that funnel), `funnelVideoId` (optional; server resolves canonical id from campaign config). Omitted when booking from a page without funnel context. Used for A/B reporting and Stripe metadata.
 
 **Example:**
 

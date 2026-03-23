@@ -14,6 +14,50 @@
   const $ = (id) => document.getElementById(id);
 
   const STORAGE_KEY = 'booking_lock';
+  const FUNNEL_CTX_KEY = 'booking_funnel_ctx';
+
+  function readFunnelContext() {
+    const section = document.getElementById('booking');
+    const fromUrl = new URLSearchParams(location.search).get('campaign');
+    const serverName = section?.dataset?.funnelName?.trim() || '';
+    const serverCampaign = section?.dataset?.funnelCampaign?.trim() || 'default';
+    const serverVideo = section?.dataset?.funnelVideoId?.trim() || '';
+    try {
+      const stored = JSON.parse(sessionStorage.getItem(FUNNEL_CTX_KEY) || 'null');
+      if (section && serverName) {
+        if (fromUrl != null && fromUrl !== '') {
+          return {
+            funnelName: serverName,
+            funnelCampaign: fromUrl.trim(),
+            funnelVideoId: serverVideo,
+          };
+        }
+        if (stored && stored.funnelName === serverName) {
+          return {
+            funnelName: serverName,
+            funnelCampaign: stored.funnelCampaign || serverCampaign,
+            funnelVideoId: serverVideo || stored.funnelVideoId || '',
+          };
+        }
+        return {
+          funnelName: serverName,
+          funnelCampaign: serverCampaign,
+          funnelVideoId: serverVideo,
+        };
+      }
+      if (stored && stored.funnelName) {
+        return stored;
+      }
+    } catch (_) {}
+    return { funnelName: '', funnelCampaign: '', funnelVideoId: '' };
+  }
+
+  function persistFunnelContext(ctx) {
+    if (!ctx || !ctx.funnelName) return;
+    try {
+      sessionStorage.setItem(FUNNEL_CTX_KEY, JSON.stringify(ctx));
+    } catch (_) {}
+  }
 
   function storeLock() {
     try {
@@ -381,6 +425,12 @@
     try {
       const body = { slotId: lockedSlotId, lockToken, email, paymentType };
       if (paymentType === 'full') body.amount = amount;
+      const funnelCtx = readFunnelContext();
+      if (funnelCtx.funnelName) {
+        body.funnelName = funnelCtx.funnelName;
+        body.funnelCampaign = funnelCtx.funnelCampaign || 'default';
+        if (funnelCtx.funnelVideoId) body.funnelVideoId = funnelCtx.funnelVideoId;
+      }
       const res = await fetch('/api/reservations', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -446,6 +496,8 @@
       document.getElementById('booking')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
       history.replaceState(null, '', location.pathname + location.search);
     }
+
+    persistFunnelContext(readFunnelContext());
 
     dateInput.min = getMinDate();
     dateInput.max = getMaxDate();

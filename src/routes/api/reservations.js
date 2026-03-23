@@ -4,6 +4,7 @@ const { validateSlotId, validateEmail, validateLockToken } = require('../../midd
 const reservationsRepo = require('../../db/repositories/reservationsRepo');
 const auditRepo = require('../../db/repositories/auditRepo');
 const { getPool } = require('../../db');
+const { parseFunnelAttribution } = require('../funnels');
 
 const router = express.Router();
 
@@ -74,6 +75,7 @@ router.post(
     const lockToken = validateLockToken(rawLockToken);
     const email = validateEmail(rawEmail, true);
     const { paymentType, amount } = validatePaymentChoice(rawPaymentType, rawAmount);
+    const funnel = parseFunnelAttribution(req.body ?? {});
 
     const pool = getPool();
     if (!pool) throw new Error('Database not configured');
@@ -135,8 +137,19 @@ router.post(
       }
 
       const [insRes] = await conn.execute(
-        'INSERT INTO reservations (slot_id, user_id, email, status, payment_type, lock_token) VALUES (?, ?, ?, \'pending_payment\', ?, ?)',
-        [slotId, userId, email, paymentType, lockToken]
+        `INSERT INTO reservations (slot_id, user_id, email, status, payment_type, lock_token,
+          funnel_name, funnel_campaign, funnel_video_id)
+         VALUES (?, ?, ?, 'pending_payment', ?, ?, ?, ?, ?)`,
+        [
+          slotId,
+          userId,
+          email,
+          paymentType,
+          lockToken,
+          funnel.funnelName,
+          funnel.funnelCampaign,
+          funnel.funnelVideoId,
+        ]
       );
       reservationId = insRes.insertId;
 
@@ -159,6 +172,9 @@ router.post(
     await auditRepo.log('reservation_created', 'reservation', reservationId, {
       slotId,
       email: email.slice(0, 3) + '...',
+      funnelName: funnel.funnelName,
+      funnelCampaign: funnel.funnelCampaign,
+      funnelVideoId: funnel.funnelVideoId,
     });
 
     res.status(201).json({

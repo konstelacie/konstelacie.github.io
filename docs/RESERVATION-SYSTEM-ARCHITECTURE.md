@@ -239,7 +239,7 @@ Index: `(action, created_at)`, `(entity_type, entity_id)`.
 ### Authenticated (user or lockToken)
 
 **POST /api/reservations**
-- Body: `{ slotId, lockToken, email, paymentType: 'deposit'|'full', amount?: number }`. `email` required for first-time users; `amount` required when `paymentType: 'full'`.
+- Body: `{ slotId, lockToken, email, paymentType: 'deposit'|'full', amount?: number, funnelName?: string, funnelCampaign?: string, funnelVideoId?: string }`. `email` required for first-time users; `amount` required when `paymentType: 'full'`. Optional funnel fields are validated against `INSTANCE_CAMPAIGNS` in `src/routes/funnels.js` and stored on the reservation for A/B reporting.
 - Headers: `Authorization: Bearer <token>` (returning user) or `X-Lock-Token: <lockToken>` (first-time).
 - Response: `{ id, status, slotId, paymentUrl }`.
 - Errors: 400, 401, 409 (slot no longer available).

@@ -123,7 +123,9 @@ router.post(
     if (!pool) throw new ApiError('INTERNAL_ERROR', 'Database not configured', 503);
 
     const [resRows] = await pool.execute(
-      'SELECT id, slot_id, user_id, email, status, payment_type FROM reservations WHERE id = ?',
+      `SELECT id, slot_id, user_id, email, status, payment_type,
+              funnel_name, funnel_campaign, funnel_video_id
+       FROM reservations WHERE id = ?`,
       [reservationId]
     );
     const reservation = resRows[0];
@@ -182,6 +184,9 @@ router.post(
         reservationId: String(reservationId),
         userId: reservation.user_id ? String(reservation.user_id) : '',
         paymentType: paymentTypeForDb,
+        funnelName: reservation.funnel_name ? String(reservation.funnel_name) : '',
+        funnelCampaign: reservation.funnel_campaign ? String(reservation.funnel_campaign) : '',
+        funnelVideoId: reservation.funnel_video_id ? String(reservation.funnel_video_id) : '',
       },
       success_url: successUrl,
       cancel_url: cancelUrl,
@@ -197,6 +202,9 @@ router.post(
       paymentType: paymentTypeForDb,
       amountCents: cents,
       sessionId: session.id,
+      funnelName: reservation.funnel_name,
+      funnelCampaign: reservation.funnel_campaign,
+      funnelVideoId: reservation.funnel_video_id,
     });
 
     res.status(200).json({ ok: true, url: session.url });

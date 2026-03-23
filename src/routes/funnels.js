@@ -1,5 +1,6 @@
 const express = require('express');
 const { resolveCampaignVideo } = require('../config/funnelVideo');
+const { ApiError } = require('../middleware/apiError');
 
 const router = express.Router();
 
@@ -61,6 +62,36 @@ function isValidFunnel(name) {
   return typeof name === 'string' && FUNNEL_INSTANCES.includes(name);
 }
 
+/**
+ * Parse and validate funnel A/B attribution from API body (booking).
+ * Campaign ids must exist in INSTANCE_CAMPAIGNS for the funnel.
+ * @param {object} body - req.body
+ * @returns {{ funnelName: string|null, funnelCampaign: string|null, funnelVideoId: string|null }}
+ */
+function parseFunnelAttribution(body) {
+  const rawName = body?.funnelName ?? body?.funnel;
+  const rawCampaign = body?.funnelCampaign ?? body?.campaign;
+  if (rawName == null || String(rawName).trim() === '') {
+    return { funnelName: null, funnelCampaign: null, funnelVideoId: null };
+  }
+  const funnelName = String(rawName).trim();
+  if (!FUNNEL_INSTANCES.includes(funnelName)) {
+    throw new ApiError('VALIDATION_ERROR', 'Invalid funnelName', 400);
+  }
+  const campaigns = INSTANCE_CAMPAIGNS[funnelName] || { default: {} };
+  const campaignId =
+    rawCampaign != null && String(rawCampaign).trim() !== '' ? String(rawCampaign).trim() : 'default';
+  if (!/^[a-zA-Z0-9_-]{1,64}$/.test(campaignId)) {
+    throw new ApiError('VALIDATION_ERROR', 'Invalid funnelCampaign', 400);
+  }
+  if (!Object.prototype.hasOwnProperty.call(campaigns, campaignId)) {
+    throw new ApiError('VALIDATION_ERROR', 'Unknown funnel campaign', 400);
+  }
+  const merged = { ...campaigns.default, ...campaigns[campaignId] };
+  const funnelVideoId = merged.videoId != null ? String(merged.videoId).slice(0, 128) : null;
+  return { funnelName, funnelCampaign: campaignId, funnelVideoId };
+}
+
 // Main funnel page: /pilot, /pattern, etc.
 router.get('/:funnelName', (req, res, next) => {
   const { funnelName } = req.params;
@@ -79,6 +110,9 @@ router.get('/:funnelName', (req, res, next) => {
     description: meta.description,
     campaign,
     campaignVideo,
+    funnelName,
+    funnelCampaignId: campaignId,
+    funnelVideoId: campaign.videoId != null ? String(campaign.videoId) : null,
     bookingDateDefault: getTodayLocal(),
     bookingDateMin: getTodayLocal(),
     bookingDateMax: getMaxDateLocal(),
@@ -135,3 +169,4 @@ router.get('/:funnelName/cancel', (req, res, next) => {
 
 module.exports = router;
 module.exports.FUNNEL_INSTANCES = FUNNEL_INSTANCES;
+module.exports.parseFunnelAttribution = parseFunnelAttribution;

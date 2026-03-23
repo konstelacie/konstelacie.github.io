@@ -31,7 +31,9 @@ async function getById(reservationId) {
   if (!pool) throw new Error('Database not configured');
 
   const [rows] = await pool.execute(
-    'SELECT id, slot_id, user_id, email, status, lock_token, created_at FROM reservations WHERE id = ?',
+    `SELECT id, slot_id, user_id, email, status, lock_token,
+            funnel_name, funnel_campaign, funnel_video_id, created_at
+     FROM reservations WHERE id = ?`,
     [reservationId]
   );
   return rows[0] ?? null;

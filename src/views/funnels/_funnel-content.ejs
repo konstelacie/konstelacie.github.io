@@ -1,5 +1,8 @@
 <!-- Generic funnel content: CTA, how, audience, pricing, FAQ, references, CTA again -->
-<section id="booking" class="funnel-cta booking-section prose">
+<section id="booking" class="funnel-cta booking-section prose"
+  <% if (typeof funnelName !== 'undefined' && funnelName) { %>data-funnel-name="<%= funnelName %>"<% } %>
+  <% if (typeof funnelName !== 'undefined' && funnelName && typeof funnelCampaignId !== 'undefined') { %>data-funnel-campaign="<%= funnelCampaignId %>"<% } %>
+  <% if (typeof funnelVideoId !== 'undefined' && funnelVideoId) { %>data-funnel-video-id="<%= funnelVideoId %>"<% } %>>
   <div class="container">
     <h2>Vyber si termín</h2>
     <p>Vyber si dátum a termín, ktorý ti vyhovuje.</p>

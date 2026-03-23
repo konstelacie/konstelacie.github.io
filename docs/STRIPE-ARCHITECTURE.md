@@ -252,10 +252,12 @@ Attach to Checkout Session `metadata`:
 
 | Key | Value | Purpose |
 |-----|-------|---------|
+| `reservationId` | Internal reservation ID | Link payment to booking |
 | `userId` | Internal user ID | Link payment to user in webhook |
-| `sessionId` | Internal session/booking ID | Link payment to booking |
 | `paymentType` | `deposit` \| `session` \| `topup` | Determine handling logic |
-| `internalReference` | Optional unique ref | Audit trail, support |
+| `funnelName` | Funnel instance or empty | A/B attribution |
+| `funnelCampaign` | Campaign id or empty | Matches `?campaign=` / DB |
+| `funnelVideoId` | Logical video id or empty | Creative variant |
 
 ### Why Metadata Is Critical
 
