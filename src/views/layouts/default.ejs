@@ -9,7 +9,9 @@
   <%- typeof extraStyles !== 'undefined' && extraStyles ? extraStyles : '' %>
 </head>
 <body>
+  <% if (typeof hideHeader === 'undefined' || !hideHeader) { %>
   <%- include('../partials/header') %>
+  <% } %>
   <%- body %>
   <%- include('../partials/footer') %>
   <%- typeof extraScripts !== 'undefined' && extraScripts ? extraScripts : '' %>

@@ -106,6 +106,7 @@ router.get('/:funnelName', (req, res, next) => {
 
   res.render(`funnels/${funnelName}`, {
     layout: 'layouts/default',
+    hideHeader: true,
     title: meta.title,
     description: meta.description,
     campaign,
@@ -144,6 +145,7 @@ router.get('/:funnelName/success', (req, res, next) => {
   const meta = INSTANCE_META[funnelName] || {};
   res.render('funnels/_funnel-success', {
     layout: 'layouts/default',
+    hideHeader: true,
     title: meta.successTitle || 'Platba dokončená',
     description: 'Ďakujeme, platba je dokončená.',
     backUrl: `/${funnelName}#booking`,
@@ -160,6 +162,7 @@ router.get('/:funnelName/cancel', (req, res, next) => {
   const meta = INSTANCE_META[funnelName] || {};
   res.render('funnels/_funnel-cancel', {
     layout: 'layouts/default',
+    hideHeader: true,
     title: meta.cancelTitle || 'Platba zrušená',
     description: 'Platba bola zrušená.',
     backUrl: `/${funnelName}#booking`,
