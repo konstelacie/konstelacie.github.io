@@ -1,20 +1,24 @@
 # DB Migrations
 
-How to run database migrations for citimtedasom.sk. For schema structure, tables, and relationships, see `docs/DB-SCHEMA.md`.
+How to run database migrations for citimtedasom.sk. For schema structure, tables, and relationships, see `docs/DB-SCHEMA.md`. For env usage across the app (including when the DB pool is disabled), see `docs/IMPLEMENTATION-SNAPSHOT.md`.
 
 ## Required env vars
 
-Set in `.env` (or environment):
+Set in `.env` (or environment). Copy from `.env.example` at the repo root.
 
 | Variable | Description |
 |----------|-------------|
 | `DB_HOST` | MySQL host (default: localhost) |
 | `DB_PORT` | MySQL port (default: 3306) |
-| `DB_USER` | MySQL user |
-| `DB_PASSWORD` | MySQL password |
-| `DB_NAME` | Database name (default: citim_teda_som) |
+| `DB_USER` | MySQL user (**required** for `npm run db:migrate` and for the app pool) |
+| `DB_PASSWORD` | MySQL password (may be empty) |
+| `DB_NAME` | Database name (default: `citim_teda_som`) |
 
-For Stripe vars (`STRIPE_SECRET_KEY`, `STRIPE_PUBLIC_KEY`, `STRIPE_WEBHOOK_SECRET`), see `docs/STRIPE-ARCHITECTURE.md`. For Resend (`RESEND_API_KEY`, `RESEND_FROM_EMAIL`, `RESEND_FROM_NAME`), see `docs/EMAILING.md`.
+**Migration runner (`scripts/db-migrate.js`):** Exits with an error if `DB_USER` or `DB_NAME` is missing.
+
+**Application pool (`src/config/database.js`):** The pool is **not** created unless `DB_HOST`, `DB_USER`, and `DB_NAME` are all set (non-empty). If the pool is missing, API routes that need the DB return **503** where applicable.
+
+For Stripe vars (`STRIPE_PUBLIC_KEY`, `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`), see `docs/STRIPE-ARCHITECTURE.md`. For Resend (`RESEND_API_KEY`, `RESEND_FROM_EMAIL`, `RESEND_FROM_NAME`), see `docs/EMAILING.md`.
 
 ## How it works
 

@@ -1,20 +1,44 @@
-# API Reference (Phase 2B)
+# API reference
 
-Base URL: `/api`
+**Canonical behavior:** Match `src/routes/` and `docs/IMPLEMENTATION-SNAPSHOT.md`. This document describes the public HTTP API.
 
-All responses are JSON. Errors return `{ "ok": false, "error": "...", "message": "...", "details": {...} }`.
+- **JSON API base:** `/api` — all routes below use JSON request/response unless noted.
+- **Stripe webhook:** `POST /api/stripe/webhook` is mounted **separately** in `src/app.js` (raw body for signatures). It does **not** go through the same middleware stack as `/api/*` from `src/routes/api/index.js`.
+
+---
+
+## Conventions
+
+**Responses:** JSON. Success bodies typically include `"ok": true`.
+
+**Errors:** For routes using `ApiError`, error shape is:
+
+```json
+{
+  "ok": false,
+  "error": "ERROR_CODE",
+  "message": "Human-readable message",
+  "details": {}
+}
+```
+
+`details` is omitted when empty. A few endpoints (e.g. `GET /api/payments/status` validation) return `{ "ok": false, "error": "..." }` without `message` / `details`.
+
+**Request ID:** Routes under `src/routes/api/index.js` set `X-Request-Id` (echoed from incoming `X-Request-Id` or generated).
 
 ---
 
 ## GET /api/slots
 
-List available slots in a date range.
+List slots in a date range, with lock state for the booking UI.
 
 **Query params:**
 
-- `from` (required): ISO date YYYY-MM-DD
-- `to` (required): ISO date YYYY-MM-DD (max 31 days range)
-- `lockToken` (optional): UUID to identify slots held by the current user; adds `isMyLock` to matching slots
+- `from` (required): ISO date `YYYY-MM-DD`
+- `to` (required): ISO date `YYYY-MM-DD`
+- `lockToken` (optional): UUID — if it matches the active lock on a slot, that slot has `isMyLock: true`
+
+**Validation:** Range inclusive; maximum **31** calendar days (`from` through `to`).
 
 **Example:**
 
@@ -37,6 +61,7 @@ curl "http://localhost:3000/api/slots?from=2026-03-05&to=2026-03-10"
       "status": "open",
       "capacity": 1,
       "isLocked": false,
+      "isMyLock": false,
       "lockExpiresAt": null
     }
   ]
@@ -47,20 +72,12 @@ curl "http://localhost:3000/api/slots?from=2026-03-05&to=2026-03-10"
 
 ## POST /api/slots/:slotId/lock
 
-Lock a slot for 15 minutes.
+Lock a slot for **15 minutes**.
 
 **Body (optional):**
 
 ```json
 { "email": "optional@domain.com" }
-```
-
-**Example:**
-
-```bash
-curl -X POST http://localhost:3000/api/slots/1/lock \
-  -H "Content-Type: application/json" \
-  -d '{"email":"user@example.com"}'
 ```
 
 **Response 200:**
@@ -74,7 +91,7 @@ curl -X POST http://localhost:3000/api/slots/1/lock \
 }
 ```
 
-**Response 409 (already locked):**
+**Response 409 (`SLOT_LOCKED`):**
 
 ```json
 {
@@ -89,9 +106,11 @@ curl -X POST http://localhost:3000/api/slots/1/lock \
 
 ## POST /api/revoke
 
-Revoke (release) a slot lock. Uses POST with JSON body.
+Release a slot lock (`slot_locks` row).
 
-**Body:**
+**Parameters:** `slotId` and `lockToken` may be sent in the **JSON body**, **query string**, or `lockToken` via header **`X-Lock-Token`**.
+
+**Body example:**
 
 ```json
 { "slotId": 1, "lockToken": "550e8400-e29b-41d4-a716-446655440000" }
@@ -103,39 +122,34 @@ Revoke (release) a slot lock. Uses POST with JSON body.
 { "ok": true, "revoked": true }
 ```
 
-`revoked: false` when the lock was not found or already expired.
+`revoked` is `false` when no matching lock existed (already expired or revoked).
 
 ---
 
 ## POST /api/reservations
 
-Create a reservation from a valid lock. Requires `paymentType` and `amount` when `paymentType` is `full`. See `docs/SESSION-PRICING.md` for amounts.
+Create a reservation from a valid, unexpired lock. Sets status to `pending_payment`.
 
 **Body:**
 
-```json
-{
-  "slotId": 1,
-  "lockToken": "550e8400-e29b-41d4-a716-446655440000",
-  "email": "user@domain.com",
-  "paymentType": "deposit",
-  "amount": null,
-  "funnelName": "pilot",
-  "funnelCampaign": "default",
-  "funnelVideoId": "pilot-hero-r1"
-}
-```
+| Field | Required | Description |
+|-------|----------|-------------|
+| `slotId` | yes | Positive integer |
+| `lockToken` | yes | UUID (36 chars) |
+| `email` | yes | Valid email |
+| `paymentType` | yes | `"deposit"` or `"full"` |
+| `amount` | if `paymentType` is `full` | Integer **euros**, minimum **45** |
+| `funnelName` or `funnel` | no | Must be a known funnel instance (e.g. `pilot`) |
+| `funnelCampaign` or `campaign` | no | Campaign id; default `default`. Must exist in that funnel’s campaign map |
 
-- For reservation: `"paymentType": "deposit"`, `"amount"` omitted.
-- For full payment: `"paymentType": "full"`, `"amount"` required (min 45, in euros).
-- **Funnel attribution (optional):** `funnelName` (must match a known funnel instance), `funnelCampaign` (must be a key in `INSTANCE_CAMPAIGNS` for that funnel), `funnelVideoId` (optional; server resolves canonical id from campaign config). Omitted when booking from a page without funnel context. Used for A/B reporting and Stripe metadata.
+**Funnel attribution:** The server stores `funnel_name`, `funnel_campaign`, and resolves **`funnel_video_id`** from campaign config (`src/routes/funnels.js` — `INSTANCE_CAMPAIGNS`). Clients do **not** send `funnelVideoId`; it is derived server-side.
 
 **Example:**
 
 ```bash
 curl -X POST http://localhost:3000/api/reservations \
   -H "Content-Type: application/json" \
-  -d '{"slotId":1,"lockToken":"YOUR-LOCK-TOKEN","email":"user@example.com"}'
+  -d '{"slotId":1,"lockToken":"YOUR-LOCK-TOKEN","email":"user@example.com","paymentType":"deposit","funnelName":"pilot","funnelCampaign":"default"}'
 ```
 
 **Response 201:**
@@ -153,41 +167,50 @@ curl -X POST http://localhost:3000/api/reservations \
 }
 ```
 
+**Errors:** `VALIDATION_ERROR`, `NOT_FOUND`, `SLOT_NOT_OPEN`, `LOCK_INVALID`, `SLOT_RESERVED`, etc. See `src/middleware/validators.js` and `src/routes/api/reservations.js`.
+
+---
+
+## GET /api/reservations/:id/status
+
+Reservation snapshot for polling: reservation fields, slot times, latest payment status.
+
+**Response 200:**
+
+```json
+{
+  "ok": true,
+  "id": 1,
+  "status": "confirmed",
+  "slotId": 1,
+  "startsAt": "2026-03-05T18:00:00.000Z",
+  "endsAt": "2026-03-05T19:00:00.000Z",
+  "timezone": "Europe/Bratislava",
+  "paymentStatus": "completed",
+  "paymentUrl": null
+}
+```
+
+`paymentUrl` is reserved for future use; currently `null`.
+
+**Errors:** 404 — reservation not found. **503** — database not configured.
+
 ---
 
 ## POST /api/payments/start
 
-Create a Stripe Checkout Session for a pending reservation. Returns the Stripe-hosted payment URL for redirect. See `docs/STRIPE-ARCHITECTURE.md` and `docs/SESSION-PRICING.md`.
+Create a Stripe Checkout Session for a reservation in `pending_payment`. Returns the Stripe-hosted URL to redirect the browser.
 
 **Body:**
 
-```json
-{
-  "reservationId": 1,
-  "paymentType": "deposit",
-  "amount": null
-}
-```
+| Field | Required | Description |
+|-------|----------|-------------|
+| `reservationId` | yes | Positive integer |
+| `paymentType` | yes | `"deposit"` or `"full"` — must match the reservation’s `payment_type` |
+| `amount` | if `full` | Integer euros, minimum **45** (converted to cents server-side) |
+| `returnPath` | no | Funnel segment used for success/cancel URLs (e.g. `pilot`). If invalid or omitted, defaults to `pilot`. Must be in `FUNNEL_INSTANCES`. |
 
-- `reservationId` (required): Positive integer — reservation ID from `POST /api/reservations`.
-- `paymentType` (required): `"deposit"` or `"full"` — must match the reservation.
-- `amount` (required when `paymentType` is `"full"`): Integer in euros, minimum 45.
-
-**Example (deposit):**
-
-```bash
-curl -X POST http://localhost:3000/api/payments/start \
-  -H "Content-Type: application/json" \
-  -d '{"reservationId":1,"paymentType":"deposit"}'
-```
-
-**Example (full payment):**
-
-```bash
-curl -X POST http://localhost:3000/api/payments/start \
-  -H "Content-Type: application/json" \
-  -d '{"reservationId":1,"paymentType":"full","amount":85}'
-```
+**Deposit amount:** Fixed in code at **1000** cents (10 €). **Full** payment stores `payment_type` `session` in `payments` with the given amount.
 
 **Response 200:**
 
@@ -198,30 +221,19 @@ curl -X POST http://localhost:3000/api/payments/start \
 }
 ```
 
-Client should redirect the user to `url` (e.g. `window.location.href = data.url`).
+**Errors:** 400 `VALIDATION_ERROR`, 404 `NOT_FOUND`, 409 `CONFLICT`, 503 `INTERNAL_ERROR` (Stripe or DB missing).
 
-**Errors:**
-
-- 400: `VALIDATION_ERROR` — invalid body, amount &lt; 45 when full, or paymentType mismatch.
-- 404: `NOT_FOUND` — reservation not found.
-- 409: `CONFLICT` — reservation not pending payment, or payment already in progress.
-- 503: `INTERNAL_ERROR` — Stripe or database not configured.
+**Env:** `STRIPE_SECRET_KEY`, `BASE_URL` optional (defaults to request origin). See `docs/STRIPE-ARCHITECTURE.md` and `docs/SESSION-PRICING.md`.
 
 ---
 
 ## GET /api/payments/status
 
-Get payment and reservation status by Stripe Checkout Session ID. Used by the success page to display confirmation and poll until webhook has processed.
+Load payment and reservation state by **Stripe Checkout Session ID** (success page / polling).
 
-**Query params:**
+**Query:**
 
-- `session_id` (required): Stripe Checkout Session ID (`cs_...`) from the success URL
-
-**Example:**
-
-```bash
-curl "http://localhost:3000/api/payments/status?session_id=cs_test_..."
-```
+- `session_id` (required): must start with `cs_`
 
 **Response 200:**
 
@@ -246,73 +258,36 @@ curl "http://localhost:3000/api/payments/status?session_id=cs_test_..."
 }
 ```
 
-When payment is still pending (webhook not yet processed), `payment.status` is `"pending"` and `paidAt` is null.
+While the webhook has not completed, `payment.status` may be `"pending"` and `paidAt` `null`.
 
-**Errors:**
-
-- 400: Missing or invalid `session_id`
-- 404: Payment not found
+**Errors:** 400 — missing/invalid `session_id` (body shape `{ "ok": false, "error": "..." }`). 404 — payment not found. **503** — database not configured.
 
 ---
 
-## GET /api/reservations/:id/status
+## POST /api/stripe/webhook
 
-Get reservation status for polling. Returns reservation, slot, and payment status.
+**Not** under `src/routes/api/index.js`. **Method:** `POST` only. **Body:** raw JSON (Stripe signature). **Headers:** `Stripe-Signature` required.
 
-**Example:**
+**Env:** `STRIPE_WEBHOOK_SECRET`
 
-```bash
-curl "http://localhost:3000/api/reservations/1/status"
-```
+**Handled events:** `checkout.session.completed`, `checkout.session.expired` (see `src/routes/api/stripe.js`). Others are acknowledged but not persisted.
 
-**Response 200:**
+**Response:** `200` with `{ "received": true }` on success.
 
-```json
-{
-  "ok": true,
-  "id": 1,
-  "status": "confirmed",
-  "slotId": 1,
-  "startsAt": "2026-03-05T18:00:00.000Z",
-  "endsAt": "2026-03-05T19:00:00.000Z",
-  "timezone": "Europe/Bratislava",
-  "paymentStatus": "completed",
-  "paymentUrl": null
-}
-```
-
-**Errors:**
-
-- 404: Reservation not found
-
----
-
-## Seed data (optional)
-
-To create a few slots for testing:
-
-```sql
-INSERT INTO slots (start_at, end_at, timezone, status, capacity) VALUES
-('2026-03-05 18:00:00', '2026-03-05 19:00:00', 'Europe/Bratislava', 'open', 1),
-('2026-03-06 10:00:00', '2026-03-06 11:00:00', 'Europe/Bratislava', 'open', 1),
-('2026-03-07 14:00:00', '2026-03-07 15:00:00', 'Europe/Bratislava', 'open', 1);
-```
+Full flow: `docs/STRIPE-ARCHITECTURE.md`.
 
 ---
 
 ## POST /api/cron/run (GET also supported)
 
-**Cron endpoint** for scheduled jobs. Intended to run every 15 minutes via alwaysdata scheduled task. Processes all due emails; uses advisory lock to skip if a previous run is still active. See `docs/SCHEDULED-EMAILS-CRON.md` for retries, Resend rate limits, and concurrency.
+Runs registered jobs in `src/jobs/index.js` (currently **pre-session reminder** only).
 
-**Auth:** In production, requires `CRON_SECRET` via header (`Authorization: Bearer <secret>`, `X-Cron-Secret: <secret>`) or query (`?secret=<secret>`). On localhost in development, unauthenticated requests are allowed for easy browser testing.
+**Auth:**
 
-**Example (localhost dev):**
+- **Production:** `CRON_SECRET` via `Authorization: Bearer <secret>`, `X-Cron-Secret: <secret>`, or `?secret=`.
+- **Development:** if `NODE_ENV === 'development'` and the request `Host` is localhost, secret is not required.
 
-```
-http://localhost:3000/api/cron/run
-```
-
-**Example (production):**
+**Example:**
 
 ```bash
 curl -X POST https://your-app.alwaysdata.net/api/cron/run \
@@ -335,19 +310,39 @@ curl -X POST https://your-app.alwaysdata.net/api/cron/run \
 }
 ```
 
-**Response 401 (production, missing/invalid secret):**
+**Response 401:** invalid or missing secret (non-localhost / non-dev).
 
-```json
-{
-  "ok": false,
-  "error": "UNAUTHORIZED",
-  "message": "Invalid or missing CRON_SECRET"
-}
+See `docs/SCHEDULED-EMAILS-CRON.md`.
+
+---
+
+## Seed data (optional)
+
+For local testing, insert open slots (adjust dates):
+
+```sql
+INSERT INTO slots (start_at, end_at, timezone, status, capacity) VALUES
+('2026-03-05 18:00:00', '2026-03-05 19:00:00', 'Europe/Bratislava', 'open', 1),
+('2026-03-06 10:00:00', '2026-03-06 11:00:00', 'Europe/Bratislava', 'open', 1),
+('2026-03-07 14:00:00', '2026-03-07 15:00:00', 'Europe/Bratislava', 'open', 1);
 ```
 
 ---
 
-## Not yet implemented (details to be added when available)
+## HTML and misc (not under `/api` alone)
 
-- `POST /api/reservations/:id/cancel` — cancel reservation
-- Admin endpoints (e.g. slot creation)
+| Method | Path | Notes |
+|--------|------|--------|
+| GET | `/` | Home |
+| GET | `/:funnelName` | Funnel page (`FUNNEL_INSTANCES`) |
+| GET | `/:funnelName/success` | Checkout success (typically `?session_id=cs_...`) |
+| GET | `/:funnelName/cancel` | Checkout cancelled |
+| GET | `/health` | JSON DB health |
+| GET | `/robots.txt`, `/sitemap.xml` | Static files |
+
+---
+
+## Not implemented (tracked for later)
+
+- `POST /api/reservations/:id/cancel`
+- Admin HTTP API (e.g. slot CRUD)

@@ -1,6 +1,6 @@
 # Database Schema
 
-**For AI assistants (Cursor, Copilot, etc.):** This document describes the database structure and purpose. Schema source of truth: `src/db/migrations/001_initial.sql`. For migration commands and env vars, see `docs/DB-MIGRATIONS.md`. For domain flows and API design, see `docs/RESERVATION-SYSTEM-ARCHITECTURE.md` and `docs/STRIPE-ARCHITECTURE.md`.
+**For AI assistants (Cursor, Copilot, etc.):** This document describes the database structure and purpose. **Schema source of truth:** `src/db/migrations/001_initial.sql`. For a compact inventory aligned with code, see `docs/IMPLEMENTATION-SNAPSHOT.md`. For migration commands and env vars, see `docs/DB-MIGRATIONS.md`. For domain flows and API design, see `docs/RESERVATION-SYSTEM-ARCHITECTURE.md` and `docs/STRIPE-ARCHITECTURE.md`.
 
 ---
 
@@ -29,7 +29,7 @@
 
 ### users
 
-Identity by email. Created on first reservation or when user provides email during lock.
+Identity by email. A row is created when a **reservation** is created with that email (see `src/routes/api/reservations.js`). An optional email on a lock alone does not create a user row.
 
 | Column     | Type         | Description    |
 |------------|--------------|----------------|
@@ -107,7 +107,7 @@ Links user + slot. Created after lock, before payment. See `docs/RESERVATION-SYS
 
 **Relations:** `slot_id` → slots, `user_id` → users. Referenced by `payments.reservation_id`.
 
-**Status flow:** draft → pending_payment (after creation) → confirmed (after webhook) or cancelled/expired.
+**Status flow:** New rows from the public API are created as `pending_payment` (not `draft`). `confirmed` after Stripe `checkout.session.completed` webhook; other terminal states per business rules.
 
 ---
 
@@ -160,10 +160,10 @@ Audit trail for transactional emails. See `docs/EMAILING.md`.
 | recipient_email    | VARCHAR(255) | NOT NULL                                 |
 | template_id        | VARCHAR(100) | NOT NULL (e.g. reservation-confirmation) |
 | entity_type        | VARCHAR(50)  | NULL (e.g. reservation)                  |
-| entity_id          | BIGINT       | NULL                                     |
+| entity_id          | BIGINT UNSIGNED | NULL                                  |
 | provider_message_id | VARCHAR(255) | NULL (Resend message ID)                 |
 | actor_type         | ENUM         | anon, user, admin, system (default: system) |
-| actor_id           | BIGINT       | NULL                                     |
+| actor_id           | BIGINT UNSIGNED | NULL                                  |
 | sent_at            | DATETIME(3)  | When sent                                |
 
 **Indexes:** `(recipient_email)`, `(entity_type, entity_id)`, `(sent_at)`.
@@ -178,10 +178,10 @@ Logging for critical actions. See `docs/RESERVATION-SYSTEM-ARCHITECTURE.md`.
 |-------------|--------------|----------------|
 | id          | PK           | Auto-increment |
 | actor_type  | ENUM         | anon, user, admin, system |
-| actor_id    | BIGINT       | NULL           |
+| actor_id    | BIGINT UNSIGNED | NULL        |
 | action      | VARCHAR(100) | NOT NULL       |
 | entity_type | VARCHAR(50)  | NULL           |
-| entity_id   | BIGINT       | NULL           |
+| entity_id   | BIGINT UNSIGNED | NULL       |
 | ip          | VARCHAR(45)  | NULL           |
 | user_agent  | VARCHAR(255) | NULL           |
 | payload_json| JSON         | NULL           |
@@ -211,6 +211,7 @@ audit_logs (standalone)
 
 | Doc | Content |
 |-----|---------|
+| `docs/IMPLEMENTATION-SNAPSHOT.md` | Code-first schema summary and env behavior |
 | `docs/DB-MIGRATIONS.md` | Migration commands, env vars, recreate workflow |
 | `docs/RESERVATION-SYSTEM-ARCHITECTURE.md` | Booking flows, slots, locks, reservations |
 | `docs/STRIPE-ARCHITECTURE.md` | Payments, webhooks, Checkout Sessions |
