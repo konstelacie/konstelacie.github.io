@@ -25,13 +25,16 @@ function getMaxDateLocal() {
  *   or `{ provider: 'wistia', hashedId }`.
  * - Legacy: `videoUrl` only (iframe) still supported if `video` is omitted.
  */
+/** Temporary: same Wistia embed for all pilot campaigns until prod assets are ready. */
+const WISTIA_TEST_HASHED_ID = 'qyexpnd6fa';
+
 const pilotPoslanie = {
   headline: 'Musím nájsť poslanie. Alebo nie?',
   subhead: 'Pozri si toto krátke video ↓',
   videoId: 'pilot-hero-r1',
   video: {
-    provider: 'self',
-    src: '/assets/media/funnel/pilot-hero-r1.webm',
+    provider: 'wistia',
+    hashedId: WISTIA_TEST_HASHED_ID,
   },
   summary: '<p>Placeholder text pre zhrnutie…</p>',
 };
@@ -45,19 +48,11 @@ const INSTANCE_CAMPAIGNS = {
       subhead: 'Dozvieš sa vo videu ↓',
       videoId: 'pilot-hero-r1',
       video: {
-        provider: 'self',
-        src: '/assets/media/funnel/pilot-hero-r1.webm',
+        provider: 'wistia',
+        hashedId: WISTIA_TEST_HASHED_ID,
       },
       summary: '<p>Placeholder text pre zhrnutie…</p>',
     },
-    // Example — Wistia: same videoId, swap provider when you move off self-hosted
-    // wistia: {
-    //   videoId: 'pilot-hero-r1',
-    //   video: { provider: 'wistia', hashedId: 'YOUR_WISTIA_HASHED_ID' },
-    //   headline: '…',
-    //   subhead: '…',
-    //   summary: '…',
-    // },
   },
 };
 
