@@ -1,18 +1,29 @@
-# Emailing — Architecture Input Document
+# Emailing — Architecture & status
 
-**For AI assistants (Cursor, Copilot, etc.):** This document maps the emailing space for the project. It is an early input/thinking document—not a final architecture decision. Treat most things as open questions, options, and decision points. Do not prematurely lock the project into one exact implementation.
+**For AI assistants (Cursor, Copilot, etc.):** This document maps the emailing space. **Implemented delivery** is in `src/email/provider.js` (Resend), `src/services/emailService.js`, templates under `src/templates/emails/`, and logging via `email_sent_log` (`docs/DB-SCHEMA.md`). Sections below still include **planning** and **open questions** for operator-assisted and marketing mail—treat those as non-binding until built.
 
-**Related docs:** `docs/RESERVATION-SYSTEM-ARCHITECTURE.md`, `docs/STRIPE-ARCHITECTURE.md`, `docs/SESSION-PRICING.md`, `docs/POST-PAYMENT-CLIENT-JOURNEY.md`, `docs/SCHEDULED-EMAILS-CRON.md` (timed emails, cron, newsletter, bulk).
+**Related docs:** `docs/RESERVATION-SYSTEM-ARCHITECTURE.md`, `docs/STRIPE-ARCHITECTURE.md`, `docs/SESSION-PRICING.md`, `docs/POST-PAYMENT-CLIENT-JOURNEY.md`, `docs/SCHEDULED-EMAILS-CRON.md`, `docs/API.md`, `docs/IMPLEMENTATION-SNAPSHOT.md`.
+
+### Implementation snapshot (facts)
+
+| Piece | Status |
+|-------|--------|
+| Provider | **Resend** (`resend` npm package); `sendEmail` skipped if API key/from not set (`skipped: true`). |
+| Reservation confirmation | **Yes** — after `checkout.session.completed` webhook (`src/routes/api/stripe.js`), `sendReservationConfirmation`, template id `reservation-confirmation`. |
+| Pre-session reminder | **Yes** — cron job `pre-session-reminder` (`src/jobs/preSessionReminder.js`), template id `pre-session-reminder`. |
+| `email_sent_log` table | **Yes** — audit for sends with template id, entity link, `provider_message_id` when available. |
+| Queue / worker | **No** — confirmation uses fire-and-forget `async` from webhook handler (errors logged). |
+| Operator manual send UI | **No** — still external / future. |
 
 ### Required env vars (Resend)
 
-Set in `.env` (or environment):
+Set in `.env` (or environment); see `src/config/index.js` and `.env.example`.
 
 | Variable | Description |
 |----------|-------------|
 | `RESEND_API_KEY` | API key from [Resend Dashboard → API Keys](https://resend.com/api-keys). |
-| `RESEND_FROM_EMAIL` | Sender address (must use verified domain in Resend). |
-| `RESEND_FROM_NAME` | Sender display name (default: citimtedasom.sk). |
+| `RESEND_FROM_EMAIL` | Sender address (verified domain in Resend). |
+| `RESEND_FROM_NAME` | Display name (default in config: `citimtedasom.sk`). |
 
 ---
 
@@ -27,16 +38,16 @@ This doc is a thinking input. Final decisions will be captured elsewhere once ma
 
 ---
 
-## 2. Current Context and Assumptions
+## 2. Current context and assumptions
 
-### What Exists Today
+### What exists today (code)
 
-- **Reservation flow:** Slot → lock → email (user identity) → payment choice → Stripe Checkout → confirmation.
-- **Success page:** `pilot-success.ejs` — "O ďalších krokoch ťa budeme informovať e-mailom."
-- **No email sending yet** — No provider integration, no templates, no delivery.
-- **Schema:** `users.email`, `reservations.email`; no `email_sent_log` or similar.
+- **Reservation flow:** Slot → lock → reservation (email) → Stripe Checkout → webhook confirms payment → **confirmation email** sent asynchronously.
+- **Success page:** `src/views/funnels/_funnel-success.ejs` — thanks copy; details also loaded via `GET /api/payments/status` where implemented client-side.
+- **Provider:** Resend; HTML from EJS templates in `src/templates/emails/`.
+- **Schema:** `users.email`, `reservations.email`, **`email_sent_log`** for sends linked by `template_id`, `entity_type`, `entity_id`.
 
-### Assumptions (Non-Final)
+### Assumptions (non-final; planning sections below)
 
 | Assumption | Notes |
 |------------|-------|
@@ -228,14 +239,14 @@ Ak by Meet u vás nefungoval, môžeme použiť aj inú platformu.
 ### 6.3 Business / Event Layer
 
 **Role:** Decide *when* to send. Triggers from:
-- Webhook (payment confirmed)
-- Cron (reminder 24h before session)
-- Admin action (operator clicks "Send follow-up")
-- Future: session completion event
+- Webhook (payment confirmed) — **implemented:** async send after DB commit in `stripe.js` (not a separate queue worker).
+- Cron (pre-session reminder) — **implemented:** `docs/SCHEDULED-EMAILS-CRON.md`.
+- Admin action (operator clicks "Send follow-up") — **not implemented.**
+- Future: session completion event.
 
-**Consideration:** Webhook handler must respond quickly. Defer email sending to a background job or queue. See `docs/STRIPE-ARCHITECTURE.md` Section 9.
+**Consideration:** Stripe webhook returns quickly; confirmation send is `.catch`’d so failures do not block HTTP. A dedicated queue is still optional for future scale.
 
-**Open:** Queue choice (in-memory, Redis, DB-based, provider-native); retry strategy.
+**Open:** Queue choice if volume grows; retry strategy for failed sends.
 
 ### 6.4 Logging / History / Audit Needs
 
@@ -264,14 +275,14 @@ Ak by Meet u vás nefungoval, môžeme použiť aj inú platformu.
 
 ## 7. Data and State Considerations
 
-### 7.1 What May Need to Be Stored
+### 7.1 What may need to be stored
 
-| Data | Purpose | Priority |
-|------|---------|----------|
-| Email send log | Audit, "what did we send" | High |
-| Provider message ID | Link to provider dashboard; support | Medium |
-| Delivery status | Bounce handling; analytics | Low for V1 |
-| Template versions | Reproducibility; debugging | Medium (if DB templates) |
+| Data | Purpose | Status |
+|------|---------|--------|
+| Email send log | Audit, "what did we send" | **Implemented:** `email_sent_log` |
+| Provider message ID | Link to Resend dashboard | **Implemented** when Resend returns `messageId` |
+| Delivery status | Bounce handling; analytics | Not stored (future) |
+| Template versions | Reproducibility | Code-level templates only (git) |
 
 ### 7.2 Email History
 
@@ -296,7 +307,7 @@ Ak by Meet u vás nefungoval, môžeme použiť aj inú platformu.
 - **Doplatok request** → `reservation_id`, `user_id`; may need payment context (amount due).
 - **Manual email** → `user_id` at minimum; `reservation_id` optional for context.
 
-**Open:** Schema for `email_sent_log`; exact columns.
+**Schema:** See `docs/DB-SCHEMA.md` — `email_sent_log`.
 
 ---
 
@@ -336,28 +347,28 @@ Ak by Meet u vás nefungoval, môžeme použiť aj inú platformu.
 
 ---
 
-## 9. Recommended Near-Term Scope
+## 9. Recommended near-term scope
 
-### 9.1 Build First
+### 9.1 Done (code)
+
+| Item | Notes |
+|------|--------|
+| Reservation confirmation email | Stripe webhook → `sendReservationConfirmation`; template `reservation-confirmation.ejs`. |
+| Provider integration | Resend via `src/email/provider.js`. |
+| Code-level templates | EJS in `src/templates/emails/`. |
+| Send log | `email_sent_log` + `emailSentLogRepo`. |
+| Non-blocking webhook | Async send with `.catch` logging. |
+| Pre-session reminder | Cron + `pre-session-reminder` template; see `SCHEDULED-EMAILS-CRON.md`. |
+
+### 9.2 Still open / postponed
 
 | Item | Rationale |
 |------|------------|
-| **Reservation confirmation email** | Highest impact; user expects it. Triggered from webhook (deferred to background). |
-| **Provider integration** | Resend (or chosen provider). Abstract behind interface. |
-| **Code-level templates** | EJS or similar for confirmation. Simple, versioned. |
-| **Basic send log** | Table to record sent emails; link to reservation/user. |
-| **Defer email from webhook** | Don't block webhook response; queue or fire-and-forget. |
-
-### 9.2 Postpone
-
-| Item | Rationale |
-|------|------------|
-| **Operator manual email** | Can use external email initially; add admin UI when admin exists. |
-| **Customizable templates** | Start with fixed templates; add slots for operator content later. |
-| **Reminder emails** | Requires cron/scheduler; add after confirmation works. |
-| **Follow-up / doplatok emails** | Depends on session completion flow; add when that exists. |
-| **Delivery status webhooks** | Nice to have; not critical for V1. |
-| **Newsletter / sequences** | Out of scope. |
+| **Operator manual email** | No admin UI yet. |
+| **Customizable templates** | Fixed templates in repo for now. |
+| **Follow-up / doplatok emails** | Needs session-completion flow + product rules. |
+| **Delivery status webhooks** | Optional. |
+| **Newsletter / sequences** | Out of scope until product asks. |
 
 ---
 
@@ -376,26 +387,22 @@ Ak by Meet u vás nefungoval, môžeme použiť aj inú platformu.
 
 ---
 
-## 11. Proposed Initial Direction (Non-Final)
+## 11. Direction (updated to match code)
 
-**Summary:** Start small, stay flexible.
+1. **Provider:** Resend; `sendEmail(to, subject, html, metadata)` in `src/email/provider.js`.
 
-1. **Provider:** Proceed with Resend as the default choice. Abstract behind a `sendEmail(to, subject, html, metadata)`-style interface. Revisit if requirements change.
+2. **Confirmation email:** Sent after successful `checkout.session.completed` processing; template `reservation-confirmation.ejs`; subject `Rezervácia potvrdená`.
 
-2. **First email:** Reservation confirmation. Single email, sent asynchronously after webhook confirms payment. Content: reservation details, amount paid, link to client zone, brief "what happens next."
+3. **Templates:** EJS under `src/templates/emails/` — `reservation-confirmation.ejs`, `pre-session-reminder.ejs`.
 
-3. **Templates:** EJS (or similar) in repo. One template for confirmation. Add more as use cases appear.
+4. **Logging:** `email_sent_log` as in `docs/DB-SCHEMA.md`.
 
-4. **Logging:** New table `email_sent_log` with: `id`, `recipient_email`, `template_id`, `entity_type`, `entity_id`, `provider_message_id`, `sent_at`, `actor_type`, `actor_id`. Minimal for V1.
+5. **Webhook path:** `sendConfirmationEmailAsync` — no `await` in the request path; errors logged.
 
-5. **Defer from webhook:** After webhook updates DB, enqueue or spawn async task to send email. Do not await in webhook handler.
+6. **Operator emails:** Still future (no admin).
 
-6. **Operator emails:** Defer to post-V1. Use personal email or external tool until admin exists. Revisit when building admin.
-
-7. **Reminders, follow-up, doplatok:** Defer. Implement after confirmation works and session completion flow exists.
-
-8. **Newsletter:** Explicitly out of scope. Revisit only when there is a clear product need.
+7. **Follow-up / doplatok / newsletter:** Still future or product-dependent.
 
 ---
 
-*This document is exploratory. Decisions will be captured elsewhere once made.*
+*Exploratory sections (categories, risks, open decisions) remain for planning; **runtime behavior** is defined by the files above and `docs/STRIPE-ARCHITECTURE.md` / `docs/SCHEDULED-EMAILS-CRON.md`.*

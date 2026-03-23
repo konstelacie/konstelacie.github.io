@@ -1,18 +1,18 @@
 # Scheduled Emails & Cron — Architecture
 
-**For AI assistants (Cursor, Copilot, etc.):** This document defines the architecture for timed emails (personal and bulk) and the cron endpoint that processes them. Use it when implementing reminder emails, newsletters, special messages, or the cron route.
+**For AI assistants (Cursor, Copilot, etc.):** Describes timed email jobs and the cron HTTP endpoint. **Implemented behavior:** `src/routes/api/cron.js`, `src/jobs/`, `docs/API.md` (`/api/cron/run`). Sections below mix **current code** with **planned** design (newsletter, advisory lock, retry loops)—see labels.
 
-**Related docs:** `docs/EMAILING.md`, `docs/POST-PAYMENT-CLIENT-JOURNEY.md`, `docs/RESERVATION-SYSTEM-ARCHITECTURE.md`, `docs/DB-SCHEMA.md`.
+**Related docs:** `docs/EMAILING.md`, `docs/POST-PAYMENT-CLIENT-JOURNEY.md`, `docs/RESERVATION-SYSTEM-ARCHITECTURE.md`, `docs/DB-SCHEMA.md`, `docs/IMPLEMENTATION-SNAPSHOT.md`.
 
 ---
 
 ## 1. Purpose
 
-- **Personal timed emails** — One recipient per send; triggered by schedule (e.g. pre-session reminder 24h before slot).
-- **Bulk timed emails** — Same template, many recipients; used for reminders batch, newsletter, or special messages.
-- **Cron endpoint** — HTTP endpoint hit by alwaysdata scheduled tasks every 15 minutes; processes all due jobs and attempts to send all emails that are due.
+- **Personal timed emails** — One recipient per send; triggered by cron (e.g. pre-session reminder in a ~24h window before slot). **Implemented:** `pre-session-reminder` job only.
+- **Bulk timed emails** — Newsletter, special messages, etc. **Planned** — not in `src/jobs/index.js`.
+- **Cron endpoint** — `POST` or `GET` `/api/cron/run` runs registered jobs sequentially via `runAll()`.
 
-**Existing:** Transactional emails (reservation confirmation) are already implemented. See `src/services/emailService.js`, `src/email/provider.js`, `docs/EMAILING.md`.
+**Also implemented elsewhere:** Reservation confirmation email after Stripe `checkout.session.completed` (webhook), not via this cron. See `src/routes/api/stripe.js`, `docs/EMAILING.md`.
 
 ---
 
@@ -69,16 +69,19 @@ POST /api/cron/run
 
 | Env var | Description |
 |---------|-------------|
-| `CRON_SECRET` | Shared secret; required for cron requests |
+| `CRON_SECRET` | Shared secret; required for cron requests in production-like contexts |
 
-**Validation:** Request must include valid secret via one of:
+**Validation (implemented in `src/routes/api/cron.js`):** Valid secret via one of:
+
 - Header: `Authorization: Bearer <CRON_SECRET>`
 - Header: `X-Cron-Secret: <CRON_SECRET>`
-- Query: `?secret=<CRON_SECRET>` (fallback for GET; less secure)
+- Query: `?secret=<CRON_SECRET>`
 
-Reject with 401 if missing or invalid.
+**Development bypass:** If `NODE_ENV === 'development'` **and** the request `Host` is `localhost` or `127.0.0.1`, the handler does **not** require `CRON_SECRET` (easier local/browser testing).
 
-### 4.3 Response Format
+Otherwise reject with **401** if secret is missing or wrong.
+
+### 4.3 Response format
 
 ```json
 {
@@ -89,16 +92,12 @@ Reject with 401 if missing or invalid.
       "sent": 3,
       "skipped": 0,
       "errors": []
-    },
-    {
-      "name": "newsletter-batch",
-      "sent": 0,
-      "skipped": 0,
-      "errors": []
     }
   ]
 }
 ```
+
+Only jobs registered in `src/jobs/index.js` appear (currently **one** job). Future jobs would add more entries here.
 
 ### 4.4 alwaysdata Setup Guide
 
@@ -148,21 +147,21 @@ module.exports = {
 };
 ```
 
-### 5.2 Job Types
+### 5.2 Job types
 
-| Job | Type | Query / source | Idempotency |
-|-----|------|----------------|-------------|
-| `pre-session-reminder` | Personal (bulk loop) | Reservations with slot in ~24h window | `email_sent_log` by template + reservation |
-| `post-session-follow-up` | Personal | Reservations with completed session | Same |
-| `doplatok-reminder` | Personal | Reservations with unpaid remainder | Same |
-| `newsletter-batch` | Bulk | Queue or scheduled campaign | Per campaign + recipient |
-| `special-message` | Bulk | Admin-created broadcast; recipient list | Per broadcast + recipient |
+| Job | Status | Query / source | Idempotency |
+|-----|--------|----------------|-------------|
+| `pre-session-reminder` | **Implemented** (`src/jobs/preSessionReminder.js`) | `reservationsRepo.findDueForPreSessionReminder()` — confirmed reservations, slot `start_at` in [now+23h30m, now+24h30m) | `email_sent_log` via `emailSentLogRepo.wasAlreadySent` |
+| `post-session-follow-up` | Planned | — | — |
+| `doplatok-reminder` | Planned | — | — |
+| `newsletter-batch` | Planned | — | — |
+| `special-message` | Planned | — | — |
 
 ### 5.3 Orchestrator
 
-`jobs.runAll()` iterates over registered jobs, runs each, aggregates results. Jobs run sequentially to avoid overload; parallelisation can be added later if needed.
+**Implemented:** `runAll()` in `src/jobs/index.js` runs each registered job **sequentially**, collects `{ name, sent, skipped, errors }`, returns `{ ok: true, jobs: [...] }`.
 
-**Cron handler flow:** Before `runAll()`, acquire advisory lock (Section 10). If lock not acquired, return immediately. After `runAll()` (in `finally`), release lock. Each job sends all due emails; per-email retries (Section 11) handle Resend rate limits and transient errors.
+**Planned (not in code):** Advisory lock before `runAll()`, per-email retry with backoff (Section 10–11). The live route **does not** acquire a DB advisory lock; overlapping HTTP calls can run jobs in parallel—**idempotency** (`email_sent_log`) still prevents duplicate sends for the same template + entity.
 
 ---
 
@@ -192,39 +191,25 @@ module.exports = {
 
 ---
 
-## 7. Folder Structure
+## 7. Folder structure (as implemented)
 
 ```
 src/
-├── jobs/                          # Cron job definitions
-│   ├── index.js                   # Job registry; runAll() orchestrator
-│   ├── preSessionReminder.js      # 24h before slot
-│   ├── postSessionFollowUp.js     # (future) After session
-│   ├── doplatokReminder.js        # (future) Unpaid remainder
-│   ├── newsletterBatch.js        # (future) Newsletter sends
-│   └── specialMessage.js          # (future) Admin broadcasts
-│
-├── routes/
-│   └── api/
-│       └── cron.js                # POST /api/cron/run
-│
-├── services/
-│   └── emailService.js            # Add sendPreSessionReminder, etc.
-│
-├── db/
-│   └── repositories/
-│       ├── emailSentLogRepo.js    # Existing; add wasAlreadySent(templateId, entityType, entityId)
-│       └── (future: newsletterSubscribersRepo, broadcastQueueRepo)
-│
-├── templates/
-│   └── emails/
-│       ├── reservation-confirmation.ejs
-│       ├── pre-session-reminder.ejs
-│       └── (future: newsletter, special-message)
-│
-└── email/
-    └── provider.js
+├── jobs/
+│   ├── index.js                   # Registry; runAll()
+│   └── preSessionReminder.js    # pre-session reminder only
+├── routes/api/cron.js             # POST & GET /api/cron/run
+├── services/emailService.js       # sendReservationConfirmation, sendPreSessionReminder
+├── db/repositories/
+│   ├── emailSentLogRepo.js
+│   └── reservationsRepo.js      # findDueForPreSessionReminder
+├── templates/emails/
+│   ├── reservation-confirmation.ejs
+│   └── pre-session-reminder.ejs
+└── email/provider.js            # Resend
 ```
+
+Additional job files (post-session, newsletter, etc.) are **not** present until built.
 
 ---
 
@@ -246,79 +231,49 @@ For deterministic reminders (e.g. 24h before):
 
 ---
 
-## 10. Cron Concurrency & Overlapping Runs
+## 10. Cron concurrency & overlapping runs
 
-### 10.1 Problem
+### 10.1 Problem (design)
 
-Cron runs every 15 minutes. A run may exceed 15 minutes (many due emails, Resend rate limits, slow network). A new run can start while the previous one is still executing.
+Scheduled tasks may overlap if a run is slow or triggered twice.
 
-### 10.2 Design Goals
+### 10.2 Current implementation
 
-- **Single active run:** Only one cron run should process jobs at a time.
-- **Graceful exit:** If a run is already active, the new run exits immediately (no duplicate work, no race conditions).
-- **Max retries:** Per-email retries are bounded so a stuck run eventually finishes and frees the lock.
+**`src/routes/api/cron.js` does not acquire an advisory lock or `cron_lock` row.** Each request runs `runAll()` to completion. Overlapping calls are possible.
 
-### 10.3 Advisory Lock
+**Mitigation in production:** Idempotency via `email_sent_log` (`wasAlreadySent` before send in `preSessionReminder.js`) prevents duplicate reminder emails for the same reservation.
 
-Use a DB advisory lock (or a dedicated `cron_lock` table) to prevent overlapping runs:
+### 10.3 Planned: advisory lock (not implemented)
 
-- **Acquire lock** at start of `/api/cron/run` (e.g. `GET_LOCK('cron_run', 0)` — non-blocking).
-- **If lock not acquired:** Return 200 with `{ ok: true, skipped: "previous run still active" }`. Do not process jobs.
-- **Release lock** in `finally` when run completes (success or error).
+Options documented below remain **design only** until implemented in `cron.js`:
 
-**Alternative:** `cron_lock` table with `(lock_key, acquired_at, expires_at)`. Acquire = INSERT with `expires_at = NOW() + 20 min`; release = DELETE. New run checks: if row exists and `acquired_at` is recent, skip.
+- **Acquire lock** at start of `/api/cron/run` (e.g. MySQL `GET_LOCK('cron_run', 0)` non-blocking).
+- **If lock not acquired:** Return early without processing (or return a structured skip message).
+- **Release lock** in `finally`.
 
-### 10.4 Race Conditions
+### 10.4 Race conditions
 
-If multiple instances somehow run (e.g. alwaysdata misfire, manual trigger):
-
-- **Idempotency** (Section 8) protects against duplicate sends: `email_sent_log` ensures each template+entity is sent at most once.
-- **Lock** reduces the chance; idempotency handles the rest.
-- Jobs should not assume exclusive access; always check `wasAlreadySent` before sending.
+If multiple cron runs overlap, rely on **idempotency** (Section 8) per template + entity. Jobs should always check `wasAlreadySent` before sending.
 
 ---
 
-## 11. Retries & Resend Rate Limits
+## 11. Retries & Resend rate limits
 
-### 11.1 Resend Constraints
+### 11.1 Resend constraints (reference)
 
-- **Rate limit:** Default 2 requests/second per team. 429 with `rate_limit_exceeded` when exceeded.
-- **Quotas:** Daily/monthly limits; 429 with `daily_quota_exceeded` or `monthly_quota_exceeded`.
-- **Transient errors:** 500, 503; `application_error`, `internal_server_error` — retry recommended.
-- **Headers:** `retry-after` (seconds) and `ratelimit-remaining` help with backoff.
+Resend may return 429 (rate / quota) or 5xx. See Resend docs for current limits.
 
-**Implication:** When sending many due emails in one cron run, hitting 429 is likely. Retries are essential.
+### 11.2 Current implementation
 
-### 11.2 Per-Email Retry Strategy
+**`emailService` + `preSessionReminder`:** Single `sendEmail` call per due item; **no** automatic retry loop, exponential backoff, or pacing delay in code. Failures append to the job’s `errors` array and are logged.
 
-| Step | Action |
-|------|--------|
-| 1 | Send email. On success → log, continue. |
-| 2 | On 429 (rate limit): wait `retry-after` seconds (or min 2s), retry. Max 3 retries per email. |
-| 3 | On 429 (quota exceeded): do not retry this run; log; next cron run will retry (idempotency allows it). |
-| 4 | On 5xx: exponential backoff (e.g. 2s, 4s, 8s); max 3 retries per email. |
-| 5 | After max retries: log error, continue to next email. Do not block entire run. |
+### 11.3 Planned enhancements
 
-### 11.3 Throttling Within a Run
+Per-email retries, throttling between sends, and batch APIs (Sections 11.2–11.5 in earlier revisions of this doc) remain **optional future work** if production load requires them.
 
-To reduce 429s:
+### 11.4 Recovery behavior today
 
-- **Pacing:** Insert small delay between sends (e.g. 500–600 ms) to stay under 2 req/s.
-- **Batch API:** Resend Batch API supports up to 100 emails per request; consider for newsletter/special messages. For personal reminders (one per reservation), individual sends with pacing may suffice.
-
-### 11.4 Max Retries to Free the Cron
-
-- **Per email:** Max 3 retries. After that, skip and log; next cron run will retry (item still due; idempotency prevents double-send if first attempt eventually succeeded).
-- **Per run:** No global retry loop. One pass over due items; each item gets up to 3 attempts.
-- **Effect:** A run with many rate-limited emails will take longer but eventually finish. Lock is released when run completes, so the next scheduled cron can proceed.
-
-### 11.5 Dead-Letter / Manual Recovery
-
-Items that fail after max retries remain "due" (no `email_sent_log` entry). They will be picked up by the next cron run. If Resend is down or quota is exhausted for an extended period, consider:
-
-- Admin view of failed sends (from logs or a `email_send_failures` table).
-- Manual retry trigger or "retry failed" job.
-- Alerting when failure rate exceeds a threshold.
+If a send fails, no `email_sent_log` row is written for that template + entity (unless partial success semantics change). The next cron run may select the same reservation again while it is still in the time window—operators should monitor `errors` in the JSON response and server logs.
 
 ---
 
@@ -331,17 +286,17 @@ Items that fail after max retries remain "due" (no `email_sent_log` entry). They
 
 ---
 
-## 13. Implementation Order
+## 13. Implementation status
 
-| Phase | Items |
-|-------|-------|
-| **1** | Cron route, CRON_SECRET, jobs index |
-| **2** | Pre-session reminder job, template, reservationsRepo query |
-| **3** | Advisory lock (Section 10); retry logic with Resend 429/5xx handling (Section 11) |
-| **4** | (Future) Post-session, doplatok |
-| **5** | (Future) Newsletter: consent, unsubscribe, batch job |
-| **6** | (Future) Special messages: admin UI, broadcast job |
+| Item | Status |
+|------|--------|
+| Cron route, `CRON_SECRET`, dev localhost bypass | Done (`src/routes/api/cron.js`) |
+| `runAll()`, `pre-session-reminder` job | Done |
+| `findDueForPreSessionReminder`, template `pre-session-reminder.ejs` | Done |
+| Advisory lock on cron | Not implemented |
+| Per-email Resend retries / pacing | Not implemented |
+| Post-session, doplatok, newsletter, special messages | Not implemented |
 
 ---
 
-*This document defines the architecture. Implementation details (exact SQL, template content) are in code and referenced docs.*
+*Planning sections above describe direction; **code** in `src/jobs/`, `src/routes/api/cron.js`, and `docs/API.md` are authoritative for current behavior.*
