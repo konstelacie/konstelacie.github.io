@@ -25,11 +25,24 @@ function getMaxDateLocal() {
  *   or `{ provider: 'wistia', hashedId }`.
  * - Legacy: `videoUrl` only (iframe) still supported if `video` is omitted.
  */
+const pilotPoslanie = {
+  headline: 'Ako na poslanie',
+  subhead: 'Podľa dohody, tajný trik sa dozvieš okamžite, stačí spustiť video ⬇⬇⬇',
+  videoId: 'pilot-hero-r1',
+  video: {
+    provider: 'self',
+    src: '/assets/media/funnel/pilot-hero-r1.webm',
+  },
+  summary: '<p>Placeholder text pre zhrnutie…</p>',
+};
+
 const INSTANCE_CAMPAIGNS = {
   pilot: {
-    default: {
-      headline: 'Nadpis pilot funnels',
-      subhead: 'Podnadpis – stručný popis ponuky.',
+    default: { ...pilotPoslanie },
+    poslanie: { ...pilotPoslanie },
+    zavist: {
+      headline: 'Závisť: vie mi niečo dať?',
+      subhead: 'Podľa dohody, tajný trik sa dozvieš okamžite, stačí spustiť video ⬇⬇⬇',
       videoId: 'pilot-hero-r1',
       video: {
         provider: 'self',
@@ -47,6 +60,26 @@ const INSTANCE_CAMPAIGNS = {
     // },
   },
 };
+
+/**
+ * Flat list of funnel + campaign for dev/testing links (e.g. home page).
+ * @returns {{ funnelName: string, campaignId: string, href: string }[]}
+ */
+function getFunnelCampaignLinks() {
+  const out = [];
+  for (const funnelName of FUNNEL_INSTANCES) {
+    const campaigns = INSTANCE_CAMPAIGNS[funnelName];
+    if (!campaigns) continue;
+    for (const campaignId of Object.keys(campaigns)) {
+      const href =
+        campaignId === 'default'
+          ? `/${funnelName}`
+          : `/${funnelName}?campaign=${encodeURIComponent(campaignId)}`;
+      out.push({ funnelName, campaignId, href });
+    }
+  }
+  return out;
+}
 
 /** Instance-specific meta (title, description). */
 const INSTANCE_META = {
@@ -173,3 +206,4 @@ router.get('/:funnelName/cancel', (req, res, next) => {
 module.exports = router;
 module.exports.FUNNEL_INSTANCES = FUNNEL_INSTANCES;
 module.exports.parseFunnelAttribution = parseFunnelAttribution;
+module.exports.getFunnelCampaignLinks = getFunnelCampaignLinks;

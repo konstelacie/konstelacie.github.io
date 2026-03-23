@@ -1,6 +1,14 @@
 <main>
   <div class="container" style="margin-top: 2rem;">
     <p>Stránka sa pripravuje.</p>
-    <p class="muted"><a href="/pilot">Pilot</a></p>
+    <% if (typeof funnelCampaignLinks !== 'undefined' && funnelCampaignLinks.length) { %>
+      <ul class="muted" style="margin: 1rem 0 0; padding-left: 1.25rem;">
+        <% funnelCampaignLinks.forEach(function (row) { %>
+          <li style="margin-bottom: 0.35rem;">
+            <a href="<%= row.href %>"><%= row.funnelName %> — <%= row.campaignId %></a>
+          </li>
+        <% }); %>
+      </ul>
+    <% } %>
   </div>
 </main>
