@@ -28,6 +28,15 @@ function getMaxDateLocal() {
 /** Temporary: same Wistia embed for all pilot campaigns until prod assets are ready. */
 const WISTIA_TEST_HASHED_ID = 'qyexpnd6fa';
 
+/**
+ * Lower sections (summary, booking, …) stay hidden until first video play, then after `delayMs` fade in.
+ * Set `enabled: false` to show everything immediately.
+ */
+const DEFAULT_LOWER_CONTENT_REVEAL = {
+  enabled: true,
+  delayMs: 15000,
+};
+
 const pilotPoslanie = {
   headline: 'Musím nájsť poslanie. Alebo nie?',
   subhead: 'Pozri si toto krátke video ↓',
@@ -37,6 +46,7 @@ const pilotPoslanie = {
     hashedId: WISTIA_TEST_HASHED_ID,
   },
   summary: '<p>Placeholder text pre zhrnutie…</p>',
+  lowerContentReveal: { ...DEFAULT_LOWER_CONTENT_REVEAL },
 };
 
 const INSTANCE_CAMPAIGNS = {
@@ -91,6 +101,20 @@ function isValidFunnel(name) {
 }
 
 /**
+ * @param {object} campaign - merged campaign row
+ * @returns {{ enabled: boolean, delayMs: number }}
+ */
+function resolveLowerContentReveal(campaign) {
+  const raw = campaign.lowerContentReveal;
+  if (raw === false || (raw && raw.enabled === false)) {
+    return { enabled: false, delayMs: 0 };
+  }
+  const delayMs =
+    raw && typeof raw.delayMs === 'number' && raw.delayMs >= 0 ? raw.delayMs : DEFAULT_LOWER_CONTENT_REVEAL.delayMs;
+  return { enabled: true, delayMs };
+}
+
+/**
  * Parse and validate funnel A/B attribution from API body (booking).
  * Campaign ids must exist in INSTANCE_CAMPAIGNS for the funnel.
  * @param {object} body - req.body
@@ -129,6 +153,7 @@ router.get('/:funnelName', (req, res, next) => {
   const campaignId = req.query.campaign || 'default';
   const campaign = { ...campaigns.default, ...campaigns[campaignId] };
   const campaignVideo = resolveCampaignVideo(campaign);
+  const lowerContentReveal = resolveLowerContentReveal(campaign);
 
   const meta = INSTANCE_META[funnelName] || { title: funnelName, description: '' };
 
@@ -139,6 +164,7 @@ router.get('/:funnelName', (req, res, next) => {
     description: meta.description,
     campaign,
     campaignVideo,
+    lowerContentReveal,
     funnelName,
     funnelCampaignId: campaignId,
     funnelVideoId: campaign.videoId != null ? String(campaign.videoId) : null,

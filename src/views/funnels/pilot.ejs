@@ -19,7 +19,8 @@
         </div>
       <% } else if (campaignVideo.kind === 'wistia' || campaignVideo.kind === 'iframe') { %>
         <div class="funnel-video-embed"<% if (campaignVideo.videoId) { %> data-video-id="<%= campaignVideo.videoId %>"<% } %>>
-          <iframe src="<%= campaignVideo.embedUrl %>" title="Video" allow="autoplay; fullscreen" allowfullscreen></iframe>
+          <% /* class/name per Wistia Player API so E-v1.js can attach to iframe embeds */ %>
+          <iframe src="<%= campaignVideo.embedUrl %>" title="Video" class="wistia_embed" name="wistia_embed" allow="autoplay; fullscreen" allowtransparency="true" allowfullscreen></iframe>
         </div>
       <% } else { %>
         <p class="muted">[Video ešte nie je nastavené]</p>
@@ -27,12 +28,15 @@
     </div>
   </section>
 
-  <section class="funnel-video-summary prose">
-    <div class="container">
-      <h2>Krátke zhrnutie</h2>
-      <%- campaign.summary || '<p>Placeholder text pre zhrnutie…</p>' %>
-    </div>
-  </section>
+  <div id="funnel-lower" class="funnel-lower<% if (typeof lowerContentReveal !== 'undefined' && lowerContentReveal.enabled) { %> funnel-lower--pending<% } %>"
+    <% if (typeof lowerContentReveal !== 'undefined' && lowerContentReveal.enabled) { %>data-lower-reveal-delay="<%= lowerContentReveal.delayMs %>" aria-hidden="true"<% } %>>
+    <section class="funnel-video-summary prose">
+      <div class="container">
+        <h2>Krátke zhrnutie</h2>
+        <%- campaign.summary || '<p>Placeholder text pre zhrnutie…</p>' %>
+      </div>
+    </section>
 
-  <%- include('_funnel-content') %>
+    <%- include('_funnel-content') %>
+  </div>
 </main>

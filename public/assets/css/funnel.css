@@ -12,6 +12,21 @@
   max-width: var(--max-width-narrow);
 }
 
+/* Lower block: optional delayed fade-in after first video play (see funnel.js) */
+.funnel-lower--pending:not(.is-revealed) {
+  height: 0;
+  overflow: hidden;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.funnel-lower--pending.is-revealed {
+  height: auto;
+  overflow: visible;
+  opacity: 1;
+  transition: opacity 0.85s ease;
+}
+
 .funnel-video-summary,
 .funnel-cta,
 .funnel-how,
