@@ -26,8 +26,8 @@ function getMaxDateLocal() {
  * - Legacy: `videoUrl` only (iframe) still supported if `video` is omitted.
  */
 const pilotPoslanie = {
-  headline: 'Ako na poslanie',
-  subhead: 'Podľa dohody, tajný trik sa dozvieš okamžite, stačí spustiť video ⬇⬇⬇',
+  headline: 'Musím nájsť poslanie. Alebo nie?',
+  subhead: 'Pozri si toto krátke video ↓',
   videoId: 'pilot-hero-r1',
   video: {
     provider: 'self',
@@ -41,8 +41,8 @@ const INSTANCE_CAMPAIGNS = {
     default: { ...pilotPoslanie },
     poslanie: { ...pilotPoslanie },
     zavist: {
-      headline: 'Závisť: vie mi niečo dať?',
-      subhead: 'Podľa dohody, tajný trik sa dozvieš okamžite, stačí spustiť video ⬇⬇⬇',
+      headline: 'Závisť: vie byť aj kamarát?',
+      subhead: 'Dozvieš sa vo videu ↓',
       videoId: 'pilot-hero-r1',
       video: {
         provider: 'self',
