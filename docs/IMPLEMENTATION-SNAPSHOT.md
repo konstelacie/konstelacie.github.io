@@ -1,6 +1,6 @@
 # Implementation snapshot (code-first)
 
-**Purpose:** Point-in-time inventory of what the codebase actually does. **HTTP details:** `docs/API.md`. **Tables/columns:** `docs/DB-SCHEMA.md`. Regenerate or update this file when making large behavior changes.
+**Purpose:** Point-in-time inventory of what the codebase actually does. **HTTP details:** `docs/API.md`. **Tables/columns:** `docs/DB-SCHEMA.md`. **Planned / not built yet:** `docs/IMPLEMENTATION-PLAN.md`. Regenerate or update this file when making large behavior changes.
 
 **Generated:** 2026-03-23 (from repository state).
 

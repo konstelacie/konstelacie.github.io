@@ -68,6 +68,7 @@ project-root/
 │   ├── PRACTICES.md                    # Project conventions (this file)
 │   ├── API.md                          # API reference (current endpoints)
 │   ├── IMPLEMENTATION-SNAPSHOT.md      # Code-first inventory (align other docs to this + code)
+│   ├── IMPLEMENTATION-PLAN.md            # Backlog: not implemented / planned work
 │   ├── DB-MIGRATIONS.md                # DB migrations, env vars, commands
 │   ├── PSEUDOCHAT.md                   # PseudoChat widget (flows, API, integration)
 │   ├── POST-PAYMENT-CLIENT-JOURNEY.md  # Post-payment / post-booking flow (planning, open questions)
