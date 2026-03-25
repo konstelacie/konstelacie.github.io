@@ -7,6 +7,9 @@
   const POLL_MS = 5000;
   const LEAD_MS = 24 * 60 * 60 * 1000;
 
+  /** Must match product spec and `scripts/seed-slots.js` grid order. */
+  const FIXED_SLOT_KEYS = ['08:30', '10:00', '11:30', '13:00', '14:30'];
+
   let slotsRaw = [];
   let lockToken = null;
   let expiresAt = null;
@@ -157,6 +160,30 @@
     }).format(new Date(iso));
   }
 
+  /** HH:mm in Europe/Bratislava for matching fixed grid. */
+  function timeKeyFromIso(iso) {
+    const parts = new Intl.DateTimeFormat('en-GB', {
+      timeZone: TIMEZONE,
+      hour: '2-digit',
+      minute: '2-digit',
+      hourCycle: 'h23',
+    }).formatToParts(new Date(iso));
+    const h = parts.find((p) => p.type === 'hour').value;
+    const m = parts.find((p) => p.type === 'minute').value;
+    return `${h.padStart(2, '0')}:${m}`;
+  }
+
+  function formatDayTitleFromDateStr(dateStr) {
+    const [y, m, d] = dateStr.split('-').map(Number);
+    const ref = new Date(Date.UTC(y, m - 1, d, 12, 0, 0));
+    return new Intl.DateTimeFormat('sk-SK', {
+      timeZone: TIMEZONE,
+      weekday: 'long',
+      day: 'numeric',
+      month: 'numeric',
+    }).format(ref);
+  }
+
   function formatDayTitle(firstSlotIso) {
     return new Intl.DateTimeFormat('sk-SK', {
       timeZone: TIMEZONE,
@@ -204,6 +231,9 @@
   }
 
   function mapSlotUi(slot) {
+    if (!slot) {
+      return { label: 'Nedostupné', disabled: true, busy: false, state: 'missing', primary: false };
+    }
     if (slot.status !== 'open') {
       return { label: 'Obsadené', disabled: true, busy: false, state: 'confirmed-other', primary: false };
     }
@@ -228,17 +258,27 @@
     const sortedDates = Object.keys(byDate).sort();
     const capped = sortedDates.slice(0, MAX_FUNNEL_DAYS);
     return capped.map((dateStr) => {
-      const daySlots = byDate[dateStr].slice().sort((a, b) => new Date(a.startAt) - new Date(b.startAt));
-      return { dateStr, slots: daySlots };
+      const daySlots = byDate[dateStr] || [];
+      const keyToSlot = new Map();
+      for (const s of daySlots) {
+        const k = timeKeyFromIso(s.startAt);
+        if (FIXED_SLOT_KEYS.includes(k) && !keyToSlot.has(k)) keyToSlot.set(k, s);
+      }
+      const rows = FIXED_SLOT_KEYS.map((timeKey) => ({
+        timeKey,
+        slot: keyToSlot.get(timeKey) || null,
+      }));
+      return { dateStr, rows };
     });
   }
 
   function findFirstFreeSlotId() {
     const days = buildFunnelDays();
-    for (const { slots } of days) {
-      for (const s of slots) {
-        const ui = mapSlotUi(s);
-        if (ui.state === 'free' && ui.primary && !ui.disabled) return s.id;
+    for (const { rows } of days) {
+      for (const { slot } of rows) {
+        if (!slot) continue;
+        const ui = mapSlotUi(slot);
+        if (ui.state === 'free' && ui.primary && !ui.disabled) return slot.id;
       }
     }
     return null;
@@ -292,22 +332,24 @@
     }
 
     const articles = [];
-    for (const { dateStr, slots: daySlots } of days) {
-      const title = formatDayTitle(daySlots[0].startAt);
+    for (const { dateStr, rows } of days) {
+      const firstIso = rows.find((r) => r.slot)?.slot?.startAt;
+      const title = firstIso ? formatDayTitle(firstIso) : formatDayTitleFromDateStr(dateStr);
       const hint = relativeDayHint(dateStr);
       const hintHtml = hint ? ` <span class="booking-day__hint">${hint}</span>` : '';
 
-      const buttons = daySlots
-        .map((s) => {
+      const buttons = rows
+        .map(({ timeKey, slot: s }) => {
           const ui = mapSlotUi(s);
-          const time = formatTimeLocal(s.startAt);
           const cls = ['booking-slot'];
           if (ui.disabled || ui.busy) cls.push('booking-slot--disabled');
           if (ui.state === 'locked-me') cls.push('booking-slot--locked-me');
+          if (ui.state === 'missing') cls.push('booking-slot--missing');
           if (ui.primary && ui.state === 'free') cls.push('booking-slot--primary');
           const ariaBusy = ui.busy ? ' aria-busy="true"' : '';
-          return `<button type="button" class="${cls.join(' ')}" data-slot-id="${s.id}" data-state="${ui.state}"${ui.disabled || ui.busy ? ' disabled' : ''}${ariaBusy}>
-            <span class="booking-slot__time">${time}</span>
+          const idAttr = s ? ` data-slot-id="${s.id}"` : '';
+          return `<button type="button" class="${cls.join(' ')}"${idAttr} data-state="${ui.state}"${ui.disabled || ui.busy ? ' disabled' : ''}${ariaBusy}>
+            <span class="booking-slot__time">${timeKey}</span>
             <span class="booking-slot__label">${ui.label}</span>
           </button>`;
         })
