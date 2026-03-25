@@ -217,18 +217,19 @@
       return { label: 'Rezervujem...', disabled: true, busy: true, state: 'pending', primary: false };
     }
     if (lockToken) {
-      return { label: 'Voľné', disabled: true, busy: false, state: 'free', primary: false };
+      return { label: '', disabled: true, busy: false, state: 'free', primary: false };
     }
-    return { label: 'Voľné', disabled: false, busy: false, state: 'free', primary: true };
+    return { label: '', disabled: false, busy: false, state: 'free', primary: true };
   }
 
   /**
    * @param {object|null} slot
-   * @param {string} timeLineFirst — first line (grid time or day + time for hero)
-   * @param {{ nearest?: boolean }} [opts]
+   * @param {string} timeLineFirst — primary line: time (same for grid and hero)
+   * @param {{ nearest?: boolean, heroSubLine?: string }} [opts]
    */
   function buildSlotButtonHtml(slot, timeLineFirst, opts) {
     const nearest = !!(opts && opts.nearest);
+    const heroSubLine = opts && opts.heroSubLine;
     const ui = mapSlotUi(slot);
     const cls = ['booking-slot'];
     if (nearest) cls.push('booking-slot--nearest');
@@ -238,9 +239,14 @@
     if (ui.primary && ui.state === 'free') cls.push('booking-slot--primary');
     const ariaBusy = ui.busy ? ' aria-busy="true"' : '';
     const idAttr = slot ? ` data-slot-id="${slot.id}"` : '';
+    let secondLine = '';
+    if (nearest && heroSubLine && ui.state === 'free' && ui.primary) {
+      secondLine = `<span class="booking-slot__label booking-slot__label--meta">${heroSubLine}</span>`;
+    } else if (ui.label) {
+      secondLine = `<span class="booking-slot__label">${ui.label}</span>`;
+    }
     return `<button type="button" class="${cls.join(' ')}"${idAttr} data-state="${ui.state}"${ui.disabled || ui.busy ? ' disabled' : ''}${ariaBusy}>
-            <span class="booking-slot__time">${timeLineFirst}</span>
-            <span class="booking-slot__label">${ui.label}</span>
+            <span class="booking-slot__time">${timeLineFirst}</span>${secondLine}
           </button>`;
   }
 
@@ -306,10 +312,9 @@
         const slot = slotsRaw.find((s) => s.id === firstFreeId);
         if (slot) {
           hero.hidden = false;
-          const title = formatDayTitleFromDateStr(slot.localDate);
           const time = slot.timeKey || '';
-          const timeLine = `${title} ${time}`;
-          heroSlotHost.innerHTML = buildSlotButtonHtml(slot, timeLine, { nearest: true });
+          const heroSubLine = formatDayTitleFromDateStr(slot.localDate);
+          heroSlotHost.innerHTML = buildSlotButtonHtml(slot, time, { nearest: true, heroSubLine });
         } else {
           hero.hidden = true;
           heroSlotHost.innerHTML = '';

@@ -141,11 +141,20 @@ a:hover {
   cursor: pointer;
   text-align: left;
   min-width: 140px;
+  transition:
+    border-color 0.15s ease,
+    background 0.15s ease,
+    box-shadow 0.15s ease;
 }
 
 .booking-slot:hover:not(:disabled) {
   border-color: var(--color-primary);
   background: rgba(15, 23, 42, 0.04);
+}
+
+.booking-slot:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
 }
 
 .booking-slot--disabled,

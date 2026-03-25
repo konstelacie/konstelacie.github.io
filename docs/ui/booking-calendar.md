@@ -24,7 +24,7 @@ The original v2 spec used a separate **Rezervovať** CTA next to the datetime. T
 
 - **One interaction model:** a slot control is the action; there is no separate primary CTA button for “nearest”.
 - **Consistency:** the nearest bookable slot uses the same markup, classes, and click path as slots in the day list (`booking-slot`, `data-slot-id`, `mapSlotUi` states).
-- **Layout:** label line **Najbližší voľný termín:** then a **single slot button** whose first line is day + date + time (e.g. `Štvrtok 26. 3. 08:30`), second line the same state label as other slots (e.g. **Voľné**).
+- **Layout:** label line **Najbližší voľný termín:** then a **single slot button** (same structure as the day grid). **Copy and line layout** for free slots are defined in [Visual Refinement (v5)](#visual-refinement-v5) (time-first; no **Voľné** label).
 
 ### Markup
 
@@ -73,3 +73,41 @@ The original v2 spec used a separate **Rezervovať** CTA next to the datetime. T
 
 - Styles: `public/assets/css/funnel.css` (`.booking-calendar*` / `.booking-day*` / `.booking-slot*`).
 - Hero markup: `src/views/funnels/_funnel-content.ejs`.
+
+---
+
+## Visual Refinement (v5)
+
+### Goals
+
+- **One slot pattern:** the nearest (“hero”) slot uses the **same** `buildSlotButtonHtml` output and classes as grid slots—no wide input-like strip, no separate “hero” markup beyond `booking-slot--nearest`.
+- **Less noise:** free slots show **time only** on the primary line; drop redundant **Voľné** copy.
+- **Clear affordance:** interactive slots read as **buttons** (border/fill, hover, `cursor: pointer`, `:focus-visible`).
+
+### Content rules
+
+| State / role | Primary line (`booking-slot__time`) | Second line (`booking-slot__label` or `booking-slot__label--meta`) |
+|--------------|--------------------------------------|----------------------------------------------------------------------|
+| **FREE** (clickable) | Time only, e.g. `08:30` | *(none)* |
+| **FREE** (disabled, e.g. another slot held) | Time only | *(none)* |
+| **LOCKED** (other user’s hold) | Time | **Práve rezervované** |
+| **LOCKED** (my hold / selected) | Time | **Tvoj výber** — button uses **primary** highlight (`booking-slot--locked-me`) |
+| **Pending** | Time | **Rezervujem...** |
+| **Missing / closed** | Placeholder time or copy from builder | Short state (e.g. Nedostupné / Obsadené) as needed |
+
+### Nearest slot (hero)
+
+- **Same component** as grid slots: `button.booking-slot` + `booking-slot--nearest` when it is the first free slot.
+- **Primary line:** time only (`timeKey`), matching the grid.
+- **Second line:** **date context** for the funnel only — `booking-slot__label--meta` with weekday + date (e.g. `štvrtok 26. 3.`), not mixed into the time line. Section label **Najbližší voľný termín:** supplies intent; the button mirrors the grid (time bold, date muted).
+- **Emphasis:** `booking-slot--nearest` — slightly larger padding / type than grid slots, primary-tinted border/background/shadow so it reads as the first actionable choice **without** a full-width field look.
+
+### Interaction (unchanged)
+
+- No changes to lock/poll/click delegation; only labels, optional second line, and CSS.
+
+### Styling notes
+
+- **Typography:** time is **bold** (`booking-slot__time`); state/meta lines are **smaller, secondary/muted** (`booking-slot__label`, `booking-slot__label--meta`).
+- **Clickable free slots:** `booking-slot--primary` — primary border, light fill, primary-colored time; hover/focus from shared `.booking-slot` rules.
+- **Implementation:** `public/assets/js/booking.js` (`mapSlotUi`, `buildSlotButtonHtml`, `renderCalendar`), `public/assets/css/funnel.css`, `public/assets/css/site.css` (base slot + `:focus-visible`).
