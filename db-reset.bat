@@ -1,4 +1,6 @@
 @echo off
 cd /d "%~dp0"
 npm run db:reset
-exit /b %ERRORLEVEL%
+set ERR=%ERRORLEVEL%
+pause
+exit /b %ERR%

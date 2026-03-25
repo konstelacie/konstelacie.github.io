@@ -25,7 +25,8 @@ async function listSlotsWithLocks(from, to) {
       l.expires_at AS lock_expires_at
     FROM slots s
     LEFT JOIN slot_locks l ON l.slot_id = s.id AND l.expires_at > NOW(3)
-    WHERE s.start_at >= ? AND s.start_at < DATE_ADD(?, INTERVAL 1 DAY)
+    WHERE s.start_at >= GREATEST(?, DATE_ADD(NOW(3), INTERVAL 24 HOUR))
+      AND s.start_at < DATE_ADD(?, INTERVAL 1 DAY)
     ORDER BY s.start_at ASC`,
     [fromDt, toStart]
   );

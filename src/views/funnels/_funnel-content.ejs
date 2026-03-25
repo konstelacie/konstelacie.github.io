@@ -8,18 +8,23 @@
     <p>Vyber si termín, ktorý Ti vyhovuje.</p>
     <p class="muted">Termín ti po výbere podržíme 15 minút.</p>
 
-    <div class="booking-date-row">
-      <button type="button" id="booking-prev-day" class="booking-nav-btn" aria-label="Predchádzajúci deň">←</button>
-      <input type="date" id="booking-date" class="booking-date-input" aria-label="Dátum" value="<%= typeof bookingDateDefault !== 'undefined' ? bookingDateDefault : '' %>" min="<%= typeof bookingDateMin !== 'undefined' ? bookingDateMin : '' %>" max="<%= typeof bookingDateMax !== 'undefined' ? bookingDateMax : '' %>">
-      <button type="button" id="booking-next-day" class="booking-nav-btn" aria-label="Nasledujúci deň">→</button>
-    </div>
-
-    <div id="booking-slots-container" class="booking-slots">
-      <p id="booking-slots-loading" class="muted">Načítavam termíny…</p>
-      <div id="booking-slots-list" class="booking-slots-list" hidden></div>
-      <p id="booking-slots-empty" class="muted" hidden>Pre tento dátum nie sú dostupné žiadne termíny.</p>
-      <p id="booking-slots-error" class="booking-error" hidden></p>
-    </div>
+    <section class="booking-calendar" aria-label="Rezervácia termínu">
+      <p id="booking-calendar-loading" class="booking-calendar__loading muted">Načítavam termíny…</p>
+      <div id="booking-calendar-inner" class="booking-calendar__inner" hidden>
+        <div id="booking-calendar-hero" class="booking-calendar__hero" hidden>
+          <p class="booking-calendar__hero-label">Najbližší voľný termín:</p>
+          <p id="booking-hero-datetime" class="booking-calendar__hero-datetime"></p>
+          <button type="button" id="booking-hero-cta" class="booking-calendar__hero-cta cta">
+            Rezervovať tento termín
+          </button>
+        </div>
+        <div id="booking-calendar-days" class="booking-calendar__days"></div>
+      </div>
+      <p id="booking-slots-empty" class="booking-calendar__empty muted" hidden>
+        Momentálne nie sú dostupné žiadne termíny.
+      </p>
+      <p id="booking-slots-error" class="booking-error booking-calendar__error" hidden></p>
+    </section>
 
     <div id="booking-hold-banner" class="booking-hold-banner" hidden>
       <p><strong>Tento termín sme pre teba dočasne podržali.</strong> Dokonči rezerváciu do 15 minút.</p>

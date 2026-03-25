@@ -318,13 +318,17 @@ See `docs/SCHEDULED-EMAILS-CRON.md`.
 
 ## Seed data (optional)
 
-For local testing, insert open slots (adjust dates):
+Public listing requires each slot to start **≥ 24 hours** from now (and weekdays in the funnel). Do not seed slots for **today** only—they will not appear.
+
+Prefer `npm run db:seed-slots` / `node scripts/seed-slots.js`, which picks the first **weekday from tomorrow onward** where all seeded times meet the 24h rule.
+
+Manual SQL example (replace with real future timestamps):
 
 ```sql
 INSERT INTO slots (start_at, end_at, timezone, status, capacity) VALUES
-('2026-03-05 18:00:00', '2026-03-05 19:00:00', 'Europe/Bratislava', 'open', 1),
-('2026-03-06 10:00:00', '2026-03-06 11:00:00', 'Europe/Bratislava', 'open', 1),
-('2026-03-07 14:00:00', '2026-03-07 15:00:00', 'Europe/Bratislava', 'open', 1);
+('2026-03-10 18:00:00', '2026-03-10 19:00:00', 'Europe/Bratislava', 'open', 1),
+('2026-03-11 10:00:00', '2026-03-11 11:00:00', 'Europe/Bratislava', 'open', 1),
+('2026-03-12 14:00:00', '2026-03-12 15:00:00', 'Europe/Bratislava', 'open', 1);
 ```
 
 ---

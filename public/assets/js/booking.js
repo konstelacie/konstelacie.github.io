@@ -3,13 +3,18 @@
 
   const TIMEZONE = 'Europe/Bratislava';
   const RANGE_DAYS = 21;
+  const MAX_FUNNEL_DAYS = 10;
+  const POLL_MS = 5000;
+  const LEAD_MS = 24 * 60 * 60 * 1000;
 
-  let selectedDate = null;
-  let slotsByDate = {};
+  let slotsRaw = [];
   let lockToken = null;
   let expiresAt = null;
   let lockedSlotId = null;
   let countdownInterval = null;
+  let pendingSlotId = null;
+  let loadSeq = 0;
+  let pollTimer = null;
 
   const $ = (id) => document.getElementById(id);
 
@@ -59,14 +64,26 @@
     } catch (_) {}
   }
 
+  function localDateFromIso(iso) {
+    return new Date(iso).toLocaleDateString('en-CA', { timeZone: TIMEZONE });
+  }
+
   function storeLock() {
     try {
-      sessionStorage.setItem(STORAGE_KEY, JSON.stringify({
-        lockToken,
-        lockedSlotId,
-        expiresAt,
-        lockedSlotDate: selectedDate,
-      }));
+      let lockedSlotDate = '';
+      if (lockedSlotId) {
+        const s = slotsRaw.find((x) => x.id === lockedSlotId);
+        if (s) lockedSlotDate = localDateFromIso(s.startAt);
+      }
+      sessionStorage.setItem(
+        STORAGE_KEY,
+        JSON.stringify({
+          lockToken,
+          lockedSlotId,
+          expiresAt,
+          lockedSlotDate,
+        })
+      );
     } catch (_) {}
   }
 
@@ -92,49 +109,72 @@
     }
   }
 
-  function updateDayNavState() {
-    const disabled = !!lockToken;
-    const prevBtn = $('booking-prev-day');
-    const nextBtn = $('booking-next-day');
-    const dateInput = $('booking-date');
-    if (prevBtn) prevBtn.disabled = disabled;
-    if (nextBtn) nextBtn.disabled = disabled;
-    if (dateInput) dateInput.disabled = disabled;
+  function getTodayLocal() {
+    return new Intl.DateTimeFormat('en-CA', { timeZone: TIMEZONE }).format(new Date());
+  }
+
+  function addCalendarDays(isoDateStr, days) {
+    const [y, m, d] = isoDateStr.split('-').map(Number);
+    const base = new Date(y, m - 1, d);
+    base.setDate(base.getDate() + days);
+    const y2 = base.getFullYear();
+    const m2 = String(base.getMonth() + 1).padStart(2, '0');
+    const d2 = String(base.getDate()).padStart(2, '0');
+    return `${y2}-${m2}-${d2}`;
+  }
+
+  function getMaxDate() {
+    return addCalendarDays(getTodayLocal(), RANGE_DAYS);
+  }
+
+  function isWeekdayBratislava(iso) {
+    const wd = new Intl.DateTimeFormat('en-US', { timeZone: TIMEZONE, weekday: 'short' }).format(new Date(iso));
+    return wd !== 'Sat' && wd !== 'Sun';
+  }
+
+  function passesFunnelSlotRules(slot) {
+    const start = new Date(slot.startAt).getTime();
+    if (start < Date.now() + LEAD_MS) return false;
+    if (!isWeekdayBratislava(slot.startAt)) return false;
+    return true;
+  }
+
+  function groupSlotsByDate(slots) {
+    const byDate = {};
+    for (const s of slots) {
+      const localDate = new Date(s.startAt).toLocaleDateString('en-CA', { timeZone: TIMEZONE });
+      if (!byDate[localDate]) byDate[localDate] = [];
+      byDate[localDate].push(s);
+    }
+    return byDate;
   }
 
   function formatTimeLocal(iso) {
-    const d = new Date(iso);
     return new Intl.DateTimeFormat('sk-SK', {
       timeZone: TIMEZONE,
       hour: '2-digit',
       minute: '2-digit',
-    }).format(d);
+    }).format(new Date(iso));
   }
 
-  function formatDateForInput(d) {
-    return d.toISOString().slice(0, 10);
+  function formatDayTitle(firstSlotIso) {
+    return new Intl.DateTimeFormat('sk-SK', {
+      timeZone: TIMEZONE,
+      weekday: 'long',
+      day: 'numeric',
+      month: 'numeric',
+    }).format(new Date(firstSlotIso));
   }
 
-  function parseQueryFrom() {
-    const params = new URLSearchParams(location.search);
-    const from = params.get('from');
-    if (from && /^\d{4}-\d{2}-\d{2}$/.test(from)) return from;
-    return formatDateForInput(new Date());
-  }
-
-  function getTodayLocal() {
-    const now = new Date();
-    return formatDateForInput(new Date(now.toLocaleString('en-US', { timeZone: TIMEZONE })));
-  }
-
-  function getMinDate() {
-    return getTodayLocal();
-  }
-
-  function getMaxDate() {
-    const d = new Date();
-    d.setDate(d.getDate() + RANGE_DAYS);
-    return formatDateForInput(d);
+  function relativeDayHint(dateStr) {
+    const today = getTodayLocal();
+    const t0 = new Date(`${today}T12:00:00`).getTime();
+    const t1 = new Date(`${dateStr}T12:00:00`).getTime();
+    const diff = Math.round((t1 - t0) / 86400000);
+    if (diff === 0) return 'dnes';
+    if (diff === 1) return 'zajtra';
+    if (diff >= 2 && diff <= 4) return `o ${diff} dni`;
+    return '';
   }
 
   const ERROR_MESSAGES = {
@@ -163,99 +203,191 @@
     return data;
   }
 
-  function groupSlotsByDate(slots) {
-    const byDate = {};
-    for (const s of slots) {
-      const localDate = new Date(s.startAt).toLocaleDateString('en-CA', { timeZone: TIMEZONE });
-      if (!byDate[localDate]) byDate[localDate] = [];
-      byDate[localDate].push(s);
+  function mapSlotUi(slot) {
+    if (slot.status !== 'open') {
+      return { label: 'Obsadené', disabled: true, busy: false, state: 'confirmed-other', primary: false };
     }
-    return byDate;
+    if (slot.isLocked && !slot.isMyLock) {
+      return { label: 'Práve rezervované', disabled: true, busy: false, state: 'locked-other', primary: false };
+    }
+    if (slot.isMyLock) {
+      return { label: 'Tvoj výber', disabled: true, busy: false, state: 'locked-me', primary: true };
+    }
+    if (pendingSlotId === slot.id) {
+      return { label: 'Rezervujem...', disabled: true, busy: true, state: 'pending', primary: false };
+    }
+    if (lockToken) {
+      return { label: 'Voľné', disabled: true, busy: false, state: 'free', primary: false };
+    }
+    return { label: 'Voľné', disabled: false, busy: false, state: 'free', primary: true };
   }
 
-  function renderSlots(slots) {
-    const list = $('booking-slots-list');
-    const loading = $('booking-slots-loading');
+  function buildFunnelDays() {
+    const filtered = (slotsRaw || []).filter(passesFunnelSlotRules);
+    const byDate = groupSlotsByDate(filtered);
+    const sortedDates = Object.keys(byDate).sort();
+    const capped = sortedDates.slice(0, MAX_FUNNEL_DAYS);
+    return capped.map((dateStr) => {
+      const daySlots = byDate[dateStr].slice().sort((a, b) => new Date(a.startAt) - new Date(b.startAt));
+      return { dateStr, slots: daySlots };
+    });
+  }
+
+  function findFirstFreeSlotId() {
+    const days = buildFunnelDays();
+    for (const { slots } of days) {
+      for (const s of slots) {
+        const ui = mapSlotUi(s);
+        if (ui.state === 'free' && ui.primary && !ui.disabled) return s.id;
+      }
+    }
+    return null;
+  }
+
+  function renderCalendar() {
+    const inner = $('booking-calendar-inner');
+    const loading = $('booking-calendar-loading');
     const empty = $('booking-slots-empty');
-    const err = $('booking-slots-error');
-    if (!list || !loading || !empty || !err) return;
+    const hero = $('booking-calendar-hero');
+    const heroDt = $('booking-hero-datetime');
+    const heroCta = $('booking-hero-cta');
+    const daysEl = $('booking-calendar-days');
 
-    loading.hidden = true;
-    err.hidden = true;
+    if (!inner || !daysEl) return;
 
-    if (!slots || slots.length === 0) {
-      list.innerHTML = '';
-      list.hidden = true;
-      empty.hidden = false;
+    const days = buildFunnelDays();
+
+    if (loading) loading.hidden = true;
+
+    if (days.length === 0) {
+      inner.hidden = true;
+      if (empty) empty.hidden = false;
+      if (hero) hero.hidden = true;
+      daysEl.innerHTML = '';
       return;
     }
 
-    empty.hidden = true;
-    list.hidden = false;
-    list.innerHTML = slots
-      .map((s) => {
-        const timeRange = `${formatTimeLocal(s.startAt)} – ${formatTimeLocal(s.endAt)}`;
-        const selectable = s.status === 'open' && !s.isLocked && !lockToken;
-        const statusText = s.isMyLock ? 'Podržané pre teba' : s.isLocked ? 'Podržané' : s.status === 'blocked' || s.status === 'cancelled' ? 'Nedostupný' : '';
-        return `
-          <button type="button" class="booking-slot ${selectable ? '' : 'booking-slot--disabled'}"
-            data-slot-id="${s.id}" ${!selectable ? 'disabled' : ''}>
-            <span class="booking-slot-time">${timeRange}</span>
-            ${statusText ? `<span class="booking-slot-status">${statusText}</span>` : ''}
-          </button>
-        `;
-      })
-      .join('');
+    if (empty) empty.hidden = true;
+    inner.hidden = false;
+
+    const firstFreeId = findFirstFreeSlotId();
+    if (hero && heroDt && heroCta) {
+      if (pendingSlotId) {
+        hero.hidden = true;
+      } else if (firstFreeId != null) {
+        const slot = slotsRaw.find((s) => s.id === firstFreeId);
+        if (slot) {
+          hero.hidden = false;
+          const title = formatDayTitle(slot.startAt);
+          const time = formatTimeLocal(slot.startAt);
+          heroDt.innerHTML = `<strong>${title} o ${time}</strong>`;
+          heroCta.dataset.slotId = String(firstFreeId);
+          heroCta.disabled = !!lockToken;
+        } else {
+          hero.hidden = true;
+        }
+      } else {
+        hero.hidden = true;
+      }
+    }
+
+    const articles = [];
+    for (const { dateStr, slots: daySlots } of days) {
+      const title = formatDayTitle(daySlots[0].startAt);
+      const hint = relativeDayHint(dateStr);
+      const hintHtml = hint ? ` <span class="booking-day__hint">${hint}</span>` : '';
+
+      const buttons = daySlots
+        .map((s) => {
+          const ui = mapSlotUi(s);
+          const time = formatTimeLocal(s.startAt);
+          const cls = ['booking-slot'];
+          if (ui.disabled || ui.busy) cls.push('booking-slot--disabled');
+          if (ui.state === 'locked-me') cls.push('booking-slot--locked-me');
+          if (ui.primary && ui.state === 'free') cls.push('booking-slot--primary');
+          const ariaBusy = ui.busy ? ' aria-busy="true"' : '';
+          return `<button type="button" class="${cls.join(' ')}" data-slot-id="${s.id}" data-state="${ui.state}"${ui.disabled || ui.busy ? ' disabled' : ''}${ariaBusy}>
+            <span class="booking-slot__time">${time}</span>
+            <span class="booking-slot__label">${ui.label}</span>
+          </button>`;
+        })
+        .join('');
+
+      articles.push(`
+        <article class="booking-day" data-date="${dateStr}">
+          <header class="booking-day__header">
+            <span class="booking-day__title">${title}</span>${hintHtml}
+          </header>
+          <div class="booking-day__slots" role="group" aria-label="Časy pre ${dateStr}">
+            ${buttons}
+          </div>
+        </article>
+      `);
+    }
+
+    daysEl.innerHTML = articles.join('');
   }
 
-  function showSlotsError(msg) {
-    $('booking-slots-loading').hidden = true;
-    $('booking-slots-list').hidden = true;
-    $('booking-slots-empty').hidden = true;
+  function hideGlobalError() {
     const err = $('booking-slots-error');
-    err.textContent = msg || 'Termíny nie sú dostupné';
-    err.hidden = false;
+    if (err) err.hidden = true;
+  }
+
+  function showGlobalError(msg) {
+    const err = $('booking-slots-error');
+    if (err) {
+      err.textContent = msg || 'Termíny nie sú dostupné';
+      err.hidden = false;
+    }
+    const loading = $('booking-calendar-loading');
+    if (loading) loading.hidden = true;
   }
 
   let loadAbortController = null;
 
-  async function loadSlots() {
-    const dateEl = $('booking-date');
-    const loadingEl = $('booking-slots-loading');
-    if (!dateEl || !loadingEl) return;
-    const requestedDate = dateEl.value;
-    selectedDate = requestedDate;
-    const from = dateEl.min;
+  async function loadSlots(options) {
+    const silent = !!(options && options.silent);
+    const from = getTodayLocal();
     const to = getMaxDate();
+
+    const loadingEl = $('booking-calendar-loading');
+    const innerEl = $('booking-calendar-inner');
+
+    if (!silent && loadingEl && innerEl) {
+      loadingEl.hidden = false;
+      innerEl.hidden = true;
+    }
 
     if (loadAbortController) loadAbortController.abort();
     loadAbortController = new AbortController();
     const signal = loadAbortController.signal;
+    const mySeq = ++loadSeq;
 
-    loadingEl.hidden = false;
-    const listEl = $('booking-slots-list');
-    const emptyEl = $('booking-slots-empty');
-    const errEl = $('booking-slots-error');
-    if (listEl) {
-      listEl.hidden = true;
-      listEl.innerHTML = '';
+    if (!silent) {
+      const emptyEl = $('booking-slots-empty');
+      if (emptyEl) emptyEl.hidden = true;
+      hideGlobalError();
     }
-    if (emptyEl) emptyEl.hidden = true;
-    if (errEl) errEl.hidden = true;
 
     try {
       const data = await fetchSlots(from, to, lockToken, signal);
-      if (signal.aborted) return;
-      if (dateEl.value !== requestedDate) return;
-      slotsByDate = groupSlotsByDate(data.slots || []);
-      const daySlots = slotsByDate[requestedDate] || [];
-      renderSlots(daySlots);
+      if (signal.aborted || mySeq !== loadSeq) return;
+      hideGlobalError();
+      slotsRaw = data.slots || [];
+      renderCalendar();
     } catch (e) {
       if (e.name === 'AbortError' || signal.aborted) return;
-      if (dateEl.value !== requestedDate) return;
-      showSlotsError('Termíny nie sú dostupné');
+      if (mySeq !== loadSeq) return;
+      if (!silent) {
+        slotsRaw = [];
+        if (innerEl) innerEl.hidden = true;
+        if (loadingEl) loadingEl.hidden = true;
+        showGlobalError('Termíny nie sú dostupné');
+      }
     } finally {
-      if (!signal.aborted) loadingEl.hidden = true;
+      if (!signal.aborted && mySeq === loadSeq && loadingEl && !silent) {
+        loadingEl.hidden = true;
+      }
     }
   }
 
@@ -266,18 +398,23 @@
     const rem = Math.max(0, Math.floor((exp - now) / 1000));
     const m = Math.floor(rem / 60);
     const s = rem % 60;
-    $('booking-countdown').textContent = `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+    const el = $('booking-countdown');
+    if (el) el.textContent = `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
     if (rem <= 0) {
-      clearInterval(countdownInterval);
-      countdownInterval = null;
+      if (countdownInterval) {
+        clearInterval(countdownInterval);
+        countdownInterval = null;
+      }
       lockToken = null;
       expiresAt = null;
       lockedSlotId = null;
       clearStoredLock();
-      $('booking-hold-banner').hidden = true;
-      $('booking-email-form').hidden = true;
-      $('booking-payment-choice').hidden = true;
-      updateDayNavState();
+      const hold = $('booking-hold-banner');
+      const emailForm = $('booking-email-form');
+      const payChoice = $('booking-payment-choice');
+      if (hold) hold.hidden = true;
+      if (emailForm) emailForm.hidden = true;
+      if (payChoice) payChoice.hidden = true;
       loadSlots();
     }
   }
@@ -306,18 +443,20 @@
         expiresAt = null;
         lockedSlotId = null;
         clearStoredLock();
-        $('booking-hold-banner').hidden = true;
-        $('booking-email-form').hidden = true;
-        $('booking-payment-choice').hidden = true;
-        updateDayNavState();
+        const hold = $('booking-hold-banner');
+        const emailForm = $('booking-email-form');
+        const payChoice = $('booking-payment-choice');
+        if (hold) hold.hidden = true;
+        if (emailForm) emailForm.hidden = true;
+        if (payChoice) payChoice.hidden = true;
         loadSlots();
       }
     } catch (_) {}
   }
 
   async function lockSlot(slotId) {
-    const btn = document.querySelector(`[data-slot-id="${slotId}"]`);
-    if (btn) btn.disabled = true;
+    pendingSlotId = slotId;
+    renderCalendar();
 
     try {
       const res = await fetch(`/api/slots/${slotId}/lock`, {
@@ -328,31 +467,37 @@
       const data = await res.json();
 
       if (!res.ok) {
+        pendingSlotId = null;
+        await loadSlots();
         if (res.status === 409 && data.details?.retryAfterSeconds) {
           const min = Math.ceil(data.details.retryAfterSeconds / 60);
-          showSlotsError(`Termín je práve podržaný. Skús znova o ${min} min.`);
+          showGlobalError(`Termín je práve podržaný. Skús znova o ${min} min.`);
         } else {
-          showSlotsError(userMessage(data.error));
+          showGlobalError(userMessage(data.error));
         }
-        loadSlots();
         return;
       }
 
       lockToken = data.lockToken;
       expiresAt = data.expiresAt;
       lockedSlotId = data.slotId;
+      pendingSlotId = null;
       storeLock();
 
-      $('booking-hold-banner').hidden = false;
-      $('booking-email-form').hidden = false;
-      $('booking-email').value = '';
-      $('booking-email-error').hidden = true;
-      updateDayNavState();
+      const hold = $('booking-hold-banner');
+      const emailForm = $('booking-email-form');
+      const emailInput = $('booking-email');
+      const emailErr = $('booking-email-error');
+      if (hold) hold.hidden = false;
+      if (emailForm) emailForm.hidden = false;
+      if (emailInput) emailInput.value = '';
+      if (emailErr) emailErr.hidden = true;
       startCountdown();
       loadSlots();
     } catch (e) {
-      showSlotsError('Termíny nie sú dostupné');
-      if (btn) btn.disabled = false;
+      pendingSlotId = null;
+      await loadSlots();
+      showGlobalError('Termíny nie sú dostupné');
     }
   }
 
@@ -361,14 +506,19 @@
   }
 
   function showPaymentChoice() {
-    $('booking-email-form').hidden = true;
-    $('booking-payment-choice').hidden = false;
-    $('booking-payment-error').hidden = true;
+    const emailForm = $('booking-email-form');
+    const payChoice = $('booking-payment-choice');
+    if (emailForm) emailForm.hidden = true;
+    if (payChoice) payChoice.hidden = false;
+    const payErr = $('booking-payment-error');
+    if (payErr) payErr.hidden = true;
   }
 
   function showEmailForm() {
-    $('booking-payment-choice').hidden = true;
-    $('booking-email-form').hidden = false;
+    const payChoice = $('booking-payment-choice');
+    const emailForm = $('booking-email-form');
+    if (payChoice) payChoice.hidden = true;
+    if (emailForm) emailForm.hidden = false;
   }
 
   function getPaymentChoice() {
@@ -407,20 +557,30 @@
   }
 
   function showPaymentFailure(message) {
-    $('booking-hold-banner').hidden = true;
-    $('booking-email-form').hidden = true;
-    $('booking-payment-choice').hidden = true;
-    $('booking-success').hidden = false;
-    $('booking-success-pending').hidden = true;
-    $('booking-success-failed').textContent = message;
-    $('booking-success-failed').hidden = false;
-    $('booking-payment-retry').hidden = false;
+    const hold = $('booking-hold-banner');
+    const emailForm = $('booking-email-form');
+    const payChoice = $('booking-payment-choice');
+    const success = $('booking-success');
+    const pending = $('booking-success-pending');
+    const failed = $('booking-success-failed');
+    const retry = $('booking-payment-retry');
+    if (hold) hold.hidden = true;
+    if (emailForm) emailForm.hidden = true;
+    if (payChoice) payChoice.hidden = true;
+    if (success) success.hidden = false;
+    if (pending) pending.hidden = true;
+    if (failed) {
+      failed.textContent = message;
+      failed.hidden = false;
+    }
+    if (retry) retry.hidden = false;
   }
 
   async function submitReservation(email, paymentType, amount) {
     const submitBtn = $('booking-payment-submit');
-    submitBtn.disabled = true;
-    $('booking-payment-error').hidden = true;
+    if (submitBtn) submitBtn.disabled = true;
+    const payErr = $('booking-payment-error');
+    if (payErr) payErr.hidden = true;
 
     try {
       const body = { slotId: lockedSlotId, lockToken, email, paymentType };
@@ -439,17 +599,21 @@
       const data = await res.json();
 
       if (!res.ok) {
-        $('booking-payment-error').textContent = userMessage(data.error);
-        $('booking-payment-error').hidden = false;
-        submitBtn.disabled = false;
+        if (payErr) {
+          payErr.textContent = userMessage(data.error);
+          payErr.hidden = false;
+        }
+        if (submitBtn) submitBtn.disabled = false;
         return;
       }
 
       const reservationId = data.reservation?.id;
       if (!reservationId) {
-        $('booking-payment-error').textContent = 'Rezervácia bola vytvorená, ale platba sa nepodarila spustiť.';
-        $('booking-payment-error').hidden = false;
-        submitBtn.disabled = false;
+        if (payErr) {
+          payErr.textContent = 'Rezervácia bola vytvorená, ale platba sa nepodarila spustiť.';
+          payErr.hidden = false;
+        }
+        if (submitBtn) submitBtn.disabled = false;
         return;
       }
 
@@ -462,15 +626,24 @@
       lockedSlotId = null;
       clearStoredLock();
 
-      $('booking-hold-banner').hidden = true;
-      $('booking-email-form').hidden = true;
-      $('booking-payment-choice').hidden = true;
-      $('booking-payment-error').hidden = true;
-      $('booking-success').hidden = false;
-      $('booking-success-pending').hidden = false;
-      $('booking-success-pending').textContent = 'Presmerovávam na platbu…';
-      $('booking-success-failed').hidden = true;
-      $('booking-payment-retry').hidden = true;
+      const hold = $('booking-hold-banner');
+      const emailForm = $('booking-email-form');
+      const payChoice = $('booking-payment-choice');
+      const success = $('booking-success');
+      const successPending = $('booking-success-pending');
+      const successFailed = $('booking-success-failed');
+      const payRetry = $('booking-payment-retry');
+      if (hold) hold.hidden = true;
+      if (emailForm) emailForm.hidden = true;
+      if (payChoice) payChoice.hidden = true;
+      if (payErr) payErr.hidden = true;
+      if (success) success.hidden = false;
+      if (successPending) {
+        successPending.hidden = false;
+        successPending.textContent = 'Presmerovávam na platbu…';
+      }
+      if (successFailed) successFailed.hidden = true;
+      if (payRetry) payRetry.hidden = true;
 
       const result = await startPayment(reservationId, paymentType, amount);
 
@@ -482,15 +655,25 @@
       showPaymentFailure(result.error);
       window.pendingPaymentRetry = { reservationId, paymentType, amount };
     } catch (e) {
-      $('booking-payment-error').textContent = 'Niečo sa pokazilo. Skús neskôr.';
-      $('booking-payment-error').hidden = false;
-      submitBtn.disabled = false;
+      if (payErr) {
+        payErr.textContent = 'Niečo sa pokazilo. Skús neskôr.';
+        payErr.hidden = false;
+      }
+      if (submitBtn) submitBtn.disabled = false;
     }
   }
 
+  function startPoll() {
+    if (pollTimer) clearInterval(pollTimer);
+    pollTimer = setInterval(() => {
+      if (document.hidden) return;
+      loadSlots({ silent: true });
+    }, POLL_MS);
+  }
+
   function init() {
-    const dateInput = $('booking-date');
-    if (!dateInput) return;
+    const inner = $('booking-calendar-inner');
+    if (!inner) return;
 
     if (location.hash === '#booking') {
       document.getElementById('booking')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -499,81 +682,64 @@
 
     persistFunnelContext(readFunnelContext());
 
-    dateInput.min = getMinDate();
-    dateInput.max = getMaxDate();
-
     const storedLock = getStoredLock();
     if (storedLock) {
       lockToken = storedLock.lockToken;
       lockedSlotId = storedLock.lockedSlotId;
       expiresAt = storedLock.expiresAt;
-      if (storedLock.lockedSlotDate) {
-        const d = storedLock.lockedSlotDate;
-        if (d >= dateInput.min && d <= dateInput.max) dateInput.value = d;
-      }
-      selectedDate = dateInput.value;
-      $('booking-hold-banner').hidden = false;
-      $('booking-email-form').hidden = false;
-      $('booking-email').value = '';
-      $('booking-email-error').hidden = true;
+      const hold = $('booking-hold-banner');
+      const emailForm = $('booking-email-form');
+      const emailInput = $('booking-email');
+      const emailErr = $('booking-email-error');
+      if (hold) hold.hidden = false;
+      if (emailForm) emailForm.hidden = false;
+      if (emailInput) emailInput.value = '';
+      if (emailErr) emailErr.hidden = true;
       updateCountdown();
       startCountdown();
-      updateDayNavState();
-    } else {
-      dateInput.value = parseQueryFrom();
-      updateDayNavState();
     }
 
-    dateInput.addEventListener('change', () => {
-      if (lockToken) return;
-      loadSlots();
-    });
-
-    const prevBtn = $('booking-prev-day');
-    const nextBtn = $('booking-next-day');
-    const slotsList = $('booking-slots-list');
-    const emailForm = $('booking-email-form');
+    const daysEl = $('booking-calendar-days');
+    const heroCta = $('booking-hero-cta');
     const revokeBtn = $('booking-revoke-btn');
-    if (!prevBtn || !nextBtn || !slotsList || !emailForm) return;
+    const emailForm = $('booking-email-form');
 
     if (revokeBtn) revokeBtn.addEventListener('click', revokeSlot);
 
-    prevBtn.addEventListener('click', () => {
-      if (lockToken) return;
-      const d = new Date(dateInput.value);
-      d.setDate(d.getDate() - 1);
-      const next = formatDateForInput(d);
-      if (next >= dateInput.min) dateInput.value = next;
-      loadSlots();
-    });
-
-    nextBtn.addEventListener('click', () => {
-      if (lockToken) return;
-      const d = new Date(dateInput.value);
-      d.setDate(d.getDate() + 1);
-      const next = formatDateForInput(d);
-      if (next <= dateInput.max) dateInput.value = next;
-      loadSlots();
-    });
-
-    slotsList.addEventListener('click', (e) => {
-      const btn = e.target.closest('.booking-slot');
-      if (btn && !btn.disabled && btn.dataset.slotId) {
+    if (daysEl) {
+      daysEl.addEventListener('click', (e) => {
+        const btn = e.target.closest('.booking-slot');
+        if (!btn || btn.disabled || !btn.dataset.slotId) return;
+        if (lockToken) return;
         lockSlot(Number(btn.dataset.slotId));
-      }
-    });
+      });
+    }
 
-    emailForm.addEventListener('submit', (e) => {
-      e.preventDefault();
-      const email = $('booking-email').value.trim();
-      if (!validateEmail(email)) {
-        $('booking-email-error').textContent = 'Zadaj platnú e-mailovú adresu.';
-        $('booking-email-error').hidden = false;
-        return;
-      }
-      $('booking-email-error').hidden = true;
-      showPaymentChoice();
-    });
+    if (heroCta) {
+      heroCta.addEventListener('click', () => {
+        if (heroCta.disabled || lockToken) return;
+        const id = heroCta.dataset.slotId;
+        if (id) lockSlot(Number(id));
+      });
+    }
+
+    if (emailForm) {
+      emailForm.addEventListener('submit', (e) => {
+        e.preventDefault();
+        const email = $('booking-email').value.trim();
+        if (!validateEmail(email)) {
+          const err = $('booking-email-error');
+          if (err) {
+            err.textContent = 'Zadaj platnú e-mailovú adresu.';
+            err.hidden = false;
+          }
+          return;
+        }
+        const errEl = $('booking-email-error');
+        if (errEl) errEl.hidden = true;
+        showPaymentChoice();
+      });
+    }
 
     const paymentForm = $('booking-payment-form');
     const paymentBackBtn = $('booking-payment-back');
@@ -583,8 +749,11 @@
         const email = $('booking-email').value.trim();
         const { paymentType, amount } = getPaymentChoice();
         if (paymentType === 'full' && amount < 45) {
-          $('booking-payment-error').textContent = 'Minimálna suma pri plnej platbe je 45 €.';
-          $('booking-payment-error').hidden = false;
+          const err = $('booking-payment-error');
+          if (err) {
+            err.textContent = 'Minimálna suma pri plnej platbe je 45 €.';
+            err.hidden = false;
+          }
           return;
         }
         submitReservation(email, paymentType, amount);
@@ -608,22 +777,33 @@
         const pending = window.pendingPaymentRetry;
         if (!pending) return;
         paymentRetryBtn.disabled = true;
-        $('booking-success-failed').hidden = true;
-        $('booking-success-pending').hidden = false;
-        $('booking-success-pending').textContent = 'Presmerovávam na platbu…';
+        const failed = $('booking-success-failed');
+        const pend = $('booking-success-pending');
+        if (failed) failed.hidden = true;
+        if (pend) {
+          pend.hidden = false;
+          pend.textContent = 'Presmerovávam na platbu…';
+        }
         const result = await startPayment(pending.reservationId, pending.paymentType, pending.amount);
         if (result.ok) {
           window.location.href = result.url;
           return;
         }
-        $('booking-success-pending').hidden = true;
-        $('booking-success-failed').textContent = result.error;
-        $('booking-success-failed').hidden = false;
+        if (pend) pend.hidden = true;
+        if (failed) {
+          failed.textContent = result.error;
+          failed.hidden = false;
+        }
         paymentRetryBtn.disabled = false;
       });
     }
 
+    document.addEventListener('visibilitychange', () => {
+      if (!document.hidden) loadSlots({ silent: true });
+    });
+
     loadSlots();
+    startPoll();
   }
 
   if (document.readyState === 'loading') {

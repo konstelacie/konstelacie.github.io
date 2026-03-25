@@ -7,15 +7,6 @@ const router = express.Router();
 /** Known funnel instances. Add new instances here; routes and payment redirects use this. */
 const FUNNEL_INSTANCES = ['pilot'];
 
-function getTodayLocal() {
-  return new Date().toLocaleDateString('en-CA', { timeZone: 'Europe/Bratislava' });
-}
-function getMaxDateLocal() {
-  const d = new Date();
-  d.setDate(d.getDate() + 21);
-  return d.toLocaleDateString('en-CA', { timeZone: 'Europe/Bratislava' });
-}
-
 /**
  * Campaign data per funnel instance. Override via ?campaign=id.
  *
@@ -166,25 +157,12 @@ router.get('/:funnelName', (req, res, next) => {
     funnelName,
     funnelCampaignId: campaignId,
     funnelVideoId: campaign.videoId != null ? String(campaign.videoId) : null,
-    bookingDateDefault: getTodayLocal(),
-    bookingDateMin: getTodayLocal(),
-    bookingDateMax: getMaxDateLocal(),
     extraStyles: `
       <link rel="stylesheet" href="/assets/css/funnel.css">
     `,
     extraScripts: `
       <script src="/assets/js/booking.js"></script>
       <script src="/assets/js/funnel.js"></script>
-      <script>
-        document.addEventListener('DOMContentLoaded',function(){
-          var d=document.getElementById('booking-date');
-          if(d&&!d.value){
-            var today=new Date().toLocaleDateString('en-CA',{timeZone:'Europe/Bratislava'});
-            d.value=today;d.min=today;
-            var max=new Date();max.setDate(max.getDate()+21);d.max=max.toLocaleDateString('en-CA',{timeZone:'Europe/Bratislava'});
-          }
-        });
-      </script>
     `
   });
 });

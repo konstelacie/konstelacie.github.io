@@ -128,3 +128,104 @@
 .success-detail {
   display: inline-block;
 }
+
+/* Booking calendar (funnel) — see docs/ui-ux/booking-calendar.md */
+.booking-calendar {
+  margin: var(--spacing-section) 0;
+}
+
+.booking-calendar__loading {
+  margin: var(--spacing-md) 0;
+}
+
+.booking-calendar__inner {
+  margin-top: var(--spacing-md);
+}
+
+.booking-calendar__hero {
+  margin-bottom: var(--spacing-section);
+  padding: var(--spacing-md);
+  border: 1px solid var(--color-border);
+  border-radius: 4px;
+  background: rgba(15, 23, 42, 0.03);
+}
+
+.booking-calendar__hero-label {
+  margin: 0 0 0.25rem;
+  font-size: 0.9rem;
+  color: var(--color-text-secondary);
+}
+
+.booking-calendar__hero-datetime {
+  margin: 0 0 var(--spacing-md);
+  font-size: 1.1rem;
+}
+
+.booking-calendar__hero-cta {
+  width: 100%;
+  max-width: 20rem;
+}
+
+.booking-calendar__days {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-section);
+}
+
+.booking-day__header {
+  margin-bottom: var(--spacing-sm);
+}
+
+.booking-day__title {
+  font-weight: 600;
+}
+
+.booking-day__hint {
+  font-weight: 400;
+  color: var(--color-text-muted);
+  font-size: 0.95rem;
+}
+
+.booking-day__slots {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--spacing-sm);
+}
+
+.booking-calendar .booking-slot {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.25rem;
+  min-width: 5.5rem;
+  min-height: 3rem;
+  padding: 0.65rem 0.85rem;
+  text-align: left;
+}
+
+.booking-slot__time {
+  font-weight: 600;
+  font-size: 1rem;
+}
+
+.booking-slot__label {
+  font-size: 0.85rem;
+  color: var(--color-text-secondary);
+}
+
+.booking-slot--primary .booking-slot__label {
+  color: var(--color-primary);
+}
+
+.booking-slot--locked-me {
+  border-color: var(--color-primary);
+  background: rgba(15, 23, 42, 0.06);
+}
+
+.booking-calendar__empty {
+  margin: var(--spacing-md) 0;
+}
+
+.booking-calendar__error {
+  margin-top: var(--spacing-sm);
+}

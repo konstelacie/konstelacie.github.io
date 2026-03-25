@@ -9,6 +9,17 @@ const { getPool } = require('../../db');
 
 const router = express.Router();
 const LOCK_DURATION_MS = 15 * 60 * 1000;
+const BOOKING_LEAD_MS = 24 * 60 * 60 * 1000;
+const TZ = 'Europe/Bratislava';
+
+function slotPassesBookingWindow(startAt) {
+  const start = startAt instanceof Date ? startAt : new Date(startAt);
+  if (Number.isNaN(start.getTime())) return false;
+  if (start.getTime() < Date.now() + BOOKING_LEAD_MS) return false;
+  const wd = new Intl.DateTimeFormat('en-US', { timeZone: TZ, weekday: 'short' }).format(start);
+  if (wd === 'Sat' || wd === 'Sun') return false;
+  return true;
+}
 
 router.get(
   '/',
@@ -60,6 +71,11 @@ router.post(
         reason: 'slot_not_open',
         status: slot.status,
       });
+      throw new ApiError('SLOT_NOT_OPEN', 'Slot is not open for booking', 409);
+    }
+
+    if (!slotPassesBookingWindow(slot.start_at)) {
+      await auditRepo.log('lock_failed', 'slot', slotId, { reason: 'outside_booking_window' });
       throw new ApiError('SLOT_NOT_OPEN', 'Slot is not open for booking', 409);
     }
 

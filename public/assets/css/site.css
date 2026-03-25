@@ -133,46 +133,6 @@ a:hover {
 }
 
 /* Booking (embedded in pilot funnel) */
-.booking-date-row {
-  display: flex;
-  align-items: center;
-  gap: var(--spacing-sm);
-  margin: var(--spacing-section) 0;
-}
-
-.booking-nav-btn {
-  padding: 0.5rem 0.75rem;
-  border: 1px solid var(--color-border);
-  background: var(--color-bg);
-  border-radius: 4px;
-  cursor: pointer;
-  font-size: 1rem;
-}
-
-.booking-nav-btn:hover:not(:disabled) {
-  background: var(--color-border);
-}
-
-.booking-nav-btn:disabled,
-.booking-date-input:disabled {
-  cursor: not-allowed;
-  opacity: 0.6;
-}
-
-.booking-date-input {
-  padding: 0.5rem 0.75rem;
-  border: 1px solid var(--color-border);
-  border-radius: 4px;
-  font-size: 1rem;
-}
-
-.booking-slots-list {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--spacing-sm);
-  margin: var(--spacing-md) 0;
-}
-
 .booking-slot {
   padding: 0.75rem 1rem;
   border: 1px solid var(--color-border);
@@ -192,17 +152,6 @@ a:hover {
 .booking-slot:disabled {
   cursor: not-allowed;
   opacity: 0.7;
-}
-
-.booking-slot-time {
-  display: block;
-  font-weight: 500;
-}
-
-.booking-slot-status {
-  display: block;
-  font-size: 0.85rem;
-  color: var(--color-text-muted);
 }
 
 .booking-hold-banner {
