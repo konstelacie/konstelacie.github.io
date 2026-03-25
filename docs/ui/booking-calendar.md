@@ -8,22 +8,49 @@ The full product and interaction specification lives in [booking-calendar.md](..
 
 ### Goals
 
-- Fit **nearest-slot CTA** plus **at least 2–3 days of slots** in one viewport without scrolling the calendar block alone.
+- Fit **nearest-slot** row plus **at least 2–3 days of slots** in one viewport without scrolling the calendar block alone.
 - **Prioritize vertical density** over decorative spacing; keep labels and state text readable.
 - **No changes** to data loading, slot state model, or interaction logic—only markup structure for the hero row and CSS.
 
-### Nearest slot (“hero”) — inline row
+### Nearest slot (“hero”) — superseded by v4
 
-- **Before:** Stacked card: label, datetime line, full-width primary button with padding and border.
-- **After:** Single **horizontal flow** (wraps on narrow screens):
+The original v2 spec used a separate **Rezervovať** CTA next to the datetime. That pattern is **replaced** by [Nearest Slot as Primary CTA (v4)](#nearest-slot-as-primary-cta-v4): the nearest slot is a **standard slot button** (same component and behavior as the grid below).
 
-  `Najbližší voľný termín:` + **datetime** (from JS, e.g. weekday + date + time) + **`Rezervovať`** button.
+---
 
-- **Markup:** `booking-calendar__hero` contains `booking-calendar__hero-row` with:
-  - `span.booking-calendar__hero-label`
-  - `span#booking-hero-datetime.booking-calendar__hero-datetime`
-  - `button#booking-hero-cta.booking-calendar__hero-cta`
-- **Chrome:** No card border, no filled background, **minimal vertical padding** on the hero container.
+## Nearest Slot as Primary CTA (v4)
+
+### Intent
+
+- **One interaction model:** a slot control is the action; there is no separate primary CTA button for “nearest”.
+- **Consistency:** the nearest bookable slot uses the same markup, classes, and click path as slots in the day list (`booking-slot`, `data-slot-id`, `mapSlotUi` states).
+- **Layout:** label line **Najbližší voľný termín:** then a **single slot button** whose first line is day + date + time (e.g. `Štvrtok 26. 3. 08:30`), second line the same state label as other slots (e.g. **Voľné**).
+
+### Markup
+
+- `div#booking-calendar-hero.booking-calendar__hero` (optional visibility)
+  - `p.booking-calendar__hero-label` — static copy **Najbližší voľný termín:**
+  - `div#booking-hero-slot-host.booking-calendar__hero-slot-host` — container; JS injects one `button.booking-slot.booking-slot--nearest` (plus state classes from the shared builder).
+
+### Styling
+
+- Same base slot styles as the day grid (see `public/assets/css/site.css` + funnel overrides).
+- Optional emphasis: modifier **`booking-slot--nearest`** — subtle border/shadow in `funnel.css` so the row reads as the highlighted first choice without a second button.
+
+### Behavior
+
+- Clicking the nearest slot runs the same **`lockSlot`** flow as any other slot (delegated from `#booking-calendar-inner`).
+- Hidden while a slot is pending (`pendingSlotId`) or when there is no eligible first-free slot.
+
+### Implementation reference
+
+- Logic: `public/assets/js/booking.js` — `buildSlotButtonHtml`, `renderCalendar`, delegated click on `#booking-calendar-inner`.
+- Styles: `public/assets/css/funnel.css` — `.booking-calendar__hero*`, `.booking-slot--nearest`.
+- Markup: `src/views/funnels/_funnel-content.ejs`.
+
+---
+
+## Day list & slot density (v2)
 
 ### Day blocks — list, not cards
 

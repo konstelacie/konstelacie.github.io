@@ -147,32 +147,27 @@
   padding: 0.2rem 0;
 }
 
-.booking-calendar__hero-row {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 0.35rem 0.5rem;
-}
-
 .booking-calendar__hero-label {
-  margin: 0;
+  margin: 0 0 0.25rem;
   font-size: 0.875rem;
   color: var(--color-text-secondary);
-  white-space: nowrap;
 }
 
-.booking-calendar__hero-datetime {
-  margin: 0;
-  font-size: 0.9rem;
+.booking-calendar__hero-slot-host {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+}
+
+.booking-calendar__hero-slot-host .booking-slot {
   flex: 1 1 auto;
   min-width: 10rem;
+  max-width: 100%;
 }
 
-.booking-calendar__hero-cta {
-  width: auto;
-  flex-shrink: 0;
-  padding: 0.35rem 0.65rem;
-  font-size: 0.875rem;
+.booking-calendar__hero-slot-host .booking-slot--nearest:not(.booking-slot--disabled) {
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 1px rgba(15, 23, 42, 0.08);
 }
 
 .booking-calendar__days {

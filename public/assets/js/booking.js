@@ -222,6 +222,28 @@
     return { label: 'Voľné', disabled: false, busy: false, state: 'free', primary: true };
   }
 
+  /**
+   * @param {object|null} slot
+   * @param {string} timeLineFirst — first line (grid time or day + time for hero)
+   * @param {{ nearest?: boolean }} [opts]
+   */
+  function buildSlotButtonHtml(slot, timeLineFirst, opts) {
+    const nearest = !!(opts && opts.nearest);
+    const ui = mapSlotUi(slot);
+    const cls = ['booking-slot'];
+    if (nearest) cls.push('booking-slot--nearest');
+    if (ui.disabled || ui.busy) cls.push('booking-slot--disabled');
+    if (ui.state === 'locked-me') cls.push('booking-slot--locked-me');
+    if (ui.state === 'missing') cls.push('booking-slot--missing');
+    if (ui.primary && ui.state === 'free') cls.push('booking-slot--primary');
+    const ariaBusy = ui.busy ? ' aria-busy="true"' : '';
+    const idAttr = slot ? ` data-slot-id="${slot.id}"` : '';
+    return `<button type="button" class="${cls.join(' ')}"${idAttr} data-state="${ui.state}"${ui.disabled || ui.busy ? ' disabled' : ''}${ariaBusy}>
+            <span class="booking-slot__time">${timeLineFirst}</span>
+            <span class="booking-slot__label">${ui.label}</span>
+          </button>`;
+  }
+
   function buildFunnelDays() {
     const filtered = (slotsRaw || []).filter(passesFunnelSlotRules);
     const byDate = groupSlotsByLocalDate(filtered);
@@ -254,8 +276,7 @@
     const loading = $('booking-calendar-loading');
     const empty = $('booking-slots-empty');
     const hero = $('booking-calendar-hero');
-    const heroDt = $('booking-hero-datetime');
-    const heroCta = $('booking-hero-cta');
+    const heroSlotHost = $('booking-hero-slot-host');
     const daysEl = $('booking-calendar-days');
 
     if (!inner || !daysEl) return;
@@ -268,6 +289,7 @@
       inner.hidden = true;
       if (empty) empty.hidden = false;
       if (hero) hero.hidden = true;
+      if (heroSlotHost) heroSlotHost.innerHTML = '';
       daysEl.innerHTML = '';
       return;
     }
@@ -276,23 +298,25 @@
     inner.hidden = false;
 
     const firstFreeId = findFirstFreeSlotId();
-    if (hero && heroDt && heroCta) {
+    if (hero && heroSlotHost) {
       if (pendingSlotId) {
         hero.hidden = true;
+        heroSlotHost.innerHTML = '';
       } else if (firstFreeId != null) {
         const slot = slotsRaw.find((s) => s.id === firstFreeId);
         if (slot) {
           hero.hidden = false;
           const title = formatDayTitleFromDateStr(slot.localDate);
           const time = slot.timeKey || '';
-          heroDt.innerHTML = `<strong>${title} o ${time}</strong>`;
-          heroCta.dataset.slotId = String(firstFreeId);
-          heroCta.disabled = !!lockToken;
+          const timeLine = `${title} ${time}`;
+          heroSlotHost.innerHTML = buildSlotButtonHtml(slot, timeLine, { nearest: true });
         } else {
           hero.hidden = true;
+          heroSlotHost.innerHTML = '';
         }
       } else {
         hero.hidden = true;
+        heroSlotHost.innerHTML = '';
       }
     }
 
@@ -306,20 +330,7 @@
       const hintHtml = hint ? ` <span class="booking-day__hint">${hint}</span>` : '';
 
       const buttons = rows
-        .map(({ timeKey, slot: s }) => {
-          const ui = mapSlotUi(s);
-          const cls = ['booking-slot'];
-          if (ui.disabled || ui.busy) cls.push('booking-slot--disabled');
-          if (ui.state === 'locked-me') cls.push('booking-slot--locked-me');
-          if (ui.state === 'missing') cls.push('booking-slot--missing');
-          if (ui.primary && ui.state === 'free') cls.push('booking-slot--primary');
-          const ariaBusy = ui.busy ? ' aria-busy="true"' : '';
-          const idAttr = s ? ` data-slot-id="${s.id}"` : '';
-          return `<button type="button" class="${cls.join(' ')}"${idAttr} data-state="${ui.state}"${ui.disabled || ui.busy ? ' disabled' : ''}${ariaBusy}>
-            <span class="booking-slot__time">${timeKey}</span>
-            <span class="booking-slot__label">${ui.label}</span>
-          </button>`;
-        })
+        .map(({ timeKey, slot: s }) => buildSlotButtonHtml(s, timeKey))
         .join('');
 
       articles.push(`
@@ -711,27 +722,18 @@
       startCountdown();
     }
 
-    const daysEl = $('booking-calendar-days');
-    const heroCta = $('booking-hero-cta');
+    const calendarInner = $('booking-calendar-inner');
     const revokeBtn = $('booking-revoke-btn');
     const emailForm = $('booking-email-form');
 
     if (revokeBtn) revokeBtn.addEventListener('click', revokeSlot);
 
-    if (daysEl) {
-      daysEl.addEventListener('click', (e) => {
+    if (calendarInner) {
+      calendarInner.addEventListener('click', (e) => {
         const btn = e.target.closest('.booking-slot');
         if (!btn || btn.disabled || !btn.dataset.slotId) return;
         if (lockToken) return;
         lockSlot(Number(btn.dataset.slotId));
-      });
-    }
-
-    if (heroCta) {
-      heroCta.addEventListener('click', () => {
-        if (heroCta.disabled || lockToken) return;
-        const id = heroCta.dataset.slotId;
-        if (id) lockSlot(Number(id));
       });
     }
 
