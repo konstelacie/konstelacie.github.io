@@ -12,11 +12,13 @@
       <p id="booking-calendar-loading" class="booking-calendar__loading muted">Načítavam termíny…</p>
       <div id="booking-calendar-inner" class="booking-calendar__inner" hidden>
         <div id="booking-calendar-hero" class="booking-calendar__hero" hidden>
-          <p class="booking-calendar__hero-label">Najbližší voľný termín:</p>
-          <p id="booking-hero-datetime" class="booking-calendar__hero-datetime"></p>
-          <button type="button" id="booking-hero-cta" class="booking-calendar__hero-cta cta">
-            Rezervovať tento termín
-          </button>
+          <div class="booking-calendar__hero-row">
+            <span class="booking-calendar__hero-label">Najbližší voľný termín:</span>
+            <span id="booking-hero-datetime" class="booking-calendar__hero-datetime"></span>
+            <button type="button" id="booking-hero-cta" class="booking-calendar__hero-cta cta">
+              Rezervovať
+            </button>
+          </div>
         </div>
         <div id="booking-calendar-days" class="booking-calendar__days"></div>
       </div>
