@@ -29,7 +29,7 @@
   </section>
 
   <div id="funnel-lower" class="funnel-lower<% if (typeof lowerContentReveal !== 'undefined' && lowerContentReveal.enabled) { %> funnel-lower--pending<% } %>"
-    <% if (typeof lowerContentReveal !== 'undefined' && lowerContentReveal.enabled) { %>data-lower-reveal-delay="<%= lowerContentReveal.delayMs %>" aria-hidden="true"<% } %>>
+    <% if (typeof lowerContentReveal !== 'undefined' && lowerContentReveal.enabled) { %>data-lower-reveal-delay="<%= lowerContentReveal.delayMs %>" data-funnel-name="<%= funnelName %>" data-funnel-campaign="<%= funnelCampaignId %>" aria-hidden="true"<% } %>>
     <section class="funnel-bridge-section">
       <div class="container">
         <p class="funnel-bridge">Ak Ti to dáva zmysel, vyber si termín, ktorý Ti vyhovuje:</p>

@@ -101,17 +101,56 @@
     return true;
   }
 
+  function getLowerSeenStorageKey(lowerEl) {
+    if (!lowerEl) return null;
+    var fn = lowerEl.getAttribute('data-funnel-name');
+    var fc = lowerEl.getAttribute('data-funnel-campaign');
+    if (!fn || !fc) return null;
+    return 'citim:funnel:lowerSeen:' + fn + ':' + fc;
+  }
+
+  function hasSeenLowerBefore(lowerEl) {
+    try {
+      var k = getLowerSeenStorageKey(lowerEl);
+      if (!k) return false;
+      return window.localStorage.getItem(k) === '1';
+    } catch (e) {
+      return false;
+    }
+  }
+
+  function markLowerSeen(lowerEl) {
+    try {
+      var k = getLowerSeenStorageKey(lowerEl);
+      if (k) window.localStorage.setItem(k, '1');
+    } catch (e) {}
+  }
+
+  function revealLowerNow(lowerEl) {
+    if (!lowerEl || lowerEl.classList.contains('is-revealed')) return;
+    lowerEl.classList.remove('funnel-lower--pending');
+    lowerEl.classList.add('is-revealed');
+    lowerEl.removeAttribute('aria-hidden');
+  }
+
   function revealLowerWhenReady(lowerEl, delayMs) {
     if (!lowerEl || lowerEl.classList.contains('is-revealed')) return;
     setTimeout(function () {
+      lowerEl.classList.remove('funnel-lower--pending');
       lowerEl.classList.add('is-revealed');
       lowerEl.removeAttribute('aria-hidden');
+      markLowerSeen(lowerEl);
     }, delayMs);
   }
 
   function initLowerContentReveal() {
     var lowerEl = document.getElementById('funnel-lower');
     if (!lowerEl || !lowerEl.classList.contains('funnel-lower--pending')) return;
+
+    if (hasSeenLowerBefore(lowerEl)) {
+      revealLowerNow(lowerEl);
+      return;
+    }
 
     var raw = lowerEl.getAttribute('data-lower-reveal-delay');
     var delayMs = parseInt(raw, 10);
@@ -174,17 +213,15 @@
           }, 200);
         })
         .catch(function () {
-          lowerEl.classList.remove('funnel-lower--pending');
-          lowerEl.removeAttribute('aria-hidden');
-          lowerEl.classList.add('is-revealed');
+          revealLowerNow(lowerEl);
+          markLowerSeen(lowerEl);
         });
       return;
     }
 
     // Unknown embed: do not keep content inaccessible
-    lowerEl.classList.remove('funnel-lower--pending');
-    lowerEl.removeAttribute('aria-hidden');
-    lowerEl.classList.add('is-revealed');
+    revealLowerNow(lowerEl);
+    markLowerSeen(lowerEl);
   }
 
   if (document.readyState === 'loading') {
