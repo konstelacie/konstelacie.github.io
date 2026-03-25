@@ -29,7 +29,7 @@ function getMaxDateLocal() {
 const WISTIA_TEST_HASHED_ID = 'qyexpnd6fa';
 
 /**
- * Lower sections (summary, booking, …) stay hidden until first video play, then after `delayMs` fade in.
+ * Lower sections (bridge, booking, …) stay hidden until first video play, then after `delayMs` fade in.
  * Set `enabled: false` to show everything immediately.
  */
 const DEFAULT_LOWER_CONTENT_REVEAL = {
@@ -45,7 +45,6 @@ const pilotPoslanie = {
     provider: 'wistia',
     hashedId: WISTIA_TEST_HASHED_ID,
   },
-  summary: '<p>Placeholder text pre zhrnutie…</p>',
   lowerContentReveal: { ...DEFAULT_LOWER_CONTENT_REVEAL },
 };
 
@@ -61,7 +60,6 @@ const INSTANCE_CAMPAIGNS = {
         provider: 'wistia',
         hashedId: WISTIA_TEST_HASHED_ID,
       },
-      summary: '<p>Placeholder text pre zhrnutie…</p>',
     },
   },
 };

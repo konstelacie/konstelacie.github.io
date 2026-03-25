@@ -30,10 +30,9 @@
 
   <div id="funnel-lower" class="funnel-lower<% if (typeof lowerContentReveal !== 'undefined' && lowerContentReveal.enabled) { %> funnel-lower--pending<% } %>"
     <% if (typeof lowerContentReveal !== 'undefined' && lowerContentReveal.enabled) { %>data-lower-reveal-delay="<%= lowerContentReveal.delayMs %>" aria-hidden="true"<% } %>>
-    <section class="funnel-video-summary prose">
+    <section class="funnel-bridge-section">
       <div class="container">
-        <h2>Krátke zhrnutie</h2>
-        <%- campaign.summary || '<p>Placeholder text pre zhrnutie…</p>' %>
+        <p class="funnel-bridge">Ak Ti to dáva zmysel, vyber si termín, ktorý Ti vyhovuje:</p>
       </div>
     </section>
 
