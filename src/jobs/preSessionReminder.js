@@ -27,8 +27,8 @@ module.exports = {
       }
 
       const slot = {
-        start_at: row.start_at,
-        end_at: row.end_at,
+        start_at_utc: row.start_at_utc,
+        end_at_utc: row.end_at_utc,
         timezone: row.timezone || 'Europe/Bratislava',
       };
 

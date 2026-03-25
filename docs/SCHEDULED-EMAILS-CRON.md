@@ -151,7 +151,7 @@ module.exports = {
 
 | Job | Status | Query / source | Idempotency |
 |-----|--------|----------------|-------------|
-| `pre-session-reminder` | **Implemented** (`src/jobs/preSessionReminder.js`) | `reservationsRepo.findDueForPreSessionReminder()` — confirmed reservations, slot `start_at` in [now+23h30m, now+24h30m) | `email_sent_log` via `emailSentLogRepo.wasAlreadySent` |
+| `pre-session-reminder` | **Implemented** (`src/jobs/preSessionReminder.js`) | `reservationsRepo.findDueForPreSessionReminder()` — confirmed reservations, slot `start_at_utc` in [now+23h30m, now+24h30m) | `email_sent_log` via `emailSentLogRepo.wasAlreadySent` |
 | `post-session-follow-up` | Planned | — | — |
 | `doplatok-reminder` | Planned | — | — |
 | `newsletter-batch` | Planned | — | — |
@@ -225,7 +225,7 @@ Additional job files (post-session, newsletter, etc.) are **not** present until 
 
 For deterministic reminders (e.g. 24h before):
 
-- **Window:** Slot `start_at` in [now + 23h 30m, now + 24h 30m]
+- **Window:** Slot `start_at_utc` in [now + 23h 30m, now + 24h 30m]
 - **Cron frequency:** Every 15 min
 - **Effect:** Each slot falls into exactly one window; no duplicates, no gaps
 

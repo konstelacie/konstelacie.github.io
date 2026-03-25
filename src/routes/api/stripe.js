@@ -12,7 +12,7 @@ async function sendConfirmationEmailAsync(paymentId, reservationId) {
   if (!pool) return;
 
   const [rows] = await pool.execute(
-    `SELECT r.email, s.start_at, s.end_at, s.timezone, p.amount_cents, p.currency
+    `SELECT r.email, s.start_at_utc, s.end_at_utc, s.timezone, p.amount_cents, p.currency
      FROM reservations r
      JOIN slots s ON r.slot_id = s.id
      JOIN payments p ON p.reservation_id = r.id
@@ -25,7 +25,7 @@ async function sendConfirmationEmailAsync(paymentId, reservationId) {
   await emailService.sendReservationConfirmation(
     {
       to: row.email,
-      slot: { start_at: row.start_at, end_at: row.end_at, timezone: row.timezone },
+      slot: { start_at_utc: row.start_at_utc, end_at_utc: row.end_at_utc, timezone: row.timezone },
       amountCents: row.amount_cents,
       currency: row.currency,
     },

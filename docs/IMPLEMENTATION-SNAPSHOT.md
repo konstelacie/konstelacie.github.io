@@ -42,7 +42,7 @@ All JSON APIs use `requestId` middleware except where noted. Base: `src/routes/a
 | Method | Path | Purpose |
 |--------|------|---------|
 | POST | `/api/revoke` | Revoke slot lock (`slotId`, `lockToken` in body/query/header `X-Lock-Token`). |
-| GET | `/api/slots` | List slots in date range (`from`, `to` query). Optional `lockToken` to mark “my” lock. |
+| GET | `/api/slots` | List slots in date range (`from`, `to` query). Response includes `grid` metadata and per-slot `localDate`, `gridIndex`, `timeKey` for UI placement. Optional `lockToken` for “my” lock. |
 | POST | `/api/slots/:slotId/lock` | Create 15-minute lock; body `email` optional. |
 | GET | `/api/reservations/:id/status` | Reservation + latest payment status. |
 | POST | `/api/reservations` | Create reservation from lock; body includes funnel attribution (`funnelName` / `funnel`, `funnelCampaign` / `campaign`). |

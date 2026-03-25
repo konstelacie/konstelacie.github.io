@@ -47,18 +47,22 @@ Identity by email. A row is created when a **reservation** is created with that 
 
 Bookable time slots. Admin-created. See `docs/RESERVATION-SYSTEM-ARCHITECTURE.md` for slot lifecycle.
 
-| Column     | Type         | Description                    |
-|------------|--------------|--------------------------------|
-| id         | PK           | Auto-increment                 |
-| start_at   | DATETIME(3)  | NOT NULL                       |
-| end_at     | DATETIME(3)  | NOT NULL                       |
-| timezone   | VARCHAR(64) | Default Europe/Bratislava      |
-| status     | ENUM         | open, blocked, cancelled      |
-| capacity   | INT          | Default 1                     |
-| created_at | DATETIME(3)  |                                |
-| updated_at | DATETIME(3)  |                                |
+| Column        | Type              | Description |
+|---------------|-------------------|-------------|
+| id            | PK                | Auto-increment |
+| local_date    | DATE              | NOT NULL — business calendar day (Europe/Bratislava) |
+| grid_index    | TINYINT UNSIGNED  | NOT NULL — row index 0..4 (fixed slot times in `src/config/slotGrid.js`) |
+| timezone      | VARCHAR(64)       | NOT NULL, default Europe/Bratislava |
+| start_at_utc  | DATETIME(3)       | NOT NULL — session start instant (UTC) |
+| end_at_utc    | DATETIME(3)       | NOT NULL — session end instant (UTC) |
+| status        | ENUM              | open, blocked, cancelled |
+| capacity      | INT               | Default 1 |
+| created_at    | DATETIME(3)       | |
+| updated_at    | DATETIME(3)       | |
 
-**Indexes:** `(start_at)`, `(status, start_at)`.
+**Constraints:** `UNIQUE (local_date, grid_index)` — one cell per calendar slot.
+
+**Indexes:** `(local_date)`, `(start_at_utc)`, `(status, start_at_utc)`.
 
 **Relations:** Referenced by `slot_locks.slot_id`, `reservations.slot_id`.
 

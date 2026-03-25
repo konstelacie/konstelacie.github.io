@@ -5,6 +5,8 @@ const reservationsRepo = require('../../db/repositories/reservationsRepo');
 const auditRepo = require('../../db/repositories/auditRepo');
 const { getPool } = require('../../db');
 const { parseFunnelAttribution } = require('../funnels');
+const { timeKeyForGridIndex } = require('../../config/slotGrid');
+const { mysqlLocalDateToYmd } = require('../../lib/slotApiMap');
 
 const router = express.Router();
 
@@ -24,7 +26,8 @@ router.get(
     if (!pool) throw new ApiError('INTERNAL_ERROR', 'Database not configured', 503);
 
     const [rows] = await pool.execute(
-      `SELECT r.id, r.slot_id, r.status AS reservation_status, s.start_at, s.end_at, s.timezone
+      `SELECT r.id, r.slot_id, r.status AS reservation_status,
+              s.local_date, s.grid_index, s.start_at_utc, s.end_at_utc, s.timezone
        FROM reservations r
        JOIN slots s ON s.id = r.slot_id
        WHERE r.id = ?`,
@@ -41,13 +44,17 @@ router.get(
     );
     const paymentStatus = paymentRows[0]?.status ?? null;
 
+    const gridIndex = Number(row.grid_index);
     res.json({
       ok: true,
       id: row.id,
       status: row.reservation_status,
       slotId: row.slot_id,
-      startsAt: row.start_at.toISOString(),
-      endsAt: row.end_at.toISOString(),
+      localDate: mysqlLocalDateToYmd(row.local_date),
+      gridIndex,
+      timeKey: timeKeyForGridIndex(gridIndex),
+      startsAt: row.start_at_utc.toISOString(),
+      endsAt: row.end_at_utc.toISOString(),
       timezone: row.timezone,
       paymentStatus: paymentStatus,
       paymentUrl: null,

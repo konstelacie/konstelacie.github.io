@@ -219,6 +219,7 @@ If there is no free slot at all, show empty/error state (copy TBD) instead of th
 ## 13. Implementation checklist (for dev)
 
 - [ ] Filter slots by 24h rule server-side or client-side consistently with API.
+- [ ] Place slot buttons using API `localDate` + `gridIndex` / `timeKey` (not by parsing `startAt` in the browser).
 - [ ] Hide days with zero visible slots.
 - [ ] Map all five backend states + pending UI state to labels in §4.2.
 - [ ] Poll 5s; full refresh of visible slots; no flashy UI.

@@ -42,7 +42,7 @@ async function getById(reservationId) {
 /**
  * Find confirmed reservations with slot starting in ~24h (23h30m–24h30m window).
  * For pre-session reminder job. See docs/SCHEDULED-EMAILS-CRON.md.
- * @returns {Promise<Array<{id, email, slot_id, start_at, end_at, timezone}>>}
+ * @returns {Promise<Array<{id, email, slot_id, start_at_utc, end_at_utc, timezone}>>}
  */
 async function findDueForPreSessionReminder() {
   const pool = getPool();
@@ -50,12 +50,12 @@ async function findDueForPreSessionReminder() {
 
   const [rows] = await pool.execute(
     `SELECT r.id, r.email, r.slot_id,
-            s.start_at, s.end_at, s.timezone
+            s.start_at_utc, s.end_at_utc, s.timezone
      FROM reservations r
      JOIN slots s ON r.slot_id = s.id
      WHERE r.status = 'confirmed'
-       AND s.start_at >= DATE_ADD(NOW(3), INTERVAL '23:30' HOUR_MINUTE)
-       AND s.start_at < DATE_ADD(NOW(3), INTERVAL '24:30' HOUR_MINUTE)`
+       AND s.start_at_utc >= DATE_ADD(NOW(3), INTERVAL '23:30' HOUR_MINUTE)
+       AND s.start_at_utc < DATE_ADD(NOW(3), INTERVAL '24:30' HOUR_MINUTE)`
   );
   return rows;
 }

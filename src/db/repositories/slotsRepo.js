@@ -1,22 +1,21 @@
 const { getPool } = require('../index');
 
 /**
- * List slots in [from, to+1 day) with lock info.
+ * List slots in [from, to] by calendar local_date (Europe/Bratislava business dates),
+ * with lock info. Only slots with start_at_utc at least 24h from now.
  * from/to are ISO date strings (YYYY-MM-DD).
- * Uses UTC for comparisons.
  */
 async function listSlotsWithLocks(from, to) {
   const pool = getPool();
   if (!pool) throw new Error('Database not configured');
 
-  const fromDt = from + ' 00:00:00.000';
-  const toStart = to + ' 00:00:00.000'; // [from, to+1 day) => start_at < (to+1) 00:00
-
   const [rows] = await pool.execute(
     `SELECT
       s.id,
-      s.start_at,
-      s.end_at,
+      s.local_date,
+      s.grid_index,
+      s.start_at_utc,
+      s.end_at_utc,
       s.timezone,
       s.status,
       s.capacity,
@@ -25,10 +24,11 @@ async function listSlotsWithLocks(from, to) {
       l.expires_at AS lock_expires_at
     FROM slots s
     LEFT JOIN slot_locks l ON l.slot_id = s.id AND l.expires_at > NOW(3)
-    WHERE s.start_at >= GREATEST(?, DATE_ADD(NOW(3), INTERVAL 24 HOUR))
-      AND s.start_at < DATE_ADD(?, INTERVAL 1 DAY)
-    ORDER BY s.start_at ASC`,
-    [fromDt, toStart]
+    WHERE s.local_date >= ?
+      AND s.local_date <= ?
+      AND s.start_at_utc >= DATE_ADD(NOW(3), INTERVAL 24 HOUR)
+    ORDER BY s.local_date ASC, s.grid_index ASC`,
+    [from, to]
   );
 
   return rows;
@@ -39,7 +39,8 @@ async function getById(slotId) {
   if (!pool) throw new Error('Database not configured');
 
   const [rows] = await pool.execute(
-    'SELECT id, start_at, end_at, timezone, status, capacity FROM slots WHERE id = ?',
+    `SELECT id, local_date, grid_index, start_at_utc, end_at_utc, timezone, status, capacity
+     FROM slots WHERE id = ?`,
     [slotId]
   );
   return rows[0] ?? null;

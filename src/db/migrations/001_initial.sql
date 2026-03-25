@@ -26,17 +26,22 @@ CREATE TABLE users (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- slots: bookable time slots (admin-created)
+-- Business coordinates: local_date + grid_index (0..4); instants: start_at_utc / end_at_utc (UTC)
 CREATE TABLE slots (
   id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
-  start_at DATETIME(3) NOT NULL,
-  end_at DATETIME(3) NOT NULL,
+  local_date DATE NOT NULL,
+  grid_index TINYINT UNSIGNED NOT NULL,
   timezone VARCHAR(64) NOT NULL DEFAULT 'Europe/Bratislava',
+  start_at_utc DATETIME(3) NOT NULL,
+  end_at_utc DATETIME(3) NOT NULL,
   status ENUM('open','blocked','cancelled') NOT NULL DEFAULT 'open',
   capacity INT NOT NULL DEFAULT 1,
   created_at DATETIME(3) DEFAULT CURRENT_TIMESTAMP(3),
   updated_at DATETIME(3) DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3),
-  INDEX idx_slots_start_at (start_at),
-  INDEX idx_slots_status_start (status, start_at)
+  UNIQUE KEY uq_slots_cell (local_date, grid_index),
+  INDEX idx_slots_local_date (local_date),
+  INDEX idx_slots_start_utc (start_at_utc),
+  INDEX idx_slots_status_start (status, start_at_utc)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- slot_locks: 15-minute locks for public booking flow

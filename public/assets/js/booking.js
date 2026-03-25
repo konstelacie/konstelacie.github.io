@@ -7,9 +7,10 @@
   const POLL_MS = 5000;
   const LEAD_MS = 24 * 60 * 60 * 1000;
 
-  /** Must match product spec and `scripts/seed-slots.js` grid order. */
-  const FIXED_SLOT_KEYS = ['08:30', '10:00', '11:30', '13:00', '14:30'];
+  /** Fallback until GET /api/slots returns `grid.times` (same order as server `src/config/slotGrid.js`). */
+  const DEFAULT_GRID_TIMES = ['08:30', '10:00', '11:30', '13:00', '14:30'];
 
+  let gridTimes = DEFAULT_GRID_TIMES.slice();
   let slotsRaw = [];
   let lockToken = null;
   let expiresAt = null;
@@ -65,10 +66,6 @@
     try {
       sessionStorage.setItem(FUNNEL_CTX_KEY, JSON.stringify(ctx));
     } catch (_) {}
-  }
-
-  function localDateFromIso(iso) {
-    return new Date(iso).toLocaleDateString('en-CA', { timeZone: TIMEZONE });
   }
 
   function storeLock() {
@@ -130,47 +127,29 @@
     return addCalendarDays(getTodayLocal(), RANGE_DAYS);
   }
 
-  function isWeekdayBratislava(iso) {
-    const wd = new Intl.DateTimeFormat('en-US', { timeZone: TIMEZONE, weekday: 'short' }).format(new Date(iso));
-    return wd !== 'Sat' && wd !== 'Sun';
+  /** Weekday Mon–Fri from calendar YYYY-MM-DD (Gregorian; placement does not use browser TZ). */
+  function isWeekdayYmd(ymd) {
+    const [y, m, d] = ymd.split('-').map(Number);
+    const dow = new Date(Date.UTC(y, m - 1, d)).getUTCDay();
+    return dow >= 1 && dow <= 5;
   }
 
   function passesFunnelSlotRules(slot) {
     const start = new Date(slot.startAt).getTime();
     if (start < Date.now() + LEAD_MS) return false;
-    if (!isWeekdayBratislava(slot.startAt)) return false;
+    if (!slot.localDate || !isWeekdayYmd(slot.localDate)) return false;
     return true;
   }
 
-  function groupSlotsByDate(slots) {
+  function groupSlotsByLocalDate(slots) {
     const byDate = {};
     for (const s of slots) {
-      const localDate = new Date(s.startAt).toLocaleDateString('en-CA', { timeZone: TIMEZONE });
-      if (!byDate[localDate]) byDate[localDate] = [];
-      byDate[localDate].push(s);
+      const ld = s.localDate;
+      if (!ld) continue;
+      if (!byDate[ld]) byDate[ld] = [];
+      byDate[ld].push(s);
     }
     return byDate;
-  }
-
-  function formatTimeLocal(iso) {
-    return new Intl.DateTimeFormat('sk-SK', {
-      timeZone: TIMEZONE,
-      hour: '2-digit',
-      minute: '2-digit',
-    }).format(new Date(iso));
-  }
-
-  /** HH:mm in Europe/Bratislava for matching fixed grid. */
-  function timeKeyFromIso(iso) {
-    const parts = new Intl.DateTimeFormat('en-GB', {
-      timeZone: TIMEZONE,
-      hour: '2-digit',
-      minute: '2-digit',
-      hourCycle: 'h23',
-    }).formatToParts(new Date(iso));
-    const h = parts.find((p) => p.type === 'hour').value;
-    const m = parts.find((p) => p.type === 'minute').value;
-    return `${h.padStart(2, '0')}:${m}`;
   }
 
   function formatDayTitleFromDateStr(dateStr) {
@@ -182,15 +161,6 @@
       day: 'numeric',
       month: 'numeric',
     }).format(ref);
-  }
-
-  function formatDayTitle(firstSlotIso) {
-    return new Intl.DateTimeFormat('sk-SK', {
-      timeZone: TIMEZONE,
-      weekday: 'long',
-      day: 'numeric',
-      month: 'numeric',
-    }).format(new Date(firstSlotIso));
   }
 
   function relativeDayHint(dateStr) {
@@ -254,19 +224,14 @@
 
   function buildFunnelDays() {
     const filtered = (slotsRaw || []).filter(passesFunnelSlotRules);
-    const byDate = groupSlotsByDate(filtered);
+    const byDate = groupSlotsByLocalDate(filtered);
     const sortedDates = Object.keys(byDate).sort();
     const capped = sortedDates.slice(0, MAX_FUNNEL_DAYS);
     return capped.map((dateStr) => {
       const daySlots = byDate[dateStr] || [];
-      const keyToSlot = new Map();
-      for (const s of daySlots) {
-        const k = timeKeyFromIso(s.startAt);
-        if (FIXED_SLOT_KEYS.includes(k) && !keyToSlot.has(k)) keyToSlot.set(k, s);
-      }
-      const rows = FIXED_SLOT_KEYS.map((timeKey) => ({
+      const rows = gridTimes.map((timeKey, gridIndex) => ({
         timeKey,
-        slot: keyToSlot.get(timeKey) || null,
+        slot: daySlots.find((s) => s.gridIndex === gridIndex) || null,
       }));
       return { dateStr, rows };
     });
@@ -318,8 +283,8 @@
         const slot = slotsRaw.find((s) => s.id === firstFreeId);
         if (slot) {
           hero.hidden = false;
-          const title = formatDayTitle(slot.startAt);
-          const time = formatTimeLocal(slot.startAt);
+          const title = formatDayTitleFromDateStr(slot.localDate);
+          const time = slot.timeKey || '';
           heroDt.innerHTML = `<strong>${title} o ${time}</strong>`;
           heroCta.dataset.slotId = String(firstFreeId);
           heroCta.disabled = !!lockToken;
@@ -333,8 +298,10 @@
 
     const articles = [];
     for (const { dateStr, rows } of days) {
-      const firstIso = rows.find((r) => r.slot)?.slot?.startAt;
-      const title = firstIso ? formatDayTitle(firstIso) : formatDayTitleFromDateStr(dateStr);
+      const firstSlot = rows.find((r) => r.slot)?.slot;
+      const title = firstSlot
+        ? formatDayTitleFromDateStr(firstSlot.localDate)
+        : formatDayTitleFromDateStr(dateStr);
       const hint = relativeDayHint(dateStr);
       const hintHtml = hint ? ` <span class="booking-day__hint">${hint}</span>` : '';
 
@@ -415,6 +382,9 @@
       const data = await fetchSlots(from, to, lockToken, signal);
       if (signal.aborted || mySeq !== loadSeq) return;
       hideGlobalError();
+      if (data.grid && Array.isArray(data.grid.times) && data.grid.times.length > 0) {
+        gridTimes = data.grid.times;
+      }
       slotsRaw = data.slots || [];
       renderCalendar();
     } catch (e) {

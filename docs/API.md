@@ -48,15 +48,24 @@ curl "http://localhost:3000/api/slots?from=2026-03-05&to=2026-03-10"
 
 **Response 200:**
 
+Slots include explicit calendar coordinates (`localDate`, `gridIndex`, `timeKey`) computed on the server; the UI should not derive cell placement from `startAt`/`endAt` alone.
+
 ```json
 {
   "ok": true,
   "range": { "from": "2026-03-05", "to": "2026-03-10" },
+  "grid": {
+    "timezone": "Europe/Bratislava",
+    "times": ["08:30", "10:00", "11:30", "13:00", "14:30"]
+  },
   "slots": [
     {
       "id": 1,
-      "startAt": "2026-03-05T18:00:00.000Z",
-      "endAt": "2026-03-05T19:00:00.000Z",
+      "localDate": "2026-03-05",
+      "gridIndex": 0,
+      "timeKey": "08:30",
+      "startAt": "2026-03-05T07:30:00.000Z",
+      "endAt": "2026-03-05T09:00:00.000Z",
       "timezone": "Europe/Bratislava",
       "status": "open",
       "capacity": 1,
@@ -251,8 +260,11 @@ Load payment and reservation state by **Stripe Checkout Session ID** (success pa
     "slotId": 1
   },
   "slot": {
-    "startAt": "2026-03-05T18:00:00.000Z",
-    "endAt": "2026-03-05T19:00:00.000Z",
+    "localDate": "2026-03-05",
+    "gridIndex": 0,
+    "timeKey": "08:30",
+    "startAt": "2026-03-05T07:30:00.000Z",
+    "endAt": "2026-03-05T09:00:00.000Z",
     "timezone": "Europe/Bratislava"
   }
 }
@@ -322,13 +334,11 @@ Public listing requires each slot to start **≥ 24 hours** from now (and weekda
 
 Prefer `npm run db:seed-slots` / `node scripts/seed-slots.js`, which picks the first **weekday from tomorrow onward** where all seeded times meet the 24h rule.
 
-Manual SQL example (replace with real future timestamps):
+Manual SQL example (replace with real UTC instants for your `local_date` + `grid_index`):
 
 ```sql
-INSERT INTO slots (start_at, end_at, timezone, status, capacity) VALUES
-('2026-03-10 18:00:00', '2026-03-10 19:00:00', 'Europe/Bratislava', 'open', 1),
-('2026-03-11 10:00:00', '2026-03-11 11:00:00', 'Europe/Bratislava', 'open', 1),
-('2026-03-12 14:00:00', '2026-03-12 15:00:00', 'Europe/Bratislava', 'open', 1);
+INSERT INTO slots (local_date, grid_index, timezone, start_at_utc, end_at_utc, status, capacity) VALUES
+('2026-03-10', 0, 'Europe/Bratislava', '2026-03-10 07:30:00.000', '2026-03-10 09:00:00.000', 'open', 1);
 ```
 
 ---

@@ -5,26 +5,24 @@ const emailSentLogRepo = require('../db/repositories/emailSentLogRepo');
 
 const EMAIL_TEMPLATES_DIR = path.join(__dirname, '..', 'templates', 'emails');
 
-const dateFormatter = new Intl.DateTimeFormat('sk-SK', {
-  day: 'numeric',
-  month: 'long',
-  year: 'numeric',
-});
-
-const timeFormatter = new Intl.DateTimeFormat('sk-SK', {
-  hour: '2-digit',
-  minute: '2-digit',
-  hour12: false,
-});
-
-function formatSlotDate(startAt) {
-  const d = startAt instanceof Date ? startAt : new Date(startAt);
-  return dateFormatter.format(d);
+function formatSlotDate(startAtUtc, timezone = 'Europe/Bratislava') {
+  const d = startAtUtc instanceof Date ? startAtUtc : new Date(startAtUtc);
+  return new Intl.DateTimeFormat('sk-SK', {
+    day: 'numeric',
+    month: 'long',
+    year: 'numeric',
+    timeZone: timezone,
+  }).format(d);
 }
 
-function formatSlotTime(startAt) {
-  const d = startAt instanceof Date ? startAt : new Date(startAt);
-  return timeFormatter.format(d);
+function formatSlotTime(startAtUtc, timezone = 'Europe/Bratislava') {
+  const d = startAtUtc instanceof Date ? startAtUtc : new Date(startAtUtc);
+  return new Intl.DateTimeFormat('sk-SK', {
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false,
+    timeZone: timezone,
+  }).format(d);
 }
 
 function formatAmount(amountCents, currency = 'eur') {
@@ -37,16 +35,16 @@ function formatAmount(amountCents, currency = 'eur') {
  * Send reservation confirmation email.
  * @param {object} params
  * @param {string} params.to - Recipient email
- * @param {object} params.slot - { start_at, end_at, timezone }
+ * @param {object} params.slot - { start_at_utc, end_at_utc, timezone }
  * @param {number} params.amountCents - Amount paid in cents
  * @param {string} [params.currency='eur'] - Currency code
  * @param {object} [metadata] - Optional metadata for logging
  * @returns {Promise<{ok: boolean, skipped?: boolean, messageId?: string}>}
  */
 async function sendReservationConfirmation({ to, slot, amountCents, currency = 'eur' }, metadata = {}) {
-  const slotDateFormatted = formatSlotDate(slot.start_at);
-  const slotTimeFormatted = formatSlotTime(slot.start_at);
-  const timezone = slot.timezone || 'Europe/Bratislava';
+  const tz = slot.timezone || 'Europe/Bratislava';
+  const slotDateFormatted = formatSlotDate(slot.start_at_utc, tz);
+  const slotTimeFormatted = formatSlotTime(slot.start_at_utc, tz);
   const amountFormatted = formatAmount(amountCents, currency);
 
   const html = await ejs.renderFile(
@@ -54,7 +52,7 @@ async function sendReservationConfirmation({ to, slot, amountCents, currency = '
     {
       slotDateFormatted,
       slotTimeFormatted,
-      timezone,
+      timezone: tz,
       amountFormatted,
     }
   );
@@ -79,18 +77,18 @@ async function sendReservationConfirmation({ to, slot, amountCents, currency = '
  * Send pre-session reminder email (24h before slot).
  * @param {object} params
  * @param {string} params.to - Recipient email
- * @param {object} params.slot - { start_at, end_at, timezone }
+ * @param {object} params.slot - { start_at_utc, end_at_utc, timezone }
  * @param {object} [metadata] - Optional metadata for logging (entity_type, entity_id)
  * @returns {Promise<{ok: boolean, skipped?: boolean, messageId?: string}>}
  */
 async function sendPreSessionReminder({ to, slot }, metadata = {}) {
-  const slotDateFormatted = formatSlotDate(slot.start_at);
-  const slotTimeFormatted = formatSlotTime(slot.start_at);
-  const timezone = slot.timezone || 'Europe/Bratislava';
+  const tz = slot.timezone || 'Europe/Bratislava';
+  const slotDateFormatted = formatSlotDate(slot.start_at_utc, tz);
+  const slotTimeFormatted = formatSlotTime(slot.start_at_utc, tz);
 
   const html = await ejs.renderFile(
     path.join(EMAIL_TEMPLATES_DIR, 'pre-session-reminder.ejs'),
-    { slotDateFormatted, slotTimeFormatted, timezone }
+    { slotDateFormatted, slotTimeFormatted, timezone: tz }
   );
 
   const result = await emailProvider.sendEmail(to, 'Pripomienka sedenia zajtra', html, metadata);

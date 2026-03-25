@@ -4,6 +4,8 @@ const { asyncHandler, ApiError } = require('../../middleware/apiError');
 const { getPool } = require('../../db');
 const auditRepo = require('../../db/repositories/auditRepo');
 const { FUNNEL_INSTANCES } = require('../funnels');
+const { timeKeyForGridIndex } = require('../../config/slotGrid');
+const { mysqlLocalDateToYmd } = require('../../lib/slotApiMap');
 
 const router = express.Router();
 
@@ -74,7 +76,7 @@ router.get(
       reservation = resRows[0];
       if (reservation) {
         const [slotRows] = await pool.execute(
-          'SELECT start_at, end_at, timezone FROM slots WHERE id = ?',
+          'SELECT local_date, grid_index, start_at_utc, end_at_utc, timezone FROM slots WHERE id = ?',
           [reservation.slot_id]
         );
         slot = slotRows[0];
@@ -97,8 +99,11 @@ router.get(
         : null,
       slot: slot
         ? {
-            startAt: slot.start_at.toISOString(),
-            endAt: slot.end_at.toISOString(),
+            localDate: mysqlLocalDateToYmd(slot.local_date),
+            gridIndex: Number(slot.grid_index),
+            timeKey: timeKeyForGridIndex(Number(slot.grid_index)),
+            startAt: slot.start_at_utc.toISOString(),
+            endAt: slot.end_at_utc.toISOString(),
             timezone: slot.timezone,
           }
         : null,

@@ -91,7 +91,7 @@
 - `id`, `email` (unique), `name` (nullable), `created_at`, `updated_at`.
 
 **Slot**
-- `id`, `start_at` (DATETIME), `end_at` (DATETIME), `timezone`, `status` (open | blocked | cancelled), `capacity`, `created_at`, `updated_at`.
+- `id`, `local_date` (DATE), `grid_index` (0..4), `timezone`, `start_at_utc`, `end_at_utc` (UTC instants), `status` (open | blocked | cancelled), `capacity`, `created_at`, `updated_at`. Unique `(local_date, grid_index)`.
 
 **SlotLock**
 - `id`, `slot_id` (FK), `lock_token` (unique, UUID), `email` (nullable), `expires_at` (DATETIME), `created_at`.
@@ -109,7 +109,7 @@
 - `id`, `email`, `password_hash`, `created_at`, `last_login_at` (nullable).
 
 ### Indexes
-- `slots`: `(start_at)`, `(status, start_at)`.
+- `slots`: `(local_date)`, `(start_at_utc)`, `(status, start_at_utc)`.
 - `slot_locks`: `(slot_id)`, `(lock_token)` unique, `(expires_at)`.
 - `reservations`: `(slot_id)`, `(email, created_at)`, `(status, created_at)`.
 - `payments`: `(reservation_id)`, `(user_id)`, UNIQUE `(provider_ref)`.
@@ -144,15 +144,17 @@
 | Column | Type | Constraints |
 |--------|------|-------------|
 | id | BIGINT UNSIGNED AUTO_INCREMENT | PK |
-| start_at | DATETIME(3) | NOT NULL, INDEX |
-| end_at | DATETIME(3) | NOT NULL |
+| local_date | DATE | NOT NULL |
+| grid_index | TINYINT UNSIGNED | NOT NULL |
 | timezone | VARCHAR(64) | DEFAULT 'Europe/Bratislava' |
+| start_at_utc | DATETIME(3) | NOT NULL, INDEX |
+| end_at_utc | DATETIME(3) | NOT NULL |
 | status | ENUM('open','blocked','cancelled') DEFAULT 'open' | INDEX |
 | capacity | INT | DEFAULT 1 |
 | created_at | DATETIME(3) | |
 | updated_at | DATETIME(3) | |
 
-Index: `(status, start_at)` for availability queries.
+UNIQUE `(local_date, grid_index)`. Index: `(status, start_at_utc)` for availability queries.
 
 **slot_locks**
 | Column | Type | Constraints |
@@ -218,7 +220,7 @@ Index: `(action, created_at)`, `(entity_type, entity_id)`.
 
 **GET /api/slots**
 - Query: `from` (ISO date), `to` (ISO date), `timezone` (optional, default Europe/Bratislava).
-- Response: `{ slots: [{ id, startAt, endAt, status, isLocked? }] }`.
+- Response: `{ grid, slots: [{ id, localDate, gridIndex, timeKey, startAt, endAt, timezone, status, isLocked?, ... }] }` (see `docs/API.md`).
 - Errors: 400 (invalid params).
 
 **POST /api/slots/:slotId/lock**

@@ -6,20 +6,11 @@ const slotsRepo = require('../../db/repositories/slotsRepo');
 const locksRepo = require('../../db/repositories/locksRepo');
 const auditRepo = require('../../db/repositories/auditRepo');
 const { getPool } = require('../../db');
+const { slotPassesBookingWindow } = require('../../lib/slotBookingRules');
+const { mapSlotRowToApi, gridMetadata } = require('../../lib/slotApiMap');
 
 const router = express.Router();
 const LOCK_DURATION_MS = 15 * 60 * 1000;
-const BOOKING_LEAD_MS = 24 * 60 * 60 * 1000;
-const TZ = 'Europe/Bratislava';
-
-function slotPassesBookingWindow(startAt) {
-  const start = startAt instanceof Date ? startAt : new Date(startAt);
-  if (Number.isNaN(start.getTime())) return false;
-  if (start.getTime() < Date.now() + BOOKING_LEAD_MS) return false;
-  const wd = new Intl.DateTimeFormat('en-US', { timeZone: TZ, weekday: 'short' }).format(start);
-  if (wd === 'Sat' || wd === 'Sun') return false;
-  return true;
-}
 
 router.get(
   '/',
@@ -34,22 +25,17 @@ router.get(
       const hasLock = r.lock_id != null;
       const rowToken = r.lock_token != null ? String(r.lock_token).trim() : null;
       const isMyLock = hasLock && clientToken && rowToken && rowToken === clientToken;
-      return {
-        id: r.id,
-        startAt: r.start_at.toISOString(),
-        endAt: r.end_at.toISOString(),
-        timezone: r.timezone,
-        status: r.status,
-        capacity: r.capacity,
+      return mapSlotRowToApi(r, {
         isLocked: hasLock,
         isMyLock: !!isMyLock,
-        lockExpiresAt: hasLock ? r.lock_expires_at.toISOString() : null,
-      };
+        lockExpiresAt: hasLock && r.lock_expires_at ? r.lock_expires_at.toISOString() : null,
+      });
     });
 
     res.json({
       ok: true,
       range: { from: f, to: t },
+      grid: gridMetadata(),
       slots,
     });
   })
@@ -74,16 +60,17 @@ router.post(
       throw new ApiError('SLOT_NOT_OPEN', 'Slot is not open for booking', 409);
     }
 
-    if (!slotPassesBookingWindow(slot.start_at)) {
+    if (!slotPassesBookingWindow(slot)) {
       await auditRepo.log('lock_failed', 'slot', slotId, { reason: 'outside_booking_window' });
       throw new ApiError('SLOT_NOT_OPEN', 'Slot is not open for booking', 409);
     }
 
     const existingLock = await locksRepo.getActiveLockForSlot(slotId);
     if (existingLock) {
-      const expiresAt = existingLock.expires_at instanceof Date
-        ? existingLock.expires_at
-        : new Date(existingLock.expires_at);
+      const expiresAt =
+        existingLock.expires_at instanceof Date
+          ? existingLock.expires_at
+          : new Date(existingLock.expires_at);
       const remaining = Math.max(0, Math.ceil((expiresAt - Date.now()) / 1000));
       await auditRepo.log('lock_failed', 'slot', slotId, { reason: 'already_locked' });
       throw new ApiError('SLOT_LOCKED', 'Slot is already locked', 409, {
