@@ -81,7 +81,7 @@ Slots include explicit calendar coordinates (`localDate`, `gridIndex`, `timeKey`
 
 ## POST /api/slots/:slotId/lock
 
-Lock a slot for **15 minutes**.
+Lock a slot for **5 minutes** (time to enter email in the booking UI). Use **POST /api/slots/:slotId/extend-lock** after the user submits email to extend the hold to **15 minutes** for payment.
 
 **Body (optional):**
 
@@ -96,7 +96,7 @@ Lock a slot for **15 minutes**.
   "ok": true,
   "slotId": 1,
   "lockToken": "550e8400-e29b-41d4-a716-446655440000",
-  "expiresAt": "2026-03-05T18:15:00.000Z"
+  "expiresAt": "2026-03-05T18:05:00.000Z"
 }
 ```
 
@@ -110,6 +110,32 @@ Lock a slot for **15 minutes**.
   "details": { "retryAfterSeconds": 523 }
 }
 ```
+
+---
+
+## POST /api/slots/:slotId/extend-lock
+
+Extend an active lock to **15 minutes** and set the **email** on the lock (after the user submits email, before payment).
+
+**Body:**
+
+```json
+{
+  "lockToken": "550e8400-e29b-41d4-a716-446655440000",
+  "email": "user@domain.com"
+}
+```
+
+**Response 200:**
+
+```json
+{
+  "ok": true,
+  "expiresAt": "2026-03-05T18:15:00.000Z"
+}
+```
+
+**Response 404 (`LOCK_INVALID`):** lock not found or expired.
 
 ---
 

@@ -15,8 +15,12 @@
   let lockToken = null;
   let expiresAt = null;
   let lockedSlotId = null;
+  let lockedEmail = '';
+  /** `'email'` — modal / pred výberom platby; `'payment'` — banner + výber platby */
+  let lockPhase = 'email';
   let countdownInterval = null;
   let pendingSlotId = null;
+  let lastFocusBeforeModal = null;
   let loadSeq = 0;
   let pollTimer = null;
 
@@ -89,6 +93,8 @@
           lockedSlotId,
           expiresAt,
           lockedSlotDate,
+          phase: lockPhase,
+          email: lockedEmail || undefined,
         })
       );
     } catch (_) {}
@@ -109,6 +115,9 @@
       if (new Date(data.expiresAt).getTime() <= Date.now()) {
         clearStoredLock();
         return null;
+      }
+      if (data.phase !== 'payment' && data.phase !== 'email') {
+        data.phase = 'email';
       }
       return data;
     } catch (_) {
@@ -196,6 +205,93 @@
 
   function userMessage(code) {
     return ERROR_MESSAGES[code] || ERROR_MESSAGES.INTERNAL_ERROR;
+  }
+
+  function isEmailModalOpen() {
+    const modal = $('booking-email-modal');
+    return !!(modal && !modal.hidden);
+  }
+
+  function configureEmailModal(edit) {
+    const title = $('booking-modal-title');
+    const phaseEl = $('booking-modal-phase');
+    if (title && phaseEl) {
+      if (edit) {
+        title.textContent = 'Uprav e-mail';
+        phaseEl.textContent = 'Uprav e-mail a pokračuj k platbe. Termín ostáva držaný.';
+      } else {
+        title.textContent = 'Ešte jeden krok a termín máš rezervovaný';
+        phaseEl.textContent = 'Tento termín pre teba držíme, kým zadáš email.';
+      }
+    }
+  }
+
+  function openEmailModal(edit) {
+    const modal = $('booking-email-modal');
+    const main = $('booking-main');
+    if (!modal) return;
+    document.removeEventListener('keydown', onModalEscape, true);
+    document.removeEventListener('focusin', trapFocusInModal, true);
+    configureEmailModal(!!edit);
+    lastFocusBeforeModal = document.activeElement;
+    modal.hidden = false;
+    if (main) main.setAttribute('inert', '');
+    document.body.style.overflow = 'hidden';
+    document.addEventListener('keydown', onModalEscape, true);
+    document.addEventListener('focusin', trapFocusInModal, true);
+    const emailInput = $('booking-email');
+    if (emailInput) requestAnimationFrame(() => emailInput.focus());
+  }
+
+  function closeEmailModal() {
+    const modal = $('booking-email-modal');
+    const main = $('booking-main');
+    if (modal) modal.hidden = true;
+    if (main) main.removeAttribute('inert');
+    document.body.style.overflow = '';
+    document.removeEventListener('keydown', onModalEscape, true);
+    document.removeEventListener('focusin', trapFocusInModal, true);
+    if (lastFocusBeforeModal && typeof lastFocusBeforeModal.focus === 'function') {
+      try {
+        lastFocusBeforeModal.focus();
+      } catch (_) {}
+    }
+    lastFocusBeforeModal = null;
+  }
+
+  function onModalEscape(e) {
+    if (e.key !== 'Escape') return;
+    if (!isEmailModalOpen()) return;
+    e.preventDefault();
+    revokeSlot();
+  }
+
+  function trapFocusInModal(e) {
+    const modal = $('booking-email-modal');
+    if (!modal || modal.hidden) return;
+    if (modal.contains(e.target)) return;
+    const focusables = modal.querySelectorAll(
+      'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
+    );
+    const first = focusables[0];
+    if (first) first.focus();
+  }
+
+  async function extendLockWithEmail(email) {
+    const res = await fetch(`/api/slots/${lockedSlotId}/extend-lock`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ lockToken, email }),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      return { ok: false, error: userMessage(data.error) || 'Nepodarilo sa pokračovať.' };
+    }
+    if (data.expiresAt) expiresAt = data.expiresAt;
+    lockedEmail = email;
+    lockPhase = 'payment';
+    storeLock();
+    return { ok: true };
   }
 
   async function fetchSlots(from, to, token = null, signal = null) {
@@ -429,30 +525,39 @@
     }
   }
 
+  function clearLockClientState() {
+    if (countdownInterval) {
+      clearInterval(countdownInterval);
+      countdownInterval = null;
+    }
+    lockToken = null;
+    expiresAt = null;
+    lockedSlotId = null;
+    lockedEmail = '';
+    lockPhase = 'email';
+    clearStoredLock();
+    closeEmailModal();
+    const hold = $('booking-hold-banner');
+    const payChoice = $('booking-payment-choice');
+    if (hold) hold.hidden = true;
+    if (payChoice) payChoice.hidden = true;
+  }
+
   function updateCountdown() {
     if (!expiresAt) return;
     const now = Date.now();
     const exp = new Date(expiresAt).getTime();
+    if (Number.isNaN(exp)) return;
     const rem = Math.max(0, Math.floor((exp - now) / 1000));
     const m = Math.floor(rem / 60);
     const s = rem % 60;
-    const el = $('booking-countdown');
-    if (el) el.textContent = `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+    const text = `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+    const modalCnt = $('booking-modal-countdown');
+    const countEl = $('booking-countdown');
+    if (modalCnt) modalCnt.textContent = text;
+    if (countEl) countEl.textContent = text;
     if (rem <= 0) {
-      if (countdownInterval) {
-        clearInterval(countdownInterval);
-        countdownInterval = null;
-      }
-      lockToken = null;
-      expiresAt = null;
-      lockedSlotId = null;
-      clearStoredLock();
-      const hold = $('booking-hold-banner');
-      const emailForm = $('booking-email-form');
-      const payChoice = $('booking-payment-choice');
-      if (hold) hold.hidden = true;
-      if (emailForm) emailForm.hidden = true;
-      if (payChoice) payChoice.hidden = true;
+      clearLockClientState();
       loadSlots();
     }
   }
@@ -465,31 +570,28 @@
 
   async function revokeSlot() {
     if (!lockToken || !lockedSlotId) return;
+    const token = lockToken;
+    const slotId = lockedSlotId;
     try {
       const res = await fetch('/api/revoke', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ slotId: lockedSlotId, lockToken }),
+        body: JSON.stringify({ slotId, lockToken: token }),
       });
-      const data = await res.json().catch(() => ({}));
-      if (res.ok && data.revoked) {
-        if (countdownInterval) {
-          clearInterval(countdownInterval);
-          countdownInterval = null;
-        }
-        lockToken = null;
-        expiresAt = null;
-        lockedSlotId = null;
-        clearStoredLock();
-        const hold = $('booking-hold-banner');
-        const emailForm = $('booking-email-form');
-        const payChoice = $('booking-payment-choice');
-        if (hold) hold.hidden = true;
-        if (emailForm) emailForm.hidden = true;
-        if (payChoice) payChoice.hidden = true;
+      await res.json().catch(() => ({}));
+      if (res.ok) {
+        clearLockClientState();
+        loadSlots();
+        return;
+      }
+      if (res.status === 400 || res.status === 404) {
+        clearLockClientState();
         loadSlots();
       }
-    } catch (_) {}
+    } catch (_) {
+      clearLockClientState();
+      loadSlots();
+    }
   }
 
   async function lockSlot(slotId) {
@@ -519,17 +621,18 @@
       lockToken = data.lockToken;
       expiresAt = data.expiresAt;
       lockedSlotId = data.slotId;
+      lockedEmail = '';
+      lockPhase = 'email';
       pendingSlotId = null;
       storeLock();
 
-      const hold = $('booking-hold-banner');
-      const emailForm = $('booking-email-form');
       const emailInput = $('booking-email');
       const emailErr = $('booking-email-error');
-      if (hold) hold.hidden = false;
-      if (emailForm) emailForm.hidden = false;
       if (emailInput) emailInput.value = '';
       if (emailErr) emailErr.hidden = true;
+      const hold = $('booking-hold-banner');
+      if (hold) hold.hidden = true;
+      openEmailModal(false);
       startCountdown();
       loadSlots();
     } catch (e) {
@@ -544,19 +647,24 @@
   }
 
   function showPaymentChoice() {
-    const emailForm = $('booking-email-form');
+    closeEmailModal();
     const payChoice = $('booking-payment-choice');
-    if (emailForm) emailForm.hidden = true;
+    const hold = $('booking-hold-banner');
     if (payChoice) payChoice.hidden = false;
+    if (hold) hold.hidden = false;
     const payErr = $('booking-payment-error');
     if (payErr) payErr.hidden = true;
+    updateCountdown();
   }
 
   function showEmailForm() {
     const payChoice = $('booking-payment-choice');
-    const emailForm = $('booking-email-form');
+    const hold = $('booking-hold-banner');
     if (payChoice) payChoice.hidden = true;
-    if (emailForm) emailForm.hidden = false;
+    if (hold) hold.hidden = true;
+    openEmailModal(true);
+    const emailInput = $('booking-email');
+    if (emailInput && lockedEmail) emailInput.value = lockedEmail;
   }
 
   function getPaymentChoice() {
@@ -596,14 +704,13 @@
 
   function showPaymentFailure(message) {
     const hold = $('booking-hold-banner');
-    const emailForm = $('booking-email-form');
     const payChoice = $('booking-payment-choice');
     const success = $('booking-success');
     const pending = $('booking-success-pending');
     const failed = $('booking-success-failed');
     const retry = $('booking-payment-retry');
+    closeEmailModal();
     if (hold) hold.hidden = true;
-    if (emailForm) emailForm.hidden = true;
     if (payChoice) payChoice.hidden = true;
     if (success) success.hidden = false;
     if (pending) pending.hidden = true;
@@ -662,17 +769,18 @@
       lockToken = null;
       expiresAt = null;
       lockedSlotId = null;
+      lockedEmail = '';
+      lockPhase = 'email';
       clearStoredLock();
+      closeEmailModal();
 
       const hold = $('booking-hold-banner');
-      const emailForm = $('booking-email-form');
       const payChoice = $('booking-payment-choice');
       const success = $('booking-success');
       const successPending = $('booking-success-pending');
       const successFailed = $('booking-success-failed');
       const payRetry = $('booking-payment-retry');
       if (hold) hold.hidden = true;
-      if (emailForm) emailForm.hidden = true;
       if (payChoice) payChoice.hidden = true;
       if (payErr) payErr.hidden = true;
       if (success) success.hidden = false;
@@ -725,23 +833,40 @@
       lockToken = storedLock.lockToken;
       lockedSlotId = storedLock.lockedSlotId;
       expiresAt = storedLock.expiresAt;
-      const hold = $('booking-hold-banner');
-      const emailForm = $('booking-email-form');
+      lockPhase = storedLock.phase === 'payment' ? 'payment' : 'email';
+      lockedEmail = typeof storedLock.email === 'string' ? storedLock.email.trim() : '';
       const emailInput = $('booking-email');
       const emailErr = $('booking-email-error');
-      if (hold) hold.hidden = false;
-      if (emailForm) emailForm.hidden = false;
-      if (emailInput) emailInput.value = '';
       if (emailErr) emailErr.hidden = true;
-      updateCountdown();
-      startCountdown();
+      if (lockPhase === 'payment') {
+        if (emailInput) emailInput.value = lockedEmail;
+        const hold = $('booking-hold-banner');
+        const payChoice = $('booking-payment-choice');
+        if (hold) hold.hidden = false;
+        if (payChoice) payChoice.hidden = false;
+        updateCountdown();
+        startCountdown();
+      } else {
+        if (emailInput) emailInput.value = '';
+        const hold = $('booking-hold-banner');
+        if (hold) hold.hidden = true;
+        openEmailModal(false);
+        updateCountdown();
+        startCountdown();
+      }
     }
 
     const calendarInner = $('booking-calendar-inner');
     const revokeBtn = $('booking-revoke-btn');
+    const modalRevoke = $('booking-modal-revoke');
+    const modalClose = $('booking-modal-close');
+    const modalBackdrop = document.querySelector('[data-booking-modal-dismiss]');
     const emailForm = $('booking-email-form');
 
     if (revokeBtn) revokeBtn.addEventListener('click', revokeSlot);
+    if (modalRevoke) modalRevoke.addEventListener('click', revokeSlot);
+    if (modalClose) modalClose.addEventListener('click', revokeSlot);
+    if (modalBackdrop) modalBackdrop.addEventListener('click', revokeSlot);
 
     if (calendarInner) {
       calendarInner.addEventListener('click', (e) => {
@@ -753,7 +878,7 @@
     }
 
     if (emailForm) {
-      emailForm.addEventListener('submit', (e) => {
+      emailForm.addEventListener('submit', async (e) => {
         e.preventDefault();
         const email = $('booking-email').value.trim();
         if (!validateEmail(email)) {
@@ -766,6 +891,17 @@
         }
         const errEl = $('booking-email-error');
         if (errEl) errEl.hidden = true;
+        const submitBtn = $('booking-submit-btn');
+        if (submitBtn) submitBtn.disabled = true;
+        const result = await extendLockWithEmail(email);
+        if (submitBtn) submitBtn.disabled = false;
+        if (!result.ok) {
+          if (errEl) {
+            errEl.textContent = result.error;
+            errEl.hidden = false;
+          }
+          return;
+        }
         showPaymentChoice();
       });
     }

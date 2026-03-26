@@ -44,7 +44,7 @@ CREATE TABLE slots (
   INDEX idx_slots_status_start (status, start_at_utc)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- slot_locks: 15-minute locks for public booking flow
+-- slot_locks: time-limited holds (short lock before email; extended after email — see API)
 CREATE TABLE slot_locks (
   id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
   slot_id BIGINT UNSIGNED NOT NULL,

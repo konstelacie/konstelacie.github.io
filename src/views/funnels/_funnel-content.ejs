@@ -3,10 +3,11 @@
   <% if (typeof funnelName !== 'undefined' && funnelName) { %>data-funnel-name="<%= funnelName %>"<% } %>
   <% if (typeof funnelName !== 'undefined' && funnelName && typeof funnelCampaignId !== 'undefined') { %>data-funnel-campaign="<%= funnelCampaignId %>"<% } %>
   <% if (typeof funnelVideoId !== 'undefined' && funnelVideoId) { %>data-funnel-video-id="<%= funnelVideoId %>"<% } %>>
+  <div id="booking-main" class="booking-main">
   <div class="container">
     <h2>Vyber si termín</h2>
     <p>Vyber si termín, ktorý Ti vyhovuje.</p>
-    <p class="muted">Termín ti po výbere podržíme 15 minút.</p>
+    <p class="muted">Krátko podržíme termín, kým zadáš e-mail; na dokončenie platby potom máš 15 minút.</p>
 
     <section class="booking-calendar" aria-label="Rezervácia termínu">
       <p id="booking-calendar-loading" class="booking-calendar__loading muted">Načítavam termíny…</p>
@@ -24,17 +25,10 @@
     </section>
 
     <div id="booking-hold-banner" class="booking-hold-banner" hidden>
-      <p><strong>Tento termín sme pre teba dočasne podržali.</strong> Dokonči rezerváciu do 15 minút.</p>
-      <p id="booking-countdown" class="booking-countdown">15:00</p>
+      <p id="booking-hold-message"><strong>Termín je rezervovaný.</strong> Dokonči platbu do 15 minút.</p>
+      <p id="booking-countdown" class="booking-countdown" aria-live="polite">15:00</p>
       <button type="button" id="booking-revoke-btn" class="booking-revoke-btn">Zrušiť podržanie</button>
     </div>
-
-    <form id="booking-email-form" class="booking-email-form" hidden>
-      <label for="booking-email">E-mail</label>
-      <input type="email" id="booking-email" name="email" required placeholder="vas@email.sk" autocomplete="email">
-      <p id="booking-email-error" class="booking-error" hidden></p>
-      <button type="submit" id="booking-submit-btn" class="cta">Pokračovať</button>
-    </form>
 
     <div id="booking-payment-choice" class="booking-payment-choice" hidden>
       <p class="booking-payment-intro">Môžeš si zvoliť sumu, ktorá ti vyhovuje.</p>
@@ -80,6 +74,31 @@
       <p id="booking-success-pending" class="muted">Presmerovávam na platbu…</p>
       <p id="booking-success-failed" class="booking-error" hidden></p>
       <button type="button" id="booking-payment-retry" class="cta" hidden>Skúsiť platbu znova</button>
+    </div>
+  </div>
+  </div>
+
+  <div id="booking-email-modal" class="booking-modal" hidden>
+    <div class="booking-modal__backdrop" data-booking-modal-dismiss tabindex="-1" aria-hidden="true"></div>
+    <div
+      class="booking-modal__dialog"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="booking-modal-title"
+    >
+      <button type="button" id="booking-modal-close" class="booking-modal__close" aria-label="Zavrieť">×</button>
+      <h3 id="booking-modal-title" class="booking-modal__title">Ešte jeden krok a termín máš rezervovaný</h3>
+      <p id="booking-modal-phase" class="booking-modal__phase">
+        Tento termín pre teba držíme, kým zadáš email.
+      </p>
+      <p id="booking-modal-countdown" class="booking-modal__countdown" aria-live="polite">05:00</p>
+      <form id="booking-email-form" class="booking-email-form booking-modal__form">
+        <label for="booking-email">E-mail</label>
+        <input type="email" id="booking-email" name="email" required placeholder="vas@email.sk" autocomplete="email">
+        <p id="booking-email-error" class="booking-error" hidden></p>
+        <button type="submit" id="booking-submit-btn" class="cta">Pokračovať</button>
+      </form>
+      <button type="button" id="booking-modal-revoke" class="booking-modal__revoke">Zrušiť podržanie</button>
     </div>
   </div>
 </section>

@@ -1,7 +1,7 @@
 const express = require('express');
 const crypto = require('crypto');
 const { asyncHandler, ApiError } = require('../../middleware/apiError');
-const { validateSlotId, validateDateRange, validateEmail } = require('../../middleware/validators');
+const { validateSlotId, validateDateRange, validateEmail, validateLockToken } = require('../../middleware/validators');
 const slotsRepo = require('../../db/repositories/slotsRepo');
 const locksRepo = require('../../db/repositories/locksRepo');
 const auditRepo = require('../../db/repositories/auditRepo');
@@ -10,7 +10,10 @@ const { slotPassesBookingWindow } = require('../../lib/slotBookingRules');
 const { mapSlotRowToApi, gridMetadata } = require('../../lib/slotApiMap');
 
 const router = express.Router();
-const LOCK_DURATION_MS = 15 * 60 * 1000;
+/** Hold window while the user enters email (no full payment countdown yet). */
+const LOCK_HOLD_BEFORE_EMAIL_MS = 5 * 60 * 1000;
+/** Hold window after email is submitted, until payment completes. */
+const LOCK_HOLD_AFTER_EMAIL_MS = 15 * 60 * 1000;
 
 router.get(
   '/',
@@ -79,7 +82,7 @@ router.post(
     }
 
     const lockToken = crypto.randomUUID();
-    const expiresAt = new Date(Date.now() + LOCK_DURATION_MS);
+    const expiresAt = new Date(Date.now() + LOCK_HOLD_BEFORE_EMAIL_MS);
 
     const pool = getPool();
     if (!pool) throw new Error('Database not configured');
@@ -121,6 +124,31 @@ router.post(
       ok: true,
       slotId,
       lockToken,
+      expiresAt: expiresAt.toISOString(),
+    });
+  })
+);
+
+router.post(
+  '/:slotId/extend-lock',
+  asyncHandler(async (req, res) => {
+    const slotId = validateSlotId(req.params.slotId);
+    const lockToken = validateLockToken(req.body?.lockToken);
+    const email = validateEmail(req.body?.email, true);
+
+    const expiresAt = new Date(Date.now() + LOCK_HOLD_AFTER_EMAIL_MS);
+    const updated = await locksRepo.extendLockExpiration(slotId, lockToken, email, expiresAt);
+    if (!updated) {
+      await auditRepo.log('lock_extend_failed', 'slot', slotId, { reason: 'not_found_or_expired' });
+      throw new ApiError('LOCK_INVALID', 'Lock not found or expired', 404);
+    }
+
+    await auditRepo.log('lock_extended', 'slot', slotId, {
+      lockToken: lockToken.slice(0, 8) + '...',
+    });
+
+    res.json({
+      ok: true,
       expiresAt: expiresAt.toISOString(),
     });
   })

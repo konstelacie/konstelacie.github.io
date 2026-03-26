@@ -47,9 +47,26 @@ async function deleteLock(slotId, lockToken) {
   return result.affectedRows > 0;
 }
 
+/**
+ * Extend an active lock and set email (e.g. after user submits email — longer hold window).
+ * @returns {boolean} true if a row was updated
+ */
+async function extendLockExpiration(slotId, lockToken, email, expiresAt) {
+  const pool = getPool();
+  if (!pool) throw new Error('Database not configured');
+
+  const token = typeof lockToken === 'string' ? lockToken.trim() : String(lockToken || '').trim();
+  const [result] = await pool.execute(
+    'UPDATE slot_locks SET expires_at = ?, email = ? WHERE slot_id = ? AND lock_token = ? AND expires_at > NOW(3)',
+    [expiresAt, email, Number(slotId), token]
+  );
+  return result.affectedRows > 0;
+}
+
 module.exports = {
   getActiveLockForSlot,
   createLock,
   findValidLock,
   deleteLock,
+  extendLockExpiration,
 };
