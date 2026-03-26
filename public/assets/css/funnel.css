@@ -82,10 +82,11 @@
   padding-top: 0;
 }
 
+/* 9:16 portrait frame — same aspect on all viewports (not landscape 16:9) */
 .funnel-video-embed {
   position: relative;
-  padding-bottom: 56.25%;
-  height: 0;
+  height: auto;
+  aspect-ratio: 9 / 16;
   overflow: hidden;
 }
 

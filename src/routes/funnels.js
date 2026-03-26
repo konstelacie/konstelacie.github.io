@@ -51,6 +51,7 @@ const INSTANCE_CAMPAIGNS = {
         provider: 'wistia',
         hashedId: WISTIA_TEST_HASHED_ID,
       },
+      lowerContentReveal: { ...DEFAULT_LOWER_CONTENT_REVEAL },
     },
   },
 };
