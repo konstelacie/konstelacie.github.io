@@ -1,7 +1,7 @@
 /* Funnel section blocks – layout and spacing */
 
 .funnel-hero {
-  padding: var(--spacing-section-lg) 0 var(--spacing-md) 0;
+  padding: var(--spacing-section) 0 var(--spacing-md) 0;
 }
 
 .funnel-video {
@@ -82,11 +82,13 @@
   padding-top: 0;
 }
 
-/* 9:16 portrait frame — same aspect on all viewports (not landscape 16:9) */
+/* 9:16 portrait frame — capped ~70vh tall, centered */
 .funnel-video-embed {
   position: relative;
-  height: auto;
+  width: min(100%, calc(70vh * 9 / 16));
+  max-height: 70vh;
   aspect-ratio: 9 / 16;
+  margin-inline: auto;
   overflow: hidden;
 }
 
