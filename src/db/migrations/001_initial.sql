@@ -69,6 +69,7 @@ CREATE TABLE reservations (
   funnel_name VARCHAR(32) NULL,
   funnel_campaign VARCHAR(64) NULL,
   funnel_video_id VARCHAR(128) NULL,
+  admin_note TEXT NULL,
   cancelled_at DATETIME(3) NULL,
   created_at DATETIME(3) DEFAULT CURRENT_TIMESTAMP(3),
   updated_at DATETIME(3) DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3),

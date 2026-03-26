@@ -8,7 +8,7 @@ const auditRepo = require('../db/repositories/auditRepo');
 const slotsRepo = require('../db/repositories/slotsRepo');
 const reservationsRepo = require('../db/repositories/reservationsRepo');
 const { groupAdminSlotsByDay } = require('../lib/adminSlotDisplay');
-const { mapReservationListRow } = require('../lib/adminReservationDisplay');
+const { mapReservationListRow, mapAdminDetail } = require('../lib/adminReservationDisplay');
 const {
   parseTimeKeysFromForm,
   parseExcludeWeekends,
@@ -177,6 +177,25 @@ function parseCreateSlotBody(body) {
     return { ok: false, code: 'INVALID_TIME' };
   }
   return { ok: true, localDate: date, gridIndex: idx };
+}
+
+function parseReservationIdParam(raw) {
+  const id = parseInt(raw, 10);
+  if (!Number.isInteger(id) || id <= 0) return null;
+  return id;
+}
+
+function mapReservationActionError(code) {
+  switch (code) {
+    case 'NOT_FOUND':
+      return 'Rezervácia sa nenašla.';
+    case 'INVALID_STATE':
+      return 'Táto akcia nie je v aktuálnom stave dostupná.';
+    case 'EMPTY_NOTE':
+      return 'Zadajte text poznámky.';
+    default:
+      return 'Akciu sa nepodarilo vykonať.';
+  }
 }
 
 function mapCreateError(code) {
@@ -488,17 +507,187 @@ router.get('/reservations', requireAdmin, async (req, res) => {
   }
 });
 
-router.get('/reservations/:id', requireAdmin, (req, res) => {
-  const id = parseInt(req.params.id, 10);
-  if (!Number.isInteger(id) || id <= 0) {
+router.post('/reservations/:id/confirm', requireAdmin, async (req, res) => {
+  const id = parseReservationIdParam(req.params.id);
+  const redirect = id ? `/admin/reservations/${id}` : '/admin/reservations';
+  if (!id) {
+    req.session.adminFlash = { level: 'error', message: 'Neplatná rezervácia.' };
     return res.redirect('/admin/reservations');
   }
-  res.render('admin/reservation-detail-placeholder', {
-    layout: 'layouts/admin',
-    title: `Rezervácia #${id}`,
-    adminSection: 'reservations',
-    reservationId: id,
-  });
+  try {
+    const pool = getPool();
+    if (!pool) {
+      req.session.adminFlash = { level: 'error', message: 'Databáza nie je dostupná.' };
+      return res.redirect(redirect);
+    }
+    const result = await reservationsRepo.adminConfirmReservation(id);
+    if (!result.ok) {
+      req.session.adminFlash = { level: 'error', message: mapReservationActionError(result.code) };
+    } else {
+      await auditRepo.log('reservation_confirmed_admin', 'reservation', id, null, 'admin');
+      req.session.adminFlash = { level: 'success', message: 'Rezervácia bola potvrdená.' };
+    }
+    return res.redirect(redirect);
+  } catch (err) {
+    console.error('[admin/reservations/confirm]', err);
+    req.session.adminFlash = { level: 'error', message: 'Neznáma chyba.' };
+    return res.redirect(redirect);
+  }
+});
+
+router.post('/reservations/:id/cancel', requireAdmin, async (req, res) => {
+  const id = parseReservationIdParam(req.params.id);
+  const redirect = id ? `/admin/reservations/${id}` : '/admin/reservations';
+  if (!id) {
+    req.session.adminFlash = { level: 'error', message: 'Neplatná rezervácia.' };
+    return res.redirect('/admin/reservations');
+  }
+  try {
+    const pool = getPool();
+    if (!pool) {
+      req.session.adminFlash = { level: 'error', message: 'Databáza nie je dostupná.' };
+      return res.redirect(redirect);
+    }
+    const result = await reservationsRepo.adminCancelReservation(id);
+    if (!result.ok) {
+      req.session.adminFlash = { level: 'error', message: mapReservationActionError(result.code) };
+    } else {
+      await auditRepo.log('reservation_cancelled_admin', 'reservation', id, null, 'admin');
+      req.session.adminFlash = { level: 'success', message: 'Rezervácia bola zrušená.' };
+    }
+    return res.redirect(redirect);
+  } catch (err) {
+    console.error('[admin/reservations/cancel]', err);
+    req.session.adminFlash = { level: 'error', message: 'Neznáma chyba.' };
+    return res.redirect(redirect);
+  }
+});
+
+router.post('/reservations/:id/external', requireAdmin, async (req, res) => {
+  const id = parseReservationIdParam(req.params.id);
+  const redirect = id ? `/admin/reservations/${id}` : '/admin/reservations';
+  if (!id) {
+    req.session.adminFlash = { level: 'error', message: 'Neplatná rezervácia.' };
+    return res.redirect('/admin/reservations');
+  }
+  const note = typeof req.body.note === 'string' ? req.body.note : '';
+  try {
+    const pool = getPool();
+    if (!pool) {
+      req.session.adminFlash = { level: 'error', message: 'Databáza nie je dostupná.' };
+      return res.redirect(redirect);
+    }
+    const result = await reservationsRepo.adminAppendExternalNote(id, note);
+    if (!result.ok) {
+      req.session.adminFlash = { level: 'error', message: mapReservationActionError(result.code) };
+    } else {
+      await auditRepo.log('reservation_external_note', 'reservation', id, { preview: note.slice(0, 80) }, 'admin');
+      req.session.adminFlash = { level: 'success', message: 'Externé vybavenie bolo zaznamenané.' };
+    }
+    return res.redirect(redirect);
+  } catch (err) {
+    console.error('[admin/reservations/external]', err);
+    req.session.adminFlash = { level: 'error', message: 'Neznáma chyba.' };
+    return res.redirect(redirect);
+  }
+});
+
+router.post('/reservations/:id/note', requireAdmin, async (req, res) => {
+  const id = parseReservationIdParam(req.params.id);
+  const redirect = id ? `/admin/reservations/${id}` : '/admin/reservations';
+  if (!id) {
+    req.session.adminFlash = { level: 'error', message: 'Neplatná rezervácia.' };
+    return res.redirect('/admin/reservations');
+  }
+  const note = typeof req.body.note === 'string' ? req.body.note : '';
+  try {
+    const pool = getPool();
+    if (!pool) {
+      req.session.adminFlash = { level: 'error', message: 'Databáza nie je dostupná.' };
+      return res.redirect(redirect);
+    }
+    const result = await reservationsRepo.adminSetNote(id, note);
+    if (!result.ok) {
+      req.session.adminFlash = { level: 'error', message: mapReservationActionError(result.code) };
+    } else {
+      await auditRepo.log('reservation_note_updated', 'reservation', id, null, 'admin');
+      req.session.adminFlash = { level: 'success', message: 'Poznámka bola uložená.' };
+    }
+    return res.redirect(redirect);
+  } catch (err) {
+    console.error('[admin/reservations/note]', err);
+    req.session.adminFlash = { level: 'error', message: 'Neznáma chyba.' };
+    return res.redirect(redirect);
+  }
+});
+
+router.get('/reservations/:id', requireAdmin, async (req, res) => {
+  const id = parseReservationIdParam(req.params.id);
+  if (!id) {
+    return res.redirect('/admin/reservations');
+  }
+  const flash = req.session.adminFlash;
+  if (flash) {
+    delete req.session.adminFlash;
+  }
+
+  try {
+    const pool = getPool();
+    if (!pool) {
+      return res.render('admin/reservation-detail', {
+        layout: 'layouts/admin',
+        title: `Rezervácia #${id}`,
+        adminSection: 'reservations',
+        dbConfigured: false,
+        loadError: false,
+        notFound: false,
+        flash,
+        detail: null,
+        reservationId: id,
+      });
+    }
+
+    const raw = await reservationsRepo.getAdminDetailById(id);
+    if (!raw) {
+      return res.status(404).render('admin/reservation-detail', {
+        layout: 'layouts/admin',
+        title: 'Rezervácia',
+        adminSection: 'reservations',
+        dbConfigured: true,
+        loadError: false,
+        notFound: true,
+        flash,
+        detail: null,
+        reservationId: id,
+      });
+    }
+
+    const detail = mapAdminDetail(raw);
+    return res.render('admin/reservation-detail', {
+      layout: 'layouts/admin',
+      title: `Rezervácia #${id}`,
+      adminSection: 'reservations',
+      dbConfigured: true,
+      loadError: false,
+      notFound: false,
+      flash,
+      detail,
+      reservationId: id,
+    });
+  } catch (err) {
+    console.error('[admin/reservations/:id]', err);
+    return res.status(500).render('admin/reservation-detail', {
+      layout: 'layouts/admin',
+      title: `Rezervácia #${id}`,
+      adminSection: 'reservations',
+      dbConfigured: !!getPool(),
+      loadError: true,
+      notFound: false,
+      flash,
+      detail: null,
+      reservationId: id,
+    });
+  }
 });
 
 router.post('/slots/:slotId/block', requireAdmin, async (req, res) => {

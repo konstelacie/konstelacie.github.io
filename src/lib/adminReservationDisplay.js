@@ -70,8 +70,115 @@ function mapReservationListRow(row) {
   };
 }
 
+function slotStatusLabel(status) {
+  switch (status) {
+    case 'open':
+      return 'Voľný';
+    case 'blocked':
+      return 'Zablokovaný';
+    case 'cancelled':
+      return 'Zrušený';
+    default:
+      return status || '—';
+  }
+}
+
+function paymentRowStatusLabel(status) {
+  switch (status) {
+    case 'pending':
+      return 'Čaká';
+    case 'completed':
+      return 'Zaplatené';
+    case 'failed':
+      return 'Zlyhalo';
+    case 'expired':
+      return 'Expirované';
+    case 'refunded':
+      return 'Vrátené';
+    default:
+      return status || '—';
+  }
+}
+
+function computeDetailActions(reservationStatus) {
+  return {
+    canConfirm: reservationStatus === 'pending_payment' || reservationStatus === 'draft',
+    canCancel: ['pending_payment', 'draft', 'confirmed', 'expired'].includes(reservationStatus),
+    canExternal: reservationStatus !== 'cancelled',
+  };
+}
+
+function formatTs(value) {
+  if (value == null) return '—';
+  const d = value instanceof Date ? value : new Date(value);
+  return DateTime.fromJSDate(d).setZone(SLOT_TIMEZONE).toLocaleString(DateTime.DATETIME_SHORT);
+}
+
+/**
+ * @param {{ reservation: object, slot: object, payments: object[] }} detail
+ */
+function mapAdminDetail(detail) {
+  const { reservation, slot, payments } = detail;
+  const timeKey = timeKeyForGridIndex(Number(slot.grid_index));
+  const localDate = mysqlLocalDateToYmd(slot.local_date);
+
+  const latestPayment = payments.length ? payments[payments.length - 1] : null;
+  const latestPaymentStatus = latestPayment ? latestPayment.status : null;
+  const pay = paymentDisplay(latestPaymentStatus, reservation.status);
+
+  let paidAtLabel = '—';
+  const completedWithPaid = payments.filter((p) => p.status === 'completed' && p.paid_at);
+  if (completedWithPaid.length) {
+    let maxDt = completedWithPaid[0].paid_at;
+    for (const p of completedWithPaid) {
+      const a = p.paid_at instanceof Date ? p.paid_at : new Date(p.paid_at);
+      const b = maxDt instanceof Date ? maxDt : new Date(maxDt);
+      if (a > b) maxDt = p.paid_at;
+    }
+    paidAtLabel = formatTs(maxDt);
+  }
+
+  let expiredAtLabel = '—';
+  const expiredPayments = payments.filter((p) => p.status === 'expired');
+  if (expiredPayments.length) {
+    const p = expiredPayments[expiredPayments.length - 1];
+    const t = p.updated_at || p.created_at;
+    expiredAtLabel = formatTs(t);
+  }
+
+  const paymentsForTable = payments.map((p) => ({
+    id: p.id,
+    paymentType: p.payment_type,
+    amountLabel: formatAmountCents(p.amount_cents),
+    statusLabel: paymentRowStatusLabel(p.status),
+    paidAtLabel: p.paid_at ? formatTs(p.paid_at) : '—',
+    providerRef: p.provider_ref || '—',
+  }));
+
+  return {
+    id: reservation.id,
+    email: reservation.email,
+    reservationStatus: reservation.status,
+    reservationStatusLabel: reservationStatusLabel(reservation.status),
+    paymentStatusKey: pay.key,
+    paymentStatusLabel: pay.label,
+    amountLabel: formatAmountCents(latestPayment ? latestPayment.amount_cents : null),
+    sessionLabel: `${localDate} ${timeKey}`,
+    createdAtLabel: formatTs(reservation.created_at),
+    paidAtLabel,
+    expiredAtLabel,
+    cancelledAtLabel: reservation.cancelled_at ? formatTs(reservation.cancelled_at) : '—',
+    adminNote: reservation.admin_note || '',
+    slotStatusLabel: slotStatusLabel(slot.slot_status),
+    paymentsForTable,
+    actions: computeDetailActions(reservation.status),
+  };
+}
+
 module.exports = {
   mapReservationListRow,
+  mapAdminDetail,
   reservationStatusLabel,
   formatAmountCents,
+  computeDetailActions,
 };

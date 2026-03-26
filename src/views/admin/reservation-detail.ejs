@@ -1,0 +1,110 @@
+<div class="admin-wrap admin-wrap--wide">
+  <header class="admin-header admin-header--bar">
+    <h1 class="admin-title">
+      <% if (typeof notFound !== 'undefined' && notFound) { %>
+        Rezervácia
+      <% } else { %>
+        Rezervácia #<%= reservationId %>
+      <% } %>
+    </h1>
+    <a class="admin-btn admin-btn--ghost" href="/admin/reservations">Späť na zoznam</a>
+  </header>
+
+  <% if (typeof flash !== 'undefined' && flash) { %>
+    <p class="admin-flash admin-flash--<%= flash.level %>" role="status"><%= flash.message %></p>
+  <% } %>
+
+  <% if (typeof loadError !== 'undefined' && loadError) { %>
+    <p class="admin-error" role="alert">Nepodarilo sa načítať rezerváciu.</p>
+  <% } %>
+
+  <% if (typeof dbConfigured !== 'undefined' && !dbConfigured) { %>
+    <p class="admin-error" role="alert">Databáza nie je nakonfigurovaná.</p>
+  <% } %>
+
+  <% if (typeof notFound !== 'undefined' && notFound) { %>
+    <p class="admin-placeholder">Rezervácia #<%= reservationId %> sa nenašla.</p>
+  <% } %>
+
+  <% if (typeof detail !== 'undefined' && detail) { %>
+  <section class="admin-detail" aria-label="Údaje rezervácie">
+    <dl class="admin-dl">
+      <div class="admin-dl__row"><dt>E-mail</dt><dd><%= detail.email %></dd></div>
+      <div class="admin-dl__row"><dt>Termín</dt><dd><%= detail.sessionLabel %> (<%= detail.slotStatusLabel %>)</dd></div>
+      <div class="admin-dl__row"><dt>Stav rezervácie</dt><dd><span class="admin-status admin-status--<%= detail.reservationStatus %>"><%= detail.reservationStatusLabel %></span></dd></div>
+      <div class="admin-dl__row"><dt>Platba (súhrn)</dt><dd><span class="admin-pay-status admin-pay-status--<%= detail.paymentStatusKey %>"><%= detail.paymentStatusLabel %></span></dd></div>
+      <div class="admin-dl__row"><dt>Suma (posledná platba)</dt><dd><%= detail.amountLabel %></dd></div>
+      <div class="admin-dl__row"><dt>Vytvorené</dt><dd><%= detail.createdAtLabel %></dd></div>
+      <div class="admin-dl__row"><dt>Zaplatené</dt><dd><%= detail.paidAtLabel %></dd></div>
+      <div class="admin-dl__row"><dt>Expirované (platba)</dt><dd><%= detail.expiredAtLabel %></dd></div>
+      <div class="admin-dl__row"><dt>Zrušené</dt><dd><%= detail.cancelledAtLabel %></dd></div>
+    </dl>
+  </section>
+
+  <% if (detail.paymentsForTable && detail.paymentsForTable.length) { %>
+  <section class="admin-detail" aria-label="Platby">
+    <h2 class="admin-detail__subtitle">Platby</h2>
+    <div class="admin-table-wrap">
+      <table class="admin-table">
+        <thead>
+          <tr>
+            <th scope="col">ID</th>
+            <th scope="col">Typ</th>
+            <th scope="col">Suma</th>
+            <th scope="col">Stav</th>
+            <th scope="col">Zaplatené</th>
+            <th scope="col">Stripe ref.</th>
+          </tr>
+        </thead>
+        <tbody>
+          <% for (const p of detail.paymentsForTable) { %>
+            <tr>
+              <td><%= p.id %></td>
+              <td><%= p.paymentType %></td>
+              <td><%= p.amountLabel %></td>
+              <td><%= p.statusLabel %></td>
+              <td><%= p.paidAtLabel %></td>
+              <td class="admin-table__email"><%= p.providerRef %></td>
+            </tr>
+          <% } %>
+        </tbody>
+      </table>
+    </div>
+  </section>
+  <% } %>
+
+  <section class="admin-detail" aria-label="Poznámka operátora">
+    <h2 class="admin-detail__subtitle">Poznámka</h2>
+    <form method="post" action="/admin/reservations/<%= detail.id %>/note" class="admin-detail__form">
+      <textarea name="note" class="admin-detail__textarea" rows="5" cols="60"><%= detail.adminNote %></textarea>
+      <div class="admin-detail__actions">
+        <button type="submit" class="admin-btn admin-btn--primary">Uložiť poznámku</button>
+      </div>
+    </form>
+  </section>
+
+  <section class="admin-detail" aria-label="Akcie">
+    <h2 class="admin-detail__subtitle">Akcie</h2>
+    <div class="admin-detail__actions admin-detail__actions--split">
+      <% if (detail.actions.canConfirm) { %>
+      <form method="post" action="/admin/reservations/<%= detail.id %>/confirm">
+        <button type="submit" class="admin-btn admin-btn--primary">Potvrdiť rezerváciu</button>
+      </form>
+      <% } %>
+      <% if (detail.actions.canCancel) { %>
+      <form method="post" action="/admin/reservations/<%= detail.id %>/cancel" onsubmit="return confirm('Naozaj zrušiť túto rezerváciu?');">
+        <button type="submit" class="admin-btn admin-btn--ghost">Zrušiť rezerváciu</button>
+      </form>
+      <% } %>
+    </div>
+    <% if (detail.actions.canExternal) { %>
+    <form method="post" action="/admin/reservations/<%= detail.id %>/external" class="admin-detail__external">
+      <p class="admin-bulk__hint">Zaznamenajte napr. vrátenie platby mimo systému.</p>
+      <label class="admin-field" for="ext-note">Text externého vybavenia</label>
+      <textarea id="ext-note" name="note" class="admin-detail__textarea" rows="3" required placeholder="Povinné"></textarea>
+      <button type="submit" class="admin-btn admin-btn--ghost">Zaznamenať externé vybavenie</button>
+    </form>
+    <% } %>
+  </section>
+  <% } %>
+</div>
