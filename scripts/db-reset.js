@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 /**
- * Full DB reset: drop database, run migrations, seed slots.
+ * Full DB reset: drop database, run migrations.
+ * Slots are created via the admin UI (no automatic seed).
  * Uses same DB config as db-migrate.js.
  * Run: npm run db:reset
  */
@@ -46,9 +47,6 @@ async function run() {
 
   console.log('Running migrations...');
   execSync('npm run db:migrate', { stdio: 'inherit', cwd: __dirname + '/..' });
-
-  console.log('Seeding slots...');
-  execSync('npm run db:seed-slots', { stdio: 'inherit', cwd: __dirname + '/..' });
 
   console.log('DB reset complete.');
 }
