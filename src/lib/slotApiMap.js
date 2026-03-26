@@ -1,8 +1,15 @@
+const { DateTime } = require('luxon');
 const { timeKeyForGridIndex, SLOT_TIMEZONE, SLOT_TIMES } = require('../config/slotGrid');
 
+/**
+ * MySQL DATE → YYYY-MM-DD in business timezone. Do not use Date#toISOString() for the
+ * date part: local calendar midnight in Europe/Bratislava maps to the previous UTC day.
+ */
 function mysqlLocalDateToYmd(v) {
   if (typeof v === 'string') return v.slice(0, 10);
-  if (v instanceof Date) return v.toISOString().slice(0, 10);
+  if (v instanceof Date) {
+    return DateTime.fromJSDate(v).setZone(SLOT_TIMEZONE).toISODate();
+  }
   return String(v).slice(0, 10);
 }
 
