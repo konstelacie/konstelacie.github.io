@@ -15,7 +15,7 @@
       iframe.setAttribute('width', '100%');
       iframe.setAttribute('height', '400');
       iframe.setAttribute('frameborder', '0');
-      iframe.setAttribute('allow', 'autoplay; fullscreen');
+      iframe.setAttribute('allow', 'autoplay');
       iframe.style.aspectRatio = '9/16';
       container.appendChild(iframe);
     }
