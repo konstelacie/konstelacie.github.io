@@ -74,7 +74,7 @@ async function listSlotsForAdmin(from, to) {
     FROM slots s
     LEFT JOIN slot_locks l ON l.slot_id = s.id AND l.expires_at > NOW(3)
     LEFT JOIN reservations r
-      ON r.slot_id = s.id AND r.status IN ('pending_payment', 'confirmed')
+      ON r.slot_id = s.id AND r.status IN ('draft', 'pending_payment', 'confirmed')
     WHERE s.local_date >= ?
       AND s.local_date <= ?
     ORDER BY s.local_date ASC, s.grid_index ASC`,
@@ -84,4 +84,125 @@ async function listSlotsForAdmin(from, to) {
   return rows;
 }
 
-module.exports = { listSlotsWithLocks, getById, listSlotsForAdmin };
+/**
+ * @returns {Promise<{ ok: true } | { ok: false, code: string }>}
+ */
+async function adminBlockSlot(slotId) {
+  const pool = getPool();
+  if (!pool) throw new Error('Database not configured');
+
+  const conn = await pool.getConnection();
+  try {
+    await conn.beginTransaction();
+    const [rows] = await conn.execute('SELECT id, status FROM slots WHERE id = ? FOR UPDATE', [slotId]);
+    const slot = rows[0];
+    if (!slot) {
+      await conn.rollback();
+      return { ok: false, code: 'NOT_FOUND' };
+    }
+    if (slot.status !== 'open') {
+      await conn.rollback();
+      return { ok: false, code: 'INVALID_STATE' };
+    }
+
+    const [resRows] = await conn.execute(
+      "SELECT id FROM reservations WHERE slot_id = ? AND status IN ('draft','pending_payment','confirmed') LIMIT 1",
+      [slotId]
+    );
+    if (resRows.length > 0) {
+      await conn.rollback();
+      return { ok: false, code: 'HAS_RESERVATION' };
+    }
+
+    await conn.execute('DELETE FROM slot_locks WHERE slot_id = ?', [slotId]);
+    await conn.execute("UPDATE slots SET status = 'blocked' WHERE id = ?", [slotId]);
+    await conn.commit();
+    return { ok: true };
+  } catch (e) {
+    await conn.rollback();
+    throw e;
+  } finally {
+    conn.release();
+  }
+}
+
+/**
+ * @returns {Promise<{ ok: true } | { ok: false, code: string }>}
+ */
+async function adminUnblockSlot(slotId) {
+  const pool = getPool();
+  if (!pool) throw new Error('Database not configured');
+
+  const conn = await pool.getConnection();
+  try {
+    await conn.beginTransaction();
+    const [rows] = await conn.execute('SELECT id, status FROM slots WHERE id = ? FOR UPDATE', [slotId]);
+    const slot = rows[0];
+    if (!slot) {
+      await conn.rollback();
+      return { ok: false, code: 'NOT_FOUND' };
+    }
+    if (slot.status !== 'blocked') {
+      await conn.rollback();
+      return { ok: false, code: 'INVALID_STATE' };
+    }
+
+    await conn.execute("UPDATE slots SET status = 'open' WHERE id = ?", [slotId]);
+    await conn.commit();
+    return { ok: true };
+  } catch (e) {
+    await conn.rollback();
+    throw e;
+  } finally {
+    conn.release();
+  }
+}
+
+/**
+ * Cancels the slot and any non-terminal reservations; removes locks.
+ * @returns {Promise<{ ok: true } | { ok: false, code: string }>}
+ */
+async function adminCancelSlot(slotId) {
+  const pool = getPool();
+  if (!pool) throw new Error('Database not configured');
+
+  const conn = await pool.getConnection();
+  try {
+    await conn.beginTransaction();
+    const [rows] = await conn.execute('SELECT id, status FROM slots WHERE id = ? FOR UPDATE', [slotId]);
+    const slot = rows[0];
+    if (!slot) {
+      await conn.rollback();
+      return { ok: false, code: 'NOT_FOUND' };
+    }
+    if (slot.status === 'cancelled') {
+      await conn.rollback();
+      return { ok: false, code: 'ALREADY_CANCELLED' };
+    }
+
+    await conn.execute(
+      `UPDATE reservations
+       SET status = 'cancelled', cancelled_at = NOW(3)
+       WHERE slot_id = ? AND status IN ('draft','pending_payment','confirmed')`,
+      [slotId]
+    );
+    await conn.execute('DELETE FROM slot_locks WHERE slot_id = ?', [slotId]);
+    await conn.execute("UPDATE slots SET status = 'cancelled' WHERE id = ?", [slotId]);
+    await conn.commit();
+    return { ok: true };
+  } catch (e) {
+    await conn.rollback();
+    throw e;
+  } finally {
+    conn.release();
+  }
+}
+
+module.exports = {
+  listSlotsWithLocks,
+  getById,
+  listSlotsForAdmin,
+  adminBlockSlot,
+  adminUnblockSlot,
+  adminCancelSlot,
+};

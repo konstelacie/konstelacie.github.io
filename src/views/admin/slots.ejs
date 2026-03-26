@@ -6,6 +6,10 @@
     </form>
   </header>
 
+  <% if (typeof flash !== 'undefined' && flash) { %>
+    <p class="admin-flash admin-flash--<%= flash.level %>" role="status"><%= flash.message %></p>
+  <% } %>
+
   <% if (typeof loadError !== 'undefined' && loadError) { %>
     <p class="admin-error" role="alert">Nepodarilo sa načítať termíny. Skúste znova neskôr.</p>
   <% } %>
@@ -41,6 +45,7 @@
                   <th scope="col">Čas</th>
                   <th scope="col">Stav</th>
                   <th scope="col">E-mail</th>
+                  <th scope="col">Akcie</th>
                 </tr>
               </thead>
               <tbody>
@@ -49,6 +54,35 @@
                     <td><%= slot.timeKey %></td>
                     <td><span class="admin-status admin-status--<%= slot.statusKey %>"><%= slot.statusLabel %></span></td>
                     <td class="admin-table__email"><%= slot.email ? slot.email : '—' %></td>
+                    <td class="admin-table__actions">
+                      <% if (slot.actions.block || slot.actions.unblock || slot.actions.cancel) { %>
+                        <div class="admin-actions">
+                          <% if (slot.actions.block) { %>
+                            <form method="post" action="/admin/slots/<%= slot.id %>/block" class="admin-inline-form">
+                              <input type="hidden" name="view" value="<%= view %>">
+                              <input type="hidden" name="date" value="<%= anchorDate %>">
+                              <button type="submit" class="admin-btn admin-btn--ghost admin-btn--small">Zablokovať</button>
+                            </form>
+                          <% } %>
+                          <% if (slot.actions.unblock) { %>
+                            <form method="post" action="/admin/slots/<%= slot.id %>/unblock" class="admin-inline-form">
+                              <input type="hidden" name="view" value="<%= view %>">
+                              <input type="hidden" name="date" value="<%= anchorDate %>">
+                              <button type="submit" class="admin-btn admin-btn--ghost admin-btn--small">Odblokovať</button>
+                            </form>
+                          <% } %>
+                          <% if (slot.actions.cancel) { %>
+                            <form method="post" action="/admin/slots/<%= slot.id %>/cancel" class="admin-inline-form" onsubmit="return confirm('Zrušiť tento termín?');">
+                              <input type="hidden" name="view" value="<%= view %>">
+                              <input type="hidden" name="date" value="<%= anchorDate %>">
+                              <button type="submit" class="admin-btn admin-btn--ghost admin-btn--small">Zrušiť</button>
+                            </form>
+                          <% } %>
+                        </div>
+                      <% } else { %>
+                        —
+                      <% } %>
+                    </td>
                   </tr>
                 <% } %>
               </tbody>

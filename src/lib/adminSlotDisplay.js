@@ -2,14 +2,30 @@ const { DateTime } = require('luxon');
 const { timeKeyForGridIndex, SLOT_TIMEZONE } = require('../config/slotGrid');
 const { mysqlLocalDateToYmd } = require('./slotApiMap');
 
+function computeAdminSlotActions(row) {
+  const slotStatus = row.slot_status;
+  const hasRes = row.reservation_id != null;
+
+  if (slotStatus === 'cancelled') {
+    return { block: false, unblock: false, cancel: false };
+  }
+  if (slotStatus === 'blocked') {
+    return { block: false, unblock: true, cancel: true };
+  }
+  if (hasRes) {
+    return { block: false, unblock: false, cancel: true };
+  }
+  return { block: true, unblock: false, cancel: true };
+}
+
 /**
  * Map DB row from listSlotsForAdmin to display fields for the admin UI.
  * @param {object} row
- * @returns {{ id: number, timeKey: string, statusKey: string, statusLabel: string, email: string|null }}
  */
 function mapAdminSlotRow(row) {
   const slotStatus = row.slot_status;
   const timeKey = timeKeyForGridIndex(Number(row.grid_index));
+  const actions = computeAdminSlotActions(row);
 
   if (slotStatus === 'cancelled') {
     return {
@@ -18,6 +34,7 @@ function mapAdminSlotRow(row) {
       statusKey: 'cancelled',
       statusLabel: 'Zrušené',
       email: row.reservation_email || row.lock_email || null,
+      actions,
     };
   }
   if (slotStatus === 'blocked') {
@@ -27,6 +44,7 @@ function mapAdminSlotRow(row) {
       statusKey: 'blocked',
       statusLabel: 'Zablokované',
       email: null,
+      actions,
     };
   }
 
@@ -37,6 +55,18 @@ function mapAdminSlotRow(row) {
       statusKey: 'locked',
       statusLabel: 'Uzamknuté',
       email: row.lock_email || null,
+      actions,
+    };
+  }
+
+  if (row.reservation_status === 'draft') {
+    return {
+      id: row.id,
+      timeKey,
+      statusKey: 'reserved',
+      statusLabel: 'Koncept',
+      email: row.reservation_email || null,
+      actions,
     };
   }
 
@@ -47,6 +77,7 @@ function mapAdminSlotRow(row) {
       statusKey: 'reserved',
       statusLabel: 'Čaká na platbu',
       email: row.reservation_email || null,
+      actions,
     };
   }
 
@@ -57,6 +88,7 @@ function mapAdminSlotRow(row) {
       statusKey: 'confirmed',
       statusLabel: 'Potvrdené',
       email: row.reservation_email || null,
+      actions,
     };
   }
 
@@ -66,6 +98,7 @@ function mapAdminSlotRow(row) {
     statusKey: 'open',
     statusLabel: 'Voľné',
     email: null,
+    actions,
   };
 }
 

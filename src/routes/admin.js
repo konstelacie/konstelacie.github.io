@@ -4,6 +4,7 @@ const express = require('express');
 const config = require('../config');
 const { SLOT_TIMEZONE } = require('../config/slotGrid');
 const { getPool } = require('../db');
+const auditRepo = require('../db/repositories/auditRepo');
 const slotsRepo = require('../db/repositories/slotsRepo');
 const { groupAdminSlotsByDay } = require('../lib/adminSlotDisplay');
 const { requireAdmin } = require('../middleware/requireAdmin');
@@ -127,7 +128,82 @@ function slotsQuery(view, dateIso) {
   return `?view=${encodeURIComponent(view)}&date=${encodeURIComponent(dateIso)}`;
 }
 
+function parseSlotIdParam(raw) {
+  const id = parseInt(raw, 10);
+  if (!Number.isInteger(id) || id <= 0) return null;
+  return id;
+}
+
+function parseReturnQuery(body) {
+  const view = body && body.view === 'week' ? 'week' : 'day';
+  const raw = body && typeof body.date === 'string' ? body.date : '';
+  const date = /^\d{4}-\d{2}-\d{2}$/.test(raw)
+    ? raw
+    : DateTime.now().setZone(SLOT_TIMEZONE).toISODate();
+  return slotsQuery(view, date);
+}
+
+function mapSlotActionError(code) {
+  switch (code) {
+    case 'NOT_FOUND':
+      return 'Termín sa nenašiel.';
+    case 'INVALID_STATE':
+      return 'Táto akcia nie je v aktuálnom stave dostupná.';
+    case 'HAS_RESERVATION':
+      return 'Termín má aktívnu rezerváciu. Zablokovať sa dá len voľný termín.';
+    case 'ALREADY_CANCELLED':
+      return 'Termín je už zrušený.';
+    default:
+      return 'Akciu sa nepodarilo vykonať.';
+  }
+}
+
+async function handleSlotPost(req, res, actionFn, successMessage, auditAction) {
+  const returnTo = `/admin/slots${parseReturnQuery(req.body)}`;
+  const slotId = parseSlotIdParam(req.params.slotId);
+  if (!slotId) {
+    req.session.adminFlash = { level: 'error', message: 'Neplatný termín.' };
+    return res.redirect(returnTo);
+  }
+  try {
+    const pool = getPool();
+    if (!pool) {
+      req.session.adminFlash = { level: 'error', message: 'Databáza nie je dostupná.' };
+      return res.redirect(returnTo);
+    }
+    const result = await actionFn(slotId);
+    if (!result.ok) {
+      req.session.adminFlash = { level: 'error', message: mapSlotActionError(result.code) };
+    } else {
+      await auditRepo.log(auditAction, 'slot', slotId, null, 'admin');
+      req.session.adminFlash = { level: 'success', message: successMessage };
+    }
+    return res.redirect(returnTo);
+  } catch (err) {
+    console.error(`[admin/${auditAction}]`, err);
+    req.session.adminFlash = { level: 'error', message: 'Neznáma chyba.' };
+    return res.redirect(returnTo);
+  }
+}
+
+router.post('/slots/:slotId/block', requireAdmin, async (req, res) => {
+  await handleSlotPost(req, res, slotsRepo.adminBlockSlot, 'Termín bol zablokovaný.', 'slot_blocked');
+});
+
+router.post('/slots/:slotId/unblock', requireAdmin, async (req, res) => {
+  await handleSlotPost(req, res, slotsRepo.adminUnblockSlot, 'Blokovanie bolo zrušené, termín je voľný.', 'slot_unblocked');
+});
+
+router.post('/slots/:slotId/cancel', requireAdmin, async (req, res) => {
+  await handleSlotPost(req, res, slotsRepo.adminCancelSlot, 'Termín bol zrušený.', 'slot_cancelled');
+});
+
 router.get('/slots', requireAdmin, async (req, res) => {
+  const flash = req.session.adminFlash;
+  if (flash) {
+    delete req.session.adminFlash;
+  }
+
   const view = parseView(req.query.view);
   const anchor = parseAnchorDate(typeof req.query.date === 'string' ? req.query.date : '');
   const { from, to } = resolveDateRange(view, anchor);
@@ -158,6 +234,7 @@ router.get('/slots', requireAdmin, async (req, res) => {
         title: 'Termíny — administrácia',
         dbConfigured: false,
         loadError: false,
+        flash,
         view,
         anchorDate: dateIso,
         rangeLabel,
@@ -177,6 +254,7 @@ router.get('/slots', requireAdmin, async (req, res) => {
       title: 'Termíny — administrácia',
       dbConfigured: true,
       loadError: false,
+      flash,
       view,
       anchorDate: dateIso,
       rangeLabel,
@@ -193,6 +271,7 @@ router.get('/slots', requireAdmin, async (req, res) => {
       title: 'Termíny — administrácia',
       dbConfigured: !!getPool(),
       loadError: true,
+      flash,
       view,
       anchorDate: dateIso,
       rangeLabel,
