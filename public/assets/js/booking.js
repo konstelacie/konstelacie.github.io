@@ -22,6 +22,13 @@
 
   const $ = (id) => document.getElementById(id);
 
+  function escapeAttr(s) {
+    return String(s)
+      .replace(/&/g, '&amp;')
+      .replace(/"/g, '&quot;')
+      .replace(/</g, '&lt;');
+  }
+
   const STORAGE_KEY = 'booking_lock';
   const FUNNEL_CTX_KEY = 'booking_funnel_ctx';
 
@@ -224,8 +231,8 @@
 
   /**
    * @param {object|null} slot
-   * @param {string} timeLineFirst — primary line: time (same for grid and hero)
-   * @param {{ nearest?: boolean, heroSubLine?: string }} [opts]
+   * @param {string} timeLineFirst — visible line: time (same for grid and hero)
+   * @param {{ nearest?: boolean, heroSubLine?: string }} [opts] — hero shows heroSubLine under time; grid does not
    */
   function buildSlotButtonHtml(slot, timeLineFirst, opts) {
     const nearest = !!(opts && opts.nearest);
@@ -241,11 +248,14 @@
     const idAttr = slot ? ` data-slot-id="${slot.id}"` : '';
     let secondLine = '';
     if (nearest && heroSubLine && ui.state === 'free' && ui.primary) {
-      secondLine = `<span class="booking-slot__label booking-slot__label--meta">${heroSubLine}</span>`;
-    } else if (ui.label) {
-      secondLine = `<span class="booking-slot__label">${ui.label}</span>`;
+      secondLine = `<span class="booking-slot__label--meta">${heroSubLine}</span>`;
     }
-    return `<button type="button" class="${cls.join(' ')}"${idAttr} data-state="${ui.state}"${ui.disabled || ui.busy ? ' disabled' : ''}${ariaBusy}>
+    let ariaLabel = null;
+    if (!(nearest && heroSubLine && ui.state === 'free' && ui.primary) && ui.label) {
+      ariaLabel = `${timeLineFirst} — ${ui.label}`;
+    }
+    const ariaAttr = ariaLabel ? ` aria-label="${escapeAttr(ariaLabel)}"` : '';
+    return `<button type="button" class="${cls.join(' ')}"${idAttr} data-state="${ui.state}"${ui.disabled || ui.busy ? ' disabled' : ''}${ariaBusy}${ariaAttr}>
             <span class="booking-slot__time">${timeLineFirst}</span>${secondLine}
           </button>`;
   }
