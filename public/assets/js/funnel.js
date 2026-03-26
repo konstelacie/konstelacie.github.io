@@ -28,6 +28,28 @@
     }
   };
 
+  function prefersReducedMotion() {
+    try {
+      return window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    } catch (e) {
+      return false;
+    }
+  }
+
+  function initScrollBridgeArrow() {
+    var link = document.querySelector('a.funnel-scroll-hint__arrow[href="#funnel-bridge"]');
+    if (!link) return;
+    link.addEventListener('click', function (e) {
+      var target = document.getElementById('funnel-bridge');
+      if (!target) return;
+      e.preventDefault();
+      target.scrollIntoView({
+        behavior: prefersReducedMotion() ? 'auto' : 'smooth',
+        block: 'start'
+      });
+    });
+  }
+
   function loadScript(src) {
     return new Promise(function (resolve, reject) {
       var s = document.createElement('script');
@@ -443,8 +465,12 @@
   }
 
   if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', initLowerContentReveal);
+    document.addEventListener('DOMContentLoaded', function () {
+      initScrollBridgeArrow();
+      initLowerContentReveal();
+    });
   } else {
+    initScrollBridgeArrow();
     initLowerContentReveal();
   }
 
