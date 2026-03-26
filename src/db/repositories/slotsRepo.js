@@ -1,3 +1,5 @@
+const { SLOT_TIMEZONE } = require('../../config/slotGrid');
+const { computeUtcRangeForCell } = require('../../lib/slotInstants');
 const { getPool } = require('../index');
 
 /**
@@ -198,6 +200,31 @@ async function adminCancelSlot(slotId) {
   }
 }
 
+/**
+ * Insert one open slot for (local_date, grid_index). Fails on duplicate cell.
+ * @returns {Promise<{ ok: true, id: number } | { ok: false, code: 'DUPLICATE' }>}
+ */
+async function insertOpenSlot(localDate, gridIndex) {
+  const pool = getPool();
+  if (!pool) throw new Error('Database not configured');
+
+  const { startUtc, endUtc } = computeUtcRangeForCell(localDate, gridIndex);
+
+  try {
+    const [result] = await pool.execute(
+      `INSERT INTO slots (local_date, grid_index, timezone, start_at_utc, end_at_utc, status, capacity)
+       VALUES (?, ?, ?, ?, ?, 'open', 1)`,
+      [localDate, gridIndex, SLOT_TIMEZONE, startUtc, endUtc]
+    );
+    return { ok: true, id: result.insertId };
+  } catch (e) {
+    if (e.code === 'ER_DUP_ENTRY' || e.errno === 1062) {
+      return { ok: false, code: 'DUPLICATE' };
+    }
+    throw e;
+  }
+}
+
 module.exports = {
   listSlotsWithLocks,
   getById,
@@ -205,4 +232,5 @@ module.exports = {
   adminBlockSlot,
   adminUnblockSlot,
   adminCancelSlot,
+  insertOpenSlot,
 };

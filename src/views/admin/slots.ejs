@@ -19,6 +19,31 @@
   <% } %>
 
   <% if (typeof dbConfigured !== 'undefined' && dbConfigured) { %>
+  <section class="admin-create" aria-labelledby="create-slot-heading">
+    <h2 id="create-slot-heading" class="admin-create__title">Nový termín</h2>
+    <form method="post" action="/admin/slots/create" class="admin-create__form">
+      <input type="hidden" name="view" value="<%= view %>">
+      <input type="hidden" name="date" value="<%= anchorDate %>">
+      <div class="admin-create__row">
+        <div class="admin-field">
+          <label for="admin-slot-date">Dátum</label>
+          <input id="admin-slot-date" name="slotDate" type="date" required value="<%= anchorDate %>">
+        </div>
+        <div class="admin-field">
+          <label for="admin-slot-time">Čas</label>
+          <select id="admin-slot-time" name="timeKey" required>
+            <% if (typeof slotTimes !== 'undefined') { for (const t of slotTimes) { %>
+              <option value="<%= t %>"><%= t %></option>
+            <% } } %>
+          </select>
+        </div>
+        <div class="admin-create__submit">
+          <button type="submit" class="admin-btn admin-btn--primary">Vytvoriť</button>
+        </div>
+      </div>
+    </form>
+  </section>
+
   <nav class="admin-toolbar" aria-label="Obdobie a zobrazenie">
     <div class="admin-toolbar__nav">
       <a class="admin-btn admin-btn--ghost" href="/admin/slots<%= queryPrev %>">← Predchádzajúce</a>

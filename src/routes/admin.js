@@ -2,7 +2,7 @@ const crypto = require('crypto');
 const { DateTime } = require('luxon');
 const express = require('express');
 const config = require('../config');
-const { SLOT_TIMEZONE } = require('../config/slotGrid');
+const { SLOT_TIMEZONE, SLOT_TIMES } = require('../config/slotGrid');
 const { getPool } = require('../db');
 const auditRepo = require('../db/repositories/auditRepo');
 const slotsRepo = require('../db/repositories/slotsRepo');
@@ -143,6 +143,32 @@ function parseReturnQuery(body) {
   return slotsQuery(view, date);
 }
 
+function parseCreateSlotBody(body) {
+  const date = body && typeof body.slotDate === 'string' ? body.slotDate.trim() : '';
+  const timeKey = body && typeof body.timeKey === 'string' ? body.timeKey.trim() : '';
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+    return { ok: false, code: 'INVALID_DATE' };
+  }
+  const idx = SLOT_TIMES.indexOf(timeKey);
+  if (idx === -1) {
+    return { ok: false, code: 'INVALID_TIME' };
+  }
+  return { ok: true, localDate: date, gridIndex: idx };
+}
+
+function mapCreateError(code) {
+  switch (code) {
+    case 'INVALID_DATE':
+      return 'Vyberte platný dátum.';
+    case 'INVALID_TIME':
+      return 'Vyberte platný čas zo zoznamu.';
+    case 'DUPLICATE':
+      return 'Tento termín už existuje (rovnaký dátum a čas).';
+    default:
+      return 'Termín sa nepodarilo vytvoriť.';
+  }
+}
+
 function mapSlotActionError(code) {
   switch (code) {
     case 'NOT_FOUND':
@@ -185,6 +211,40 @@ async function handleSlotPost(req, res, actionFn, successMessage, auditAction) {
     return res.redirect(returnTo);
   }
 }
+
+router.post('/slots/create', requireAdmin, async (req, res) => {
+  const returnTo = `/admin/slots${parseReturnQuery(req.body)}`;
+  const parsed = parseCreateSlotBody(req.body);
+  if (!parsed.ok) {
+    req.session.adminFlash = { level: 'error', message: mapCreateError(parsed.code) };
+    return res.redirect(returnTo);
+  }
+  try {
+    const pool = getPool();
+    if (!pool) {
+      req.session.adminFlash = { level: 'error', message: 'Databáza nie je dostupná.' };
+      return res.redirect(returnTo);
+    }
+    const result = await slotsRepo.insertOpenSlot(parsed.localDate, parsed.gridIndex);
+    if (!result.ok) {
+      req.session.adminFlash = { level: 'error', message: mapCreateError(result.code) };
+    } else {
+      await auditRepo.log(
+        'slot_created',
+        'slot',
+        result.id,
+        { localDate: parsed.localDate, gridIndex: parsed.gridIndex },
+        'admin'
+      );
+      req.session.adminFlash = { level: 'success', message: 'Termín bol vytvorený.' };
+    }
+    return res.redirect(returnTo);
+  } catch (err) {
+    console.error('[admin/slots/create]', err);
+    req.session.adminFlash = { level: 'error', message: 'Neznáma chyba.' };
+    return res.redirect(returnTo);
+  }
+});
 
 router.post('/slots/:slotId/block', requireAdmin, async (req, res) => {
   await handleSlotPost(req, res, slotsRepo.adminBlockSlot, 'Termín bol zablokovaný.', 'slot_blocked');
@@ -235,6 +295,7 @@ router.get('/slots', requireAdmin, async (req, res) => {
         dbConfigured: false,
         loadError: false,
         flash,
+        slotTimes: SLOT_TIMES,
         view,
         anchorDate: dateIso,
         rangeLabel,
@@ -255,6 +316,7 @@ router.get('/slots', requireAdmin, async (req, res) => {
       dbConfigured: true,
       loadError: false,
       flash,
+      slotTimes: SLOT_TIMES,
       view,
       anchorDate: dateIso,
       rangeLabel,
@@ -272,6 +334,7 @@ router.get('/slots', requireAdmin, async (req, res) => {
       dbConfigured: !!getPool(),
       loadError: true,
       flash,
+      slotTimes: SLOT_TIMES,
       view,
       anchorDate: dateIso,
       rangeLabel,
