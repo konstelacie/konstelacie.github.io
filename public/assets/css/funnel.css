@@ -13,12 +13,19 @@
   margin-bottom: 0;
 }
 
+/* Narrow column: hero through booking (secondary inner uses wider — see below) */
+.funnel-hero .container,
+.funnel-video .container,
+.funnel-bridge-section .container,
+.funnel-cta.booking-section .container {
+  max-width: var(--max-width-narrow);
+}
+
 .funnel-video {
   padding: 0 0 var(--spacing-section-lg) 0;
 }
 
 .funnel-video .container {
-  max-width: var(--max-width-narrow);
   padding-top: var(--spacing-sm);
 }
 
@@ -80,7 +87,8 @@
   padding-bottom: var(--spacing-sm);
   font-size: 0.9rem;
   color: var(--color-muted);
-  text-decoration: underline;
+  text-align: center;
+  text-decoration: none;
   text-underline-offset: 0.2em;
 }
 
@@ -90,6 +98,10 @@
 
 .funnel-secondary .funnel-how {
   padding-top: 0;
+}
+
+.funnel-secondary-inner .container {
+  max-width: var(--max-width-content);
 }
 
 /* 9:16 portrait frame — capped ~70vh tall, centered */
