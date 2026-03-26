@@ -182,6 +182,8 @@
       }
     }
 
+    var scrollObserverInstalled = false;
+
     function revealLayer1() {
       if (layer1Done) return;
       layer1Done = true;
@@ -189,11 +191,35 @@
       lowerEl.classList.add('is-revealed');
       lowerEl.removeAttribute('aria-hidden');
       markLowerSeen(lowerEl);
+      // Defer: observing #funnel-lower immediately after expand often intersects the viewport
+      // (bridge at the fold) and blocked the arrow. Observe #booking after layout settles.
+      setTimeout(installScrollObserver, 120);
+    }
+
+    function installScrollObserver() {
+      if (scrollObserverInstalled || userLeftVideo) return;
+      scrollObserverInstalled = true;
+      if (!('IntersectionObserver' in window)) return;
+      var target = document.getElementById('booking') || lowerEl;
+      var obs = new IntersectionObserver(
+        function (entries) {
+          for (var i = 0; i < entries.length; i++) {
+            if (entries[i].isIntersecting && entries[i].intersectionRatio > 0.12) {
+              onUserEnteredLower();
+              obs.disconnect();
+              return;
+            }
+          }
+        },
+        { root: null, rootMargin: '0px 0px -10% 0px', threshold: [0, 0.15, 0.35] }
+      );
+      obs.observe(target);
     }
 
     function showArrow() {
       if (!hintEl || layer2Done) return;
       layer2Done = true;
+      hintEl.removeAttribute('hidden');
       hintEl.classList.remove('funnel-scroll-hint--hidden');
       hintEl.classList.add('is-visible');
       hintEl.setAttribute('aria-hidden', 'false');
@@ -251,25 +277,6 @@
         hintEl.classList.add('is-muted');
       }
     }
-
-    function setupScrollObserver() {
-      if (!('IntersectionObserver' in window)) return;
-      var obs = new IntersectionObserver(
-        function (entries) {
-          for (var i = 0; i < entries.length; i++) {
-            if (entries[i].isIntersecting && entries[i].intersectionRatio > 0.08) {
-              onUserEnteredLower();
-              obs.disconnect();
-              return;
-            }
-          }
-        },
-        { root: null, threshold: [0, 0.1, 0.25] }
-      );
-      obs.observe(lowerEl);
-    }
-
-    setupScrollObserver();
 
     if (eff.unlockImmediately) {
       revealLayer1();
