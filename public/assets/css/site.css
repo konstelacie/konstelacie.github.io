@@ -497,3 +497,111 @@ a:hover {
   color: var(--color-text);
   border-color: var(--color-text-muted);
 }
+
+/* Admin — minimal internal UI */
+.admin-body {
+  margin: 0;
+  min-height: 100vh;
+  background: var(--color-bg);
+}
+
+.admin-wrap {
+  max-width: var(--max-width-narrow);
+  margin: 0 auto;
+  padding: var(--spacing-section) var(--spacing-container);
+}
+
+.admin-header {
+  margin-bottom: var(--spacing-section);
+}
+
+.admin-header--bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--spacing-sm);
+}
+
+.admin-title {
+  margin: 0;
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: var(--color-text);
+}
+
+.admin-placeholder {
+  margin: 0;
+  color: var(--color-text-secondary);
+}
+
+.admin-error {
+  margin: 0 0 var(--spacing-md);
+  padding: var(--spacing-sm) var(--spacing-md);
+  color: var(--color-text);
+  background: var(--color-booking-accent-soft);
+  border: 1px solid var(--color-booking-border);
+  border-radius: 6px;
+}
+
+.admin-form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-md);
+}
+
+.admin-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.admin-field label {
+  font-size: 0.9rem;
+  color: var(--color-text-secondary);
+}
+
+.admin-field input {
+  padding: 0.5rem 0.75rem;
+  border: 1px solid var(--color-border);
+  border-radius: 6px;
+  font-size: 1rem;
+  font-family: inherit;
+}
+
+.admin-field input:focus {
+  outline: 2px solid var(--color-booking-accent);
+  outline-offset: 1px;
+}
+
+.admin-btn {
+  padding: 0.5rem 1rem;
+  font-size: 0.95rem;
+  font-family: inherit;
+  cursor: pointer;
+  border-radius: 6px;
+  border: 1px solid var(--color-border);
+  background: var(--color-bg);
+  color: var(--color-text);
+}
+
+.admin-btn--primary {
+  background: var(--color-primary);
+  color: var(--color-on-primary);
+  border-color: var(--color-primary);
+}
+
+.admin-btn--primary:hover {
+  background: var(--color-primary-hover);
+  border-color: var(--color-primary-hover);
+}
+
+.admin-btn--ghost {
+  background: transparent;
+  color: var(--color-text-secondary);
+}
+
+.admin-btn--ghost:hover {
+  color: var(--color-text);
+  border-color: var(--color-text-muted);
+}

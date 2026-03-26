@@ -20,4 +20,17 @@ module.exports = {
   cron: {
     secret: process.env.CRON_SECRET || '',
   },
+  admin: {
+    /** Plain-text env credentials for the internal admin UI (single operator). */
+    username: process.env.ADMIN_USERNAME || '',
+    password: process.env.ADMIN_PASSWORD || '',
+    /**
+     * Required for signing the admin session cookie. In development, a dev fallback is used
+     * if unset (see app.js). Production should always set SESSION_SECRET.
+     */
+    sessionSecret: process.env.SESSION_SECRET || '',
+    isConfigured() {
+      return Boolean(this.username && this.password);
+    },
+  },
 };

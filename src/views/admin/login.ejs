@@ -1,0 +1,26 @@
+<div class="admin-wrap">
+  <header class="admin-header">
+    <h1 class="admin-title">Administrácia</h1>
+  </header>
+
+  <% if (typeof notConfigured !== 'undefined' && notConfigured) { %>
+    <p class="admin-error" role="alert">Nastavte v prostredí premenné <code>ADMIN_USERNAME</code> a <code>ADMIN_PASSWORD</code>.</p>
+  <% } %>
+
+  <% if (typeof error !== 'undefined' && error) { %>
+    <p class="admin-error" role="alert"><%= error %></p>
+  <% } %>
+
+  <form class="admin-form" method="post" action="/admin/login">
+    <input type="hidden" name="next" value="<%= typeof nextUrl !== 'undefined' ? nextUrl : '/admin/slots' %>">
+    <div class="admin-field">
+      <label for="admin-username">Používateľské meno</label>
+      <input id="admin-username" name="username" type="text" required autocomplete="username" autocapitalize="none">
+    </div>
+    <div class="admin-field">
+      <label for="admin-password">Heslo</label>
+      <input id="admin-password" name="password" type="password" required autocomplete="current-password">
+    </div>
+    <button type="submit" class="admin-btn admin-btn--primary">Prihlásiť sa</button>
+  </form>
+</div>

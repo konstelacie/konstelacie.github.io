@@ -1,14 +1,23 @@
 const express = require('express');
 const path = require('path');
+const session = require('express-session');
 
+const config = require('./config');
 const indexRouter = require('./routes/index');
 const funnelsRouter = require('./routes/funnels');
 const staticRouter = require('./routes/static');
 const healthRouter = require('./routes/health');
 const apiRouter = require('./routes/api');
+const adminRouter = require('./routes/admin');
 const { apiErrorHandler } = require('./middleware/apiError');
 
 const app = express();
+
+function resolveSessionSecret() {
+  if (config.admin.sessionSecret) return config.admin.sessionSecret;
+  if (config.env !== 'production') return 'dev-session-secret-change-in-prod';
+  throw new Error('SESSION_SECRET is required in production');
+}
 
 // View engine
 app.set('view engine', 'ejs');
@@ -24,6 +33,21 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(require('cookie-parser')());
 
+app.use(
+  session({
+    name: 'admin.sid',
+    secret: resolveSessionSecret(),
+    resave: false,
+    saveUninitialized: false,
+    cookie: {
+      httpOnly: true,
+      secure: config.env === 'production',
+      sameSite: 'lax',
+      maxAge: 7 * 24 * 60 * 60 * 1000,
+    },
+  })
+);
+
 if (process.env.NODE_ENV !== 'production') {
   app.use(require('morgan')('dev'));
 }
@@ -34,6 +58,7 @@ app.use('/assets', express.static(path.join(projectRoot, 'public', 'assets')));
 
 // Routes (more specific first)
 app.use('/api', apiRouter);
+app.use('/admin', adminRouter);
 app.use('/', funnelsRouter);
 app.use('/', indexRouter);
 app.use('/', staticRouter);
