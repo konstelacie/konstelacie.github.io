@@ -1,7 +1,7 @@
 /* Funnel section blocks – layout and spacing */
 
 .funnel-hero {
-  padding: var(--spacing-md) 0 var(--spacing-md) 0;
+  padding: 0;
 }
 
 .funnel-video {
