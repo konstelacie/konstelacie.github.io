@@ -1,0 +1,62 @@
+<div class="admin-wrap admin-wrap--wide">
+  <header class="admin-header admin-header--bar">
+    <h1 class="admin-title">Rezervácie</h1>
+    <form method="post" action="/admin/logout">
+      <button type="submit" class="admin-btn admin-btn--ghost">Odhlásiť sa</button>
+    </form>
+  </header>
+
+  <% if (typeof flash !== 'undefined' && flash) { %>
+    <p class="admin-flash admin-flash--<%= flash.level %>" role="status"><%= flash.message %></p>
+  <% } %>
+
+  <% if (typeof loadError !== 'undefined' && loadError) { %>
+    <p class="admin-error" role="alert">Nepodarilo sa načítať rezervácie. Skúste znova neskôr.</p>
+  <% } %>
+
+  <% if (typeof dbConfigured !== 'undefined' && !dbConfigured) { %>
+    <p class="admin-error" role="alert">Databáza nie je nakonfigurovaná.</p>
+  <% } %>
+
+  <% if (typeof dbConfigured !== 'undefined' && dbConfigured) { %>
+  <nav class="admin-filters" aria-label="Filter rezervácií">
+    <% const f = typeof filter !== 'undefined' ? filter : 'upcoming'; %>
+    <a class="admin-btn admin-btn--small <%= f === 'today' ? 'admin-btn--primary' : 'admin-btn--ghost' %>" href="/admin/reservations?filter=today">Dnes</a>
+    <a class="admin-btn admin-btn--small <%= f === 'upcoming' ? 'admin-btn--primary' : 'admin-btn--ghost' %>" href="/admin/reservations?filter=upcoming">Nadchádzajúce</a>
+    <a class="admin-btn admin-btn--small <%= f === 'unpaid' ? 'admin-btn--primary' : 'admin-btn--ghost' %>" href="/admin/reservations?filter=unpaid">Nezaplatené</a>
+    <a class="admin-btn admin-btn--small <%= f === 'confirmed' ? 'admin-btn--primary' : 'admin-btn--ghost' %>" href="/admin/reservations?filter=confirmed">Potvrdené</a>
+    <a class="admin-btn admin-btn--small <%= f === 'expired' ? 'admin-btn--primary' : 'admin-btn--ghost' %>" href="/admin/reservations?filter=expired">Expirované</a>
+  </nav>
+
+  <% if (typeof reservations !== 'undefined' && reservations.length) { %>
+  <div class="admin-table-wrap">
+    <table class="admin-table">
+      <thead>
+        <tr>
+          <th scope="col">Vytvorené</th>
+          <th scope="col">Termín</th>
+          <th scope="col">E-mail</th>
+          <th scope="col">Stav rezervácie</th>
+          <th scope="col">Platba</th>
+          <th scope="col">Suma</th>
+        </tr>
+      </thead>
+      <tbody>
+        <% for (const row of reservations) { %>
+          <tr>
+            <td><%= row.createdAtLabel %></td>
+            <td><a href="/admin/reservations/<%= row.id %>"><%= row.sessionLabel %></a></td>
+            <td class="admin-table__email"><%= row.email %></td>
+            <td><span class="admin-status admin-status--<%= row.reservationStatus %>"><%= row.reservationStatusLabel %></span></td>
+            <td><span class="admin-pay-status admin-pay-status--<%= row.paymentStatusKey %>"><%= row.paymentStatusLabel %></span></td>
+            <td><%= row.amountLabel %></td>
+          </tr>
+        <% } %>
+      </tbody>
+    </table>
+  </div>
+  <% } else { %>
+  <p class="admin-placeholder">Žiadne záznamy pre tento filter.</p>
+  <% } %>
+  <% } %>
+</div>

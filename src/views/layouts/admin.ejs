@@ -8,6 +8,12 @@
   <link rel="stylesheet" href="/assets/css/site.css">
 </head>
 <body class="admin-body">
+  <% if (typeof adminSection !== 'undefined') { %>
+  <nav class="admin-nav" aria-label="Hlavná sekcia administrácie">
+    <a class="admin-nav__link <%= adminSection === 'slots' ? 'admin-nav__link--active' : '' %>" href="/admin/slots">Termíny</a>
+    <a class="admin-nav__link <%= adminSection === 'reservations' ? 'admin-nav__link--active' : '' %>" href="/admin/reservations">Rezervácie</a>
+  </nav>
+  <% } %>
   <%- body %>
 </body>
 </html>

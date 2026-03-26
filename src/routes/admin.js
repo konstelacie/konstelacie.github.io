@@ -6,7 +6,9 @@ const { SLOT_TIMEZONE, SLOT_TIMES } = require('../config/slotGrid');
 const { getPool } = require('../db');
 const auditRepo = require('../db/repositories/auditRepo');
 const slotsRepo = require('../db/repositories/slotsRepo');
+const reservationsRepo = require('../db/repositories/reservationsRepo');
 const { groupAdminSlotsByDay } = require('../lib/adminSlotDisplay');
+const { mapReservationListRow } = require('../lib/adminReservationDisplay');
 const {
   parseTimeKeysFromForm,
   parseExcludeWeekends,
@@ -17,6 +19,8 @@ const {
 const { requireAdmin } = require('../middleware/requireAdmin');
 
 const router = express.Router();
+
+const ADMIN_RESERVATION_FILTERS = ['today', 'upcoming', 'unpaid', 'confirmed', 'expired'];
 
 function constantTimePasswordEq(input, expected) {
   if (typeof input !== 'string' || typeof expected !== 'string') return false;
@@ -330,6 +334,7 @@ router.get('/slots/bulk-preview', requireAdmin, async (req, res) => {
     return res.render('admin/slots-bulk-preview', {
       layout: 'layouts/admin',
       title: 'Náhľad — hromadné termíny',
+      adminSection: 'slots',
       from: d.from,
       to: d.to,
       excludeWeekends: d.excludeWeekends,
@@ -418,6 +423,84 @@ router.get('/slots/bulk-cancel', requireAdmin, (req, res) => {
   res.redirect(`/admin/slots${q}`);
 });
 
+router.get('/reservations', requireAdmin, async (req, res) => {
+  const flash = req.session.adminFlash;
+  if (flash) {
+    delete req.session.adminFlash;
+  }
+
+  const rawFilter = typeof req.query.filter === 'string' ? req.query.filter : '';
+  let filter = ADMIN_RESERVATION_FILTERS.includes(rawFilter)
+    ? rawFilter
+    : ADMIN_RESERVATION_FILTERS.includes(req.session.adminReservationFilter)
+      ? req.session.adminReservationFilter
+      : 'upcoming';
+  req.session.adminReservationFilter = filter;
+
+  const now = DateTime.now().setZone(SLOT_TIMEZONE);
+  const todayStartUtc = now.startOf('day').toUTC().toJSDate();
+  const todayEndUtc = now.endOf('day').toUTC().toJSDate();
+
+  try {
+    const pool = getPool();
+    if (!pool) {
+      return res.render('admin/reservations', {
+        layout: 'layouts/admin',
+        title: 'Rezervácie — administrácia',
+        adminSection: 'reservations',
+        dbConfigured: false,
+        loadError: false,
+        flash,
+        filter,
+        reservations: [],
+      });
+    }
+
+    const rows = await reservationsRepo.listForAdmin({
+      filter,
+      todayStartUtc,
+      todayEndUtc,
+    });
+    const reservations = rows.map((r) => mapReservationListRow(r));
+
+    return res.render('admin/reservations', {
+      layout: 'layouts/admin',
+      title: 'Rezervácie — administrácia',
+      adminSection: 'reservations',
+      dbConfigured: true,
+      loadError: false,
+      flash,
+      filter,
+      reservations,
+    });
+  } catch (err) {
+    console.error('[admin/reservations]', err);
+    return res.status(500).render('admin/reservations', {
+      layout: 'layouts/admin',
+      title: 'Rezervácie — administrácia',
+      adminSection: 'reservations',
+      dbConfigured: !!getPool(),
+      loadError: true,
+      flash,
+      filter,
+      reservations: [],
+    });
+  }
+});
+
+router.get('/reservations/:id', requireAdmin, (req, res) => {
+  const id = parseInt(req.params.id, 10);
+  if (!Number.isInteger(id) || id <= 0) {
+    return res.redirect('/admin/reservations');
+  }
+  res.render('admin/reservation-detail-placeholder', {
+    layout: 'layouts/admin',
+    title: `Rezervácia #${id}`,
+    adminSection: 'reservations',
+    reservationId: id,
+  });
+});
+
 router.post('/slots/:slotId/block', requireAdmin, async (req, res) => {
   await handleSlotPost(req, res, slotsRepo.adminBlockSlot, 'Termín bol zablokovaný.', 'slot_blocked');
 });
@@ -464,6 +547,7 @@ router.get('/slots', requireAdmin, async (req, res) => {
       return res.render('admin/slots', {
         layout: 'layouts/admin',
         title: 'Termíny — administrácia',
+        adminSection: 'slots',
         dbConfigured: false,
         loadError: false,
         flash,
@@ -487,6 +571,7 @@ router.get('/slots', requireAdmin, async (req, res) => {
     return res.render('admin/slots', {
       layout: 'layouts/admin',
       title: 'Termíny — administrácia',
+      adminSection: 'slots',
       dbConfigured: true,
       loadError: false,
       flash,
@@ -507,6 +592,7 @@ router.get('/slots', requireAdmin, async (req, res) => {
     return res.status(500).render('admin/slots', {
       layout: 'layouts/admin',
       title: 'Termíny — administrácia',
+      adminSection: 'slots',
       dbConfigured: !!getPool(),
       loadError: true,
       flash,

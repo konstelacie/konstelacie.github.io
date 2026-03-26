@@ -505,6 +505,44 @@ a:hover {
   background: var(--color-bg);
 }
 
+.admin-nav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--spacing-sm);
+  padding: var(--spacing-sm) var(--spacing-container);
+  border-bottom: 1px solid var(--color-border);
+  background: var(--color-booking-surface);
+}
+
+.admin-nav__link {
+  padding: 0.35rem 0.75rem;
+  font-size: 0.95rem;
+  font-weight: 500;
+  color: var(--color-text-secondary);
+  text-decoration: none;
+  border-radius: 6px;
+}
+
+.admin-nav__link:hover {
+  color: var(--color-text);
+  text-decoration: none;
+  background: var(--color-booking-accent-softer);
+}
+
+.admin-nav__link--active {
+  color: var(--color-text);
+  background: var(--color-booking-accent-soft);
+}
+
+.admin-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--spacing-sm);
+  margin-bottom: var(--spacing-section);
+  padding-bottom: var(--spacing-md);
+  border-bottom: 1px solid var(--color-border);
+}
+
 .admin-wrap {
   max-width: var(--max-width-narrow);
   margin: 0 auto;
@@ -938,4 +976,53 @@ a:hover {
 .admin-status--cancelled {
   background: var(--color-booking-accent-softer);
   color: var(--color-text-muted);
+}
+
+.admin-status--draft {
+  background: var(--color-booking-accent-softer);
+  color: var(--color-text-secondary);
+}
+
+.admin-status--pending_payment {
+  background: var(--color-booking-accent-soft);
+  color: var(--color-booking-accent);
+}
+
+.admin-status--expired {
+  background: var(--color-booking-accent-softer);
+  color: var(--color-text-muted);
+}
+
+.admin-pay-status {
+  display: inline-block;
+  padding: 0.15rem 0.45rem;
+  border-radius: 4px;
+  font-size: 0.875rem;
+  font-weight: 500;
+}
+
+.admin-pay-status--paid {
+  background: var(--color-booking-accent-soft);
+  color: var(--color-text);
+}
+
+.admin-pay-status--unpaid {
+  background: var(--color-booking-accent-softer);
+  color: var(--color-text-secondary);
+}
+
+.admin-pay-status--expired {
+  background: var(--color-booking-accent-softer);
+  color: var(--color-text-muted);
+}
+
+.admin-pay-status--na {
+  background: transparent;
+  color: var(--color-text-muted);
+  font-weight: 400;
+}
+
+.admin-pay-status--refunded {
+  background: var(--color-booking-accent-softer);
+  color: var(--color-text-secondary);
 }
