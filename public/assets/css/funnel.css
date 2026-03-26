@@ -4,12 +4,22 @@
   padding: 0;
 }
 
+/* Tighter gap between subhead and video (override .container vertical padding stack) */
+.funnel-hero .container {
+  padding-bottom: var(--spacing-sm);
+}
+
+.funnel-hero .muted {
+  margin-bottom: 0;
+}
+
 .funnel-video {
   padding: 0 0 var(--spacing-section-lg) 0;
 }
 
 .funnel-video .container {
   max-width: var(--max-width-narrow);
+  padding-top: var(--spacing-sm);
 }
 
 /* Lower block: optional delayed fade-in after first video play (see funnel.js) */
