@@ -1,6 +1,16 @@
 (function () {
   'use strict';
 
+  /** Set `?bookingDebug=1` or `sessionStorage.setItem('bookingDebug','1')` then reload — verbose logs in console. */
+  const BOOKING_DEBUG =
+    typeof location !== 'undefined' &&
+    (new URLSearchParams(location.search).get('bookingDebug') === '1' ||
+      (typeof sessionStorage !== 'undefined' && sessionStorage.getItem('bookingDebug') === '1'));
+
+  function dbg(...args) {
+    if (BOOKING_DEBUG) console.log('[booking]', ...args);
+  }
+
   const TIMEZONE = 'Europe/Bratislava';
   const RANGE_DAYS = 21;
   const MAX_FUNNEL_DAYS = 10;
@@ -111,8 +121,9 @@
       const raw = sessionStorage.getItem(STORAGE_KEY);
       if (!raw) return null;
       const data = JSON.parse(raw);
-      if (!data.lockToken || !data.lockedSlotId || !data.expiresAt) return null;
-      if (new Date(data.expiresAt).getTime() <= Date.now()) {
+      if (!data.lockToken || data.lockedSlotId == null || !data.expiresAt) return null;
+      const expMs = new Date(data.expiresAt).getTime();
+      if (Number.isNaN(expMs) || expMs <= Date.now()) {
         clearStoredLock();
         return null;
       }
@@ -226,19 +237,27 @@
     }
   }
 
+  /** Fixed overlays must sit under `body` so no ancestor transform/filter breaks `position:fixed` or hit-testing. */
+  function ensureBookingModalPortaledToBody() {
+    const modal = $('booking-email-modal');
+    if (!modal || modal.dataset.bookingModalPortaled === '1') return;
+    document.body.appendChild(modal);
+    modal.dataset.bookingModalPortaled = '1';
+  }
+
   function openEmailModal(edit) {
+    ensureBookingModalPortaledToBody();
     const modal = $('booking-email-modal');
     const main = $('booking-main');
     if (!modal) return;
     document.removeEventListener('keydown', onModalEscape, true);
-    document.removeEventListener('focusin', trapFocusInModal, true);
     configureEmailModal(!!edit);
     lastFocusBeforeModal = document.activeElement;
+    modal.removeAttribute('hidden');
     modal.hidden = false;
     if (main) main.setAttribute('inert', '');
     document.body.style.overflow = 'hidden';
     document.addEventListener('keydown', onModalEscape, true);
-    document.addEventListener('focusin', trapFocusInModal, true);
     const emailInput = $('booking-email');
     if (emailInput) requestAnimationFrame(() => emailInput.focus());
   }
@@ -246,11 +265,13 @@
   function closeEmailModal() {
     const modal = $('booking-email-modal');
     const main = $('booking-main');
-    if (modal) modal.hidden = true;
+    if (modal) {
+      modal.hidden = true;
+      modal.setAttribute('hidden', '');
+    }
     if (main) main.removeAttribute('inert');
     document.body.style.overflow = '';
     document.removeEventListener('keydown', onModalEscape, true);
-    document.removeEventListener('focusin', trapFocusInModal, true);
     if (lastFocusBeforeModal && typeof lastFocusBeforeModal.focus === 'function') {
       try {
         lastFocusBeforeModal.focus();
@@ -264,17 +285,6 @@
     if (!isEmailModalOpen()) return;
     e.preventDefault();
     revokeSlot();
-  }
-
-  function trapFocusInModal(e) {
-    const modal = $('booking-email-modal');
-    if (!modal || modal.hidden) return;
-    if (modal.contains(e.target)) return;
-    const focusables = modal.querySelectorAll(
-      'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
-    );
-    const first = focusables[0];
-    if (first) first.focus();
   }
 
   async function extendLockWithEmail(email) {
@@ -294,13 +304,36 @@
     return { ok: true };
   }
 
-  async function fetchSlots(from, to, token = null, signal = null) {
+  const FETCH_SLOTS_TIMEOUT_MS = 15000;
+
+  async function fetchSlots(from, to, token = null, externalSignal = null) {
     let url = `/api/slots?from=${from}&to=${to}`;
     if (token) url += `&lockToken=${encodeURIComponent(token)}`;
-    const res = await fetch(url, { signal: signal || undefined });
-    const data = await res.json();
-    if (!res.ok) throw new Error(data.error || 'API_ERROR');
-    return data;
+    const ctrl = new AbortController();
+    const tid = setTimeout(() => ctrl.abort(), FETCH_SLOTS_TIMEOUT_MS);
+    const onExternalAbort = () => {
+      clearTimeout(tid);
+      ctrl.abort();
+    };
+    if (externalSignal) {
+      if (externalSignal.aborted) {
+        clearTimeout(tid);
+        throw new DOMException('Aborted', 'AbortError');
+      }
+      externalSignal.addEventListener('abort', onExternalAbort);
+    }
+    try {
+      const res = await fetch(url, { signal: ctrl.signal });
+      clearTimeout(tid);
+      if (externalSignal) externalSignal.removeEventListener('abort', onExternalAbort);
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'API_ERROR');
+      return data;
+    } catch (e) {
+      clearTimeout(tid);
+      if (externalSignal) externalSignal.removeEventListener('abort', onExternalAbort);
+      throw e;
+    }
   }
 
   function mapSlotUi(slot) {
@@ -476,6 +509,26 @@
 
   let loadAbortController = null;
 
+  /**
+   * After GET /api/slots: drop stale client locks and align expiresAt with server (fixes refresh / clock skew).
+   */
+  function syncLockStateWithSlots() {
+    if (!lockToken || lockedSlotId == null) return;
+    if (!slotsRaw || slotsRaw.length === 0) return;
+    const slot = slotsRaw.find(
+      (s) => s.id === lockedSlotId || String(s.id) === String(lockedSlotId)
+    );
+    if (!slot || !slot.isMyLock) {
+      clearLockClientState();
+      return;
+    }
+    if (slot.lockExpiresAt) {
+      expiresAt = slot.lockExpiresAt;
+      storeLock();
+      if (countdownInterval) updateCountdown();
+    }
+  }
+
   async function loadSlots(options) {
     const silent = !!(options && options.silent);
     const from = getTodayLocal();
@@ -501,6 +554,7 @@
     }
 
     try {
+      dbg('loadSlots fetch', { from, to, hasLock: !!lockToken, silent });
       const data = await fetchSlots(from, to, lockToken, signal);
       if (signal.aborted || mySeq !== loadSeq) return;
       hideGlobalError();
@@ -508,6 +562,7 @@
         gridTimes = data.grid.times;
       }
       slotsRaw = data.slots || [];
+      syncLockStateWithSlots();
       renderCalendar();
     } catch (e) {
       if (e.name === 'AbortError' || signal.aborted) return;
@@ -817,57 +872,42 @@
     }, POLL_MS);
   }
 
-  function init() {
-    const inner = $('booking-calendar-inner');
-    if (!inner) return;
-
-    if (location.hash === '#booking') {
-      document.getElementById('booking')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-      history.replaceState(null, '', location.pathname + location.search);
-    }
-
-    persistFunnelContext(readFunnelContext());
-
-    const storedLock = getStoredLock();
-    if (storedLock) {
-      lockToken = storedLock.lockToken;
-      lockedSlotId = storedLock.lockedSlotId;
-      expiresAt = storedLock.expiresAt;
-      lockPhase = storedLock.phase === 'payment' ? 'payment' : 'email';
-      lockedEmail = typeof storedLock.email === 'string' ? storedLock.email.trim() : '';
-      const emailInput = $('booking-email');
-      const emailErr = $('booking-email-error');
-      if (emailErr) emailErr.hidden = true;
-      if (lockPhase === 'payment') {
-        if (emailInput) emailInput.value = lockedEmail;
-        const hold = $('booking-hold-banner');
-        const payChoice = $('booking-payment-choice');
-        if (hold) hold.hidden = false;
-        if (payChoice) payChoice.hidden = false;
-        updateCountdown();
-        startCountdown();
-      } else {
-        if (emailInput) emailInput.value = '';
-        const hold = $('booking-hold-banner');
-        if (hold) hold.hidden = true;
-        openEmailModal(false);
-        updateCountdown();
-        startCountdown();
+  /** Register once before any restored modal opens (capture-phase cancel survives overlays). */
+  function registerBookingEventListeners() {
+    function tryDismissFromEvent(e) {
+      const modal = $('booking-email-modal');
+      if (e.target.closest('#booking-revoke-btn')) {
+        e.preventDefault();
+        revokeSlot();
+        return;
+      }
+      if (e.target.closest('#booking-modal-close') || e.target.closest('#booking-modal-revoke')) {
+        if (!modal || modal.hidden) return;
+        e.preventDefault();
+        revokeSlot();
+        return;
+      }
+      if (e.target.closest('[data-booking-modal-dismiss]')) {
+        if (!modal || modal.hidden) return;
+        e.preventDefault();
+        revokeSlot();
       }
     }
 
+    document.addEventListener('click', tryDismissFromEvent, true);
+
+    const modalHost = $('booking-email-modal');
+    if (modalHost) {
+      modalHost.addEventListener('click', (e) => {
+        if (modalHost.hidden) return;
+        if (e.target.closest('[data-booking-modal-dismiss]')) {
+          e.preventDefault();
+          revokeSlot();
+        }
+      });
+    }
+
     const calendarInner = $('booking-calendar-inner');
-    const revokeBtn = $('booking-revoke-btn');
-    const modalRevoke = $('booking-modal-revoke');
-    const modalClose = $('booking-modal-close');
-    const modalBackdrop = document.querySelector('[data-booking-modal-dismiss]');
-    const emailForm = $('booking-email-form');
-
-    if (revokeBtn) revokeBtn.addEventListener('click', revokeSlot);
-    if (modalRevoke) modalRevoke.addEventListener('click', revokeSlot);
-    if (modalClose) modalClose.addEventListener('click', revokeSlot);
-    if (modalBackdrop) modalBackdrop.addEventListener('click', revokeSlot);
-
     if (calendarInner) {
       calendarInner.addEventListener('click', (e) => {
         const btn = e.target.closest('.booking-slot');
@@ -877,6 +917,7 @@
       });
     }
 
+    const emailForm = $('booking-email-form');
     if (emailForm) {
       emailForm.addEventListener('submit', async (e) => {
         e.preventDefault();
@@ -966,14 +1007,99 @@
     document.addEventListener('visibilitychange', () => {
       if (!document.hidden) loadSlots({ silent: true });
     });
-
-    loadSlots();
-    startPoll();
   }
 
+  function showRestoredLockUiIfNeeded() {
+    if (!lockToken) return;
+    const emailErr = $('booking-email-error');
+    if (emailErr) emailErr.hidden = true;
+    if (lockPhase === 'payment') {
+      const emailInput = $('booking-email');
+      if (emailInput) emailInput.value = lockedEmail;
+      const hold = $('booking-hold-banner');
+      const payChoice = $('booking-payment-choice');
+      if (hold) hold.hidden = false;
+      if (payChoice) payChoice.hidden = false;
+      updateCountdown();
+      startCountdown();
+      return;
+    }
+    const emailInput = $('booking-email');
+    if (emailInput) emailInput.value = '';
+    const hold = $('booking-hold-banner');
+    if (hold) hold.hidden = true;
+    openEmailModal(false);
+    updateCountdown();
+    startCountdown();
+  }
+
+  async function init() {
+    dbg('init start', { readyState: document.readyState });
+    try {
+      const inner = $('booking-calendar-inner');
+      if (!inner) {
+        dbg('init abort: #booking-calendar-inner missing');
+        return;
+      }
+
+      ensureBookingModalPortaledToBody();
+      registerBookingEventListeners();
+      dbg('listeners registered');
+
+      if (location.hash === '#booking') {
+        document.getElementById('booking')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        history.replaceState(null, '', location.pathname + location.search);
+      }
+
+      persistFunnelContext(readFunnelContext());
+
+      const storedLock = getStoredLock();
+      if (storedLock) {
+        lockToken = storedLock.lockToken;
+        lockedSlotId = storedLock.lockedSlotId;
+        expiresAt = storedLock.expiresAt;
+        lockPhase = storedLock.phase === 'payment' ? 'payment' : 'email';
+        lockedEmail = typeof storedLock.email === 'string' ? storedLock.email.trim() : '';
+        dbg('restored session lock', { lockedSlotId, lockPhase, expiresAt });
+      }
+
+      await loadSlots();
+      dbg('loadSlots done', { slots: slotsRaw.length, lockToken: !!lockToken });
+      showRestoredLockUiIfNeeded();
+      dbg('showRestoredLockUiIfNeeded done', { modalHidden: $('booking-email-modal')?.hidden });
+      startPoll();
+    } catch (err) {
+      console.error('[booking] init failed', err);
+    }
+  }
+
+  window.__booking = {
+    debug: BOOKING_DEBUG,
+    getState() {
+      const m = $('booking-email-modal');
+      return {
+        lockToken,
+        lockedSlotId,
+        expiresAt,
+        lockPhase,
+        slotsLen: slotsRaw.length,
+        modalHidden: m ? m.hidden : null,
+        hasHiddenAttr: m ? m.hasAttribute('hidden') : null,
+      };
+    },
+    revokeSlot,
+    clearLockClientState,
+  };
+
+  console.warn(
+    '[booking] ready — add ?bookingDebug=1 for verbose logs; in console: __booking.getState() or __booking.revokeSlot()'
+  );
+
   if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', init);
+    document.addEventListener('DOMContentLoaded', () => {
+      void init();
+    });
   } else {
-    init();
+    void init();
   }
 })();

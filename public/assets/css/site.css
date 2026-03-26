@@ -241,11 +241,23 @@ a:hover {
 .booking-modal {
   position: fixed;
   inset: 0;
-  z-index: 2000;
+  z-index: 10050;
   display: flex;
   align-items: center;
   justify-content: center;
   padding: var(--spacing-md);
+  pointer-events: auto;
+}
+
+/* Author `display:flex` must not beat HTML `[hidden]` — otherwise the dialog shows before JS (static 05:00, dead UI). */
+.booking-modal[hidden] {
+  display: none !important;
+  pointer-events: none !important;
+}
+
+.booking-modal__backdrop,
+.booking-modal__dialog {
+  pointer-events: auto;
 }
 
 .booking-modal__backdrop {
