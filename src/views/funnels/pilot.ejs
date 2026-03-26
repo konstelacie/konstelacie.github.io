@@ -32,7 +32,11 @@
         aria-hidden="true"
         <% if (!_revealOn) { %>hidden<% } %>
       >
-        <span class="funnel-scroll-hint__arrow" aria-hidden="true">↓</span>
+        <a
+          class="funnel-scroll-hint__arrow"
+          href="#funnel-bridge"
+          aria-label="Ak Ti to dáva zmysel, vyber si termín, ktorý Ti vyhovuje"
+        >↓</a>
         <span class="funnel-scroll-hint__text" hidden></span>
       </div>
     </div>
@@ -45,7 +49,7 @@
     <% if (_revealOn) { %>data-funnel-name="<%= funnelName %>" data-funnel-campaign="<%= funnelCampaignId %>" aria-hidden="true"<% } %>>
     <section class="funnel-bridge-section">
       <div class="container">
-        <p class="funnel-bridge">Ak Ti to dáva zmysel, vyber si termín, ktorý Ti vyhovuje:</p>
+        <p class="funnel-bridge" id="funnel-bridge">Ak Ti to dáva zmysel, vyber si termín, ktorý Ti vyhovuje:</p>
       </div>
     </section>
 

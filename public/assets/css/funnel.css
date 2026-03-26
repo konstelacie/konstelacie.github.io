@@ -72,6 +72,16 @@
   font-weight: 400;
 }
 
+a.funnel-scroll-hint__arrow {
+  text-decoration: none;
+  cursor: pointer;
+}
+
+a.funnel-scroll-hint__arrow:hover,
+a.funnel-scroll-hint__arrow:focus-visible {
+  color: var(--color-text-secondary);
+}
+
 .funnel-scroll-hint__text {
   font-size: 0.8rem;
   color: var(--color-muted);
