@@ -1091,7 +1091,7 @@
     clearLockClientState,
   };
 
-  console.warn(
+  console.log(
     '[booking] ready — add ?bookingDebug=1 for verbose logs; in console: __booking.getState() or __booking.revokeSlot()'
   );
 
