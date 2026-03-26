@@ -1,14 +1,10 @@
 /**
- * Funnel – shared logic for video, CTA, lower-content reveal after first play.
- * Used by pilot and other funnel pages.
+ * Funnel – video embed, CTA, lower-content reveal (3-layer strategy).
+ * @see docs/ui-ux/video-scroll-reveal-strategy.md
  */
 
 (function () {
   'use strict';
-
-  // --- Video embed (optional client-side override) ---
-  // Server usually renders video from INSTANCE_CAMPAIGNS + resolveCampaignVideo (see src/config/funnelVideo.js).
-  // Example dynamic inject: funnel.video.embed('https://www.youtube.com/embed/VIDEO_ID');
 
   var video = {
     embed: function (url) {
@@ -24,9 +20,6 @@
       container.appendChild(iframe);
     }
   };
-
-  // --- CTA / booking ---
-  // Optional: smooth scroll to .funnel-cta, external link handling
 
   var cta = {
     scrollTo: function () {
@@ -71,36 +64,6 @@
     return null;
   }
 
-  /** Wistia iframe + postMessage: detect play when Player API does not bind. */
-  function bindWistiaPostMessagePlay(onPlay) {
-    window.addEventListener(
-      'message',
-      function (event) {
-        if (!event || !event.origin) return;
-        if (event.origin.indexOf('wistia.net') === -1 && event.origin.indexOf('wistia.com') === -1) return;
-        var d = parseMaybeJson(event.data);
-        if (!d) return;
-        var ev = d.event || d.type || d.name || d.action;
-        if (ev === 'play' || ev === 'Play' || (d.data && d.data.event === 'play')) {
-          onPlay();
-        }
-      },
-      false
-    );
-  }
-
-  function tryWistiaApiBind(wistiaHash, onPlay, apiBoundRef) {
-    if (apiBoundRef.value) return true;
-    if (typeof window.Wistia === 'undefined' || !window.Wistia.api) return false;
-    var wistiaVideo = window.Wistia.api(wistiaHash);
-    if (!wistiaVideo || !wistiaVideo.bind) return false;
-    apiBoundRef.value = true;
-    wistiaVideo.bind('play', function () {
-      onPlay();
-    });
-    return true;
-  }
-
   function getLowerSeenStorageKey(lowerEl) {
     if (!lowerEl) return null;
     var fn = lowerEl.getAttribute('data-funnel-name');
@@ -126,50 +89,268 @@
     } catch (e) {}
   }
 
-  function revealLowerNow(lowerEl) {
-    if (!lowerEl || lowerEl.classList.contains('is-revealed')) return;
-    lowerEl.classList.remove('funnel-lower--pending');
-    lowerEl.classList.add('is-revealed');
-    lowerEl.removeAttribute('aria-hidden');
+  function readRevealConfig() {
+    var el = document.getElementById('funnel-reveal-config');
+    if (!el || !el.textContent) return null;
+    try {
+      return JSON.parse(el.textContent.trim());
+    } catch (e) {
+      return null;
+    }
   }
 
-  function revealLowerWhenReady(lowerEl, delayMs) {
-    if (!lowerEl || lowerEl.classList.contains('is-revealed')) return;
-    setTimeout(function () {
-      lowerEl.classList.remove('funnel-lower--pending');
-      lowerEl.classList.add('is-revealed');
-      lowerEl.removeAttribute('aria-hidden');
-      markLowerSeen(lowerEl);
-    }, delayMs);
+  function effectiveRevealConfig(cfg, isRepeat) {
+    if (!cfg || !cfg.enabled) return null;
+    var rv = cfg.repeatVisit || {};
+    if (isRepeat && rv.unlockImmediately === true) {
+      return {
+        base: Object.assign({}, cfg, {
+          layer2DelayMs: typeof rv.layer2DelayMs === 'number' ? rv.layer2DelayMs : cfg.layer2DelayMs,
+          layer3: Object.assign({}, cfg.layer3, rv.layer3 || {}),
+        }),
+        repeat: rv,
+        unlockImmediately: true,
+      };
+    }
+    if (isRepeat) {
+      var merged = {
+        semanticTriggerSec: cfg.semanticTriggerSec,
+        fallbackPercentWatched:
+          typeof rv.fallbackPercentWatched === 'number' ? rv.fallbackPercentWatched : cfg.fallbackPercentWatched,
+        fallbackAbsoluteSec: cfg.fallbackAbsoluteSec,
+        layer2DelayMs: typeof rv.layer2DelayMs === 'number' ? rv.layer2DelayMs : cfg.layer2DelayMs,
+        layer3: Object.assign({}, cfg.layer3, rv.layer3 || {}),
+        onPause: cfg.onPause,
+        onVideoEnd: cfg.onVideoEnd,
+      };
+      return { base: merged, repeat: rv, unlockImmediately: false };
+    }
+    return { base: cfg, repeat: {}, unlockImmediately: false };
+  }
+
+  function shouldUnlockLayer1(t, duration, eff) {
+    var cfg = eff.base;
+    if (typeof cfg.semanticTriggerSec === 'number' && t >= cfg.semanticTriggerSec) return true;
+    if (duration > 0 && t / duration >= cfg.fallbackPercentWatched) return true;
+    if (typeof cfg.fallbackAbsoluteSec === 'number' && t >= cfg.fallbackAbsoluteSec) return true;
+    return false;
   }
 
   function initLowerContentReveal() {
     var lowerEl = document.getElementById('funnel-lower');
     if (!lowerEl || !lowerEl.classList.contains('funnel-lower--pending')) return;
 
-    if (hasSeenLowerBefore(lowerEl)) {
-      revealLowerNow(lowerEl);
+    var cfgRaw = readRevealConfig();
+    if (!cfgRaw) {
+      lowerEl.classList.remove('funnel-lower--pending');
+      lowerEl.classList.add('is-revealed');
+      lowerEl.removeAttribute('aria-hidden');
+      markLowerSeen(lowerEl);
+      var h0 = document.getElementById('funnel-scroll-hint');
+      if (h0) {
+        h0.classList.remove('funnel-scroll-hint--hidden');
+        h0.classList.add('is-visible');
+      }
+      return;
+    }
+    if (!cfgRaw.enabled) return;
+
+    var isRepeat = hasSeenLowerBefore(lowerEl);
+    var eff = effectiveRevealConfig(cfgRaw, isRepeat);
+    if (!eff) return;
+
+    var hintEl = document.getElementById('funnel-scroll-hint');
+    var cfg = eff.base;
+
+    var layer1Done = false;
+    var layer2Done = false;
+    var layer3Done = false;
+    var userLeftVideo = false;
+    var videoPaused = false;
+
+    var tLayer2 = null;
+    var tLayer3 = null;
+
+    function clearLayerTimers() {
+      if (tLayer2) {
+        clearTimeout(tLayer2);
+        tLayer2 = null;
+      }
+      if (tLayer3) {
+        clearTimeout(tLayer3);
+        tLayer3 = null;
+      }
+    }
+
+    function revealLayer1() {
+      if (layer1Done) return;
+      layer1Done = true;
+      lowerEl.classList.remove('funnel-lower--pending');
+      lowerEl.classList.add('is-revealed');
+      lowerEl.removeAttribute('aria-hidden');
+      markLowerSeen(lowerEl);
+    }
+
+    function showArrow() {
+      if (!hintEl || layer2Done) return;
+      layer2Done = true;
+      hintEl.classList.remove('funnel-scroll-hint--hidden');
+      hintEl.classList.add('is-visible');
+      hintEl.setAttribute('aria-hidden', 'false');
+    }
+
+    function applyEmphasis() {
+      if (!hintEl || layer3Done || userLeftVideo || !cfg.layer3 || cfg.layer3.enabled === false) return;
+      layer3Done = true;
+      hintEl.classList.add('is-emphasized');
+      var maxC = cfg.layer3.maxEmphasisCycles;
+      if (typeof maxC === 'number' && maxC > 0) {
+        hintEl.style.setProperty('--funnel-emphasis-cycles', String(maxC));
+      }
+      if (cfg.layer3.helperTextEnabled && cfg.layer3.helperText) {
+        var textEl = hintEl.querySelector('.funnel-scroll-hint__text');
+        if (textEl) {
+          textEl.textContent = cfg.layer3.helperText;
+          textEl.hidden = false;
+        }
+      }
+    }
+
+    function scheduleLayer2FromNow() {
+      clearLayerTimers();
+      var d = cfg.layer2DelayMs;
+      tLayer2 = setTimeout(function () {
+        tLayer2 = null;
+        if (userLeftVideo) return;
+        showArrow();
+        scheduleLayer3FromNow();
+      }, d);
+    }
+
+    function scheduleLayer3FromNow() {
+      if (!cfg.layer3 || cfg.layer3.enabled === false) return;
+      if (tLayer3) {
+        clearTimeout(tLayer3);
+        tLayer3 = null;
+      }
+      var d = cfg.layer3.delayAfterLayer2Ms;
+      tLayer3 = setTimeout(function () {
+        tLayer3 = null;
+        if (userLeftVideo) return;
+        if (videoPaused && cfg.onPause && cfg.onPause.freezeEmphasisOnly) return;
+        applyEmphasis();
+      }, d);
+    }
+
+    function onUserEnteredLower() {
+      if (userLeftVideo) return;
+      userLeftVideo = true;
+      clearLayerTimers();
+      if (hintEl) {
+        hintEl.classList.remove('is-emphasized');
+        hintEl.classList.add('is-muted');
+      }
+    }
+
+    function setupScrollObserver() {
+      if (!('IntersectionObserver' in window)) return;
+      var obs = new IntersectionObserver(
+        function (entries) {
+          for (var i = 0; i < entries.length; i++) {
+            if (entries[i].isIntersecting && entries[i].intersectionRatio > 0.08) {
+              onUserEnteredLower();
+              obs.disconnect();
+              return;
+            }
+          }
+        },
+        { root: null, threshold: [0, 0.1, 0.25] }
+      );
+      obs.observe(lowerEl);
+    }
+
+    setupScrollObserver();
+
+    if (eff.unlockImmediately) {
+      revealLayer1();
+      scheduleLayer2FromNow();
       return;
     }
 
-    var raw = lowerEl.getAttribute('data-lower-reveal-delay');
-    var delayMs = parseInt(raw, 10);
-    if (isNaN(delayMs) || delayMs < 0) delayMs = 15000;
+    function onLayer1Trigger() {
+      if (layer1Done) return;
+      revealLayer1();
+      scheduleLayer2FromNow();
+    }
 
-    var started = false;
-    function onFirstPlay() {
-      if (started) return;
-      started = true;
-      revealLowerWhenReady(lowerEl, delayMs);
+    function tryUnlockFromTime(t, duration) {
+      if (layer1Done) return;
+      if (!shouldUnlockLayer1(t, duration, eff)) return;
+      onLayer1Trigger();
     }
 
     var vid = document.querySelector('.funnel-video video');
     if (vid) {
+      function onTime() {
+        var d = vid.duration;
+        if (!d || !isFinite(d)) return;
+        tryUnlockFromTime(vid.currentTime, d);
+      }
+      vid.addEventListener(
+        'timeupdate',
+        function () {
+          onTime();
+        },
+        { passive: true }
+      );
+      vid.addEventListener(
+        'loadedmetadata',
+        function () {
+          onTime();
+        },
+        { passive: true }
+      );
       vid.addEventListener(
         'play',
-        function once() {
-          vid.removeEventListener('play', once);
-          onFirstPlay();
+        function () {
+          videoPaused = false;
+        },
+        { passive: true }
+      );
+      vid.addEventListener(
+        'pause',
+        function () {
+          videoPaused = true;
+          if (cfg.onPause && cfg.onPause.freezeEmphasisOnly && tLayer3) {
+            clearTimeout(tLayer3);
+            tLayer3 = null;
+          }
+        },
+        { passive: true }
+      );
+      vid.addEventListener(
+        'playing',
+        function () {
+          videoPaused = false;
+          if (cfg.onPause && cfg.onPause.freezeEmphasisOnly && layer2Done && !layer3Done && !userLeftVideo) {
+            scheduleLayer3FromNow();
+          }
+        },
+        { passive: true }
+      );
+      vid.addEventListener(
+        'ended',
+        function () {
+          if (
+            userLeftVideo ||
+            layer3Done ||
+            !cfg.onVideoEnd ||
+            cfg.onVideoEnd.emphasisIfNotScrolled !== 'once_light'
+          ) {
+            return;
+          }
+          if (!hintEl || !layer2Done) return;
+          applyEmphasis();
         },
         { passive: true }
       );
@@ -178,50 +359,80 @@
 
     var iframe = document.querySelector('.funnel-video iframe');
     var wistiaHash = extractWistiaHashFromIframe(iframe);
-    if (wistiaHash) {
-      bindWistiaPostMessagePlay(onFirstPlay);
-
-      window._wq = window._wq || [];
-      window._wq.push({
-        id: wistiaHash,
-        onReady: function (wistiaVideo) {
-          wistiaVideo.bind('play', function () {
-            onFirstPlay();
-          });
-        },
-      });
-      window._wq.push({
-        id: '_all',
-        onReady: function (wistiaVideo) {
-          if (!wistiaVideo || !wistiaVideo.hashedId || wistiaVideo.hashedId() !== wistiaHash) return;
-          wistiaVideo.bind('play', function () {
-            onFirstPlay();
-          });
-        },
-      });
-
-      var apiPlayBound = { value: false };
-      loadScript(WISTIA_E1)
-        .then(function () {
-          if (tryWistiaApiBind(wistiaHash, onFirstPlay, apiPlayBound)) return;
-          var n = 0;
-          var iv = setInterval(function () {
-            if (tryWistiaApiBind(wistiaHash, onFirstPlay, apiPlayBound)) {
-              clearInterval(iv);
-            }
-            if (++n > 150) clearInterval(iv);
-          }, 200);
-        })
-        .catch(function () {
-          revealLowerNow(lowerEl);
-          markLowerSeen(lowerEl);
-        });
+    if (!wistiaHash) {
+      revealLayer1();
+      if (hintEl) {
+        showArrow();
+        scheduleLayer3FromNow();
+      }
       return;
     }
 
-    // Unknown embed: do not keep content inaccessible
-    revealLowerNow(lowerEl);
-    markLowerSeen(lowerEl);
+    var wistiaBound = false;
+    function bindWistiaVideo(wistiaVideo) {
+      if (wistiaBound || !wistiaVideo || !wistiaVideo.bind) return;
+      wistiaBound = true;
+
+      wistiaVideo.bind('secondchange', function () {
+        var t = typeof wistiaVideo.time === 'function' ? wistiaVideo.time() : 0;
+        var dur = typeof wistiaVideo.duration === 'function' ? wistiaVideo.duration() : 0;
+        tryUnlockFromTime(t, dur);
+      });
+
+      wistiaVideo.bind('pause', function () {
+        videoPaused = true;
+        if (cfg.onPause && cfg.onPause.freezeEmphasisOnly && tLayer3) {
+          clearTimeout(tLayer3);
+          tLayer3 = null;
+        }
+      });
+
+      wistiaVideo.bind('play', function () {
+        videoPaused = false;
+        if (cfg.onPause && cfg.onPause.freezeEmphasisOnly && layer2Done && !layer3Done && !userLeftVideo) {
+          scheduleLayer3FromNow();
+        }
+        var t = typeof wistiaVideo.time === 'function' ? wistiaVideo.time() : 0;
+        var dur = typeof wistiaVideo.duration === 'function' ? wistiaVideo.duration() : 0;
+        tryUnlockFromTime(t, dur);
+      });
+
+      wistiaVideo.bind('end', function () {
+        if (
+          userLeftVideo ||
+          layer3Done ||
+          !cfg.onVideoEnd ||
+          cfg.onVideoEnd.emphasisIfNotScrolled !== 'once_light'
+        ) {
+          return;
+        }
+        if (!hintEl || !layer2Done) return;
+        applyEmphasis();
+      });
+    }
+
+    window._wq = window._wq || [];
+    window._wq.push({
+      id: wistiaHash,
+      onReady: function (wistiaVideo) {
+        bindWistiaVideo(wistiaVideo);
+      }
+    });
+    window._wq.push({
+      id: '_all',
+      onReady: function (wistiaVideo) {
+        if (!wistiaVideo || !wistiaVideo.hashedId || wistiaVideo.hashedId() !== wistiaHash) return;
+        bindWistiaVideo(wistiaVideo);
+      }
+    });
+
+    loadScript(WISTIA_E1).catch(function () {
+      revealLayer1();
+      if (hintEl) {
+        showArrow();
+        scheduleLayer3FromNow();
+      }
+    });
   }
 
   if (document.readyState === 'loading') {

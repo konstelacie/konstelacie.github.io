@@ -29,6 +29,73 @@
   padding-top: var(--spacing-sm);
 }
 
+/* Scroll hint below video (Layer 2–3) — see docs/ui-ux/video-scroll-reveal-strategy.md */
+.funnel-scroll-hint {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--spacing-xs);
+  margin-top: var(--spacing-md);
+  text-align: center;
+  transition:
+    opacity 0.45s ease,
+    max-height 0.45s ease,
+    margin-top 0.45s ease;
+}
+
+.funnel-scroll-hint--hidden {
+  max-height: 0;
+  margin-top: 0;
+  opacity: 0;
+  overflow: hidden;
+  pointer-events: none;
+  visibility: hidden;
+}
+
+.funnel-scroll-hint.is-visible {
+  max-height: 5rem;
+  opacity: 1;
+  visibility: visible;
+}
+
+.funnel-scroll-hint.is-visible.is-muted {
+  opacity: 0.35;
+  transition: opacity 0.35s ease;
+}
+
+.funnel-scroll-hint__arrow {
+  display: block;
+  font-size: 1.5rem;
+  line-height: 1;
+  color: var(--color-muted);
+  font-weight: 400;
+}
+
+.funnel-scroll-hint__text {
+  font-size: 0.8rem;
+  color: var(--color-muted);
+  margin: 0;
+}
+
+@keyframes funnel-hint-arrow-nudge {
+  0%,
+  100% {
+    transform: translateY(0);
+    opacity: 0.85;
+  }
+  50% {
+    transform: translateY(0.28rem);
+    opacity: 1;
+  }
+}
+
+.funnel-scroll-hint.is-emphasized .funnel-scroll-hint__arrow {
+  color: var(--color-text-secondary);
+  animation: funnel-hint-arrow-nudge 1.35s ease-in-out;
+  animation-iteration-count: var(--funnel-emphasis-cycles, 3);
+}
+
 /* Lower block: optional delayed fade-in after first video play (see funnel.js) */
 .funnel-lower--pending:not(.is-revealed) {
   height: 0;

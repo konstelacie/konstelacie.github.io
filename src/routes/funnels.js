@@ -20,12 +20,40 @@ const FUNNEL_INSTANCES = ['pilot'];
 const WISTIA_TEST_HASHED_ID = 'qyexpnd6fa';
 
 /**
- * Lower sections (bridge, booking, …) stay hidden until first video play, then after `delayMs` fade in.
- * Set `enabled: false` to show everything immediately.
+ * Lower content reveal (see docs/ui-ux/video-scroll-reveal-strategy.md).
+ * Layer 1: DOM unlock (semantic time or % watched fallback).
+ * Layer 2: scroll hint arrow after delay.
+ * Layer 3: optional gentle emphasis if user has not scrolled.
  */
 const DEFAULT_LOWER_CONTENT_REVEAL = {
   enabled: true,
-  delayMs: 15000,
+  semanticTriggerSec: null,
+  fallbackPercentWatched: 0.3,
+  fallbackAbsoluteSec: null,
+  layer2DelayMs: 3000,
+  layer3: {
+    enabled: true,
+    delayAfterLayer2Ms: 8000,
+    helperTextEnabled: false,
+    helperText: 'Pokračovať',
+    maxEmphasisCycles: 3,
+  },
+  repeatVisit: {
+    unlockImmediately: true,
+    fallbackPercentWatched: 0.1,
+    layer2DelayMs: 1000,
+    layer3: {
+      delayAfterLayer2Ms: 4000,
+      maxEmphasisCycles: 2,
+    },
+  },
+  onPause: {
+    freezeRevealTimers: false,
+    freezeEmphasisOnly: true,
+  },
+  onVideoEnd: {
+    emphasisIfNotScrolled: 'once_light',
+  },
 };
 
 const pilotPoslanie = {
@@ -92,16 +120,61 @@ function isValidFunnel(name) {
 
 /**
  * @param {object} campaign - merged campaign row
- * @returns {{ enabled: boolean, delayMs: number }}
+ * @returns {object} Resolved reveal config for the template / JSON (see DEFAULT_LOWER_CONTENT_REVEAL)
  */
 function resolveLowerContentReveal(campaign) {
   const raw = campaign.lowerContentReveal;
   if (raw === false || (raw && raw.enabled === false)) {
-    return { enabled: false, delayMs: 0 };
+    return { enabled: false };
   }
-  const delayMs =
-    raw && typeof raw.delayMs === 'number' && raw.delayMs >= 0 ? raw.delayMs : DEFAULT_LOWER_CONTENT_REVEAL.delayMs;
-  return { enabled: true, delayMs };
+  const r = raw && typeof raw === 'object' ? raw : {};
+  const def = DEFAULT_LOWER_CONTENT_REVEAL;
+  const layer3 = {
+    ...def.layer3,
+    ...(r.layer3 && typeof r.layer3 === 'object' ? r.layer3 : {}),
+  };
+  const repeatVisit = {
+    ...def.repeatVisit,
+    ...(r.repeatVisit && typeof r.repeatVisit === 'object' ? r.repeatVisit : {}),
+    layer3: {
+      ...def.repeatVisit.layer3,
+      ...(r.repeatVisit && r.repeatVisit.layer3 && typeof r.repeatVisit.layer3 === 'object'
+        ? r.repeatVisit.layer3
+        : {}),
+    },
+  };
+  const onPause = { ...def.onPause, ...(r.onPause && typeof r.onPause === 'object' ? r.onPause : {}) };
+  const onVideoEnd = { ...def.onVideoEnd, ...(r.onVideoEnd && typeof r.onVideoEnd === 'object' ? r.onVideoEnd : {}) };
+
+  const semanticTriggerSec =
+    typeof r.semanticTriggerSec === 'number' && r.semanticTriggerSec >= 0 ? r.semanticTriggerSec : def.semanticTriggerSec;
+
+  let fallbackPercentWatched = def.fallbackPercentWatched;
+  if (typeof r.fallbackPercentWatched === 'number' && r.fallbackPercentWatched >= 0 && r.fallbackPercentWatched <= 1) {
+    fallbackPercentWatched = r.fallbackPercentWatched;
+  }
+
+  let fallbackAbsoluteSec = def.fallbackAbsoluteSec;
+  if (typeof r.fallbackAbsoluteSec === 'number' && r.fallbackAbsoluteSec >= 0) {
+    fallbackAbsoluteSec = r.fallbackAbsoluteSec;
+  }
+
+  let layer2DelayMs = def.layer2DelayMs;
+  if (typeof r.layer2DelayMs === 'number' && r.layer2DelayMs >= 0) {
+    layer2DelayMs = r.layer2DelayMs;
+  }
+
+  return {
+    enabled: true,
+    semanticTriggerSec,
+    fallbackPercentWatched,
+    fallbackAbsoluteSec,
+    layer2DelayMs,
+    layer3,
+    repeatVisit,
+    onPause,
+    onVideoEnd,
+  };
 }
 
 /**
