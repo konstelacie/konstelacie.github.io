@@ -655,6 +655,132 @@ a:hover {
   align-items: flex-end;
 }
 
+.admin-bulk {
+  margin-bottom: var(--spacing-section);
+  padding: var(--spacing-md);
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  background: var(--color-bg);
+}
+
+.admin-bulk__title {
+  margin: 0 0 var(--spacing-sm);
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--color-text);
+}
+
+.admin-bulk__hint {
+  margin: 0 0 var(--spacing-md);
+  font-size: 0.9rem;
+  color: var(--color-text-secondary);
+}
+
+.admin-bulk__row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: var(--spacing-md);
+  margin-bottom: var(--spacing-md);
+}
+
+.admin-bulk__row .admin-field input[type="date"] {
+  padding: 0.5rem 0.75rem;
+  border: 1px solid var(--color-border);
+  border-radius: 6px;
+  font-size: 1rem;
+  font-family: inherit;
+  background: var(--color-bg);
+}
+
+.admin-field--checkbox {
+  padding-bottom: 0.35rem;
+}
+
+.admin-bulk__checklabel {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.95rem;
+  color: var(--color-text);
+  cursor: pointer;
+}
+
+.admin-bulk__times {
+  margin: 0 0 var(--spacing-md);
+  padding: 0;
+  border: none;
+}
+
+.admin-bulk__legend {
+  padding: 0;
+  margin-bottom: var(--spacing-sm);
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--color-text-secondary);
+}
+
+.admin-bulk__time-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--spacing-sm);
+  margin-bottom: var(--spacing-md);
+}
+
+.admin-bulk__time-opt {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.9rem;
+  cursor: pointer;
+  color: var(--color-text);
+}
+
+.admin-field--full {
+  width: 100%;
+  max-width: 28rem;
+}
+
+.admin-bulk__manual {
+  width: 100%;
+  padding: 0.5rem 0.75rem;
+  border: 1px solid var(--color-border);
+  border-radius: 6px;
+  font-size: 0.95rem;
+  font-family: inherit;
+}
+
+.admin-bulk__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--spacing-sm);
+}
+
+.admin-table-wrap--scroll {
+  max-height: min(50vh, 420px);
+  overflow: auto;
+}
+
+.admin-bulk-summary {
+  margin-bottom: var(--spacing-md);
+  font-size: 0.95rem;
+  color: var(--color-text-secondary);
+}
+
+.admin-bulk-summary__line {
+  margin: 0.25rem 0;
+}
+
+.admin-bulk-counts {
+  margin: 0 0 var(--spacing-section);
+  font-size: 0.95rem;
+  color: var(--color-text);
+}
+
+.admin-bulk-confirm {
+  margin-top: var(--spacing-section);
+}
+
 .admin-flash {
   margin: 0 0 var(--spacing-md);
   padding: var(--spacing-sm) var(--spacing-md);

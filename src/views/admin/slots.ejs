@@ -44,6 +44,49 @@
     </form>
   </section>
 
+  <section class="admin-bulk" aria-labelledby="bulk-slot-heading">
+    <h2 id="bulk-slot-heading" class="admin-bulk__title">Hromadné termíny</h2>
+    <p class="admin-bulk__hint">Vyberte rozsah dátumov, časy a zobrazte náhľad. Vytvoria sa len nové bunky; existujúce sa preskočia.</p>
+    <form method="post" action="/admin/slots/bulk/preview" class="admin-bulk__form">
+      <input type="hidden" name="view" value="<%= view %>">
+      <input type="hidden" name="date" value="<%= anchorDate %>">
+      <div class="admin-bulk__row">
+        <div class="admin-field">
+          <label for="bulk-date-from">Od</label>
+          <input id="bulk-date-from" name="dateFrom" type="date" required value="<%= typeof bulkDateFrom !== 'undefined' ? bulkDateFrom : anchorDate %>">
+        </div>
+        <div class="admin-field">
+          <label for="bulk-date-to">Do</label>
+          <input id="bulk-date-to" name="dateTo" type="date" required value="<%= typeof bulkDateTo !== 'undefined' ? bulkDateTo : anchorDate %>">
+        </div>
+        <div class="admin-field admin-field--checkbox">
+          <label class="admin-bulk__checklabel">
+            <input type="checkbox" name="excludeWeekends" value="on" checked>
+            Vylúčiť víkendy
+          </label>
+        </div>
+      </div>
+      <fieldset class="admin-bulk__times">
+        <legend class="admin-bulk__legend">Časy</legend>
+        <div class="admin-bulk__time-grid">
+          <% if (typeof slotTimes !== 'undefined') { for (const t of slotTimes) { %>
+            <label class="admin-bulk__time-opt">
+              <input type="checkbox" name="timeKeys" value="<%= t %>" checked>
+              <span><%= t %></span>
+            </label>
+          <% } } %>
+        </div>
+        <div class="admin-field admin-field--full">
+          <label for="bulk-manual-times">Ďalšie časy (voliteľné, z rovnakého zoznamu, oddelené čiarkou)</label>
+          <input id="bulk-manual-times" name="manualTimes" type="text" class="admin-bulk__manual" placeholder="napr. 08:30, 14:30" autocomplete="off">
+        </div>
+      </fieldset>
+      <div class="admin-bulk__actions">
+        <button type="submit" class="admin-btn admin-btn--primary">Zobraziť náhľad</button>
+      </div>
+    </form>
+  </section>
+
   <nav class="admin-toolbar" aria-label="Obdobie a zobrazenie">
     <div class="admin-toolbar__nav">
       <a class="admin-btn admin-btn--ghost" href="/admin/slots<%= queryPrev %>">← Predchádzajúce</a>

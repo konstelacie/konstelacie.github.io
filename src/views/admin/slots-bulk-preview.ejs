@@ -1,0 +1,73 @@
+<div class="admin-wrap admin-wrap--wide">
+  <header class="admin-header admin-header--bar">
+    <h1 class="admin-title">Náhľad — hromadné termíny</h1>
+    <a class="admin-btn admin-btn--ghost" href="<%= typeof backHref !== 'undefined' ? backHref : '/admin/slots/bulk-cancel' %>">Späť</a>
+  </header>
+
+  <section class="admin-bulk-summary" aria-label="Parametre">
+    <p class="admin-bulk-summary__line"><strong>Obdobie:</strong> <%= from %> — <%= to %></p>
+    <p class="admin-bulk-summary__line"><strong>Víkendy:</strong> <%= excludeWeekends ? 'vylúčené' : 'zahrnuté' %></p>
+    <p class="admin-bulk-summary__line"><strong>Časy:</strong> <%= timeKeys.join(', ') %></p>
+  </section>
+
+  <p class="admin-bulk-counts" role="status">
+    <strong>Vytvorí sa:</strong> <%= newCells.length %> &nbsp;·&nbsp;
+    <strong>Preskočí sa (už existuje):</strong> <%= skippedCells.length %>
+  </p>
+
+  <% if (newCells.length) { %>
+  <section class="admin-day" aria-labelledby="bulk-new-heading">
+    <h2 id="bulk-new-heading" class="admin-day__title">Nové termíny</h2>
+    <div class="admin-table-wrap admin-table-wrap--scroll">
+      <table class="admin-table">
+        <thead>
+          <tr>
+            <th scope="col">Dátum</th>
+            <th scope="col">Čas</th>
+          </tr>
+        </thead>
+        <tbody>
+          <% for (const row of newCells) { %>
+            <tr>
+              <td><%= row.localDate %></td>
+              <td><%= row.timeKey %></td>
+            </tr>
+          <% } %>
+        </tbody>
+      </table>
+    </div>
+  </section>
+  <% } else { %>
+  <p class="admin-placeholder">Žiadne nové termíny — všetky vybrané bunky už v databáze sú.</p>
+  <% } %>
+
+  <% if (skippedCells.length) { %>
+  <section class="admin-day" aria-labelledby="bulk-skip-heading">
+    <h2 id="bulk-skip-heading" class="admin-day__title">Preskočené (už existuje)</h2>
+    <div class="admin-table-wrap admin-table-wrap--scroll">
+      <table class="admin-table">
+        <thead>
+          <tr>
+            <th scope="col">Dátum</th>
+            <th scope="col">Čas</th>
+          </tr>
+        </thead>
+        <tbody>
+          <% for (const row of skippedCells) { %>
+            <tr>
+              <td><%= row.localDate %></td>
+              <td><%= row.timeKey %></td>
+            </tr>
+          <% } %>
+        </tbody>
+      </table>
+    </div>
+  </section>
+  <% } %>
+
+  <% if (newCells.length) { %>
+  <form method="post" action="/admin/slots/bulk/confirm" class="admin-bulk-confirm">
+    <button type="submit" class="admin-btn admin-btn--primary">Vytvoriť <%= newCells.length %> termínov</button>
+  </form>
+  <% } %>
+</div>

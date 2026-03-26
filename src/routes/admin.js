@@ -7,6 +7,13 @@ const { getPool } = require('../db');
 const auditRepo = require('../db/repositories/auditRepo');
 const slotsRepo = require('../db/repositories/slotsRepo');
 const { groupAdminSlotsByDay } = require('../lib/adminSlotDisplay');
+const {
+  parseTimeKeysFromForm,
+  parseExcludeWeekends,
+  buildCandidateCells,
+  partitionCells,
+  mapBulkPreviewError,
+} = require('../lib/bulkSlotCandidates');
 const { requireAdmin } = require('../middleware/requireAdmin');
 
 const router = express.Router();
@@ -134,13 +141,25 @@ function parseSlotIdParam(raw) {
   return id;
 }
 
-function parseReturnQuery(body) {
+function parseReturnAnchor(body) {
   const view = body && body.view === 'week' ? 'week' : 'day';
   const raw = body && typeof body.date === 'string' ? body.date : '';
   const date = /^\d{4}-\d{2}-\d{2}$/.test(raw)
     ? raw
     : DateTime.now().setZone(SLOT_TIMEZONE).toISODate();
+  return { view, date };
+}
+
+function parseReturnQuery(body) {
+  const { view, date } = parseReturnAnchor(body);
   return slotsQuery(view, date);
+}
+
+function sortCellsForDisplay(cells) {
+  return [...cells].sort((a, b) => {
+    if (a.localDate !== b.localDate) return a.localDate.localeCompare(b.localDate);
+    return a.gridIndex - b.gridIndex;
+  });
 }
 
 function parseCreateSlotBody(body) {
@@ -246,6 +265,159 @@ router.post('/slots/create', requireAdmin, async (req, res) => {
   }
 });
 
+router.post('/slots/bulk/preview', requireAdmin, async (req, res) => {
+  const returnTo = `/admin/slots${parseReturnQuery(req.body)}`;
+  const from = req.body && typeof req.body.dateFrom === 'string' ? req.body.dateFrom.trim() : '';
+  const to = req.body && typeof req.body.dateTo === 'string' ? req.body.dateTo.trim() : '';
+  const excludeWeekends = parseExcludeWeekends(req.body);
+  const timeKeys = parseTimeKeysFromForm(req.body);
+
+  const built = buildCandidateCells(from, to, excludeWeekends, timeKeys);
+  if (!built.ok) {
+    req.session.adminFlash = { level: 'error', message: mapBulkPreviewError(built.code) };
+    return res.redirect(returnTo);
+  }
+
+  try {
+    const pool = getPool();
+    if (!pool) {
+      req.session.adminFlash = { level: 'error', message: 'Databáza nie je dostupná.' };
+      return res.redirect(returnTo);
+    }
+
+    const { view, date } = parseReturnAnchor(req.body);
+    req.session.bulkSlotPreview = {
+      from,
+      to,
+      excludeWeekends,
+      timeKeys,
+      returnView: view,
+      returnDate: date,
+    };
+
+    return res.redirect('/admin/slots/bulk-preview');
+  } catch (err) {
+    console.error('[admin/slots/bulk/preview]', err);
+    req.session.adminFlash = { level: 'error', message: 'Nepodarilo sa pripraviť náhľad.' };
+    return res.redirect(returnTo);
+  }
+});
+
+router.get('/slots/bulk-preview', requireAdmin, async (req, res) => {
+  const d = req.session.bulkSlotPreview;
+  if (!d) {
+    return res.redirect('/admin/slots');
+  }
+
+  try {
+    const pool = getPool();
+    if (!pool) {
+      delete req.session.bulkSlotPreview;
+      req.session.adminFlash = { level: 'error', message: 'Databáza nie je dostupná.' };
+      return res.redirect(`/admin/slots${slotsQuery(d.returnView, d.returnDate)}`);
+    }
+
+    const built = buildCandidateCells(d.from, d.to, d.excludeWeekends, d.timeKeys);
+    if (!built.ok) {
+      delete req.session.bulkSlotPreview;
+      req.session.adminFlash = { level: 'error', message: mapBulkPreviewError(built.code) };
+      return res.redirect(`/admin/slots${slotsQuery(d.returnView, d.returnDate)}`);
+    }
+
+    const existing = await slotsRepo.listSlotsCellsInRange(d.from, d.to);
+    const { newCells, skippedCells } = partitionCells(built.cells, existing);
+
+    return res.render('admin/slots-bulk-preview', {
+      layout: 'layouts/admin',
+      title: 'Náhľad — hromadné termíny',
+      from: d.from,
+      to: d.to,
+      excludeWeekends: d.excludeWeekends,
+      timeKeys: d.timeKeys,
+      returnView: d.returnView,
+      returnDate: d.returnDate,
+      newCells: sortCellsForDisplay(newCells),
+      skippedCells: sortCellsForDisplay(skippedCells),
+      backHref: `/admin/slots/bulk-cancel`,
+    });
+  } catch (err) {
+    console.error('[admin/slots/bulk-preview]', err);
+    delete req.session.bulkSlotPreview;
+    return res.redirect('/admin/slots');
+  }
+});
+
+router.post('/slots/bulk/confirm', requireAdmin, async (req, res) => {
+  const d = req.session.bulkSlotPreview;
+  const fallback = d ? `/admin/slots${slotsQuery(d.returnView, d.returnDate)}` : '/admin/slots';
+
+  if (!d) {
+    req.session.adminFlash = { level: 'error', message: 'Relácia vypršala. Pripravte náhľad znova.' };
+    return res.redirect('/admin/slots');
+  }
+
+  try {
+    const pool = getPool();
+    if (!pool) {
+      req.session.adminFlash = { level: 'error', message: 'Databáza nie je dostupná.' };
+      return res.redirect(fallback);
+    }
+
+    const built = buildCandidateCells(d.from, d.to, d.excludeWeekends, d.timeKeys);
+    if (!built.ok) {
+      delete req.session.bulkSlotPreview;
+      req.session.adminFlash = { level: 'error', message: mapBulkPreviewError(built.code) };
+      return res.redirect(fallback);
+    }
+
+    const existing = await slotsRepo.listSlotsCellsInRange(d.from, d.to);
+    const { newCells, skippedCells } = partitionCells(built.cells, existing);
+
+    if (newCells.length === 0) {
+      delete req.session.bulkSlotPreview;
+      req.session.adminFlash = {
+        level: 'success',
+        message: `Žiadne nové termíny (${skippedCells.length} už v databáze).`,
+      };
+      return res.redirect(fallback);
+    }
+
+    const { created } = await slotsRepo.bulkInsertOpenSlots(newCells);
+    await auditRepo.log(
+      'bulk_slots_created',
+      'slot',
+      null,
+      {
+        created,
+        skipped: skippedCells.length,
+        from: d.from,
+        to: d.to,
+        excludeWeekends: d.excludeWeekends,
+        timeKeys: d.timeKeys,
+      },
+      'admin'
+    );
+
+    delete req.session.bulkSlotPreview;
+    req.session.adminFlash = {
+      level: 'success',
+      message: `Vytvorených ${created} termínov. Preskočených (už existovalo): ${skippedCells.length}.`,
+    };
+    return res.redirect(fallback);
+  } catch (err) {
+    console.error('[admin/slots/bulk/confirm]', err);
+    req.session.adminFlash = { level: 'error', message: 'Hromadné vytvorenie zlyhalo.' };
+    return res.redirect(fallback);
+  }
+});
+
+router.get('/slots/bulk-cancel', requireAdmin, (req, res) => {
+  const d = req.session.bulkSlotPreview;
+  delete req.session.bulkSlotPreview;
+  const q = d ? slotsQuery(d.returnView, d.returnDate) : '';
+  res.redirect(`/admin/slots${q}`);
+});
+
 router.post('/slots/:slotId/block', requireAdmin, async (req, res) => {
   await handleSlotPost(req, res, slotsRepo.adminBlockSlot, 'Termín bol zablokovaný.', 'slot_blocked');
 });
@@ -298,6 +470,8 @@ router.get('/slots', requireAdmin, async (req, res) => {
         slotTimes: SLOT_TIMES,
         view,
         anchorDate: dateIso,
+        bulkDateFrom: from,
+        bulkDateTo: to,
         rangeLabel,
         days: [],
         queryPrev,
@@ -319,6 +493,8 @@ router.get('/slots', requireAdmin, async (req, res) => {
       slotTimes: SLOT_TIMES,
       view,
       anchorDate: dateIso,
+      bulkDateFrom: from,
+      bulkDateTo: to,
       rangeLabel,
       days,
       queryPrev,
@@ -337,6 +513,8 @@ router.get('/slots', requireAdmin, async (req, res) => {
       slotTimes: SLOT_TIMES,
       view,
       anchorDate: dateIso,
+      bulkDateFrom: from,
+      bulkDateTo: to,
       rangeLabel,
       days: [],
       queryPrev,

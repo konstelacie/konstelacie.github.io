@@ -1,5 +1,6 @@
 const { SLOT_TIMEZONE } = require('../../config/slotGrid');
 const { computeUtcRangeForCell } = require('../../lib/slotInstants');
+const { mysqlLocalDateToYmd } = require('../../lib/slotApiMap');
 const { getPool } = require('../index');
 
 /**
@@ -225,6 +226,58 @@ async function insertOpenSlot(localDate, gridIndex) {
   }
 }
 
+/**
+ * All (local_date, grid_index) pairs in range for duplicate checks.
+ * @returns {Promise<Set<string>>} keys `YYYY-MM-DD|gridIndex`
+ */
+async function listSlotsCellsInRange(from, to) {
+  const pool = getPool();
+  if (!pool) throw new Error('Database not configured');
+
+  const [rows] = await pool.execute(
+    'SELECT local_date, grid_index FROM slots WHERE local_date >= ? AND local_date <= ?',
+    [from, to]
+  );
+  const set = new Set();
+  for (const r of rows) {
+    set.add(`${mysqlLocalDateToYmd(r.local_date)}|${r.grid_index}`);
+  }
+  return set;
+}
+
+/**
+ * Insert many open slots in one transaction (preview already filtered duplicates).
+ * @param {Array<{ localDate: string, gridIndex: number }>} cells
+ */
+async function bulkInsertOpenSlots(cells) {
+  if (!cells.length) return { created: 0 };
+
+  const pool = getPool();
+  if (!pool) throw new Error('Database not configured');
+
+  const conn = await pool.getConnection();
+  try {
+    await conn.beginTransaction();
+    let n = 0;
+    for (const cell of cells) {
+      const { startUtc, endUtc } = computeUtcRangeForCell(cell.localDate, cell.gridIndex);
+      await conn.execute(
+        `INSERT INTO slots (local_date, grid_index, timezone, start_at_utc, end_at_utc, status, capacity)
+         VALUES (?, ?, ?, ?, ?, 'open', 1)`,
+        [cell.localDate, cell.gridIndex, SLOT_TIMEZONE, startUtc, endUtc]
+      );
+      n += 1;
+    }
+    await conn.commit();
+    return { created: n };
+  } catch (e) {
+    await conn.rollback();
+    throw e;
+  } finally {
+    conn.release();
+  }
+}
+
 module.exports = {
   listSlotsWithLocks,
   getById,
@@ -233,4 +286,6 @@ module.exports = {
   adminUnblockSlot,
   adminCancelSlot,
   insertOpenSlot,
+  listSlotsCellsInRange,
+  bulkInsertOpenSlots,
 };
