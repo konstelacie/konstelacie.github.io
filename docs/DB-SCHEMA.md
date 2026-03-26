@@ -70,7 +70,7 @@ Bookable time slots. Admin-created. See `docs/RESERVATION-SYSTEM-ARCHITECTURE.md
 
 ### slot_locks
 
-15-minute holds on slots. Created by `POST /api/slots/:slotId/lock`. Used for reservation creation.
+Short-lived holds on a slot while the funnel books. **`expires_at`** is set by the API: **`POST /api/slots/:slotId/lock`** starts a **5-minute** window; **`POST /api/slots/:slotId/extend-lock`** resets the window to **15 minutes** from that moment (after email is collected). Used until a reservation is created.
 
 | Column     | Type         | Description              |
 |------------|--------------|--------------------------|
@@ -103,6 +103,7 @@ Links user + slot. Created after lock, before payment. See `docs/RESERVATION-SYS
 | funnel_name  | VARCHAR(32)  | NULL — funnel instance (`pilot`, …) for A/B attribution           |
 | funnel_campaign | VARCHAR(64) | NULL — campaign id from `?campaign=` / `INSTANCE_CAMPAIGNS`     |
 | funnel_video_id | VARCHAR(128) | NULL — logical video id (`videoId` in campaign config)         |
+| admin_note   | TEXT         | NULL — internal note (operator UI: `/admin/reservations/:id`)   |
 | cancelled_at | DATETIME(3)  | NULL. Set when status = cancelled                                |
 | created_at   | DATETIME(3)  |                                                                   |
 | updated_at   | DATETIME(3)  |                                                                   |

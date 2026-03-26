@@ -1,8 +1,9 @@
 # API reference
 
-**Canonical behavior:** Match `src/routes/` and `docs/IMPLEMENTATION-SNAPSHOT.md`. This document describes the public HTTP API.
+**Canonical behavior:** Match `src/routes/` and `docs/IMPLEMENTATION-SNAPSHOT.md`. This document describes the **public JSON HTTP API** under `/api`.
 
 - **JSON API base:** `/api` — all routes below use JSON request/response unless noted.
+- **Operator admin (HTML):** Session-based UI at `/admin` — not JSON; see [Admin (operator UI)](#admin-operator-ui) and `docs/ui-ux/admin-interface.md`.
 - **Stripe webhook:** `POST /api/stripe/webhook` is mounted **separately** in `src/app.js` (raw body for signatures). It does **not** go through the same middleware stack as `/api/*` from `src/routes/api/index.js`.
 
 ---
@@ -382,7 +383,17 @@ INSERT INTO slots (local_date, grid_index, timezone, start_at_utc, end_at_utc, s
 
 ---
 
+## Admin (operator UI)
+
+**Not a JSON API.** The internal admin is **HTML + form posts** under **`/admin`**, with cookie session (`admin.sid`). Credentials: `ADMIN_USERNAME` / `ADMIN_PASSWORD`; `SESSION_SECRET` signs the session in production.
+
+**Purpose:** Slot management (create, bulk, block/unblock/cancel), reservation list/detail, operator actions (confirm/cancel reservation, notes, external-handling note). Full route list and UX: `docs/ui-ux/admin-interface.md` and `docs/IMPLEMENTATION-SNAPSHOT.md` — Admin section.
+
+There is **no** public **`/api/admin/*`** or REST surface for these actions today.
+
+---
+
 ## Not implemented (tracked for later)
 
-- `POST /api/reservations/:id/cancel`
-- Admin HTTP API (e.g. slot CRUD)
+- `POST /api/reservations/:id/cancel` (public cancel; admin cancel exists at `/admin/reservations/:id/cancel`)
+- JSON **REST** admin API (optional future; operator UI is HTML form posts)

@@ -364,7 +364,7 @@ Ak by Meet u vás nefungoval, môžeme použiť aj inú platformu.
 
 | Item | Rationale |
 |------|------------|
-| **Operator manual email** | No admin UI yet. |
+| **Operator manual email** | Internal admin at `/admin` exists (`docs/ui-ux/admin-interface.md`), but there is **no** compose/send-to-client email action yet — only transactional + cron templates. |
 | **Customizable templates** | Fixed templates in repo for now. |
 | **Follow-up / doplatok emails** | Needs session-completion flow + product rules. |
 | **Delivery status webhooks** | Optional. |
@@ -399,7 +399,7 @@ Ak by Meet u vás nefungoval, môžeme použiť aj inú platformu.
 
 5. **Webhook path:** `sendConfirmationEmailAsync` — no `await` in the request path; errors logged.
 
-6. **Operator emails:** Still future (no admin).
+6. **Operator-composed emails:** Still future — admin UI is present for slots/reservations, but **sending** ad-hoc mail to a client from the app is not implemented (`docs/IMPLEMENTATION-PLAN.md` §3C).
 
 7. **Follow-up / doplatok / newsletter:** Still future or product-dependent.
 

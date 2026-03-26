@@ -20,15 +20,15 @@
 
 ---
 
-## 2. Admin / operator — slots and bookings
+## 2. Admin / operator — gaps after internal UI
 
 | | |
 |---|--|
-| **Item** | Admin HTTP API or secured UI for **slot CRUD** (create/edit `slots`), optional reservation list/actions |
-| **Current state** | Slots inserted via SQL / external tools; `docs/API.md` notes “Admin HTTP API (e.g. slot CRUD)” as not implemented. |
-| **Target** | Authenticated admin routes or separate admin app; create `open` slots in `Europe/Bratislava` (or configured TZ). |
-| **Dependencies** | Auth model (session, API key, or alwaysdata SSO); rate limits; CSRF if cookie-based. |
-| **Definition of done** | At least create/list slots without raw SQL; documented in `docs/API.md` or dedicated admin doc. |
+| **Item** | Hardening and optional extras beyond the **session HTML admin** at `/admin` |
+| **Current state** | **Implemented:** `src/routes/admin.js` — login, slot grid, single + bulk create, block/unblock/cancel slot, reservation list/detail, confirm/cancel reservation, `admin_note`, external-handling note. **Docs:** `docs/ui-ux/admin-interface.md`, `docs/IMPLEMENTATION-SNAPSHOT.md`, `docs/API.md` (Admin section). Env: `ADMIN_USERNAME`, `ADMIN_PASSWORD`, `SESSION_SECRET`. |
+| **Target** | Product-dependent: CSRF tokens on admin forms, rate limiting, optional **JSON admin API** for automation, SSO — only if needed. |
+| **Dependencies** | Same admin auth; Stripe refunds if cancel-with-refund is added (`docs/STRIPE-ARCHITECTURE.md`). |
+| **Definition of done** | Scoped per sub-feature; update snapshot + `docs/API.md` if a new public contract appears. |
 
 ---
 
@@ -52,10 +52,10 @@
 
 | | |
 |---|--|
-| **Item C** | **Operator-assisted / manual emails** (admin UI or internal tool) |
-| **Current state** | Described in `docs/EMAILING.md` as future; no admin. |
+| **Item C** | **Operator-assisted / manual emails** (compose + send from admin) |
+| **Current state** | `docs/EMAILING.md` — transactional email only. **Admin UI exists** (`/admin`) but **no** “send email to client” action yet. |
 | **Target** | Send to reservation/user with audit; optional template slot for body. |
-| **Dependencies** | Admin auth (same as §2); optional `email_sent_log.actor_type` = admin. |
+| **Dependencies** | Admin auth (§2); optional `email_sent_log.actor_type` = admin. |
 | **Definition of done** | At least one path to send logged mail; documented. |
 
 ---
@@ -130,11 +130,12 @@
 
 ## 9. Suggested priority order (opinion)
 
-1. **Admin slot creation** (§2) — unblocks testing without SQL.  
-2. **Cancel reservation** (§1) — if product needs it before launch.  
-3. **Cron lock + email retries** (§3A–B) — before production traffic.  
+1. **Cancel reservation (public)** (§1) — if product needs it before launch.  
+2. **Cron lock + email retries** (§3A–B) — before production traffic.  
+3. **Operator manual email** (§3C) — if needed before launch; admin shell already exists.  
 4. **Stripe refunds** (§6) — when cancellation/refund policy exists.  
-5. Remaining items by product timeline.
+5. **Admin hardening** (§2) — CSRF / rate limits as traffic warrants.  
+6. Remaining items by product timeline.
 
 ---
 
@@ -142,7 +143,8 @@
 
 | Doc | Role |
 |-----|------|
-| `docs/API.md` | What exists today |
+| `docs/API.md` | Public JSON API + admin UI pointer |
+| `docs/ui-ux/admin-interface.md` | Admin UI routes and UX |
 | `docs/IMPLEMENTATION-SNAPSHOT.md` | Code-first facts |
 | `docs/STRIPE-ARCHITECTURE.md` | Stripe behavior |
 | `docs/SCHEDULED-EMAILS-CRON.md` | Cron + jobs |

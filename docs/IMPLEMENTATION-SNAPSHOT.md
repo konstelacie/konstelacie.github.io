@@ -1,8 +1,8 @@
 # Implementation snapshot (code-first)
 
-**Purpose:** Point-in-time inventory of what the codebase actually does. **HTTP details:** `docs/API.md`. **Tables/columns:** `docs/DB-SCHEMA.md`. **Planned / not built yet:** `docs/IMPLEMENTATION-PLAN.md`. Regenerate or update this file when making large behavior changes.
+**Purpose:** Point-in-time inventory of what the codebase actually does. **HTTP details (public JSON):** `docs/API.md`. **Tables/columns:** `docs/DB-SCHEMA.md`. **Planned / not built yet:** `docs/IMPLEMENTATION-PLAN.md`. Regenerate or update this file when making large behavior changes.
 
-**Generated:** 2026-03-23 (from repository state).
+**Generated:** 2026-03-26 (from repository state).
 
 ---
 
@@ -10,14 +10,16 @@
 
 - **Server:** Express (`src/app.js`).
 - **Views:** EJS + `express-ejs-layouts`; views under `src/views/`.
-- **Static files:** `GET /assets/*` → `public/assets/` (not the repo root `public/` alone; path is `public/assets`).
+- **Static files:** `GET /assets/*` → `public/assets/` (path is `public/assets`).
 
 **Middleware order (relevant):**
 
 1. `POST /api/stripe/webhook` — raw body (`express.raw({ type: 'application/json' })`) for Stripe signature verification.
-2. `express.json()`, `express.urlencoded`, `cookie-parser`.
-3. `GET /assets` static.
-4. Mount order: `/api` → funnel routes → index (`/`) → static (`/robots.txt`, `/sitemap.xml`) → `/health`.
+2. `express.json()`, `express.urlencoded({ extended: true })`, `cookie-parser`.
+3. `express-session` — admin session cookie `admin.sid` (see `src/app.js`).
+4. `morgan` in non-production.
+5. `GET /assets` static.
+6. **Mount order:** `/api` → `/admin` → funnel routes (`/`) → index (`/`) → static (`/robots.txt`, `/sitemap.xml`) → `/health`.
 
 ---
 
@@ -35,15 +37,46 @@
 | GET | `/sitemap.xml` | File from repo root `sitemap.xml`. |
 | GET | `/health` | JSON DB health (`src/routes/health.js`). |
 
+### Admin (HTML, session — not JSON API)
+
+**Router:** `src/routes/admin.js`, base path **`/admin`**. **UI/UX spec:** `docs/ui-ux/admin-interface.md`.
+
+**Auth:** `ADMIN_USERNAME` + `ADMIN_PASSWORD` (`src/config/index.js`); session signed with `SESSION_SECRET` (required in production; dev fallback in `app.js` if unset). Not configured → login shows a “not configured” state.
+
+| Method | Path | Purpose |
+|--------|------|---------|
+| GET | `/admin` | Redirect → `/admin/login` or `/admin/slots` if logged in. |
+| GET | `/admin/login` | Login form. |
+| POST | `/admin/login` | Authenticate; redirect with `next` (same-origin `/admin/*` only). |
+| POST | `/admin/logout` | End session. |
+| GET | `/admin/slots` | Slot grid / management. |
+| POST | `/admin/slots/create` | Create slot(s). |
+| POST | `/admin/slots/bulk/preview` | Bulk slot preview. |
+| GET | `/admin/slots/bulk-preview` | Bulk preview page. |
+| POST | `/admin/slots/bulk/confirm` | Confirm bulk create. |
+| GET | `/admin/slots/bulk-cancel` | Cancel bulk flow. |
+| POST | `/admin/slots/:slotId/block` | Block slot. |
+| POST | `/admin/slots/:slotId/unblock` | Unblock slot. |
+| POST | `/admin/slots/:slotId/cancel` | Cancel slot (admin). |
+| GET | `/admin/reservations` | Reservation list (filters). |
+| GET | `/admin/reservations/:id` | Reservation detail. |
+| POST | `/admin/reservations/:id/confirm` | Confirm reservation (admin). |
+| POST | `/admin/reservations/:id/cancel` | Cancel reservation (admin). |
+| POST | `/admin/reservations/:id/note` | Set `admin_note`. |
+| POST | `/admin/reservations/:id/external` | Append external-handling note. |
+
+There is **no** public **`/api/admin/*`** JSON surface; operator actions are form posts to `/admin/*`.
+
 ### API (`/api` prefix)
 
-All JSON APIs use `requestId` middleware except where noted. Base: `src/routes/api/index.js`.
+All JSON APIs use `requestId` middleware. Base: `src/routes/api/index.js`.
 
 | Method | Path | Purpose |
 |--------|------|---------|
 | POST | `/api/revoke` | Revoke slot lock (`slotId`, `lockToken` in body/query/header `X-Lock-Token`). |
 | GET | `/api/slots` | List slots in date range (`from`, `to` query). Response includes `grid` metadata and per-slot `localDate`, `gridIndex`, `timeKey` for UI placement. Optional `lockToken` for “my” lock. |
-| POST | `/api/slots/:slotId/lock` | Create 15-minute lock; body `email` optional. |
+| POST | `/api/slots/:slotId/lock` | Create **5-minute** hold; body `email` optional. |
+| POST | `/api/slots/:slotId/extend-lock` | Extend hold to **15 minutes** from now; body `lockToken` + `email` (required). |
 | GET | `/api/reservations/:id/status` | Reservation + latest payment status. |
 | POST | `/api/reservations` | Create reservation from lock; body includes funnel attribution (`funnelName` / `funnel`, `funnelCampaign` / `campaign`). |
 | GET | `/api/payments/status` | Query `session_id` (`cs_...`) — payment + reservation + slot summary. |
@@ -77,6 +110,8 @@ All JSON APIs use `requestId` middleware except where noted. Base: `src/routes/a
 | `BASE_URL` | Success/cancel URLs for Checkout; fallback `req.protocol` + host. |
 | `RESEND_API_KEY`, `RESEND_FROM_EMAIL`, `RESEND_FROM_NAME` | Resend email (`src/email/provider.js`, `src/config/index.js`). |
 | `CRON_SECRET` | Cron auth (`Authorization: Bearer`, `X-Cron-Secret`, or `?secret=`); dev localhost bypass. |
+| `ADMIN_USERNAME`, `ADMIN_PASSWORD` | Internal admin login (`src/config/index.js`). |
+| `SESSION_SECRET` | Signs admin session cookie; required in production (`src/app.js`). |
 
 ---
 
@@ -93,8 +128,8 @@ All JSON APIs use `requestId` middleware except where noted. Base: `src/routes/a
 | `schema_migrations` | Migration runner bookkeeping. |
 | `users` | Identity by email. |
 | `slots` | Bookable slots (`status`: open, blocked, cancelled). |
-| `slot_locks` | Short-lived locks (`lock_token` UUID, `expires_at`). |
-| `reservations` | Booking workflow (`status`: draft, pending_payment, confirmed, cancelled, expired); funnel fields `funnel_name`, `funnel_campaign`, `funnel_video_id`. |
+| `slot_locks` | Short-lived locks (`lock_token` UUID, `expires_at` — duration set by API: 5 min after lock, 15 min after extend). |
+| `reservations` | Booking workflow (`status`: draft, pending_payment, confirmed, cancelled, expired); funnel fields; optional `admin_note`. |
 | `payments` | Stripe Checkout (`provider_ref` = session id `cs_...`; unique); `payment_type` deposit, session, topup. |
 | `webhook_events` | Stripe `evt_...` idempotency. |
 | `email_sent_log` | Transactional email audit. |
@@ -104,7 +139,8 @@ All JSON APIs use `requestId` middleware except where noted. Base: `src/routes/a
 
 ## Booking / payment constants (code)
 
-- **Lock duration:** 15 minutes (`src/routes/api/slots.js`, `LOCK_DURATION_MS`).
+- **Lock (before email):** 5 minutes — `LOCK_HOLD_BEFORE_EMAIL_MS` in `src/routes/api/slots.js`.
+- **Lock (after email, until payment):** 15 minutes — `LOCK_HOLD_AFTER_EMAIL_MS` (applied by `POST /api/slots/:slotId/extend-lock`).
 - **Deposit (first payment):** 1000 cents (10 €) — `DEPOSIT_CENTS_FIRST` in `src/routes/api/payments.js`.
 - **Full payment minimum:** 45 € → validated as amount ≥ 45 in reservations and payments; stored in cents in DB (`amount * 100` in payments flow for full).
 - **Timezone (UI date defaults):** `Europe/Bratislava` for funnel booking date min/max and copy.
@@ -151,6 +187,8 @@ Loaded by funnel template (see `funnels.js` `extraStyles` / `extraScripts`):
 
 **Template IDs (logging):** `reservation-confirmation`, `pre-session-reminder` (see `emailService` / `preSessionReminder.js`).
 
+**Operator-composed email** from admin is **not** implemented; transactional sends only (see `docs/EMAILING.md`).
+
 ---
 
 ## Cron / scheduled jobs
@@ -163,15 +201,15 @@ Loaded by funnel template (see `funnels.js` `extraStyles` / `extraScripts`):
 
 ## Related config modules
 
-- `src/config/index.js` — port, env, db, Resend, cron secret.
+- `src/config/index.js` — port, env, db, Resend, cron secret, admin credentials.
 - `src/config/database.js` — pool creation guard (needs host, user, database).
 - `src/config/funnelVideo.js` — campaign video resolution for EJS.
+- `src/config/slotGrid.js` — grid times / timezone helpers used by API and admin.
 
 ---
 
 ## Out of scope for this snapshot
 
-- **Admin UI** or scripts not under `src/routes` (if any).
 - **Detailed** repository query logic (see `src/db/repositories/`).
 - **Marketing / creative** file listing beyond funnel video config — see `docs/CREATIVE-MEDIA.md` and `public/assets/media/funnel/`.
 
