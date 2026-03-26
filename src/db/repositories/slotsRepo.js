@@ -46,4 +46,42 @@ async function getById(slotId) {
   return rows[0] ?? null;
 }
 
-module.exports = { listSlotsWithLocks, getById };
+/**
+ * Admin listing: all slots in [from, to] by local_date (no public 24h booking window filter).
+ * Includes active lock and active reservation (pending_payment | confirmed) for display.
+ * from/to: ISO date strings YYYY-MM-DD.
+ */
+async function listSlotsForAdmin(from, to) {
+  const pool = getPool();
+  if (!pool) throw new Error('Database not configured');
+
+  const [rows] = await pool.execute(
+    `SELECT
+      s.id,
+      s.local_date,
+      s.grid_index,
+      s.start_at_utc,
+      s.end_at_utc,
+      s.timezone,
+      s.status AS slot_status,
+      s.capacity,
+      l.id AS lock_id,
+      l.email AS lock_email,
+      l.expires_at AS lock_expires_at,
+      r.id AS reservation_id,
+      r.email AS reservation_email,
+      r.status AS reservation_status
+    FROM slots s
+    LEFT JOIN slot_locks l ON l.slot_id = s.id AND l.expires_at > NOW(3)
+    LEFT JOIN reservations r
+      ON r.slot_id = s.id AND r.status IN ('pending_payment', 'confirmed')
+    WHERE s.local_date >= ?
+      AND s.local_date <= ?
+    ORDER BY s.local_date ASC, s.grid_index ASC`,
+    [from, to]
+  );
+
+  return rows;
+}
+
+module.exports = { listSlotsWithLocks, getById, listSlotsForAdmin };

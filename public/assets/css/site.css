@@ -605,3 +605,125 @@ a:hover {
   color: var(--color-text);
   border-color: var(--color-text-muted);
 }
+
+.admin-wrap--wide {
+  max-width: min(960px, 100%);
+}
+
+.admin-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--spacing-md);
+  margin-bottom: var(--spacing-section);
+  padding-bottom: var(--spacing-md);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.admin-toolbar__nav {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--spacing-sm);
+}
+
+.admin-toolbar__range {
+  font-weight: 500;
+  color: var(--color-text);
+  min-width: 10ch;
+}
+
+.admin-toolbar__toggle {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--spacing-sm);
+}
+
+.admin-day {
+  margin-bottom: var(--spacing-section-lg);
+}
+
+.admin-day__title {
+  margin: 0 0 var(--spacing-md);
+  font-size: 1.05rem;
+  font-weight: 600;
+  color: var(--color-text);
+}
+
+.admin-day__empty {
+  margin: 0;
+  color: var(--color-text-muted);
+  font-size: 0.95rem;
+}
+
+.admin-table-wrap {
+  overflow-x: auto;
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+}
+
+.admin-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.95rem;
+}
+
+.admin-table th,
+.admin-table td {
+  padding: 0.5rem 0.75rem;
+  text-align: left;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.admin-table th {
+  font-weight: 600;
+  color: var(--color-text-secondary);
+  background: var(--color-booking-surface);
+}
+
+.admin-table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.admin-table__email {
+  word-break: break-word;
+}
+
+.admin-status {
+  display: inline-block;
+  padding: 0.15rem 0.45rem;
+  border-radius: 4px;
+  font-size: 0.875rem;
+  font-weight: 500;
+}
+
+.admin-status--open {
+  background: var(--color-booking-accent-softer);
+  color: var(--color-text-secondary);
+}
+
+.admin-status--locked {
+  background: var(--color-booking-accent-soft);
+  color: var(--color-primary);
+}
+
+.admin-status--blocked {
+  background: var(--color-booking-accent-softer);
+  color: var(--color-text-secondary);
+}
+
+.admin-status--reserved {
+  background: var(--color-booking-accent-soft);
+  color: var(--color-booking-accent);
+}
+
+.admin-status--confirmed {
+  background: var(--color-booking-accent-soft);
+  color: var(--color-text);
+}
+
+.admin-status--cancelled {
+  background: var(--color-booking-accent-softer);
+  color: var(--color-text-muted);
+}

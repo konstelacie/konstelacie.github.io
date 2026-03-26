@@ -1,4 +1,4 @@
-<div class="admin-wrap">
+<div class="admin-wrap admin-wrap--wide">
   <header class="admin-header admin-header--bar">
     <h1 class="admin-title">Termíny</h1>
     <form method="post" action="/admin/logout">
@@ -6,5 +6,57 @@
     </form>
   </header>
 
-  <p class="admin-placeholder">Správa termínov sa pripravuje.</p>
+  <% if (typeof loadError !== 'undefined' && loadError) { %>
+    <p class="admin-error" role="alert">Nepodarilo sa načítať termíny. Skúste znova neskôr.</p>
+  <% } %>
+
+  <% if (typeof dbConfigured !== 'undefined' && !dbConfigured) { %>
+    <p class="admin-error" role="alert">Databáza nie je nakonfigurovaná — zobrazenie termínov nie je k dispozícii.</p>
+  <% } %>
+
+  <% if (typeof dbConfigured !== 'undefined' && dbConfigured) { %>
+  <nav class="admin-toolbar" aria-label="Obdobie a zobrazenie">
+    <div class="admin-toolbar__nav">
+      <a class="admin-btn admin-btn--ghost" href="/admin/slots<%= queryPrev %>">← Predchádzajúce</a>
+      <span class="admin-toolbar__range"><%= rangeLabel %></span>
+      <a class="admin-btn admin-btn--ghost" href="/admin/slots<%= queryNext %>">Ďalšie →</a>
+    </div>
+    <div class="admin-toolbar__toggle" role="group" aria-label="Rozsah kalendára">
+      <a class="admin-btn <%= view === 'day' ? 'admin-btn--primary' : 'admin-btn--ghost' %>" href="/admin/slots<%= queryDayToggle %>">Deň</a>
+      <a class="admin-btn <%= view === 'week' ? 'admin-btn--primary' : 'admin-btn--ghost' %>" href="/admin/slots<%= queryWeekToggle %>">Týždeň</a>
+    </div>
+  </nav>
+
+  <% if (typeof days !== 'undefined' && days.length) { %>
+    <% for (const day of days) { %>
+      <section class="admin-day" aria-labelledby="day-<%= day.date %>">
+        <h2 id="day-<%= day.date %>" class="admin-day__title"><%= day.heading %></h2>
+        <% if (!day.slots.length) { %>
+          <p class="admin-day__empty">Žiadne termíny.</p>
+        <% } else { %>
+          <div class="admin-table-wrap">
+            <table class="admin-table">
+              <thead>
+                <tr>
+                  <th scope="col">Čas</th>
+                  <th scope="col">Stav</th>
+                  <th scope="col">E-mail</th>
+                </tr>
+              </thead>
+              <tbody>
+                <% for (const slot of day.slots) { %>
+                  <tr>
+                    <td><%= slot.timeKey %></td>
+                    <td><span class="admin-status admin-status--<%= slot.statusKey %>"><%= slot.statusLabel %></span></td>
+                    <td class="admin-table__email"><%= slot.email ? slot.email : '—' %></td>
+                  </tr>
+                <% } %>
+              </tbody>
+            </table>
+          </div>
+        <% } %>
+      </section>
+    <% } %>
+  <% } %>
+  <% } %>
 </div>

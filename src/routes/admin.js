@@ -1,6 +1,11 @@
 const crypto = require('crypto');
+const { DateTime } = require('luxon');
 const express = require('express');
 const config = require('../config');
+const { SLOT_TIMEZONE } = require('../config/slotGrid');
+const { getPool } = require('../db');
+const slotsRepo = require('../db/repositories/slotsRepo');
+const { groupAdminSlotsByDay } = require('../lib/adminSlotDisplay');
 const { requireAdmin } = require('../middleware/requireAdmin');
 
 const router = express.Router();
@@ -96,11 +101,108 @@ router.post('/logout', (req, res) => {
   });
 });
 
-router.get('/slots', requireAdmin, (req, res) => {
-  res.render('admin/slots', {
-    layout: 'layouts/admin',
-    title: 'Termíny — administrácia',
-  });
+function parseView(raw) {
+  return raw === 'week' ? 'week' : 'day';
+}
+
+function parseAnchorDate(raw) {
+  if (raw && /^\d{4}-\d{2}-\d{2}$/.test(raw)) {
+    const d = DateTime.fromISO(raw, { zone: SLOT_TIMEZONE });
+    if (d.isValid) return d.startOf('day');
+  }
+  return DateTime.now().setZone(SLOT_TIMEZONE).startOf('day');
+}
+
+function resolveDateRange(view, anchor) {
+  if (view === 'week') {
+    const monday = anchor.minus({ days: anchor.weekday - 1 });
+    const sunday = monday.plus({ days: 6 });
+    return { from: monday.toISODate(), to: sunday.toISODate() };
+  }
+  const d = anchor.startOf('day');
+  return { from: d.toISODate(), to: d.toISODate() };
+}
+
+function slotsQuery(view, dateIso) {
+  return `?view=${encodeURIComponent(view)}&date=${encodeURIComponent(dateIso)}`;
+}
+
+router.get('/slots', requireAdmin, async (req, res) => {
+  const view = parseView(req.query.view);
+  const anchor = parseAnchorDate(typeof req.query.date === 'string' ? req.query.date : '');
+  const { from, to } = resolveDateRange(view, anchor);
+  const dateIso = anchor.toISODate();
+
+  const prevAnchor = anchor.plus({ days: view === 'week' ? -7 : -1 });
+  const nextAnchor = anchor.plus({ days: view === 'week' ? 7 : 1 });
+
+  const queryPrev = slotsQuery(view, prevAnchor.toISODate());
+  const queryNext = slotsQuery(view, nextAnchor.toISODate());
+  const queryDayToggle = slotsQuery('day', dateIso);
+  const queryWeekToggle = slotsQuery('week', dateIso);
+
+  let rangeLabel;
+  if (view === 'week') {
+    const fromDt = DateTime.fromISO(from, { zone: SLOT_TIMEZONE });
+    const toDt = DateTime.fromISO(to, { zone: SLOT_TIMEZONE });
+    rangeLabel = `${fromDt.setLocale('sk').toLocaleString(DateTime.DATE_MED)} — ${toDt.setLocale('sk').toLocaleString(DateTime.DATE_MED)}`;
+  } else {
+    rangeLabel = anchor.setLocale('sk').toLocaleString(DateTime.DATE_MED_WITH_WEEKDAY);
+  }
+
+  try {
+    const pool = getPool();
+    if (!pool) {
+      return res.render('admin/slots', {
+        layout: 'layouts/admin',
+        title: 'Termíny — administrácia',
+        dbConfigured: false,
+        loadError: false,
+        view,
+        anchorDate: dateIso,
+        rangeLabel,
+        days: [],
+        queryPrev,
+        queryNext,
+        queryDayToggle,
+        queryWeekToggle,
+      });
+    }
+
+    const rows = await slotsRepo.listSlotsForAdmin(from, to);
+    const days = groupAdminSlotsByDay(rows, from, to);
+
+    return res.render('admin/slots', {
+      layout: 'layouts/admin',
+      title: 'Termíny — administrácia',
+      dbConfigured: true,
+      loadError: false,
+      view,
+      anchorDate: dateIso,
+      rangeLabel,
+      days,
+      queryPrev,
+      queryNext,
+      queryDayToggle,
+      queryWeekToggle,
+    });
+  } catch (err) {
+    console.error('[admin/slots]', err);
+    return res.status(500).render('admin/slots', {
+      layout: 'layouts/admin',
+      title: 'Termíny — administrácia',
+      dbConfigured: !!getPool(),
+      loadError: true,
+      view,
+      anchorDate: dateIso,
+      rangeLabel,
+      days: [],
+      queryPrev,
+      queryNext,
+      queryDayToggle,
+      queryWeekToggle,
+    });
+  }
 });
 
 module.exports = router;
