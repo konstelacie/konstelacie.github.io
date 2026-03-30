@@ -244,7 +244,7 @@
       phaseEl.textContent =
         'Termín držíme pre Teba. Dokonči prosím platbu, aby bol potvrdený.';
     } else if (mode === 'email-edit') {
-      title.textContent = 'Uprav e-mail';
+      title.textContent = 'Zmeniť e-mail';
       phaseEl.textContent = 'Tento termín držíme pre Teba. Uprav e-mail a pokračuj k platbe.';
     } else {
       title.textContent = 'Pokračuj v rezervácii termínu';
