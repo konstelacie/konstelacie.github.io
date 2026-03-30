@@ -285,14 +285,13 @@
     if (!title || !phaseEl) return;
     if (mode === 'payment') {
       title.textContent = 'Vyber spôsob platby';
-      phaseEl.textContent =
-        'Termín držíme pre Teba. Dokonči prosím platbu, aby bol potvrdený.';
+      phaseEl.textContent = 'Zvoľ možnosť nižšie. Platbu dokončíš v ďalšom kroku.';
     } else if (mode === 'email-edit') {
       title.textContent = 'Zmeniť e-mail';
-      phaseEl.textContent = 'Tento termín držíme pre Teba. Uprav e-mail a pokračuj k platbe.';
+      phaseEl.textContent = 'Uprav e-mail nižšie.';
     } else {
       title.textContent = 'Pokračuj v rezervácii termínu';
-      phaseEl.textContent = 'Tento termín držíme pre Teba. Pokračuj zadaním e-mailu.';
+      phaseEl.textContent = 'Pokračuj zadaním e-mailu.';
     }
   }
 
