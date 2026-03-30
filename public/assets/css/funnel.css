@@ -388,6 +388,7 @@ a.funnel-scroll-hint__arrow:focus-visible {
 
 .booking-calendar__expand-row {
   margin: 0.15rem 0 0;
+  text-align: center;
 }
 
 .booking-calendar__expand-btn {
