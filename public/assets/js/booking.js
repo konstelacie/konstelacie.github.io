@@ -209,8 +209,8 @@
     SLOT_NOT_OPEN: 'Termín nie je dostupný.',
     LOCK_INVALID: 'Vypršal čas podržania. Vyber termín znova.',
     LOCK_EXPIRED: 'Vypršal čas podržania. Vyber termín znova.',
-    SLOT_RESERVED: 'Termín je už rezervovaný.',
-    SLOT_ALREADY_RESERVED: 'Termín je už rezervovaný.',
+    SLOT_RESERVED: 'Termín už nie je voľný.',
+    SLOT_ALREADY_RESERVED: 'Termín už nie je voľný.',
     INTERNAL_ERROR: 'Niečo sa pokazilo. Skús neskôr.',
   };
 
@@ -242,13 +242,13 @@
     if (mode === 'payment') {
       title.textContent = 'Vyber spôsob platby';
       phaseEl.textContent =
-        'Termín máš rezervovaný. Dokonči prosím platbu, aby zostal potvrdený.';
+        'Termín držíme pre Teba. Dokonči prosím platbu, aby bol potvrdený.';
     } else if (mode === 'email-edit') {
       title.textContent = 'Uprav e-mail';
-      phaseEl.textContent = 'Tento termín pre Teba držíme. Uprav e-mail a pokračuj k platbe.';
+      phaseEl.textContent = 'Tento termín držíme pre Teba. Uprav e-mail a pokračuj k platbe.';
     } else {
-      title.textContent = 'Ešte jeden krok a termín máš rezervovaný';
-      phaseEl.textContent = 'Tento termín pre Teba držíme. Pokračuj zadaním e-mailu.';
+      title.textContent = 'Pokračuj v rezervácii termínu';
+      phaseEl.textContent = 'Tento termín držíme pre Teba. Pokračuj zadaním e-mailu.';
     }
   }
 
@@ -379,7 +379,7 @@
       return { label: 'Obsadené', disabled: true, busy: false, state: 'confirmed-other', primary: false };
     }
     if (slot.isLocked && !slot.isMyLock) {
-      return { label: 'Práve rezervované', disabled: true, busy: false, state: 'locked-other', primary: false };
+      return { label: 'Práve držané', disabled: true, busy: false, state: 'locked-other', primary: false };
     }
     if (slot.isMyLock) {
       return { label: 'Tvoj výber', disabled: true, busy: false, state: 'locked-me', primary: true };
@@ -387,7 +387,7 @@
     if (pendingSlotId === slot.id) {
       const dayPart = slot.localDate ? formatDayTitleFromDateStr(slot.localDate) : '';
       const t = slot.timeKey || '';
-      const desc = dayPart && t ? `Rezervuješ: ${dayPart}, ${t}` : 'Rezervuješ…';
+      const desc = dayPart && t ? `Vybraný termín: ${dayPart}, ${t}` : 'Vybraný termín…';
       return { label: desc, disabled: true, busy: true, state: 'pending', primary: false };
     }
     if (lockToken) {
@@ -401,7 +401,7 @@
    * @param {string} timeLineFirst — visible line: time (same for grid and hero)
    * @param {{ nearest?: boolean, heroSubLine?: string }} [opts] — hero shows heroSubLine under time; grid does not
    */
-  const SLOT_ACTION_HINT = 'Kliknutím začneš rezerváciu';
+  const SLOT_ACTION_HINT = 'Začať rezerváciu';
 
   function buildSlotButtonHtml(slot, timeLineFirst, opts) {
     const nearest = !!(opts && opts.nearest);
@@ -506,7 +506,7 @@
           const dayPart = ps.localDate ? formatDayTitleFromDateStr(ps.localDate) : '';
           const t = ps.timeKey || '';
           pendingBanner.textContent =
-            dayPart && t ? `Rezervuješ: ${dayPart}, ${t}` : 'Rezervuješ…';
+            dayPart && t ? `Vybraný termín: ${dayPart}, ${t}` : 'Vybraný termín…';
           pendingBanner.hidden = false;
         } else {
           pendingBanner.hidden = true;

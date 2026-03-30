@@ -12,9 +12,9 @@
       <div id="booking-calendar-inner" class="booking-calendar__inner" hidden>
         <div class="booking-calendar__microhints">
           <p class="booking-calendar__microhints-line">Zvyčajne voľné 1–3 termíny denne</p>
-          <p class="booking-calendar__tap-hint muted">Kliknutím začneš rezerváciu</p>
         </div>
         <p id="booking-slot-pending" class="booking-calendar__pending muted" hidden aria-live="polite"></p>
+        <p class="booking-calendar__grid-hint">Kliknutím začneš rezerváciu</p>
         <div id="booking-calendar-hero" class="booking-calendar__hero" hidden>
           <p class="booking-calendar__hero-label">Najbližší voľný termín:</p>
           <div id="booking-hero-slot-host" class="booking-calendar__hero-slot-host" role="group" aria-label="Najbližší voľný termín"></div>
@@ -28,7 +28,7 @@
     </section>
 
     <div id="booking-hold-banner" class="booking-hold-banner" hidden>
-      <p id="booking-hold-message"><strong>Termín je rezervovaný.</strong> Dokonči platbu do 15 minút.</p>
+      <p id="booking-hold-message"><strong>Termín držíme pre Teba.</strong> Dokonči platbu do 15 minút.</p>
       <p id="booking-countdown" class="booking-countdown" aria-live="polite">15:00</p>
       <button type="button" id="booking-revoke-btn" class="booking-revoke-btn">Uvoľniť termín</button>
     </div>
@@ -51,9 +51,9 @@
       aria-labelledby="booking-modal-title"
     >
       <button type="button" id="booking-modal-close" class="booking-modal__close" aria-label="Zavrieť">×</button>
-      <h3 id="booking-modal-title" class="booking-modal__title">Ešte jeden krok a termín máš rezervovaný</h3>
+      <h3 id="booking-modal-title" class="booking-modal__title">Pokračuj v rezervácii termínu</h3>
       <p id="booking-modal-phase" class="booking-modal__phase">
-        Tento termín pre Teba držíme. Pokračuj zadaním e-mailu.
+        Tento termín držíme pre Teba. Pokračuj zadaním e-mailu.
       </p>
       <p id="booking-modal-countdown" class="booking-modal__countdown" aria-live="polite">05:00</p>
       <div id="booking-modal-step-email">
@@ -62,7 +62,7 @@
           <input type="email" id="booking-email" name="email" required placeholder="vas@email.sk" autocomplete="email">
           <p id="booking-email-next-hint" class="booking-modal__hint muted">Po pokračovaní si zvolíš spôsob platby.</p>
           <p id="booking-email-error" class="booking-error" hidden></p>
-          <button type="submit" id="booking-submit-btn" class="cta">Pokračovať</button>
+          <button type="submit" id="booking-submit-btn" class="cta">Pokračovať k platbe</button>
         </form>
       </div>
       <div id="booking-payment-choice" class="booking-payment-choice booking-modal__payment" hidden>

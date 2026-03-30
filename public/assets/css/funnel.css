@@ -268,23 +268,13 @@ a.funnel-scroll-hint__arrow:focus-visible {
   color: var(--color-text-secondary);
 }
 
-.booking-calendar__tap-hint {
-  margin: 0;
-  font-size: 0.8rem;
-}
-
-@media (hover: hover) and (pointer: fine) {
-  .booking-calendar__tap-hint {
-    position: absolute;
-    width: 1px;
-    height: 1px;
-    padding: 0;
-    margin: -1px;
-    overflow: hidden;
-    clip: rect(0, 0, 0, 0);
-    white-space: nowrap;
-    border: 0;
-  }
+.booking-calendar__grid-hint {
+  margin: 0 0 0.35rem;
+  font-size: 0.75rem;
+  line-height: 1.35;
+  font-weight: 400;
+  color: var(--color-text-muted);
+  opacity: 0.92;
 }
 
 .booking-calendar__pending {
