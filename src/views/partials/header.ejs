@@ -1,13 +1,12 @@
 <header class="site-header">
   <div class="container">
-    <% if (typeof home !== 'undefined' && home) { %>
-      <span class="brand">citimtedasom.sk</span>
-    <% } else { %>
-      <a href="/" class="brand">citimtedasom.sk</a>
-    <% } %>
+    <span class="brand">citimtedasom.sk</span>
     <nav class="nav">
       <% if (typeof home === 'undefined' || !home) { %>
-        <a href="/">Index</a>
+        <a
+          href="/"
+          onclick="if (window.history.length > 1) { event.preventDefault(); window.history.back(); }"
+        >Späť</a>
       <% } %>
     </nav>
   </div>
