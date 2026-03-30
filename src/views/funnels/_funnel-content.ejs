@@ -5,16 +5,12 @@
   <% if (typeof funnelVideoId !== 'undefined' && funnelVideoId) { %>data-funnel-video-id="<%= funnelVideoId %>"<% } %>>
   <div id="booking-main" class="booking-main">
   <div class="container">
-    <h2>Vyber si termín</h2>
+    <h2 class="visually-hidden">Vyber si termín</h2>
 
     <section class="booking-calendar" aria-label="Rezervácia termínu">
       <p id="booking-calendar-loading" class="booking-calendar__loading muted">Načítavam termíny…</p>
       <div id="booking-calendar-inner" class="booking-calendar__inner" hidden>
-        <div class="booking-calendar__microhints">
-          <p class="booking-calendar__microhints-line">Zvyčajne voľné 1–3 termíny denne</p>
-        </div>
         <p id="booking-slot-pending" class="booking-calendar__pending muted" hidden aria-live="polite"></p>
-        <p class="booking-calendar__grid-hint">Kliknutím začneš rezerváciu termínu</p>
         <div id="booking-calendar-hero" class="booking-calendar__hero" hidden>
           <p class="booking-calendar__hero-label">Najbližší voľný termín:</p>
           <div id="booking-hero-slot-host" class="booking-calendar__hero-slot-host" role="group" aria-label="Najbližší voľný termín"></div>
