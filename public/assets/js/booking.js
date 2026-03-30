@@ -230,6 +230,14 @@
     if (payChoice) payChoice.hidden = step !== 'payment';
   }
 
+  function resetPaymentPathStep() {
+    document.querySelectorAll('input[name="paymentPath"]').forEach((el) => {
+      el.checked = false;
+    });
+    const pathVal = $('booking-payment-path-validation');
+    if (pathVal) pathVal.hidden = true;
+  }
+
   function resetBookingModalSteps() {
     setBookingModalStep('email');
   }
@@ -276,6 +284,7 @@
       configureBookingModal(edit ? 'email-edit' : 'email');
     } else {
       configureBookingModal('payment');
+      resetPaymentPathStep();
     }
     lastFocusBeforeModal = document.activeElement;
     modal.removeAttribute('hidden');
@@ -780,6 +789,7 @@
     } else {
       setBookingModalStep('payment');
       configureBookingModal('payment');
+      resetPaymentPathStep();
     }
     const hold = $('booking-hold-banner');
     if (hold) hold.hidden = true;
@@ -804,8 +814,10 @@
     }
   }
 
+  /** @returns {{ paymentType: 'deposit', amount: null } | { paymentType: 'full', amount: number } | null} */
   function getPaymentChoice() {
     const path = document.querySelector('input[name="paymentPath"]:checked')?.value;
+    if (!path) return null;
     if (path === 'deposit') return { paymentType: 'deposit', amount: null };
     const fullAmount = document.querySelector('input[name="fullAmount"]:checked')?.value;
     let amount = 45;
@@ -861,6 +873,8 @@
     if (submitBtn) submitBtn.disabled = true;
     const payErr = $('booking-payment-error');
     if (payErr) payErr.hidden = true;
+    const pathVal = $('booking-payment-path-validation');
+    if (pathVal) pathVal.hidden = true;
 
     try {
       const body = { slotId: lockedSlotId, lockToken, email, paymentType };
@@ -1031,8 +1045,18 @@
       paymentForm.addEventListener('submit', (e) => {
         e.preventDefault();
         const email = $('booking-email').value.trim();
-        const { paymentType, amount } = getPaymentChoice();
+        const choice = getPaymentChoice();
+        if (!choice) {
+          const err = $('booking-payment-error');
+          if (err) err.hidden = true;
+          const pathVal = $('booking-payment-path-validation');
+          if (pathVal) pathVal.hidden = false;
+          return;
+        }
+        const { paymentType, amount } = choice;
         if (paymentType === 'full' && amount < 45) {
+          const pathVal = $('booking-payment-path-validation');
+          if (pathVal) pathVal.hidden = true;
           const err = $('booking-payment-error');
           if (err) {
             err.textContent = 'Minimálna suma pri plnej platbe je 45 €.';
@@ -1043,6 +1067,13 @@
         submitReservation(email, paymentType, amount);
       });
     }
+
+    document.querySelectorAll('input[name="paymentPath"]').forEach((el) => {
+      el.addEventListener('change', () => {
+        const pathVal = $('booking-payment-path-validation');
+        if (pathVal) pathVal.hidden = true;
+      });
+    });
     if (paymentBackBtn) {
       paymentBackBtn.addEventListener('click', showEmailForm);
     }

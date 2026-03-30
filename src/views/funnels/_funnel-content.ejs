@@ -67,6 +67,7 @@
       </div>
       <div id="booking-payment-choice" class="booking-payment-choice booking-modal__payment" hidden>
         <form id="booking-payment-form" class="booking-payment-form">
+          <p class="booking-modal__phase booking-payment-instruction">Vyber si spôsob platby:</p>
           <fieldset class="booking-payment-options">
             <legend class="visually-hidden">Spôsob platby</legend>
             <label class="booking-payment-option">
@@ -85,7 +86,7 @@
                 <div class="booking-payment-amounts">
                   <label class="booking-amount-opt"><input type="radio" name="fullAmount" value="45"> 45 € <span class="muted">(znížená suma)</span></label>
                   <label class="booking-amount-opt"><input type="radio" name="fullAmount" value="65"> 65 €</label>
-                  <label class="booking-amount-opt booking-amount-recommended"><input type="radio" name="fullAmount" value="85" checked> 85 € <span class="muted">(odporúčaná suma)</span></label>
+                  <label class="booking-amount-opt"><input type="radio" name="fullAmount" value="85" checked> 85 €</label>
                   <label class="booking-amount-opt"><input type="radio" name="fullAmount" value="105"> 105 € <span class="muted">(podporujúca suma)</span></label>
                   <label class="booking-amount-opt">
                     <input type="radio" name="fullAmount" value="custom" id="full-amount-custom"> Vlastná suma:
@@ -95,6 +96,7 @@
               </span>
             </label>
           </fieldset>
+          <p id="booking-payment-path-validation" class="booking-payment-path-validation" hidden role="alert">Vyber prosím spôsob platby</p>
           <p id="booking-payment-error" class="booking-error" hidden></p>
           <div class="booking-payment-actions">
             <button type="button" id="booking-payment-back" class="booking-back-btn">Upraviť e-mail</button>

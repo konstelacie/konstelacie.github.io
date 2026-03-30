@@ -392,6 +392,19 @@ a:hover {
   margin: 0;
 }
 
+.booking-payment-instruction {
+  font-weight: 500;
+  color: var(--color-text-secondary);
+  margin-bottom: var(--spacing-sm);
+}
+
+.booking-payment-path-validation {
+  margin: var(--spacing-sm) 0 0;
+  font-size: 0.875rem;
+  line-height: 1.35;
+  color: color-mix(in srgb, #b91c1c 72%, var(--color-text-secondary) 28%);
+}
+
 .booking-payment-options {
   display: flex;
   flex-direction: column;
@@ -407,20 +420,38 @@ a:hover {
   border-radius: 4px;
   cursor: pointer;
   background: var(--color-bg);
+  transition:
+    border-color 0.12s ease,
+    background-color 0.12s ease,
+    box-shadow 0.12s ease,
+    transform 0.1s ease;
 }
 
 .booking-payment-option:hover {
-  border-color: var(--color-primary);
-  background: rgba(15, 23, 42, 0.02);
+  border-color: color-mix(in srgb, var(--color-border) 55%, var(--color-text-muted) 45%);
+  background: rgba(15, 23, 42, 0.035);
+}
+
+.booking-payment-option:active {
+  transform: scale(0.995);
+  border-color: color-mix(in srgb, var(--color-border) 40%, var(--color-text-secondary) 60%);
+  background: rgba(15, 23, 42, 0.055);
+  box-shadow: inset 0 1px 2px rgba(15, 23, 42, 0.06);
 }
 
 .booking-payment-option input[type="radio"]:checked + .booking-payment-option-content {
   font-weight: 500;
 }
 
-.booking-payment-option:has(input:checked) {
-  border-color: var(--color-primary);
-  background: rgba(15, 23, 42, 0.04);
+.booking-payment-option:has(input[name="paymentPath"]:checked) {
+  border-color: var(--color-booking-accent);
+  background: var(--color-booking-accent-softer);
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--color-booking-accent) 35%, transparent);
+}
+
+.booking-payment-option:has(input[name="paymentPath"]:checked):hover {
+  border-color: color-mix(in srgb, var(--color-booking-accent) 70%, var(--color-text-muted) 30%);
+  background: var(--color-booking-accent-soft);
 }
 
 .booking-payment-option-content {
@@ -459,10 +490,6 @@ a:hover {
 
 .booking-amount-opt input[type="radio"] {
   margin: 0;
-}
-
-.booking-amount-recommended {
-  font-weight: 500;
 }
 
 .booking-custom-amount-input {
