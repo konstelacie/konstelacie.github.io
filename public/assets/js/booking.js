@@ -193,6 +193,39 @@
     }).format(ref);
   }
 
+  /** One-line confirmation for the booking modal: "streda 1. 4. • 08:30" */
+  function formatModalSelectedSlotLine(slot) {
+    if (!slot) return '';
+    const dateStr = slot.localDate;
+    const time = String(slot.timeKey || '').trim();
+    if (!dateStr || !time) return '';
+    const dayPart = formatDayTitleFromDateStr(dateStr);
+    if (!dayPart) return '';
+    return `${dayPart} • ${time}`;
+  }
+
+  function updateBookingModalSelectedSlotDisplay() {
+    const wrap = $('booking-modal-selected');
+    const valueEl = $('booking-modal-selected-value');
+    if (!wrap || !valueEl) return;
+    if (!lockedSlotId || !lockToken) {
+      wrap.hidden = true;
+      valueEl.textContent = '';
+      return;
+    }
+    const slot = slotsRaw.find(
+      (s) => s.id === lockedSlotId || String(s.id) === String(lockedSlotId)
+    );
+    const line = formatModalSelectedSlotLine(slot);
+    if (!line) {
+      wrap.hidden = true;
+      valueEl.textContent = '';
+      return;
+    }
+    valueEl.textContent = line;
+    wrap.hidden = false;
+  }
+
   function relativeDayHint(dateStr) {
     const today = getTodayLocal();
     const t0 = new Date(`${today}T12:00:00`).getTime();
@@ -296,6 +329,7 @@
     if (main) main.setAttribute('inert', '');
     document.body.style.overflow = 'hidden';
     document.addEventListener('keydown', onModalEscape, true);
+    updateBookingModalSelectedSlotDisplay();
     if (step === 'email') {
       const emailInput = $('booking-email');
       if (emailInput) requestAnimationFrame(() => emailInput.focus());
@@ -646,6 +680,7 @@
       storeLock();
       if (countdownInterval) updateCountdown();
     }
+    if (isEmailModalOpen()) updateBookingModalSelectedSlotDisplay();
   }
 
   async function loadSlots(options) {
@@ -683,6 +718,7 @@
       slotsRaw = data.slots || [];
       syncLockStateWithSlots();
       renderCalendar();
+      if (lockToken && isEmailModalOpen()) updateBookingModalSelectedSlotDisplay();
     } catch (e) {
       if (e.name === 'AbortError' || signal.aborted) return;
       if (mySeq !== loadSeq) return;
@@ -726,7 +762,7 @@
     const text = `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
     const modalCnt = $('booking-modal-countdown');
     const countEl = $('booking-countdown');
-    if (modalCnt) modalCnt.textContent = text;
+    if (modalCnt) modalCnt.textContent = `Termín držíme ešte: ${text}`;
     if (countEl) countEl.textContent = text;
     if (rem <= 0) {
       clearLockClientState();

@@ -51,7 +51,11 @@
       <p id="booking-modal-phase" class="booking-modal__phase">
         Tento termín držíme pre Teba. Pokračuj zadaním e-mailu.
       </p>
-      <p id="booking-modal-countdown" class="booking-modal__countdown" aria-live="polite">05:00</p>
+      <div id="booking-modal-selected" class="booking-modal__selected" hidden>
+        <p id="booking-modal-selected-label" class="booking-modal__selected-label">Tento termín držíme pre Teba:</p>
+        <p id="booking-modal-selected-value" class="booking-modal__selected-value" aria-live="polite"></p>
+      </div>
+      <p id="booking-modal-countdown" class="booking-modal__countdown" aria-live="polite">Termín držíme ešte: 05:00</p>
       <div id="booking-modal-step-email">
         <form id="booking-email-form" class="booking-email-form booking-modal__form">
           <label for="booking-email">E-mail</label>
