@@ -271,7 +271,7 @@ a:hover {
   z-index: 1;
   width: 100%;
   max-width: var(--max-width-narrow);
-  max-height: min(90vh, 640px);
+  max-height: min(92vh, 760px);
   overflow-y: auto;
   padding: var(--spacing-md);
   background: var(--color-bg);
@@ -342,6 +342,11 @@ a:hover {
 
 .booking-modal__revoke:hover {
   color: var(--color-text);
+}
+
+/* Payment step inside booking modal (tighter than full-page block) */
+.booking-modal__payment.booking-payment-choice {
+  margin: 0 0 var(--spacing-md);
 }
 
 .booking-error {

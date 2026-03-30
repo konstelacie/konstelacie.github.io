@@ -30,45 +30,6 @@
       <button type="button" id="booking-revoke-btn" class="booking-revoke-btn">Zrušiť podržanie</button>
     </div>
 
-    <div id="booking-payment-choice" class="booking-payment-choice" hidden>
-      <p class="booking-payment-intro">Môžeš si zvoliť sumu, ktorá ti vyhovuje.</p>
-      <form id="booking-payment-form" class="booking-payment-form">
-        <fieldset class="booking-payment-options">
-          <legend class="visually-hidden">Spôsob platby</legend>
-          <label class="booking-payment-option">
-            <input type="radio" name="paymentPath" value="deposit" id="payment-deposit">
-            <span class="booking-payment-option-content">
-              <strong>Rezervovať sedenie</strong>
-              <span class="booking-payment-desc">Zaplať teraz malý poplatok za rezerváciu a finálnu sumu rozhodneš po sedení.</span>
-              <span class="booking-payment-amount">Rezervovať za 10 €</span>
-            </span>
-          </label>
-          <label class="booking-payment-option">
-            <input type="radio" name="paymentPath" value="full" id="payment-full">
-            <span class="booking-payment-option-content">
-              <strong>Zaplatiť plnú sumu teraz</strong>
-              <span class="booking-payment-desc">Minimálna suma: 45 €. Odporúčaná suma: 85 €.</span>
-              <div class="booking-payment-amounts">
-                <label class="booking-amount-opt"><input type="radio" name="fullAmount" value="45"> 45 € <span class="muted">(znížená suma)</span></label>
-                <label class="booking-amount-opt"><input type="radio" name="fullAmount" value="65"> 65 €</label>
-                <label class="booking-amount-opt booking-amount-recommended"><input type="radio" name="fullAmount" value="85" checked> 85 € <span class="muted">(odporúčaná suma)</span></label>
-                <label class="booking-amount-opt"><input type="radio" name="fullAmount" value="105"> 105 € <span class="muted">(podporujúca suma)</span></label>
-                <label class="booking-amount-opt">
-                  <input type="radio" name="fullAmount" value="custom" id="full-amount-custom"> Vlastná suma:
-                  <input type="number" id="booking-custom-amount" min="45" step="1" value="125" class="booking-custom-amount-input" aria-label="Vlastná suma v eurách"> €
-                </label>
-              </div>
-            </span>
-          </label>
-        </fieldset>
-        <p id="booking-payment-error" class="booking-error" hidden></p>
-        <div class="booking-payment-actions">
-          <button type="button" id="booking-payment-back" class="booking-back-btn">Späť na e-mail</button>
-          <button type="submit" id="booking-payment-submit" class="cta">Pokračovať k platbe</button>
-        </div>
-      </form>
-    </div>
-
     <div id="booking-success" class="booking-success" hidden>
       <h3>Rezervácia je vytvorená</h3>
       <p id="booking-success-pending" class="muted">Presmerovávam na platbu…</p>
@@ -92,12 +53,52 @@
         Tento termín pre teba držíme, kým zadáš email.
       </p>
       <p id="booking-modal-countdown" class="booking-modal__countdown" aria-live="polite">05:00</p>
-      <form id="booking-email-form" class="booking-email-form booking-modal__form">
-        <label for="booking-email">E-mail</label>
-        <input type="email" id="booking-email" name="email" required placeholder="vas@email.sk" autocomplete="email">
-        <p id="booking-email-error" class="booking-error" hidden></p>
-        <button type="submit" id="booking-submit-btn" class="cta">Pokračovať</button>
-      </form>
+      <div id="booking-modal-step-email">
+        <form id="booking-email-form" class="booking-email-form booking-modal__form">
+          <label for="booking-email">E-mail</label>
+          <input type="email" id="booking-email" name="email" required placeholder="vas@email.sk" autocomplete="email">
+          <p id="booking-email-error" class="booking-error" hidden></p>
+          <button type="submit" id="booking-submit-btn" class="cta">Pokračovať</button>
+        </form>
+      </div>
+      <div id="booking-payment-choice" class="booking-payment-choice booking-modal__payment" hidden>
+        <p class="booking-payment-intro">Môžeš si zvoliť sumu, ktorá ti vyhovuje.</p>
+        <form id="booking-payment-form" class="booking-payment-form">
+          <fieldset class="booking-payment-options">
+            <legend class="visually-hidden">Spôsob platby</legend>
+            <label class="booking-payment-option">
+              <input type="radio" name="paymentPath" value="deposit" id="payment-deposit">
+              <span class="booking-payment-option-content">
+                <strong>Rezervovať sedenie</strong>
+                <span class="booking-payment-desc">Zaplať teraz malý poplatok za rezerváciu a finálnu sumu rozhodneš po sedení.</span>
+                <span class="booking-payment-amount">Rezervovať za 10 €</span>
+              </span>
+            </label>
+            <label class="booking-payment-option">
+              <input type="radio" name="paymentPath" value="full" id="payment-full">
+              <span class="booking-payment-option-content">
+                <strong>Zaplatiť plnú sumu teraz</strong>
+                <span class="booking-payment-desc">Minimálna suma: 45 €. Odporúčaná suma: 85 €.</span>
+                <div class="booking-payment-amounts">
+                  <label class="booking-amount-opt"><input type="radio" name="fullAmount" value="45"> 45 € <span class="muted">(znížená suma)</span></label>
+                  <label class="booking-amount-opt"><input type="radio" name="fullAmount" value="65"> 65 €</label>
+                  <label class="booking-amount-opt booking-amount-recommended"><input type="radio" name="fullAmount" value="85" checked> 85 € <span class="muted">(odporúčaná suma)</span></label>
+                  <label class="booking-amount-opt"><input type="radio" name="fullAmount" value="105"> 105 € <span class="muted">(podporujúca suma)</span></label>
+                  <label class="booking-amount-opt">
+                    <input type="radio" name="fullAmount" value="custom" id="full-amount-custom"> Vlastná suma:
+                    <input type="number" id="booking-custom-amount" min="45" step="1" value="125" class="booking-custom-amount-input" aria-label="Vlastná suma v eurách"> €
+                  </label>
+                </div>
+              </span>
+            </label>
+          </fieldset>
+          <p id="booking-payment-error" class="booking-error" hidden></p>
+          <div class="booking-payment-actions">
+            <button type="button" id="booking-payment-back" class="booking-back-btn">Späť na e-mail</button>
+            <button type="submit" id="booking-payment-submit" class="cta">Pokračovať k platbe</button>
+          </div>
+        </form>
+      </div>
       <button type="button" id="booking-modal-revoke" class="booking-modal__revoke">Zrušiť podržanie</button>
     </div>
   </div>

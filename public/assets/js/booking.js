@@ -26,7 +26,7 @@
   let expiresAt = null;
   let lockedSlotId = null;
   let lockedEmail = '';
-  /** `'email'` — modal / pred výberom platby; `'payment'` — banner + výber platby */
+  /** `'email'` — modal, krok e-mail; `'payment'` — modal, krok výber platby */
   let lockPhase = 'email';
   let countdownInterval = null;
   let pendingSlotId = null;
@@ -223,17 +223,31 @@
     return !!(modal && !modal.hidden);
   }
 
-  function configureEmailModal(edit) {
+  function setBookingModalStep(step) {
+    const emailStep = $('booking-modal-step-email');
+    const payChoice = $('booking-payment-choice');
+    if (emailStep) emailStep.hidden = step !== 'email';
+    if (payChoice) payChoice.hidden = step !== 'payment';
+  }
+
+  function resetBookingModalSteps() {
+    setBookingModalStep('email');
+  }
+
+  /** @param {'email' | 'email-edit' | 'payment'} mode */
+  function configureBookingModal(mode) {
     const title = $('booking-modal-title');
     const phaseEl = $('booking-modal-phase');
-    if (title && phaseEl) {
-      if (edit) {
-        title.textContent = 'Uprav e-mail';
-        phaseEl.textContent = 'Uprav e-mail a pokračuj k platbe. Termín ostáva držaný.';
-      } else {
-        title.textContent = 'Ešte jeden krok a termín máš rezervovaný';
-        phaseEl.textContent = 'Tento termín pre teba držíme, kým zadáš email.';
-      }
+    if (!title || !phaseEl) return;
+    if (mode === 'payment') {
+      title.textContent = 'Vyber spôsob platby';
+      phaseEl.textContent = 'Termín ostáva držaný. Zvoľ sumu; otvorí sa bezpečná platba.';
+    } else if (mode === 'email-edit') {
+      title.textContent = 'Uprav e-mail';
+      phaseEl.textContent = 'Uprav e-mail a pokračuj k platbe. Termín ostáva držaný.';
+    } else {
+      title.textContent = 'Ešte jeden krok a termín máš rezervovaný';
+      phaseEl.textContent = 'Tento termín pre teba držíme, kým zadáš email.';
     }
   }
 
@@ -245,21 +259,40 @@
     modal.dataset.bookingModalPortaled = '1';
   }
 
-  function openEmailModal(edit) {
+  /**
+   * @param {{ step?: 'email' | 'payment'; edit?: boolean }} [options]
+   */
+  function openBookingModal(options) {
+    const step = options && options.step === 'payment' ? 'payment' : 'email';
+    const edit = !!(options && options.edit);
     ensureBookingModalPortaledToBody();
     const modal = $('booking-email-modal');
     const main = $('booking-main');
     if (!modal) return;
     document.removeEventListener('keydown', onModalEscape, true);
-    configureEmailModal(!!edit);
+    setBookingModalStep(step);
+    if (step === 'email') {
+      configureBookingModal(edit ? 'email-edit' : 'email');
+    } else {
+      configureBookingModal('payment');
+    }
     lastFocusBeforeModal = document.activeElement;
     modal.removeAttribute('hidden');
     modal.hidden = false;
     if (main) main.setAttribute('inert', '');
     document.body.style.overflow = 'hidden';
     document.addEventListener('keydown', onModalEscape, true);
-    const emailInput = $('booking-email');
-    if (emailInput) requestAnimationFrame(() => emailInput.focus());
+    if (step === 'email') {
+      const emailInput = $('booking-email');
+      if (emailInput) requestAnimationFrame(() => emailInput.focus());
+    } else {
+      const firstPay = $('payment-deposit');
+      if (firstPay) requestAnimationFrame(() => firstPay.focus());
+    }
+  }
+
+  function openEmailModal(edit) {
+    openBookingModal({ step: 'email', edit: !!edit });
   }
 
   function closeEmailModal() {
@@ -269,6 +302,7 @@
       modal.hidden = true;
       modal.setAttribute('hidden', '');
     }
+    resetBookingModalSteps();
     if (main) main.removeAttribute('inert');
     document.body.style.overflow = '';
     document.removeEventListener('keydown', onModalEscape, true);
@@ -593,9 +627,7 @@
     clearStoredLock();
     closeEmailModal();
     const hold = $('booking-hold-banner');
-    const payChoice = $('booking-payment-choice');
     if (hold) hold.hidden = true;
-    if (payChoice) payChoice.hidden = true;
   }
 
   function updateCountdown() {
@@ -702,24 +734,34 @@
   }
 
   function showPaymentChoice() {
-    closeEmailModal();
-    const payChoice = $('booking-payment-choice');
+    const modal = $('booking-email-modal');
+    if (!modal || modal.hidden) {
+      openBookingModal({ step: 'payment' });
+    } else {
+      setBookingModalStep('payment');
+      configureBookingModal('payment');
+    }
     const hold = $('booking-hold-banner');
-    if (payChoice) payChoice.hidden = false;
-    if (hold) hold.hidden = false;
+    if (hold) hold.hidden = true;
     const payErr = $('booking-payment-error');
     if (payErr) payErr.hidden = true;
     updateCountdown();
+    const firstPay = $('payment-deposit');
+    if (firstPay) requestAnimationFrame(() => firstPay.focus());
   }
 
   function showEmailForm() {
-    const payChoice = $('booking-payment-choice');
     const hold = $('booking-hold-banner');
-    if (payChoice) payChoice.hidden = true;
     if (hold) hold.hidden = true;
-    openEmailModal(true);
     const emailInput = $('booking-email');
     if (emailInput && lockedEmail) emailInput.value = lockedEmail;
+    if (!isEmailModalOpen()) {
+      openBookingModal({ step: 'email', edit: true });
+    } else {
+      setBookingModalStep('email');
+      configureBookingModal('email-edit');
+      if (emailInput) requestAnimationFrame(() => emailInput.focus());
+    }
   }
 
   function getPaymentChoice() {
@@ -759,14 +801,12 @@
 
   function showPaymentFailure(message) {
     const hold = $('booking-hold-banner');
-    const payChoice = $('booking-payment-choice');
     const success = $('booking-success');
     const pending = $('booking-success-pending');
     const failed = $('booking-success-failed');
     const retry = $('booking-payment-retry');
     closeEmailModal();
     if (hold) hold.hidden = true;
-    if (payChoice) payChoice.hidden = true;
     if (success) success.hidden = false;
     if (pending) pending.hidden = true;
     if (failed) {
@@ -830,13 +870,11 @@
       closeEmailModal();
 
       const hold = $('booking-hold-banner');
-      const payChoice = $('booking-payment-choice');
       const success = $('booking-success');
       const successPending = $('booking-success-pending');
       const successFailed = $('booking-success-failed');
       const payRetry = $('booking-payment-retry');
       if (hold) hold.hidden = true;
-      if (payChoice) payChoice.hidden = true;
       if (payErr) payErr.hidden = true;
       if (success) success.hidden = false;
       if (successPending) {
@@ -1017,9 +1055,8 @@
       const emailInput = $('booking-email');
       if (emailInput) emailInput.value = lockedEmail;
       const hold = $('booking-hold-banner');
-      const payChoice = $('booking-payment-choice');
-      if (hold) hold.hidden = false;
-      if (payChoice) payChoice.hidden = false;
+      if (hold) hold.hidden = true;
+      openBookingModal({ step: 'payment' });
       updateCountdown();
       startCountdown();
       return;
