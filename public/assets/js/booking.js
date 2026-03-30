@@ -14,6 +14,8 @@
   const TIMEZONE = 'Europe/Bratislava';
   const RANGE_DAYS = 21;
   const MAX_FUNNEL_DAYS = 10;
+  /** Calendar day columns visible before "more dates" expand. */
+  const INITIAL_VISIBLE_FUNNEL_DAYS = 3;
   const POLL_MS = 5000;
   const LEAD_MS = 24 * 60 * 60 * 1000;
 
@@ -33,6 +35,7 @@
   let lastFocusBeforeModal = null;
   let loadSeq = 0;
   let pollTimer = null;
+  let calendarDaysExpanded = false;
 
   const $ = (id) => document.getElementById(id);
 
@@ -482,6 +485,23 @@
     return null;
   }
 
+  function syncCalendarDaysExpandUi() {
+    const root = $('booking-calendar-days');
+    if (!root) return;
+    const wrap = root.querySelector('.booking-calendar__days-more');
+    const inner = root.querySelector('.booking-calendar__days-more-inner');
+    const btn = root.querySelector('[data-booking-days-toggle]');
+    if (!wrap || !btn) return;
+    const open = calendarDaysExpanded;
+    wrap.classList.toggle('booking-calendar__days-more--open', open);
+    btn.textContent = open ? 'Zobraziť menej' : 'Pozrieť ďalšie termíny';
+    btn.setAttribute('aria-expanded', open ? 'true' : 'false');
+    if (inner) {
+      if (open) inner.removeAttribute('inert');
+      else inner.setAttribute('inert', '');
+    }
+  }
+
   function renderCalendar() {
     const inner = $('booking-calendar-inner');
     const loading = $('booking-calendar-loading');
@@ -502,6 +522,7 @@
       if (hero) hero.hidden = true;
       if (heroSlotHost) heroSlotHost.innerHTML = '';
       daysEl.innerHTML = '';
+      calendarDaysExpanded = false;
       return;
     }
 
@@ -573,7 +594,21 @@
       `);
     }
 
-    daysEl.innerHTML = articles.join('');
+    const visibleArticles = articles.slice(0, INITIAL_VISIBLE_FUNNEL_DAYS);
+    const extraArticles = articles.slice(INITIAL_VISIBLE_FUNNEL_DAYS);
+    if (extraArticles.length === 0) {
+      calendarDaysExpanded = false;
+      daysEl.innerHTML = visibleArticles.join('');
+    } else {
+      daysEl.innerHTML =
+        visibleArticles.join('') +
+        `<div class="booking-calendar__days-more"><div class="booking-calendar__days-more-inner">${extraArticles.join(
+          ''
+        )}</div></div>` +
+        `<p class="booking-calendar__expand-row"><button type="button" class="booking-calendar__expand-btn" data-booking-days-toggle aria-expanded="false">Pozrieť ďalšie termíny</button></p>`;
+    }
+
+    syncCalendarDaysExpandUi();
   }
 
   function hideGlobalError() {
@@ -1022,6 +1057,12 @@
     const calendarInner = $('booking-calendar-inner');
     if (calendarInner) {
       calendarInner.addEventListener('click', (e) => {
+        if (e.target.closest('[data-booking-days-toggle]')) {
+          e.preventDefault();
+          calendarDaysExpanded = !calendarDaysExpanded;
+          syncCalendarDaysExpandUi();
+          return;
+        }
         const btn = e.target.closest('.booking-slot');
         if (!btn || btn.disabled || !btn.dataset.slotId) return;
         if (lockToken) return;
