@@ -285,6 +285,7 @@
     } else {
       configureBookingModal('payment');
       resetPaymentPathStep();
+      updatePaymentSubmitButtonLabel();
     }
     lastFocusBeforeModal = document.activeElement;
     modal.removeAttribute('hidden');
@@ -798,6 +799,7 @@
     updateCountdown();
     const firstPay = $('payment-deposit');
     if (firstPay) requestAnimationFrame(() => firstPay.focus());
+    updatePaymentSubmitButtonLabel();
   }
 
   function showEmailForm() {
@@ -828,6 +830,24 @@
       amount = parseInt(fullAmount, 10) || 45;
     }
     return { paymentType: 'full', amount };
+  }
+
+  const PAYMENT_SUBMIT_PREFIX = 'Pokračovať k platbe';
+  const PAYMENT_DEPOSIT_EUR = 10;
+
+  function updatePaymentSubmitButtonLabel() {
+    const submitBtn = $('booking-payment-submit');
+    if (!submitBtn) return;
+    const choice = getPaymentChoice();
+    if (!choice) {
+      submitBtn.textContent = PAYMENT_SUBMIT_PREFIX;
+      return;
+    }
+    if (choice.paymentType === 'deposit') {
+      submitBtn.textContent = `${PAYMENT_SUBMIT_PREFIX} ${PAYMENT_DEPOSIT_EUR} €`;
+      return;
+    }
+    submitBtn.textContent = `${PAYMENT_SUBMIT_PREFIX} ${choice.amount} €`;
   }
 
   async function startPayment(reservationId, paymentType, amount) {
@@ -1072,7 +1092,11 @@
       el.addEventListener('change', () => {
         const pathVal = $('booking-payment-path-validation');
         if (pathVal) pathVal.hidden = true;
+        updatePaymentSubmitButtonLabel();
       });
+    });
+    document.querySelectorAll('input[name="fullAmount"]').forEach((el) => {
+      el.addEventListener('change', updatePaymentSubmitButtonLabel);
     });
     if (paymentBackBtn) {
       paymentBackBtn.addEventListener('click', showEmailForm);
@@ -1083,7 +1107,9 @@
       customAmountInput.addEventListener('change', () => {
         const customRadio = document.getElementById('full-amount-custom');
         if (customRadio) customRadio.checked = true;
+        updatePaymentSubmitButtonLabel();
       });
+      customAmountInput.addEventListener('input', updatePaymentSubmitButtonLabel);
     }
 
     const paymentRetryBtn = $('booking-payment-retry');
