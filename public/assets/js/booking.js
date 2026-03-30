@@ -241,13 +241,14 @@
     if (!title || !phaseEl) return;
     if (mode === 'payment') {
       title.textContent = 'Vyber spôsob platby';
-      phaseEl.textContent = 'Termín ostáva držaný. Zvoľ sumu; otvorí sa bezpečná platba.';
+      phaseEl.textContent =
+        'Termín máš rezervovaný. Dokonči prosím platbu, aby zostal potvrdený.';
     } else if (mode === 'email-edit') {
       title.textContent = 'Uprav e-mail';
-      phaseEl.textContent = 'Uprav e-mail a pokračuj k platbe. Termín ostáva držaný.';
+      phaseEl.textContent = 'Tento termín pre Teba držíme. Uprav e-mail a pokračuj k platbe.';
     } else {
       title.textContent = 'Ešte jeden krok a termín máš rezervovaný';
-      phaseEl.textContent = 'Tento termín pre teba držíme, kým zadáš email.';
+      phaseEl.textContent = 'Tento termín pre Teba držíme. Pokračuj zadaním e-mailu.';
     }
   }
 
@@ -384,7 +385,10 @@
       return { label: 'Tvoj výber', disabled: true, busy: false, state: 'locked-me', primary: true };
     }
     if (pendingSlotId === slot.id) {
-      return { label: 'Rezervujem...', disabled: true, busy: true, state: 'pending', primary: false };
+      const dayPart = slot.localDate ? formatDayTitleFromDateStr(slot.localDate) : '';
+      const t = slot.timeKey || '';
+      const desc = dayPart && t ? `Rezervuješ: ${dayPart}, ${t}` : 'Rezervuješ…';
+      return { label: desc, disabled: true, busy: true, state: 'pending', primary: false };
     }
     if (lockToken) {
       return { label: '', disabled: true, busy: false, state: 'free', primary: false };
@@ -397,6 +401,8 @@
    * @param {string} timeLineFirst — visible line: time (same for grid and hero)
    * @param {{ nearest?: boolean, heroSubLine?: string }} [opts] — hero shows heroSubLine under time; grid does not
    */
+  const SLOT_ACTION_HINT = 'Kliknutím začneš rezerváciu';
+
   function buildSlotButtonHtml(slot, timeLineFirst, opts) {
     const nearest = !!(opts && opts.nearest);
     const heroSubLine = opts && opts.heroSubLine;
@@ -406,9 +412,23 @@
     if (ui.disabled || ui.busy) cls.push('booking-slot--disabled');
     if (ui.state === 'locked-me') cls.push('booking-slot--locked-me');
     if (ui.state === 'missing') cls.push('booking-slot--missing');
+    if (ui.state === 'pending') cls.push('booking-slot--pending');
     if (ui.primary && ui.state === 'free') cls.push('booking-slot--primary');
     const ariaBusy = ui.busy ? ' aria-busy="true"' : '';
     const idAttr = slot ? ` data-slot-id="${slot.id}"` : '';
+    const showTitle =
+      ui.state === 'free' && ui.primary && !ui.disabled && !ui.busy && !lockToken;
+    const titleAttr = showTitle ? ` title="${escapeAttr(SLOT_ACTION_HINT)}"` : '';
+
+    if (ui.state === 'pending' && ui.label) {
+      const ariaAttr = ` aria-label="${escapeAttr(ui.label)}"`;
+      return `<button type="button" class="${cls.join(
+        ' '
+      )}"${idAttr} data-state="${ui.state}" disabled${ariaBusy}${ariaAttr}>
+            <span class="booking-slot__time booking-slot__pending-text">${ui.label}</span>
+          </button>`;
+    }
+
     let secondLine = '';
     if (nearest && heroSubLine && ui.state === 'free' && ui.primary) {
       secondLine = `<span class="booking-slot__label--meta">${heroSubLine}</span>`;
@@ -418,7 +438,9 @@
       ariaLabel = `${timeLineFirst} — ${ui.label}`;
     }
     const ariaAttr = ariaLabel ? ` aria-label="${escapeAttr(ariaLabel)}"` : '';
-    return `<button type="button" class="${cls.join(' ')}"${idAttr} data-state="${ui.state}"${ui.disabled || ui.busy ? ' disabled' : ''}${ariaBusy}${ariaAttr}>
+    return `<button type="button" class="${cls.join(
+      ' '
+    )}"${idAttr} data-state="${ui.state}"${ui.disabled || ui.busy ? ' disabled' : ''}${ariaBusy}${titleAttr}${ariaAttr}>
             <span class="booking-slot__time">${timeLineFirst}</span>${secondLine}
           </button>`;
   }
@@ -475,6 +497,24 @@
 
     if (empty) empty.hidden = true;
     inner.hidden = false;
+
+    const pendingBanner = $('booking-slot-pending');
+    if (pendingBanner) {
+      if (pendingSlotId) {
+        const ps = slotsRaw.find((x) => x.id === pendingSlotId);
+        if (ps) {
+          const dayPart = ps.localDate ? formatDayTitleFromDateStr(ps.localDate) : '';
+          const t = ps.timeKey || '';
+          pendingBanner.textContent =
+            dayPart && t ? `Rezervuješ: ${dayPart}, ${t}` : 'Rezervuješ…';
+          pendingBanner.hidden = false;
+        } else {
+          pendingBanner.hidden = true;
+        }
+      } else {
+        pendingBanner.hidden = true;
+      }
+    }
 
     const firstFreeId = findFirstFreeSlotId();
     if (hero && heroSlotHost) {

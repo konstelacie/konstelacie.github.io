@@ -244,6 +244,54 @@ a.funnel-scroll-hint__arrow:focus-visible {
   margin-top: var(--spacing-sm);
 }
 
+.funnel-booking-decision {
+  margin-top: var(--spacing-sm);
+}
+
+.funnel-booking-decision ul {
+  margin: 0.35rem 0 0.5rem;
+  padding-left: 1.25rem;
+}
+
+.funnel-booking-decision li {
+  margin: 0.2rem 0;
+}
+
+.booking-calendar__microhints {
+  position: relative;
+  margin: 0 0 var(--spacing-sm);
+}
+
+.booking-calendar__microhints-line {
+  margin: 0 0 0.15rem;
+  font-size: 0.875rem;
+  color: var(--color-text-secondary);
+}
+
+.booking-calendar__tap-hint {
+  margin: 0;
+  font-size: 0.8rem;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .booking-calendar__tap-hint {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+  }
+}
+
+.booking-calendar__pending {
+  margin: 0 0 var(--spacing-sm);
+  font-size: 0.875rem;
+}
+
 .booking-calendar__hero {
   margin-bottom: var(--spacing-sm);
   padding: 0.2rem 0;
@@ -363,6 +411,21 @@ a.funnel-scroll-hint__arrow:focus-visible {
 
 .booking-slot--missing {
   opacity: 0.65;
+}
+
+.booking-calendar .booking-slot--pending {
+  min-width: 9rem;
+  max-width: 100%;
+  cursor: wait;
+}
+
+.booking-slot__pending-text {
+  font-size: 0.78rem;
+  font-weight: 600;
+  line-height: 1.3;
+  text-align: left;
+  white-space: normal;
+  color: var(--color-text);
 }
 
 .booking-calendar__empty {
