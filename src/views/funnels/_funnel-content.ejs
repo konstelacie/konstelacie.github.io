@@ -74,7 +74,10 @@
               <input type="radio" name="paymentPath" value="deposit" id="payment-deposit">
               <span class="booking-payment-option-content">
                 <strong>Rezervovať sedenie</strong>
-                <span class="booking-payment-desc">Zaplatíš teraz 10 € za rezerváciu. Zvyšok až po sedení.</span>
+                <span class="booking-payment-desc booking-payment-desc--stack">
+                  <span class="booking-payment-desc-line">Zaplatíš teraz 10 € za rezerváciu</span>
+                  <span class="booking-payment-desc-line">Zvyšok až po sedení</span>
+                </span>
                 <span class="booking-payment-amount">Rezervovať za 10 €</span>
               </span>
             </label>
@@ -82,7 +85,10 @@
               <input type="radio" name="paymentPath" value="full" id="payment-full">
               <span class="booking-payment-option-content">
                 <strong>Zaplatiť plnú sumu teraz</strong>
-                <span class="booking-payment-desc">Minimálne 45 €, odporúčané <span class="booking-payment-desc-em">85 €</span></span>
+                <span class="booking-payment-desc booking-payment-desc--stack">
+                  <span class="booking-payment-desc-line">Minimálne: 45 €</span>
+                  <span class="booking-payment-desc-line">Odporúčané: <span class="booking-payment-desc-em">85 €</span></span>
+                </span>
                 <div class="booking-payment-amounts">
                   <label class="booking-amount-opt"><input type="radio" name="fullAmount" value="45"> 45 € <span class="muted">(znížená suma)</span></label>
                   <label class="booking-amount-opt"><input type="radio" name="fullAmount" value="65"> 65 €</label>
