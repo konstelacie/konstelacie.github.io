@@ -3,6 +3,18 @@ require('dotenv').config();
 module.exports = {
   port: parseInt(process.env.PORT, 10) || 3000,
   env: process.env.NODE_ENV || 'development',
+  /** Meta / Facebook Pixel — loaded only after marketing cookie consent (see cookie-consent.js). */
+  metaPixelId: (process.env.META_PIXEL_ID || '').trim(),
+  site: {
+    /** Optional imprint line, e.g. "Ján Novák, Žilina, IČO …" */
+    legalEntity: (process.env.SITE_LEGAL_ENTITY || '').trim(),
+    /** Contact for privacy/terms; falls back to transactional from-email if set */
+    legalEmail: (
+      process.env.SITE_LEGAL_EMAIL ||
+      process.env.RESEND_FROM_EMAIL ||
+      ''
+    ).trim(),
+  },
   db: {
     host: process.env.DB_HOST || 'localhost',
     port: parseInt(process.env.DB_PORT, 10) || 3306,

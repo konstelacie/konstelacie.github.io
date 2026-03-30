@@ -1,0 +1,101 @@
+<article class="legal-page container prose">
+  <h1>Ochrana osobných údajov</h1>
+  <p class="muted">Posledná aktualizácia: 30. 3. 2026</p>
+
+  <p>
+    Tento dokument popisuje, ako spracúvame osobné údaje pri používaní webu <strong>citimtedasom.sk</strong>
+    (ďalej len „web“). Spracúvame ich v súlade s nariadením Európskeho parlamentu a Rady (EÚ) 2016/679 (GDPR)
+    a zákonom č. 18/2018 Z. z. o ochrane osobných údajov.
+  </p>
+
+  <h2>1. Prevádzkovateľ</h2>
+  <% if (typeof legalEntity !== 'undefined' && legalEntity) { %>
+  <p><%= legalEntity %></p>
+  <% } else { %>
+  <p>
+    Prevádzkovateľom webu je poskytovateľ služieb prezentovaný pod značkou citimtedasom.sk. Presné
+    identifikačné údaje (meno, adresa, IČO a pod.) uvedieme na tejto stránke po ich doplnení; do vtedy ich
+    na vyžiadanie poskytneme e-mailom.
+  </p>
+  <% } %>
+  <% if (typeof legalEmail !== 'undefined' && legalEmail) { %>
+  <p>
+    Kontakt k ochrane údajov:
+    <a href="mailto:<%= legalEmail %>"><%= legalEmail %></a>
+  </p>
+  <% } %>
+
+  <h2>2. Aké údaje spracúvame</h2>
+  <ul>
+    <li><strong>Identifikačné a kontaktné údaje</strong> — najmä e-mail, ktorý zadáš pri rezervácii alebo v súvislosti s objednávkou.</li>
+    <li><strong>Údaje o rezervácii</strong> — zvolený termín, stav rezervácie, súvisiaca komunikácia potrebná na poskytnutie služby.</li>
+    <li><strong>Platobné údaje</strong> — pri platbe kartou spracúva platbu poskytovateľ platobných služieb (Stripe). My neukladáme úplné číslo karty; spracúvame informácie o platbe, ktoré nám Stripe poskytne na účely zúčtovania a podpory.</li>
+    <li><strong>Technické údaje</strong> — napr. IP adresa, typ prehliadača, základné údaje o zariadení, údaje z logov servera v nevyhnutnom rozsahu na prevádzku a bezpečnosť.</li>
+    <li><strong>Cookies a podobné technológie</strong> — podľa tvojho rozhodnutia v cookie banneri pri marketingovom súhlase (Meta Pixel). Bližšie v časti Cookies.</li>
+  </ul>
+
+  <h2>3. Na aký účel a na akom právnom základe</h2>
+  <ul>
+    <li><strong>Plnenie zmluvy / predzmluvné kroky</strong> — vybavenie rezervácie, potvrdenie termínu, komunikácia súvisiaca so službou, spracovanie platby.</li>
+    <li><strong>Oprávnený záujem</strong> — zabezpečenie prevádzky webu, prevencia zneužitia, základná technická diagnostika, v primeranom rozsahu.</li>
+    <li><strong>Súhlas</strong> — ak povolíš v banneri cookies, spracovanie údajov v súvislosti s <strong>Meta Pixel</strong> na meranie a zlepšovanie reklamy (Facebook / Meta).</li>
+  </ul>
+
+  <h2>4. Príjemcovia a sprostredkovatelia</h2>
+  <p>Údaje sprístupňujeme iba v rozsahu nevyhnutnom poskytovateľom služieb:</p>
+  <ul>
+    <li>
+      <strong>Meta Platforms Ireland Limited</strong> (reklamný Meta Pixel) — údaje môžu byť spracúvané v súlade s pravidlami Meta:
+      <a href="https://www.facebook.com/privacy/policy" rel="noopener noreferrer" target="_blank">Zásady ochrany súkromia Meta</a>.
+    </li>
+    <li>
+      <strong>Stripe Technology Europe Ltd.</strong> alebo príslušná entita Stripe — platby kartou:
+      <a href="https://stripe.com/sk/privacy" rel="noopener noreferrer" target="_blank">Ochrana osobných údajov Stripe</a>.
+    </li>
+    <li><strong>Poskytovateľ e-mailových služieb</strong> (napr. Resend) — odoslanie transakčných e-mailov (potvrdenie rezervácie a pod.).</li>
+    <li><strong>Hosting / prevádzkovateľ servera</strong> — uloženie a prevádzka webu.</li>
+    <li>
+      <strong>Wistia alebo iný poskytovateľ videa</strong> — ak je na webe vložené video, môže spracúvať technické údaje súvisiace s prehrávaním podľa vlastných zásad.
+    </li>
+  </ul>
+
+  <h2>5. Prenos mimo EÚ</h2>
+  <p>
+    Niektorí poskytovatelia (vrátane Meta alebo Stripe) môžu spracúvať údaje aj v krajinách mimo EHP. V takom
+    prípade sa uplatňujú zákonom predvídané záruky (napr. štandardné zmluvné doložky).
+  </p>
+
+  <h2>6. Doba uchovávania</h2>
+  <ul>
+    <li>Údaje potrebné na rezerváciu a poskytnutie služby uchovávame po dobu nevyhnutnú na účely zmluvy a následné oprávnené nároky, potom ich vymažeme alebo anonymizujeme.</li>
+    <li>Účtovné a právne povinnosti môžu vyžadovať dlhšie uchovávanie niektorých záznamov.</li>
+    <li>Logy v minimálnom rozsahu podľa potrieb bezpečnosti a prevádzky.</li>
+  </ul>
+
+  <h2>7. Tvoje práva</h2>
+  <p>Máš právo na prístup, opravu, vymazanie, obmedzenie spracúvania, prenosnosť údajov a námietku v rozsahu ustanovenom GDPR, ako aj právo podať sťažnosť u dozorového úradu.</p>
+  <p>
+    Dozorový úrad na Slovensku:
+    <a href="https://dataprotection.gov.sk/" rel="noopener noreferrer" target="_blank">Úrad na ochranu osobných údajov SR</a>.
+  </p>
+  <p>
+    Súhlas so súhlasným spracovaním (marketingové cookies) môžeš kedykoľvek odvolať — napr. vymazaním údajov
+    lokálneho úložiska pre tento web v nastavení prehliadača a znovu odmietnutím v ponuke cookies, alebo kontaktom
+    na e-mail vyššie.
+  </p>
+
+  <h2>8. Cookies</h2>
+  <ul>
+    <li><strong>Nevyhnutné</strong> — technicky potrebné na základné fungovanie stránky a bezpečnosť (bez súhlasu, ak zákon nevyžaduje inak).</li>
+    <li>
+      <strong>Marketing / Meta Pixel</strong> — po tvojom súhlase v spodnom banneri; slúži na meranie návštevnosti z reklamy na Facebooku
+      a prípravu štatistík pre kampane. Bez súhlasu sa Pixel nespúšťa.
+    </li>
+  </ul>
+  <p>
+    Svoju voľbu môžeš zmeniť vymazaním uloženej hodnoty v prehliadači (localStorage kľúč
+    <code>citim_cookie_consent_v1</code>) alebo úplným vymazaním údajov pre túto doménu.
+  </p>
+
+  <p><a href="/">Späť na úvod</a></p>
+</article>

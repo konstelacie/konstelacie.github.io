@@ -14,6 +14,10 @@
   <% } %>
   <%- body %>
   <%- include('../partials/footer') %>
+  <% if (typeof metaPixelId !== 'undefined' && metaPixelId) { %>
+  <%- include('../partials/cookie-banner') %>
+  <script src="/assets/js/cookie-consent.js" defer></script>
+  <% } %>
   <%- typeof extraScripts !== 'undefined' && extraScripts ? extraScripts : '' %>
 </body>
 </html>

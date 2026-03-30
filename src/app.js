@@ -4,6 +4,7 @@ const session = require('express-session');
 
 const config = require('./config');
 const indexRouter = require('./routes/index');
+const legalRouter = require('./routes/legal');
 const funnelsRouter = require('./routes/funnels');
 const staticRouter = require('./routes/static');
 const healthRouter = require('./routes/health');
@@ -56,9 +57,15 @@ if (process.env.NODE_ENV !== 'production') {
 const projectRoot = path.join(__dirname, '..');
 app.use('/assets', express.static(path.join(projectRoot, 'public', 'assets')));
 
+app.use((req, res, next) => {
+  res.locals.metaPixelId = config.metaPixelId || '';
+  next();
+});
+
 // Routes (more specific first)
 app.use('/api', apiRouter);
 app.use('/admin', adminRouter);
+app.use('/', legalRouter);
 app.use('/', funnelsRouter);
 app.use('/', indexRouter);
 app.use('/', staticRouter);

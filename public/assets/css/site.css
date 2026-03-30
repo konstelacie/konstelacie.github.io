@@ -141,6 +141,107 @@ a:hover {
   margin-top: var(--spacing-footer);
 }
 
+.site-footer__inner {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--spacing-sm) var(--spacing-md);
+}
+
+.site-footer__copy {
+  margin: 0;
+}
+
+.site-footer__nav {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--spacing-sm) var(--spacing-md);
+  font-size: 0.9rem;
+}
+
+.site-footer__nav a {
+  text-decoration: underline;
+}
+
+.site-footer__sep {
+  opacity: 0.5;
+  user-select: none;
+}
+
+.legal-page {
+  padding-bottom: var(--spacing-section-lg);
+}
+
+.cookie-consent {
+  position: fixed;
+  z-index: 9000;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  padding: var(--spacing-md);
+  background: var(--color-bg);
+  border-top: 1px solid var(--color-border);
+  box-shadow: 0 -4px 24px rgba(15, 23, 42, 0.08);
+}
+
+.cookie-consent__inner {
+  max-width: var(--max-width-content);
+  margin: 0 auto;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: var(--spacing-md);
+}
+
+.cookie-consent__text {
+  margin: 0;
+  flex: 1 1 280px;
+  font-size: 0.9rem;
+  color: var(--color-text-secondary);
+  max-width: 42rem;
+}
+
+.cookie-consent__text a {
+  text-decoration: underline;
+}
+
+.cookie-consent__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--spacing-sm);
+  flex-shrink: 0;
+}
+
+.cookie-consent__btn {
+  font: inherit;
+  font-size: 0.9rem;
+  cursor: pointer;
+  padding: 0.5rem 1rem;
+  border-radius: 6px;
+  border: 1px solid var(--color-border);
+  background: var(--color-bg);
+  color: var(--color-text);
+}
+
+.cookie-consent__btn--primary {
+  background: var(--color-primary);
+  color: var(--color-on-primary);
+  border-color: var(--color-primary);
+}
+
+.cookie-consent__btn--primary:hover {
+  background: var(--color-primary-hover);
+  border-color: var(--color-primary-hover);
+}
+
+.cookie-consent__btn--secondary:hover {
+  border-color: var(--color-text-muted);
+}
+
 /* Booking (embedded in pilot funnel) */
 .booking-slot {
   padding: 0.75rem 1rem;

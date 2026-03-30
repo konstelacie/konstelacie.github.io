@@ -1,0 +1,76 @@
+<article class="legal-page container prose">
+  <h1>Obchodné podmienky</h1>
+  <p class="muted">Posledná aktualizácia: 30. 3. 2026</p>
+
+  <p>
+    Tieto obchodné podmienky upravujú rezerváciu a úhradu online služieb ponúkaných cez web
+    <strong>citimtedasom.sk</strong> (ďalej „web“).
+  </p>
+
+  <h2>1. Zmluvná strana</h2>
+  <% if (typeof legalEntity !== 'undefined' && legalEntity) { %>
+  <p><%= legalEntity %></p>
+  <% } else { %>
+  <p>
+    Predávajúcim / poskytovateľom služby je prevádzkovateľ webu citimtedasom.sk; identifikačné údaje doplníme
+    na tejto stránke alebo ich na vyžiadanie poskytneme e-mailom.
+  </p>
+  <% } %>
+  <% if (typeof legalEmail !== 'undefined' && legalEmail) { %>
+  <p>
+    Kontakt:
+    <a href="mailto:<%= legalEmail %>"><%= legalEmail %></a>
+  </p>
+  <% } %>
+
+  <h2>2. Predmet</h2>
+  <p>
+    Predmetom je poskytnutie dohodnutej online služby (individuálne sedenie podľa ponuky na webe) v termíne,
+    ktorý si vyberieš v rezervačnom systéme.
+  </p>
+
+  <h2>3. Objednávka a zmluva</h2>
+  <p>
+    Objednávka vzniká odoslaním rezervácie cez web a potvrdením e-mailu (ak sa vyžaduje) a/alebo úhradou podľa
+    zvolenej možnosti platby. Podrobnosti o cene sú uvedené pri výbere termínu a v potvrdení.
+  </p>
+
+  <h2>4. Cena a platba</h2>
+  <p>
+    Cena je uvedená na webe v eurách. Platba prebieha prostredníctvom platobnej brány <strong>Stripe</strong>.
+    Úhradou súhlasíš s použitím Stripe podľa ich podmienok. My neukladáme údaje o platobnej karte.
+  </p>
+
+  <h2>5. Zrušenie a zmena termínu</h2>
+  <p>
+    Zásady zrušenia alebo presunutia termínu Ťa prosíme riešiť v prvom rade e-mailom s prevádzkovateľom.
+    Ak nie sú dohodnuté osobitné lehoty, platia dohodnuté individuálne termíny alebo rozumná obojstranná
+    dohoda. V prípade výraznej prieťahovej prekážky na strane prevádzkovateľa sa poskytnutá služba nahradí náhradným termínom.
+  </p>
+
+  <h2>6. Reklamácie</h2>
+  <p>
+    Prípadné nedostatky oznam čo najskôr e-mailom. Budeme ich riešiť v súlade s platnou právnou úpravou pre
+    spotrebiteľov, ak sa uplatní.
+  </p>
+
+  <h2>7. Mimosúdne riešenie sporov (spotrebiteľ)</h2>
+  <p>
+    Ak si spotrebiteľ v zmysle zákona, máš právo obrátiť sa na orgán alternatívneho riešenia sporov. Platformu
+    EÚ pre riešenie sporov online nájdeš na adrese
+    <a href="https://ec.europa.eu/consumers/odr" rel="noopener noreferrer" target="_blank">https://ec.europa.eu/consumers/odr</a>.
+  </p>
+
+  <h2>8. Záverečné ustanovenia</h2>
+  <p>
+    Tieto podmienky môžeme aktualizovať zverejnením novej verzie na tomto odkaze. Na už uzatvorené objednávky
+    sa vzťahuje znenie účasné v čase objednania, ak zákon neustanovuje inak.
+  </p>
+
+  <p>
+    Ochrana osobných údajov:
+    <a href="/ochrana-udajov">Ochrana osobných údajov</a>.
+  </p>
+
+  <p><a href="/">Späť na úvod</a></p>
+</article>
