@@ -27,7 +27,7 @@
       <div class="admin-create__row">
         <div class="admin-field">
           <label for="admin-slot-date">Dátum</label>
-          <input id="admin-slot-date" name="slotDate" type="date" required value="<%= anchorDate %>">
+          <input id="admin-slot-date" name="slotDate" type="date" required value="<%= typeof bulkDateFrom !== 'undefined' ? bulkDateFrom : anchorDate %>">
         </div>
         <div class="admin-field">
           <label for="admin-slot-time">Čas</label>

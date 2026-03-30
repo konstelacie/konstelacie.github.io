@@ -15,6 +15,8 @@ const {
   buildCandidateCells,
   partitionCells,
   mapBulkPreviewError,
+  resolveBulkFormDateDefaults,
+  MAX_BULK_RANGE_DAYS,
 } = require('../lib/bulkSlotCandidates');
 const { requireAdmin } = require('../middleware/requireAdmin');
 
@@ -713,6 +715,17 @@ router.get('/slots', requireAdmin, async (req, res) => {
   const { from, to } = resolveDateRange(view, anchor);
   const dateIso = anchor.toISODate();
 
+  const computeBulkFormDates = async () => {
+    const pool = getPool();
+    if (!pool) return resolveBulkFormDateDefaults(to, []);
+    const scanFrom = DateTime.now().setZone(SLOT_TIMEZONE).startOf('day').plus({ days: 1 }).toISODate();
+    const scanTo = DateTime.fromISO(scanFrom, { zone: SLOT_TIMEZONE })
+      .plus({ days: MAX_BULK_RANGE_DAYS - 1 })
+      .toISODate();
+    const busy = await slotsRepo.listLocalDatesWithAnySlot(scanFrom, scanTo);
+    return resolveBulkFormDateDefaults(to, busy);
+  };
+
   const prevAnchor = anchor.plus({ days: view === 'week' ? -7 : -1 });
   const nextAnchor = anchor.plus({ days: view === 'week' ? 7 : 1 });
 
@@ -732,6 +745,7 @@ router.get('/slots', requireAdmin, async (req, res) => {
 
   try {
     const pool = getPool();
+    const { bulkDateFrom, bulkDateTo } = await computeBulkFormDates();
     if (!pool) {
       return res.render('admin/slots', {
         layout: 'layouts/admin',
@@ -743,8 +757,8 @@ router.get('/slots', requireAdmin, async (req, res) => {
         slotTimes: SLOT_TIMES,
         view,
         anchorDate: dateIso,
-        bulkDateFrom: from,
-        bulkDateTo: to,
+        bulkDateFrom,
+        bulkDateTo,
         rangeLabel,
         days: [],
         queryPrev,
@@ -767,8 +781,8 @@ router.get('/slots', requireAdmin, async (req, res) => {
       slotTimes: SLOT_TIMES,
       view,
       anchorDate: dateIso,
-      bulkDateFrom: from,
-      bulkDateTo: to,
+      bulkDateFrom,
+      bulkDateTo,
       rangeLabel,
       days,
       queryPrev,
@@ -778,6 +792,15 @@ router.get('/slots', requireAdmin, async (req, res) => {
     });
   } catch (err) {
     console.error('[admin/slots]', err);
+    let bulkDateFrom = from;
+    let bulkDateTo = to;
+    try {
+      const fallback = resolveBulkFormDateDefaults(to, []);
+      bulkDateFrom = fallback.bulkDateFrom;
+      bulkDateTo = fallback.bulkDateTo;
+    } catch (_) {
+      /* keep calendar range */
+    }
     return res.status(500).render('admin/slots', {
       layout: 'layouts/admin',
       title: 'Termíny — administrácia',
@@ -788,8 +811,8 @@ router.get('/slots', requireAdmin, async (req, res) => {
       slotTimes: SLOT_TIMES,
       view,
       anchorDate: dateIso,
-      bulkDateFrom: from,
-      bulkDateTo: to,
+      bulkDateFrom,
+      bulkDateTo,
       rangeLabel,
       days: [],
       queryPrev,

@@ -33,6 +33,35 @@ function parseExcludeWeekends(body) {
 }
 
 /**
+ * Bulk form defaults: never before tomorrow; "from" is first local day in
+ * [tomorrow .. tomorrow + MAX_BULK_RANGE_DAYS - 1] with no slot rows.
+ * If every day in that window has slots, "from" is tomorrow.
+ * "to" is at least "from" (extends calendar end when needed).
+ *
+ * @param {string} calendarToIso - YYYY-MM-DD from current admin range (week/day)
+ * @param {string[]} busyLocalDatesYmd - dates that already have ≥1 slot row
+ */
+function resolveBulkFormDateDefaults(calendarToIso, busyLocalDatesYmd) {
+  const tomorrow = DateTime.now().setZone(SLOT_TIMEZONE).startOf('day').plus({ days: 1 });
+  const scanEnd = tomorrow.plus({ days: MAX_BULK_RANGE_DAYS - 1 });
+  const busy = new Set(busyLocalDatesYmd);
+
+  let candidate = tomorrow;
+  while (candidate <= scanEnd) {
+    const iso = candidate.toISODate();
+    if (!busy.has(iso)) {
+      const bulkToStr = calendarToIso >= iso ? calendarToIso : iso;
+      return { bulkDateFrom: iso, bulkDateTo: bulkToStr };
+    }
+    candidate = candidate.plus({ days: 1 });
+  }
+
+  const bulkFromStr = tomorrow.toISODate();
+  const bulkToStr = calendarToIso >= bulkFromStr ? calendarToIso : bulkFromStr;
+  return { bulkDateFrom: bulkFromStr, bulkDateTo: bulkToStr };
+}
+
+/**
  * @returns {{ ok: true, cells: Array<{ localDate: string, gridIndex: number, timeKey: string }> } | { ok: false, code: string }}
  */
 function buildCandidateCells(fromStr, toStr, excludeWeekends, timeKeys) {
@@ -135,6 +164,7 @@ module.exports = {
   SLOT_TIMES,
   parseTimeKeysFromForm,
   parseExcludeWeekends,
+  resolveBulkFormDateDefaults,
   buildCandidateCells,
   partitionCells,
   mapBulkPreviewError,

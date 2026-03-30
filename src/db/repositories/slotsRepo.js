@@ -230,6 +230,18 @@ async function insertOpenSlot(localDate, gridIndex) {
  * All (local_date, grid_index) pairs in range for duplicate checks.
  * @returns {Promise<Set<string>>} keys `YYYY-MM-DD|gridIndex`
  */
+/** Distinct local_date values that have at least one slot row in [from, to] (YYYY-MM-DD). */
+async function listLocalDatesWithAnySlot(from, to) {
+  const pool = getPool();
+  if (!pool) throw new Error('Database not configured');
+
+  const [rows] = await pool.execute(
+    'SELECT DISTINCT local_date FROM slots WHERE local_date >= ? AND local_date <= ? ORDER BY local_date',
+    [from, to]
+  );
+  return rows.map((r) => mysqlLocalDateToYmd(r.local_date));
+}
+
 async function listSlotsCellsInRange(from, to) {
   const pool = getPool();
   if (!pool) throw new Error('Database not configured');
@@ -287,5 +299,6 @@ module.exports = {
   adminCancelSlot,
   insertOpenSlot,
   listSlotsCellsInRange,
+  listLocalDatesWithAnySlot,
   bulkInsertOpenSlots,
 };
