@@ -155,6 +155,31 @@ a.funnel-scroll-hint__arrow:focus-visible {
   border-top: 1px solid var(--color-border);
 }
 
+@keyframes funnel-secondary-trigger-hide {
+  from {
+    opacity: 1;
+    max-height: 4rem;
+    padding-top: var(--spacing-md);
+    padding-bottom: var(--spacing-sm);
+  }
+  to {
+    opacity: 0;
+    max-height: 0;
+    padding-top: 0;
+    padding-bottom: 0;
+    margin: 0;
+  }
+}
+
+@keyframes funnel-secondary-inner-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
 .funnel-secondary-trigger {
   cursor: pointer;
   list-style: none;
@@ -167,6 +192,20 @@ a.funnel-scroll-hint__arrow:focus-visible {
   text-align: center;
   text-decoration: none;
   text-underline-offset: 0.2em;
+  overflow: hidden;
+}
+
+.funnel-secondary[open] > .funnel-secondary-trigger {
+  animation: funnel-secondary-trigger-hide 0.28s ease forwards;
+  pointer-events: none;
+}
+
+.funnel-secondary-inner {
+  opacity: 0;
+}
+
+.funnel-secondary[open] > .funnel-secondary-inner {
+  animation: funnel-secondary-inner-in 0.35s ease 0.12s forwards;
 }
 
 .funnel-secondary-trigger::-webkit-details-marker {
@@ -179,6 +218,23 @@ a.funnel-scroll-hint__arrow:focus-visible {
 
 .funnel-secondary-inner .container {
   max-width: var(--max-width-content);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .funnel-secondary[open] > .funnel-secondary-trigger {
+    animation: none;
+    opacity: 0;
+    max-height: 0;
+    padding-top: 0;
+    padding-bottom: 0;
+    margin: 0;
+    overflow: hidden;
+  }
+
+  .funnel-secondary[open] > .funnel-secondary-inner {
+    animation: none;
+    opacity: 1;
+  }
 }
 
 /* 9:16 portrait frame — capped ~70vh tall, centered */
