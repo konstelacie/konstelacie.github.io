@@ -63,10 +63,24 @@ async function extendLockExpiration(slotId, lockToken, email, expiresAt) {
   return result.affectedRows > 0;
 }
 
+/**
+ * Extend/revive a lock for Stripe checkout (no expires_at guard). Used after Checkout Session is created.
+ * @param {import('mysql2/promise').PoolConnection} conn
+ */
+async function setLockCheckoutHoldConn(conn, slotId, lockToken, email, expiresAt) {
+  const token = typeof lockToken === 'string' ? lockToken.trim() : String(lockToken || '').trim();
+  const [result] = await conn.execute(
+    'UPDATE slot_locks SET expires_at = ?, email = ? WHERE slot_id = ? AND lock_token = ?',
+    [expiresAt, email, Number(slotId), token]
+  );
+  return result.affectedRows > 0;
+}
+
 module.exports = {
   getActiveLockForSlot,
   createLock,
   findValidLock,
   deleteLock,
   extendLockExpiration,
+  setLockCheckoutHoldConn,
 };

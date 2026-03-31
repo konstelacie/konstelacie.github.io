@@ -3,22 +3,20 @@ const Stripe = require('stripe');
 const { asyncHandler, ApiError } = require('../../middleware/apiError');
 const { getPool } = require('../../db');
 const auditRepo = require('../../db/repositories/auditRepo');
-const { FUNNEL_INSTANCES } = require('../funnels');
+const locksRepo = require('../../db/repositories/locksRepo');
+const { FUNNEL_INSTANCES, parseFunnelAttribution } = require('../funnels');
 const { timeKeyForGridIndex } = require('../../config/slotGrid');
 const { mysqlLocalDateToYmd } = require('../../lib/slotApiMap');
+const { validateSlotId, validateEmail, validateLockToken } = require('../../middleware/validators');
+const { slotPassesBookingWindow } = require('../../lib/slotBookingRules');
 
 const router = express.Router();
 
 const DEPOSIT_CENTS_FIRST = 1000; // 10 €
 const MIN_FULL_CENTS = 4500; // 45 €
 
-function validateReservationId(raw) {
-  const id = parseInt(raw, 10);
-  if (!Number.isInteger(id) || id <= 0) {
-    throw new ApiError('VALIDATION_ERROR', 'reservationId must be a positive integer', 400);
-  }
-  return id;
-}
+/** Far-future hold while the user is on Stripe; dedicated expiry policy comes later. */
+const CHECKOUT_LOCK_EXPIRES_AT = new Date('2099-12-30T23:59:59.999Z');
 
 function validatePaymentType(raw) {
   if (raw === 'deposit' || raw === 'full') return raw;
@@ -114,10 +112,13 @@ router.get(
 router.post(
   '/start',
   asyncHandler(async (req, res) => {
-    const { reservationId: rawReservationId, paymentType: rawPaymentType, amount: rawAmount, returnPath: rawReturnPath } = req.body ?? {};
-    const reservationId = validateReservationId(rawReservationId);
-    const paymentType = validatePaymentType(rawPaymentType);
-    const amountCents = validateAmount(rawAmount, paymentType);
+    const body = req.body ?? {};
+    const slotId = validateSlotId(body.slotId);
+    const lockToken = validateLockToken(body.lockToken);
+    const email = validateEmail(body.email, true);
+    const paymentType = validatePaymentType(body.paymentType);
+    const amountCents = validateAmount(body.amount, paymentType);
+    const funnel = parseFunnelAttribution(body);
 
     const stripeSecret = process.env.STRIPE_SECRET_KEY;
     if (!stripeSecret) {
@@ -126,31 +127,6 @@ router.post(
 
     const pool = getPool();
     if (!pool) throw new ApiError('INTERNAL_ERROR', 'Database not configured', 503);
-
-    const [resRows] = await pool.execute(
-      `SELECT id, slot_id, user_id, email, status, payment_type,
-              funnel_name, funnel_campaign, funnel_video_id
-       FROM reservations WHERE id = ?`,
-      [reservationId]
-    );
-    const reservation = resRows[0];
-    if (!reservation) {
-      throw new ApiError('NOT_FOUND', 'Reservation not found', 404);
-    }
-    if (reservation.status !== 'pending_payment') {
-      throw new ApiError('CONFLICT', 'Reservation is not pending payment', 409);
-    }
-    if (reservation.payment_type !== paymentType) {
-      throw new ApiError('VALIDATION_ERROR', 'paymentType does not match reservation', 400);
-    }
-
-    const [existingPayment] = await pool.execute(
-      'SELECT id FROM payments WHERE reservation_id = ? AND status = ? LIMIT 1',
-      [reservationId, 'pending']
-    );
-    if (existingPayment.length > 0) {
-      throw new ApiError('CONFLICT', 'Payment already in progress for this reservation', 409);
-    }
 
     let cents;
     let paymentTypeForDb;
@@ -162,7 +138,7 @@ router.post(
       paymentTypeForDb = 'session';
     }
 
-    const funnelName = validateReturnPath(rawReturnPath);
+    const funnelName = validateReturnPath(body.returnPath);
     const baseUrl = process.env.BASE_URL || (req.protocol + '://' + req.get('host'));
     const successUrl = `${baseUrl}/${funnelName}/success?session_id={CHECKOUT_SESSION_ID}`;
     const cancelUrl = `${baseUrl}/${funnelName}/cancel`;
@@ -184,35 +160,100 @@ router.post(
           quantity: 1,
         },
       ],
-      customer_email: reservation.email,
+      customer_email: email,
       metadata: {
-        reservationId: String(reservationId),
-        userId: reservation.user_id ? String(reservation.user_id) : '',
+        slotId: String(slotId),
+        lockToken,
         paymentType: paymentTypeForDb,
-        funnelName: reservation.funnel_name ? String(reservation.funnel_name) : '',
-        funnelCampaign: reservation.funnel_campaign ? String(reservation.funnel_campaign) : '',
-        funnelVideoId: reservation.funnel_video_id ? String(reservation.funnel_video_id) : '',
+        funnelName: funnel.funnelName ? String(funnel.funnelName) : '',
+        funnelCampaign: funnel.funnelCampaign ? String(funnel.funnelCampaign) : '',
+        funnelVideoId: funnel.funnelVideoId ? String(funnel.funnelVideoId) : '',
       },
       success_url: successUrl,
       cancel_url: cancelUrl,
     });
 
-    await pool.execute(
-      `INSERT INTO payments (user_id, reservation_id, provider, provider_ref, payment_type, amount_cents, currency, status)
-       VALUES (?, ?, 'stripe', ?, ?, ?, 'eur', 'pending')`,
-      [reservation.user_id, reservationId, session.id, paymentTypeForDb, cents]
-    );
+    const conn = await pool.getConnection();
+    let userId;
+    try {
+      await conn.beginTransaction();
 
-    await auditRepo.log('payment_started', 'reservation', reservationId, {
+      const [slotRows] = await conn.execute('SELECT id, status, start_at_utc FROM slots WHERE id = ? FOR UPDATE', [
+        slotId,
+      ]);
+      const slot = slotRows[0];
+      if (!slot) {
+        throw new ApiError('NOT_FOUND', 'Slot not found', 404);
+      }
+      if (slot.status !== 'open') {
+        throw new ApiError('SLOT_NOT_OPEN', 'Slot is not open', 409);
+      }
+      if (!slotPassesBookingWindow(slot)) {
+        throw new ApiError('SLOT_NOT_OPEN', 'Slot is not open for booking', 409);
+      }
+
+      const [existingRes] = await conn.execute(
+        "SELECT id FROM reservations WHERE slot_id = ? AND status IN ('pending_payment','confirmed') LIMIT 1",
+        [slotId]
+      );
+      if (existingRes.length > 0) {
+        throw new ApiError('SLOT_RESERVED', 'Slot already has an active reservation', 409);
+      }
+
+      const [pendingPay] = await conn.execute(
+        "SELECT id FROM payments WHERE slot_id = ? AND status = 'pending' LIMIT 1",
+        [slotId]
+      );
+      if (pendingPay.length > 0) {
+        throw new ApiError('CONFLICT', 'Payment already in progress for this slot', 409);
+      }
+
+      const held = await locksRepo.setLockCheckoutHoldConn(conn, slotId, lockToken, email, CHECKOUT_LOCK_EXPIRES_AT);
+      if (!held) {
+        throw new ApiError('LOCK_INVALID', 'Lock not found', 404);
+      }
+
+      const [userRows] = await conn.execute('SELECT id FROM users WHERE email = ?', [email]);
+      if (userRows.length > 0) {
+        userId = userRows[0].id;
+      } else {
+        const [ins] = await conn.execute('INSERT INTO users (email) VALUES (?)', [email]);
+        userId = ins.insertId;
+      }
+
+      await conn.execute(
+        `INSERT INTO payments (user_id, reservation_id, slot_id, provider, provider_ref, payment_type, amount_cents, currency, status)
+         VALUES (?, NULL, ?, 'stripe', ?, ?, ?, 'eur', 'pending')`,
+        [userId, slotId, session.id, paymentTypeForDb, cents]
+      );
+
+      await conn.commit();
+    } catch (e) {
+      await conn.rollback();
+      try {
+        await stripe.checkout.sessions.expire(session.id);
+      } catch (expireErr) {
+        console.error('[payments/start] Stripe expire after DB failure', session.id, expireErr);
+      }
+      throw e;
+    } finally {
+      conn.release();
+    }
+
+    await auditRepo.log('payment_started', 'slot', slotId, {
       paymentType: paymentTypeForDb,
       amountCents: cents,
       sessionId: session.id,
-      funnelName: reservation.funnel_name,
-      funnelCampaign: reservation.funnel_campaign,
-      funnelVideoId: reservation.funnel_video_id,
+      funnelName: funnel.funnelName,
+      funnelCampaign: funnel.funnelCampaign,
+      funnelVideoId: funnel.funnelVideoId,
     });
 
-    res.status(200).json({ ok: true, url: session.url });
+    res.status(200).json({
+      ok: true,
+      url: session.url,
+      lockExpiresAt: CHECKOUT_LOCK_EXPIRES_AT.toISOString(),
+    });
   })
 );
 

@@ -86,6 +86,7 @@ CREATE TABLE payments (
   id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
   user_id BIGINT UNSIGNED NULL,
   reservation_id BIGINT UNSIGNED NULL,
+  slot_id BIGINT UNSIGNED NULL,
   provider ENUM('none','stripe') NOT NULL DEFAULT 'none',
   provider_ref VARCHAR(255) NULL,
   payment_type ENUM('deposit','session','topup') NOT NULL,
@@ -96,12 +97,14 @@ CREATE TABLE payments (
   created_at DATETIME(3) DEFAULT CURRENT_TIMESTAMP(3),
   updated_at DATETIME(3) DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3),
   INDEX idx_payments_reservation (reservation_id),
+  INDEX idx_payments_slot_pending (slot_id, status),
   INDEX idx_payments_user (user_id),
   INDEX idx_payments_provider_ref (provider, provider_ref),
   UNIQUE INDEX idx_payments_stripe_session (provider_ref),
   INDEX idx_payments_status_created (status, created_at),
   CONSTRAINT fk_payments_user FOREIGN KEY (user_id) REFERENCES users(id),
-  CONSTRAINT fk_payments_reservation FOREIGN KEY (reservation_id) REFERENCES reservations(id)
+  CONSTRAINT fk_payments_reservation FOREIGN KEY (reservation_id) REFERENCES reservations(id),
+  CONSTRAINT fk_payments_slot FOREIGN KEY (slot_id) REFERENCES slots(id) ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- billing_documents: internal invoicing layer (Phase 1: record on payment only; PDF/email later)

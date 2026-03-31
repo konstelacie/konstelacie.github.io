@@ -17,18 +17,6 @@ async function hasActiveReservationForSlot(slotId) {
   return rows.length > 0;
 }
 
-async function create(slotId, userId, email, lockToken) {
-  const pool = getPool();
-  if (!pool) throw new Error('Database not configured');
-
-  const [result] = await pool.execute(
-    `INSERT INTO reservations (slot_id, user_id, email, status, lock_token)
-     VALUES (?, ?, ?, 'pending_payment', ?)`,
-    [slotId, userId, email, lockToken]
-  );
-  return result.insertId;
-}
-
 async function getById(reservationId) {
   const pool = getPool();
   if (!pool) throw new Error('Database not configured');
@@ -234,7 +222,6 @@ async function listForAdmin(opts) {
 
 module.exports = {
   hasActiveReservationForSlot,
-  create,
   getById,
   findDueForPreSessionReminder,
   listForAdmin,

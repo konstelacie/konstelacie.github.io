@@ -859,17 +859,28 @@
     if (hold) hold.hidden = true;
   }
 
+  /** Beyond this, the hold is tied to Stripe checkout (far-future server expiry) — show copy instead of a minute timer. */
+  const COUNTDOWN_LONG_HOLD_THRESHOLD_SEC = 48 * 3600;
+
   function updateCountdown() {
     if (!expiresAt) return;
     const now = Date.now();
     const exp = new Date(expiresAt).getTime();
     if (Number.isNaN(exp)) return;
     const rem = Math.max(0, Math.floor((exp - now) / 1000));
+    const modalCnt = $('booking-modal-countdown');
+    const countEl = $('booking-countdown');
+    if (rem > COUNTDOWN_LONG_HOLD_THRESHOLD_SEC) {
+      if (modalCnt) {
+        modalCnt.textContent =
+          'Po dokončení platby v Stripe bude rezervácia potvrdená. Termín medzitým držíme pre vás.';
+      }
+      if (countEl) countEl.textContent = '…';
+      return;
+    }
     const m = Math.floor(rem / 60);
     const s = rem % 60;
     const text = `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
-    const modalCnt = $('booking-modal-countdown');
-    const countEl = $('booking-countdown');
     if (modalCnt) modalCnt.textContent = `Termín držíme ešte: ${text}`;
     if (countEl) countEl.textContent = text;
     if (rem <= 0) {
@@ -1029,10 +1040,19 @@
     submitBtn.textContent = `${PAYMENT_SUBMIT_PREFIX} ${choice.amount} €`;
   }
 
-  async function startPayment(reservationId, paymentType, amount) {
+  /**
+   * @param {{ slotId: number, lockToken: string, email: string, paymentType: string, amount: number|null }} params
+   */
+  async function startPayment({ slotId, lockToken, email, paymentType, amount }) {
     const returnPath = (window.location.pathname || '').replace(/\/$/, '') || '/pilot';
-    const payBody = { reservationId, paymentType, returnPath };
+    const payBody = { slotId, lockToken, email, paymentType, returnPath };
     if (paymentType === 'full') payBody.amount = amount;
+    const funnelCtx = readFunnelContext();
+    if (funnelCtx.funnelName) {
+      payBody.funnelName = funnelCtx.funnelName;
+      payBody.funnelCampaign = funnelCtx.funnelCampaign || 'default';
+      if (funnelCtx.funnelVideoId) payBody.funnelVideoId = funnelCtx.funnelVideoId;
+    }
 
     const payRes = await fetch('/api/payments/start', {
       method: 'POST',
@@ -1047,7 +1067,7 @@
     if (!payData.url) {
       return { ok: false, error: 'Platba sa nepodarila spustiť. Skús znova.' };
     }
-    return { ok: true, url: payData.url };
+    return { ok: true, url: payData.url, lockExpiresAt: payData.lockExpiresAt || null };
   }
 
   function showPaymentFailure(message) {
@@ -1076,52 +1096,6 @@
     if (pathVal) pathVal.hidden = true;
 
     try {
-      const body = { slotId: lockedSlotId, lockToken, email, paymentType };
-      if (paymentType === 'full') body.amount = amount;
-      const funnelCtx = readFunnelContext();
-      if (funnelCtx.funnelName) {
-        body.funnelName = funnelCtx.funnelName;
-        body.funnelCampaign = funnelCtx.funnelCampaign || 'default';
-        if (funnelCtx.funnelVideoId) body.funnelVideoId = funnelCtx.funnelVideoId;
-      }
-      const res = await fetch('/api/reservations', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(body),
-      });
-      const data = await res.json();
-
-      if (!res.ok) {
-        if (payErr) {
-          payErr.textContent = userMessage(data.error);
-          payErr.hidden = false;
-        }
-        if (submitBtn) submitBtn.disabled = false;
-        return;
-      }
-
-      const reservationId = data.reservation?.id;
-      if (!reservationId) {
-        if (payErr) {
-          payErr.textContent = 'Rezervácia bola vytvorená, ale platba sa nepodarila spustiť.';
-          payErr.hidden = false;
-        }
-        if (submitBtn) submitBtn.disabled = false;
-        return;
-      }
-
-      if (countdownInterval) {
-        clearInterval(countdownInterval);
-        countdownInterval = null;
-      }
-      lockToken = null;
-      expiresAt = null;
-      lockedSlotId = null;
-      lockedEmail = '';
-      lockPhase = 'email';
-      clearStoredLock();
-      closeEmailModal();
-
       const hold = $('booking-hold-banner');
       const success = $('booking-success');
       const successPending = $('booking-success-pending');
@@ -1137,15 +1111,33 @@
       if (successFailed) successFailed.hidden = true;
       if (payRetry) payRetry.hidden = true;
 
-      const result = await startPayment(reservationId, paymentType, amount);
+      const result = await startPayment({
+        slotId: lockedSlotId,
+        lockToken,
+        email,
+        paymentType,
+        amount,
+      });
 
       if (result.ok) {
+        if (result.lockExpiresAt) {
+          expiresAt = result.lockExpiresAt;
+          storeLock();
+          if (countdownInterval) updateCountdown();
+        }
         window.location.href = result.url;
         return;
       }
 
       showPaymentFailure(result.error);
-      window.pendingPaymentRetry = { reservationId, paymentType, amount };
+      window.pendingPaymentRetry = {
+        slotId: lockedSlotId,
+        lockToken,
+        email,
+        paymentType,
+        amount,
+      };
+      if (submitBtn) submitBtn.disabled = false;
     } catch (e) {
       if (payErr) {
         payErr.textContent = 'Niečo sa pokazilo. Skús neskôr.';
@@ -1311,7 +1303,13 @@
           pend.hidden = false;
           pend.textContent = 'Presmerovávam na platbu…';
         }
-        const result = await startPayment(pending.reservationId, pending.paymentType, pending.amount);
+        const result = await startPayment({
+          slotId: pending.slotId,
+          lockToken: pending.lockToken,
+          email: pending.email,
+          paymentType: pending.paymentType,
+          amount: pending.amount,
+        });
         if (result.ok) {
           window.location.href = result.url;
           return;

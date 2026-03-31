@@ -7,12 +7,15 @@ globs: ["src/routes/api/stripe*", "src/**/payment*", "src/**/payments*"]
 
 **Architecture:** `docs/STRIPE-ARCHITECTURE.md` | **Schema:** `docs/DB-SCHEMA.md` | **Pricing:** `docs/SESSION-PRICING.md`
 
+**Pre-live:** Single booking path only — reservation row is created in the **`checkout.session.completed`** webhook, not before Checkout. Do not add legacy branches for “reservation exists before payment” or `pending_payment` funnel rows.
+
 ## Schema mapping (actual columns)
 
 | Stripe / doc term | Actual column |
 |-------------------|---------------|
 | stripe_session_id | `payments.provider_ref` |
-| session_id (reservation) | `payments.reservation_id` |
+| reservation link | `payments.reservation_id` (NULL until webhook creates reservation) |
+| slot during checkout | `payments.slot_id` (set in `POST /api/payments/start`) |
 | paid | `payments.status = 'completed'` |
 | paid_at | `payments.paid_at` |
 
@@ -20,11 +23,12 @@ globs: ["src/routes/api/stripe*", "src/**/payment*", "src/**/payments*"]
 
 - **Lookup payment:** `WHERE provider_ref = session.id` (session.id = cs_...)
 - **Idempotency:** Check `webhook_events` for `event.id` before processing; insert after success
-- **On checkout.session.completed:** Update payment `status='completed'`, `paid_at=NOW()`, reservation `status='confirmed'`
+- **On checkout.session.completed:** Pending payment must have `reservation_id IS NULL` and `slot_id` set. Create **`confirmed`** reservation from session metadata + payment row, delete slot lock, set `payments.reservation_id`, then complete payment and billing path
 - **Raw body:** Webhook route uses `express.raw()` — must be before `express.json()` in app.js
 
-## Payment creation (POST /api/payments/start)
+## Payment creation (`POST /api/payments/start`)
 
-- Create payment row with `provider='stripe'`, `provider_ref=null` (set after session created), or create after `stripe.checkout.sessions.create()` with `provider_ref=session.id`
-- Include `reservationId` in Checkout Session metadata for webhook reconciliation
-- Return `{ url: session.url }` for client redirect
+- Body: `slotId`, `lockToken`, `email`, `paymentType`, optional `amount` (full), `returnPath`, funnel attribution
+- After `stripe.checkout.sessions.create`, persist row with `provider_ref = session.id`, `slot_id`, `reservation_id = NULL`
+- Checkout **metadata:** `slotId`, `lockToken`, `paymentType` (deposit|session DB values), funnel fields — not `reservationId`
+- Return `{ url, lockExpiresAt }` for client redirect

@@ -1,6 +1,7 @@
 const express = require('express');
 const Stripe = require('stripe');
 const { asyncHandler } = require('../../middleware/apiError');
+const { validateLockToken } = require('../../middleware/validators');
 const { getPool } = require('../../db');
 const auditRepo = require('../../db/repositories/auditRepo');
 const emailService = require('../../services/emailService');
@@ -43,11 +44,76 @@ async function isEventAlreadyProcessed(pool, eventId) {
   return rows.length > 0;
 }
 
-async function recordProcessedEvent(pool, eventId) {
-  await pool.execute(
-    'INSERT INTO webhook_events (stripe_event_id) VALUES (?)',
-    [eventId]
+/**
+ * Create confirmed reservation, link payment, remove slot lock. Caller must hold a transaction on `conn`.
+ * @returns {Promise<number>} reservation id
+ */
+async function ensureReservationForCheckoutPayment(conn, payment, session) {
+  if (payment.reservation_id != null) {
+    throw new Error('checkout.payment_already_linked');
+  }
+  if (payment.slot_id == null) {
+    throw new Error('checkout.payment_missing_slot');
+  }
+
+  const md = session.metadata || {};
+  const slotId = parseInt(md.slotId, 10);
+  const lockTokenRaw = md.lockToken != null ? String(md.lockToken).trim() : '';
+  if (!Number.isInteger(slotId) || slotId <= 0 || !lockTokenRaw) {
+    throw new Error('checkout.metadata_missing');
+  }
+  try {
+    validateLockToken(lockTokenRaw);
+  } catch {
+    throw new Error('checkout.invalid_lock_token');
+  }
+  if (Number(payment.slot_id) !== slotId) {
+    throw new Error('checkout.slot_mismatch');
+  }
+
+  const customerEmail =
+    (session.customer_email && String(session.customer_email).trim()) ||
+    (session.customer_details && session.customer_details.email) ||
+    '';
+  if (!customerEmail) {
+    throw new Error('checkout.no_email');
+  }
+
+  const [slotRows] = await conn.execute('SELECT id, status FROM slots WHERE id = ? FOR UPDATE', [slotId]);
+  const slot = slotRows[0];
+  if (!slot || slot.status !== 'open') {
+    throw new Error('checkout.slot_not_open');
+  }
+
+  const [conflict] = await conn.execute(
+    "SELECT id FROM reservations WHERE slot_id = ? AND status IN ('pending_payment','confirmed') LIMIT 1",
+    [slotId]
   );
+  if (conflict.length > 0) {
+    throw new Error('checkout.slot_already_reserved');
+  }
+
+  const reservationPaymentType = payment.payment_type === 'deposit' ? 'deposit' : 'full';
+  const funnelNameRaw = md.funnelName != null ? String(md.funnelName).trim() : '';
+  const funnelCampaignRaw = md.funnelCampaign != null ? String(md.funnelCampaign).trim() : '';
+  const funnelVideoIdRaw = md.funnelVideoId != null ? String(md.funnelVideoId).trim() : '';
+  const funnelName = funnelNameRaw ? funnelNameRaw.slice(0, 32) : null;
+  const funnelCampaign = funnelCampaignRaw ? funnelCampaignRaw.slice(0, 64) : null;
+  const funnelVideoId = funnelVideoIdRaw ? funnelVideoIdRaw.slice(0, 128) : null;
+
+  const [insRes] = await conn.execute(
+    `INSERT INTO reservations (slot_id, user_id, email, status, payment_type, lock_token,
+      funnel_name, funnel_campaign, funnel_video_id)
+     VALUES (?, ?, ?, 'confirmed', ?, ?, ?, ?, ?)`,
+    [slotId, payment.user_id, customerEmail, reservationPaymentType, lockTokenRaw, funnelName, funnelCampaign, funnelVideoId]
+  );
+  const reservationId = insRes.insertId;
+
+  await conn.execute('DELETE FROM slot_locks WHERE slot_id = ? AND lock_token = ?', [slotId, lockTokenRaw]);
+
+  await conn.execute('UPDATE payments SET reservation_id = ? WHERE id = ?', [reservationId, payment.id]);
+
+  return reservationId;
 }
 
 router.post(
@@ -80,17 +146,16 @@ router.post(
       case 'checkout.session.completed': {
         const session = event.data.object;
         const conn = await pool.getConnection();
+        let reservationIdForEmail = null;
         try {
           await conn.beginTransaction();
 
           const [paymentRows] = await conn.execute(
-            `SELECT p.id, p.reservation_id, p.user_id, p.payment_type, p.amount_cents, p.currency,
-                    r.email AS reservation_email, r.funnel_name, r.funnel_campaign, r.funnel_video_id,
+            `SELECT p.id, p.reservation_id, p.user_id, p.slot_id, p.payment_type, p.amount_cents, p.currency,
                     u.email AS user_email, u.name AS user_name
              FROM payments p
-             LEFT JOIN reservations r ON r.id = p.reservation_id
              LEFT JOIN users u ON u.id = p.user_id
-             WHERE p.provider_ref = ? AND p.status = ? LIMIT 1`,
+             WHERE p.provider_ref = ? AND p.status = ? LIMIT 1 FOR UPDATE`,
             [session.id, 'pending']
           );
           const payment = paymentRows[0];
@@ -100,21 +165,28 @@ router.post(
             break;
           }
 
+          reservationIdForEmail = await ensureReservationForCheckoutPayment(conn, payment, session);
+
           await conn.execute(
             'UPDATE payments SET status = ?, paid_at = NOW(3) WHERE id = ?',
             ['completed', payment.id]
           );
 
-          if (payment.reservation_id) {
-            await conn.execute(
-              'UPDATE reservations SET status = ? WHERE id = ?',
-              ['confirmed', payment.reservation_id]
-            );
-          }
+          const [billingPaymentRows] = await conn.execute(
+            `SELECT p.id, p.reservation_id, p.user_id, p.payment_type, p.amount_cents, p.currency,
+                    r.email AS reservation_email, r.funnel_name, r.funnel_campaign, r.funnel_video_id,
+                    u.email AS user_email, u.name AS user_name
+             FROM payments p
+             LEFT JOIN reservations r ON r.id = p.reservation_id
+             LEFT JOIN users u ON u.id = p.user_id
+             WHERE p.id = ? LIMIT 1`,
+            [payment.id]
+          );
+          const paymentRowForBilling = billingPaymentRows[0];
 
           const billingDocumentId = await billingDocumentService.insertBillingDocumentForCompletedPayment(
             conn,
-            { paymentRow: payment, session, stripeEventId: event.id }
+            { paymentRow: paymentRowForBilling, session, stripeEventId: event.id }
           );
 
           await conn.execute(
@@ -123,9 +195,21 @@ router.post(
           );
           await conn.commit();
 
+          await auditRepo.log(
+            'reservation_created',
+            'reservation',
+            reservationIdForEmail,
+            {
+              slotId: payment.slot_id,
+              stripeSessionId: session.id,
+              fromPaymentId: payment.id,
+            },
+            'system'
+          );
+
           await auditRepo.log('payment_confirmed', 'payment', payment.id, {
             stripeSessionId: session.id,
-            reservationId: payment.reservation_id,
+            reservationId: reservationIdForEmail,
           });
 
           await auditRepo.log(
@@ -140,13 +224,14 @@ router.post(
             console.error('[billing] Invoice PDF/email pipeline failed:', err);
           });
 
-          if (payment.reservation_id) {
-            sendConfirmationEmailAsync(payment.id, payment.reservation_id).catch((err) => {
+          if (reservationIdForEmail) {
+            sendConfirmationEmailAsync(payment.id, reservationIdForEmail).catch((err) => {
               console.error('[email] Confirmation send failed:', err);
             });
           }
         } catch (err) {
           await conn.rollback();
+          console.error('[Stripe webhook] checkout.session.completed failed:', session.id, err);
           throw err;
         } finally {
           conn.release();
@@ -155,20 +240,39 @@ router.post(
       }
       case 'checkout.session.expired': {
         const session = event.data.object;
+        const md = session.metadata || {};
+        let lockTokenRaw = md.lockToken != null ? String(md.lockToken).trim() : '';
+        try {
+          validateLockToken(lockTokenRaw);
+        } catch {
+          lockTokenRaw = '';
+        }
         const conn = await pool.getConnection();
         try {
           await conn.beginTransaction();
 
           const [paymentRows] = await conn.execute(
-            'SELECT id FROM payments WHERE provider_ref = ? AND status = ? LIMIT 1',
+            'SELECT id, slot_id FROM payments WHERE provider_ref = ? AND status = ? LIMIT 1',
             [session.id, 'pending']
           );
           const payment = paymentRows[0];
+          const slotId =
+            payment && payment.slot_id != null
+              ? Number(payment.slot_id)
+              : parseInt(md.slotId, 10);
+
           if (payment) {
             await conn.execute(
               'UPDATE payments SET status = ? WHERE id = ?',
               ['expired', payment.id]
             );
+          }
+
+          if (Number.isInteger(slotId) && slotId > 0 && lockTokenRaw) {
+            await conn.execute('DELETE FROM slot_locks WHERE slot_id = ? AND lock_token = ?', [
+              slotId,
+              lockTokenRaw,
+            ]);
           }
 
           await conn.execute(
