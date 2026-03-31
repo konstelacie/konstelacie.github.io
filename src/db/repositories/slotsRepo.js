@@ -308,6 +308,65 @@ async function bulkInsertOpenSlots(cells) {
   }
 }
 
+/** Past slots with no reservation row (FK-safe delete). Pending payments are always tied to a reservation in this app. */
+const OLD_UNUSED_SLOT_SQL_CONDITION = `s.end_at_utc < NOW(3)
+  AND NOT EXISTS (SELECT 1 FROM reservations r WHERE r.slot_id = s.id)`;
+
+const OLD_UNUSED_SLOT_PURGE_BATCH_MAX = 2000;
+
+async function getOldUnusedSlotsMaintenanceStats() {
+  const pool = getPool();
+  if (!pool) throw new Error('Database not configured');
+
+  const [[countRow]] = await pool.query(
+    `SELECT COUNT(*) AS cnt FROM slots s WHERE ${OLD_UNUSED_SLOT_SQL_CONDITION}`
+  );
+  const [oldestRows] = await pool.query(
+    `SELECT MIN(s.end_at_utc) AS oldest_end_at FROM slots s WHERE ${OLD_UNUSED_SLOT_SQL_CONDITION}`
+  );
+
+  return {
+    deletable: Number(countRow.cnt),
+    oldestEndAt: oldestRows[0]?.oldest_end_at ?? null,
+  };
+}
+
+/**
+ * Oldest deletable slots first (for admin preview).
+ * @param {number} limit capped at 50
+ */
+async function listOldUnusedSlotsPreview(limit = 5) {
+  const pool = getPool();
+  if (!pool) throw new Error('Database not configured');
+  const cap = Math.min(50, Math.max(1, parseInt(String(limit), 10) || 5));
+  const [rows] = await pool.query(
+    `SELECT s.id, s.local_date, s.grid_index, s.status, s.end_at_utc
+     FROM slots s
+     WHERE ${OLD_UNUSED_SLOT_SQL_CONDITION}
+     ORDER BY s.end_at_utc ASC
+     LIMIT ${cap}`
+  );
+  return rows;
+}
+
+/**
+ * @returns {number} number of rows deleted
+ */
+async function deleteOldUnusedSlotsBatch(batchSize) {
+  const pool = getPool();
+  if (!pool) throw new Error('Database not configured');
+  const cap = Math.min(
+    OLD_UNUSED_SLOT_PURGE_BATCH_MAX,
+    Math.max(1, parseInt(String(batchSize), 10) || OLD_UNUSED_SLOT_PURGE_BATCH_MAX)
+  );
+  const [result] = await pool.query(
+    `DELETE s FROM slots s
+     WHERE ${OLD_UNUSED_SLOT_SQL_CONDITION}
+     LIMIT ${cap}`
+  );
+  return result.affectedRows;
+}
+
 module.exports = {
   listSlotsWithLocks,
   getById,
@@ -319,4 +378,8 @@ module.exports = {
   listSlotsCellsInRange,
   listLocalDatesWithAnySlot,
   bulkInsertOpenSlots,
+  OLD_UNUSED_SLOT_PURGE_BATCH_MAX,
+  getOldUnusedSlotsMaintenanceStats,
+  listOldUnusedSlotsPreview,
+  deleteOldUnusedSlotsBatch,
 };

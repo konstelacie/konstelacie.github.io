@@ -92,4 +92,77 @@
     <% } %>
   </section>
   <% } %>
+
+  <% if (typeof dbConfigured !== 'undefined' && dbConfigured && typeof slotStats !== 'undefined' && slotStats) { %>
+  <section class="admin-detail" aria-labelledby="maintenance-slots-heading" style="margin-top: 2rem;">
+    <h2 id="maintenance-slots-heading" class="admin-create__title">Nepoužité minulé termíny</h2>
+    <p class="admin-bulk__hint">
+      Mazané sú len riadky, kde koniec termínu už prebehol (<code>end_at_utc</code> v minulosti)
+      a <strong>nie je</strong> k termínu žiadna rezervácia (akýkoľvek stav).
+      Záznamy so zrušenou či expirovanou rezerváciou tu <strong>nedajú</strong> zmazať — najprv by bolo treba riešiť rezervácie (obmedzenie databázy).
+      Viazané zámky (<code>slot_locks</code>) sa pri zmazaní termínu odstránia kaskádou.
+    </p>
+
+    <dl class="admin-dl">
+      <div class="admin-dl__row">
+        <dt>Termínov na zmazanie (spĺňa podmienky)</dt>
+        <dd><%= slotStats.deletable %></dd>
+      </div>
+      <% if (typeof oldestSlotEndLabel !== 'undefined' && oldestSlotEndLabel) { %>
+      <div class="admin-dl__row">
+        <dt>Najskorší koniec (medzi nimi)</dt>
+        <dd><%= oldestSlotEndLabel %></dd>
+      </div>
+      <% } %>
+    </dl>
+
+    <% if (typeof slotPreviewRows !== 'undefined' && slotPreviewRows.length) { %>
+    <h3 class="admin-detail__subtitle">Náhľad (najstaršie podľa konca, max. <%= slotPreviewRows.length %>)</h3>
+    <div class="admin-table-wrap admin-table-wrap--scroll">
+      <table class="admin-table">
+        <thead>
+          <tr>
+            <th scope="col">ID</th>
+            <th scope="col">Dátum</th>
+            <th scope="col">Čas</th>
+            <th scope="col">Stav</th>
+            <th scope="col">Koniec (UTC uložené)</th>
+          </tr>
+        </thead>
+        <tbody>
+          <% for (const row of slotPreviewRows) { %>
+          <tr>
+            <td><%= row.id %></td>
+            <td><%= row.localDateLabel %></td>
+            <td><%= row.timeKey %></td>
+            <td><%= row.status %></td>
+            <td><%= row.endLabel %></td>
+          </tr>
+          <% } %>
+        </tbody>
+      </table>
+    </div>
+    <% } else if (slotStats.deletable === 0) { %>
+    <p class="admin-placeholder">Žiadne termíny zodpovedajúce podmienkam.</p>
+    <% } %>
+
+    <% if (slotStats.deletable > 0) { %>
+    <form method="post" action="/admin/maintenance/delete-old-unused-slots" class="admin-detail__form" style="margin-top: 1.25rem;">
+      <p class="admin-bulk__hint">
+        Jedným spustením sa zmaže najviac <strong><%= slotPurgeBatchMax %></strong> takýchto termínov.
+        Ak ich ostane viac, akciu zopakujte.
+      </p>
+      <div class="admin-field admin-field--checkbox">
+        <label class="admin-bulk__checklabel">
+          <input type="checkbox" name="confirmUnusedSlots" value="on" required>
+          Chcem zmazať nepoužité minulé termíny (max. <%= slotPurgeBatchMax %> na krok)
+        </label>
+      </div>
+      <div class="admin-detail__actions">
+        <button type="submit" class="admin-btn admin-btn--primary">Zmazať nepoužité minulé termíny</button>
+      </div>
+    </form>
+    <% } %>
+  </section>
+  <% } %>
 </div>

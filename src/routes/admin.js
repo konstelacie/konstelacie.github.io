@@ -2,7 +2,7 @@ const crypto = require('crypto');
 const { DateTime } = require('luxon');
 const express = require('express');
 const config = require('../config');
-const { SLOT_TIMEZONE, SLOT_TIMES } = require('../config/slotGrid');
+const { SLOT_TIMEZONE, SLOT_TIMES, timeKeyForGridIndex } = require('../config/slotGrid');
 const { getPool } = require('../db');
 const auditRepo = require('../db/repositories/auditRepo');
 const slotsRepo = require('../db/repositories/slotsRepo');
@@ -23,6 +23,7 @@ const billingDocumentsRepo = require('../db/repositories/billingDocumentsRepo');
 const locksRepo = require('../db/repositories/locksRepo');
 const billingDeliveryService = require('../services/billingDeliveryService');
 const { mapBillingListRow, mapBillingDetailRow, csvEscape } = require('../lib/adminBillingDisplay');
+const { mysqlLocalDateToYmd } = require('../lib/slotApiMap');
 
 const router = express.Router();
 
@@ -145,17 +146,36 @@ router.get('/maintenance', requireAdmin, async (req, res) => {
       previewRows: [],
       oldestExpiredLabel: '',
       purgeBatchMax: locksRepo.EXPIRED_LOCK_PURGE_BATCH_MAX,
+      slotStats: null,
+      slotPreviewRows: [],
+      oldestSlotEndLabel: '',
+      slotPurgeBatchMax: slotsRepo.OLD_UNUSED_SLOT_PURGE_BATCH_MAX,
     });
   }
   try {
-    const stats = await locksRepo.getSlotLocksMaintenanceStats();
-    const rawPreview = await locksRepo.listExpiredSlotLocksPreview(5);
+    const [stats, slotMaint] = await Promise.all([
+      locksRepo.getSlotLocksMaintenanceStats(),
+      slotsRepo.getOldUnusedSlotsMaintenanceStats(),
+    ]);
+    const [rawPreview, rawSlotPreview] = await Promise.all([
+      locksRepo.listExpiredSlotLocksPreview(5),
+      slotsRepo.listOldUnusedSlotsPreview(5),
+    ]);
     const previewRows = rawPreview.map((row) => ({
       id: row.id,
       slot_id: row.slot_id,
       expiresLabel: formatDbInstantForAdmin(row.expires_at),
     }));
     const oldestExpiredLabel = stats.oldestExpiredAt ? formatDbInstantForAdmin(stats.oldestExpiredAt) : '';
+    const slotPreviewRows = rawSlotPreview.map((row) => ({
+      id: row.id,
+      localDateLabel: mysqlLocalDateToYmd(row.local_date),
+      timeKey: timeKeyForGridIndex(Number(row.grid_index)),
+      status: row.status,
+      endLabel: formatDbInstantForAdmin(row.end_at_utc),
+    }));
+    const oldestSlotEndLabel = slotMaint.oldestEndAt ? formatDbInstantForAdmin(slotMaint.oldestEndAt) : '';
+    const slotStats = { deletable: slotMaint.deletable };
     return res.render('admin/maintenance', {
       layout: 'layouts/admin',
       title: 'Údržba — administrácia',
@@ -167,6 +187,10 @@ router.get('/maintenance', requireAdmin, async (req, res) => {
       previewRows,
       oldestExpiredLabel,
       purgeBatchMax: locksRepo.EXPIRED_LOCK_PURGE_BATCH_MAX,
+      slotStats,
+      slotPreviewRows,
+      oldestSlotEndLabel,
+      slotPurgeBatchMax: slotsRepo.OLD_UNUSED_SLOT_PURGE_BATCH_MAX,
     });
   } catch (err) {
     console.error('[admin/maintenance]', err);
@@ -181,6 +205,10 @@ router.get('/maintenance', requireAdmin, async (req, res) => {
       previewRows: [],
       oldestExpiredLabel: '',
       purgeBatchMax: locksRepo.EXPIRED_LOCK_PURGE_BATCH_MAX,
+      slotStats: null,
+      slotPreviewRows: [],
+      oldestSlotEndLabel: '',
+      slotPurgeBatchMax: slotsRepo.OLD_UNUSED_SLOT_PURGE_BATCH_MAX,
     });
   }
 });
@@ -215,6 +243,41 @@ router.post('/maintenance/delete-expired-slot-locks', requireAdmin, async (req, 
     req.session.adminFlash = { level: 'success', message };
   } catch (err) {
     console.error('[admin/maintenance/delete-expired-slot-locks]', err);
+    req.session.adminFlash = { level: 'error', message: 'Operácia zlyhala. Skúste znova.' };
+  }
+  return res.redirect('/admin/maintenance');
+});
+
+router.post('/maintenance/delete-old-unused-slots', requireAdmin, async (req, res) => {
+  const confirmOn = req.body && req.body.confirmUnusedSlots === 'on';
+  if (!confirmOn) {
+    req.session.adminFlash = { level: 'error', message: 'Potvrďte mazanie termínov zaškrtnutím políčka.' };
+    return res.redirect('/admin/maintenance');
+  }
+  try {
+    const pool = getPool();
+    if (!pool) {
+      req.session.adminFlash = { level: 'error', message: 'Databáza nie je dostupná.' };
+      return res.redirect('/admin/maintenance');
+    }
+    const deleted = await slotsRepo.deleteOldUnusedSlotsBatch(slotsRepo.OLD_UNUSED_SLOT_PURGE_BATCH_MAX);
+    const after = await slotsRepo.getOldUnusedSlotsMaintenanceStats();
+    await auditRepo.log(
+      'old_unused_slots_purged',
+      'slot',
+      null,
+      { deleted, deletableRemaining: after.deletable },
+      'admin'
+    );
+    let message = `Zmazaných ${deleted} nepoužitých minulých termínov.`;
+    if (after.deletable > 0) {
+      message += ` Ešte ich ostáva ${after.deletable} — môžete spustiť znova.`;
+    } else if (deleted === 0) {
+      message = 'Žiadne termíny zodpovedajúce podmienkam na zmazanie.';
+    }
+    req.session.adminFlash = { level: 'success', message };
+  } catch (err) {
+    console.error('[admin/maintenance/delete-old-unused-slots]', err);
     req.session.adminFlash = { level: 'error', message: 'Operácia zlyhala. Skúste znova.' };
   }
   return res.redirect('/admin/maintenance');
