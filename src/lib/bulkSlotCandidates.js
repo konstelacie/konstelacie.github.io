@@ -3,6 +3,8 @@ const { SLOT_TIMEZONE, SLOT_TIMES, timeKeyForGridIndex } = require('../config/sl
 
 const MAX_BULK_RANGE_DAYS = 120;
 const MAX_BULK_CELLS = 2500;
+/** Default „do“: „od“ + 6 dní (jeden týždeň vrátane). */
+const DEFAULT_BULK_TO_OFFSET_DAYS = 6;
 
 /**
  * @param {object} body - express req.body (timeKeys may be string | string[])
@@ -36,29 +38,34 @@ function parseExcludeWeekends(body) {
  * Bulk form defaults: never before tomorrow; "from" is first local day in
  * [tomorrow .. tomorrow + MAX_BULK_RANGE_DAYS - 1] with no slot rows.
  * If every day in that window has slots, "from" is tomorrow.
- * "to" is at least "from" (extends calendar end when needed).
+ * "to" defaults to "from" + DEFAULT_BULK_TO_OFFSET_DAYS (one week inclusive).
  *
- * @param {string} calendarToIso - YYYY-MM-DD from current admin range (week/day)
  * @param {string[]} busyLocalDatesYmd - dates that already have ≥1 slot row
  */
-function resolveBulkFormDateDefaults(calendarToIso, busyLocalDatesYmd) {
+function resolveBulkFormDateDefaults(busyLocalDatesYmd) {
   const tomorrow = DateTime.now().setZone(SLOT_TIMEZONE).startOf('day').plus({ days: 1 });
   const scanEnd = tomorrow.plus({ days: MAX_BULK_RANGE_DAYS - 1 });
   const busy = new Set(busyLocalDatesYmd);
+
+  const bulkToFromFromIso = (fromIso) => {
+    const fromDt = DateTime.fromISO(fromIso, { zone: SLOT_TIMEZONE }).startOf('day');
+    let endDt = fromDt.plus({ days: DEFAULT_BULK_TO_OFFSET_DAYS });
+    const maxEnd = fromDt.plus({ days: MAX_BULK_RANGE_DAYS - 1 });
+    if (endDt > maxEnd) endDt = maxEnd;
+    return endDt.toISODate();
+  };
 
   let candidate = tomorrow;
   while (candidate <= scanEnd) {
     const iso = candidate.toISODate();
     if (!busy.has(iso)) {
-      const bulkToStr = calendarToIso >= iso ? calendarToIso : iso;
-      return { bulkDateFrom: iso, bulkDateTo: bulkToStr };
+      return { bulkDateFrom: iso, bulkDateTo: bulkToFromFromIso(iso) };
     }
     candidate = candidate.plus({ days: 1 });
   }
 
   const bulkFromStr = tomorrow.toISODate();
-  const bulkToStr = calendarToIso >= bulkFromStr ? calendarToIso : bulkFromStr;
-  return { bulkDateFrom: bulkFromStr, bulkDateTo: bulkToStr };
+  return { bulkDateFrom: bulkFromStr, bulkDateTo: bulkToFromFromIso(bulkFromStr) };
 }
 
 /**

@@ -1162,13 +1162,13 @@ router.get('/slots', requireAdmin, async (req, res) => {
 
   const computeBulkFormDates = async () => {
     const pool = getPool();
-    if (!pool) return resolveBulkFormDateDefaults(to, []);
+    if (!pool) return resolveBulkFormDateDefaults([]);
     const scanFrom = DateTime.now().setZone(SLOT_TIMEZONE).startOf('day').plus({ days: 1 }).toISODate();
     const scanTo = DateTime.fromISO(scanFrom, { zone: SLOT_TIMEZONE })
       .plus({ days: MAX_BULK_RANGE_DAYS - 1 })
       .toISODate();
     const busy = await slotsRepo.listLocalDatesWithAnySlot(scanFrom, scanTo);
-    return resolveBulkFormDateDefaults(to, busy);
+    return resolveBulkFormDateDefaults(busy);
   };
 
   const prevAnchor = anchor.plus({ days: view === 'week' ? -7 : -1 });
@@ -1240,7 +1240,7 @@ router.get('/slots', requireAdmin, async (req, res) => {
     let bulkDateFrom = from;
     let bulkDateTo = to;
     try {
-      const fallback = resolveBulkFormDateDefaults(to, []);
+      const fallback = resolveBulkFormDateDefaults([]);
       bulkDateFrom = fallback.bulkDateFrom;
       bulkDateTo = fallback.bulkDateTo;
     } catch (_) {
