@@ -42,8 +42,11 @@
    * Cleared on expand and when the calendar empties; page reload clears implicitly.
    */
   let minifiedEverShownDates = new Set();
-  /** Fingerprint of last `#booking-calendar-days` markup — when it changes after first paint, we animate + guard clicks. */
-  let calendarLastDaysHtmlSig = '';
+  /**
+   * Structural fingerprint of the calendar column: which days appear, expand/collapse, and main vs "more" strip.
+   * Slot-only HTML changes (poll, lock state) must not match a layout change — avoids animating on every refresh.
+   */
+  let calendarLastLayoutSig = '';
   let calendarReflowTimer = null;
 
   const $ = (id) => document.getElementById(id);
@@ -605,7 +608,7 @@
       daysEl.innerHTML = '';
       calendarDaysExpanded = false;
       minifiedEverShownDates = new Set();
-      calendarLastDaysHtmlSig = '';
+      calendarLastLayoutSig = '';
       if (calendarReflowTimer) {
         clearTimeout(calendarReflowTimer);
         calendarReflowTimer = null;
@@ -696,20 +699,23 @@
     daysEl.classList.remove('booking-calendar__days--reflowing');
 
     let nextInnerHtml;
+    let nextLayoutSig;
     if (calendarDaysExpanded) {
+      nextLayoutSig = `E:${eligibleOrdered.join('|')}`;
       nextInnerHtml = `${articles.join('')}${expandRowOpen}`;
     } else {
       const mainOrder = minifiedMainDateOrder(eligibleOrdered);
       const mainSet = new Set(mainOrder);
+      const extraDates = eligibleOrdered.filter((d) => !mainSet.has(d));
       const visibleArticles = mainOrder.map((ds) => articleByDate.get(ds));
-      const extraArticles = eligibleOrdered
-        .filter((d) => !mainSet.has(d))
-        .map((ds) => articleByDate.get(ds));
+      const extraArticles = extraDates.map((ds) => articleByDate.get(ds));
 
       if (extraArticles.length === 0) {
         calendarDaysExpanded = false;
+        nextLayoutSig = `C0:${mainOrder.join('|')}`;
         nextInnerHtml = visibleArticles.join('');
       } else {
+        nextLayoutSig = `C1:${mainOrder.join('|')}>>${extraDates.join('|')}`;
         nextInnerHtml = `${visibleArticles.join(
           ''
         )}<div class="booking-calendar__days-more"><div class="booking-calendar__days-more-inner">${extraArticles.join(
@@ -718,12 +724,12 @@
       }
     }
 
-    const prevHtml = calendarLastDaysHtmlSig;
-    const layoutChanged = prevHtml !== '' && prevHtml !== nextInnerHtml;
-    calendarLastDaysHtmlSig = nextInnerHtml;
+    const layoutStructureChanged =
+      calendarLastLayoutSig !== '' && calendarLastLayoutSig !== nextLayoutSig;
+    calendarLastLayoutSig = nextLayoutSig;
     daysEl.innerHTML = nextInnerHtml;
 
-    if (layoutChanged) {
+    if (layoutStructureChanged) {
       daysEl.classList.add('booking-calendar__days--reflowing');
       requestAnimationFrame(() => {
         requestAnimationFrame(() => {

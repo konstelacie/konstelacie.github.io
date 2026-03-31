@@ -382,25 +382,33 @@ a.funnel-scroll-hint__arrow:focus-visible {
   0% {
     opacity: 0.72;
     transform: translateY(0.45rem);
+    max-height: 0;
   }
   100% {
     opacity: 1;
     transform: translateY(0);
+    max-height: 120rem;
   }
 }
 
 .booking-day--flash {
+  overflow: hidden;
   animation: booking-calendar-day-flash 0.75s cubic-bezier(0.22, 1, 0.36, 1) forwards;
 }
 
 .booking-calendar__days-more {
   display: grid;
   grid-template-rows: 0fr;
-  transition: grid-template-rows 0.55s ease;
+  max-height: 0;
+  overflow: hidden;
+  transition:
+    grid-template-rows 0.55s ease,
+    max-height 0.55s ease;
 }
 
 .booking-calendar__days-more--open {
   grid-template-rows: 1fr;
+  max-height: 120rem;
 }
 
 .booking-calendar__days-more-inner {
@@ -448,6 +456,8 @@ a.funnel-scroll-hint__arrow:focus-visible {
 
   .booking-day--flash {
     animation: none;
+    overflow: visible;
+    max-height: none;
   }
 }
 
