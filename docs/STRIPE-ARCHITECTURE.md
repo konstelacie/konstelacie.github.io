@@ -13,13 +13,25 @@
 | `STRIPE_WEBHOOK_SECRET` | Signing secret (`whsec_...`) for `POST /api/stripe/webhook`. |
 | `BASE_URL` | Optional. Used when building Stripe `success_url` / `cancel_url`. If unset, derived from the incoming request (`protocol` + `Host`). |
 
+### Billing / invoice (optional)
+
+Used when issuing internal documents after `checkout.session.completed` (`src/services/billingDocumentService.js`, `billingDeliveryService.js`). See `docs/DB-SCHEMA.md` (`billing_documents`), `src/config/index.js` (`billing`), and `docs/payments/invoicing-mvp-implementation.md`.
+
+| Variable | Description |
+|----------|-------------|
+| `BILLING_VAT_RATE` | Decimal 0–1 for VAT split on document rows; default **0.23** if unset or invalid. |
+| `BILLING_DOCUMENT_PREFIX` | Prefix for `document_number` (e.g. `CT-2026-00001`); default **`CT`**. |
+| `BILLING_PDF_STORAGE_DIR` | Absolute directory for generated PDFs; default **`{cwd}/storage/billing-pdfs`**. |
+| `BILLING_SEND_INVOICE_EMAIL` | If **`0`** or **`false`**, PDF issuance still runs but **invoice email is skipped**. Otherwise (default) send via Resend when recipient is valid. |
+| `BILLING_INVOICE_COMPANY_NAME`, `BILLING_INVOICE_COMPANY_ADDRESS`, `BILLING_INVOICE_ICO`, `BILLING_INVOICE_DIC`, `BILLING_INVOICE_IC_DPH` | Supplier block on PDF (optional strings). |
+
 ---
 
 ## 1. Overview
 
 - Integration uses **Stripe Checkout Sessions** (hosted checkout), not Payment Links.
 - **Payment creation:** Single endpoint `POST /api/payments/start` (not separate `/deposit`, `/session`, `/topup` routes).
-- **Confirmation of payment:** **Stripe webhooks** update `payments` and `reservations`. The success page may poll `GET /api/payments/status`, but **authoritative state** is written by the webhook.
+- **Confirmation of payment:** **Stripe webhooks** update `payments` and `reservations`, insert a **`billing_documents`** row for the settled payment (when applicable), and kick off **PDF + optional invoice email** in the background. The success page may poll `GET /api/payments/status`, but **authoritative state** is written by the webhook.
 - Booking is **email-based** (no JWT on payment routes): the server checks an existing **reservation** in `pending_payment` with a matching `payment_type`.
 
 **Critical rule:** Treat payment as succeeded for business logic only after the webhook has updated the DB (or after reading DB state that the webhook updated). Redirect to success URL alone is not proof of capture.
@@ -69,13 +81,15 @@ Details: `docs/API.md`.
 
 | Event | Behavior |
 |-------|----------|
-| `checkout.session.completed` | Find **pending** `payments` row by `provider_ref = session.id`. Set payment `status` to **`completed`**, `paid_at` = now. Set reservation `status` to **`confirmed`** if linked. Insert `webhook_events` for `event.id`. Log audit. Fire **reservation confirmation email** asynchronously (errors logged; do not block HTTP response). |
+| `checkout.session.completed` | In a **DB transaction:** find **pending** `payments` row by `provider_ref = session.id`. Update payment to **`completed`** and `paid_at`. If `reservation_id` is set, set reservation to **`confirmed`**. Call **`billingDocumentService.insertBillingDocumentForCompletedPayment`** — inserts **`billing_documents`** with `status = recorded`, snapshots email/name, VAT split from gross (`BILLING_VAT_RATE`), Stripe ids from session. Insert **`webhook_events`** for `event.id`, **commit**. After commit: audit (`payment_confirmed`, `billing_document_recorded`); **`billingDeliveryService.processBillingDocumentDelivery(billingDocumentId)`** in the background (assigns **`document_number`** via **`billing_document_counters`**, writes PDF, optionally sends **invoice email** — errors logged, HTTP response not blocked). If there is a reservation, **`sendReservationConfirmation`** also runs **asynchronously** (separate from invoice pipeline). |
 | `checkout.session.expired` | If pending payment exists for `session.id`, set payment `status` to **`expired`**. Insert `webhook_events` for `event.id`. |
 | Other types | Logged only; still returns **200** `{ received: true }` at end of handler. |
 
 **Payment status values in DB:** `pending`, `completed`, `failed`, `expired`, `refunded` (not the string `paid`).
 
 **Lookup key:** Stripe Checkout Session id `cs_...` is stored in `payments.provider_ref` (unique).
+
+**Billing idempotency:** **`webhook_events`** prevents replay of the same Stripe `evt_...`. **`billing_documents`** has **UNIQUE (`payment_id`)** so a second insert for the same payment fails at DB level if ever attempted outside that guard.
 
 ---
 
@@ -96,7 +110,7 @@ The webhook handler does **not** rely on metadata to find the payment row; it us
 
 ## 6. Database model
 
-**Authoritative columns:** See `docs/DB-SCHEMA.md` — `payments` uses `reservation_id`, `provider_ref` (Stripe session id), `payment_type` (`deposit` \| `session` \| `topup`), `amount_cents`, `status`, `paid_at`, etc. **`webhook_events.stripe_event_id`** stores Stripe `evt_...` for idempotency.
+**Authoritative columns:** See `docs/DB-SCHEMA.md` — `payments` uses `reservation_id`, `provider_ref` (Stripe session id), `payment_type` (`deposit` \| `session` \| `topup`), `amount_cents`, `status`, `paid_at`, etc. **`webhook_events.stripe_event_id`** stores Stripe `evt_...` for idempotency. **`billing_documents`** (one row per completed payment in the MVP path) and **`billing_document_counters`** hold internal invoicing state, PDF path, and email send timestamps.
 
 Do not duplicate full column lists here; keep them in `DB-SCHEMA.md` / `001_initial.sql`.
 
@@ -109,13 +123,18 @@ Do not duplicate full column lists here; keep them in `DB-SCHEMA.md` / `001_init
 | Amount tampering | Deposit amount is fixed server-side. Full payment requires integer euros ≥ 45, converted to cents server-side. |
 | Spoofed success | Success/cancel pages must not assume payment succeeded; webhook updates state. |
 | Webhook forgery | Signature verification required. |
-| Duplicate processing | `webhook_events` + unique `provider_ref` on payments. |
+| Duplicate processing | `webhook_events` + unique `provider_ref` on payments + unique `billing_documents.payment_id`. |
 
 ---
 
-## 8. Confirmation email
+## 8. Post-payment emails
 
-After `checkout.session.completed` commits, `emailService.sendReservationConfirmation` runs in the background (`.catch` logs failures). Template id logged: `reservation-confirmation`. See `docs/EMAILING.md`.
+After `checkout.session.completed` **commits**, two **independent** async paths run (each `.catch` logs errors; **200** is returned to Stripe regardless):
+
+1. **Reservation confirmation** — `emailService.sendReservationConfirmation` when `reservation_id` was present on the payment. Logged template id: **`reservation-confirmation`**. EJS: `src/templates/emails/reservation-confirmation.ejs`.
+2. **Billing invoice** — `billingDeliveryService.processBillingDocumentDelivery` allocates **`document_number`**, renders PDF, then optionally **`emailService.sendBillingInvoiceEmail`** (templates **`billing-invoice`** / **`billing-invoice-resend`** for admin resend). Skipped when `BILLING_SEND_INVOICE_EMAIL` is disabled; recipient must be a valid email (not e.g. `(unknown)` placeholder). See `docs/EMAILING.md`.
+
+Both paths log to **`email_sent_log`** when Resend returns a message id.
 
 ---
 
@@ -142,7 +161,7 @@ After `checkout.session.completed` commits, `emailService.sendReservationConfirm
 
 ## 11. Future extensions
 
-Examples: refunds, admin-initiated session creation, PaymentIntents outside Checkout, extra webhook event types. **Not implemented** unless added to `src/routes/api/stripe.js` / `payments.js`.
+Examples: **`charge.refunded`** (or equivalent) to drive **correction / refund** billing rows; admin-initiated Checkout; PaymentIntents outside Checkout; more webhook types. **Not implemented** unless added to `src/routes/api/stripe.js` / `payments.js`. Admin **regenerate PDF** / **resend invoice** for existing documents lives under **`/admin/billing`** (not webhook).
 
 ---
 
@@ -150,5 +169,6 @@ Examples: refunds, admin-initiated session creation, PaymentIntents outside Chec
 
 - `docs/API.md` — Request/response shapes.
 - `docs/SESSION-PRICING.md` — Product pricing copy and rules.
-- `docs/EMAILING.md` — Resend, templates, logging.
+- `docs/EMAILING.md` — Resend, templates, logging (confirmation + invoice).
+- `docs/payments/invoicing-mvp-implementation.md` — Invoicing domain and edge cases.
 - [Stripe Checkout Session API](https://stripe.com/docs/api/checkout/sessions), [Webhooks](https://stripe.com/docs/webhooks)

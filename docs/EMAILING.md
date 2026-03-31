@@ -10,10 +10,11 @@
 |-------|--------|
 | Provider | **Resend** (`resend` npm package); `sendEmail` skipped if API key/from not set (`skipped: true`). |
 | Reservation confirmation | **Yes** — after `checkout.session.completed` webhook (`src/routes/api/stripe.js`), `sendReservationConfirmation`, template id `reservation-confirmation`. |
+| Billing invoice (PDF email) | **Yes** — same webhook path triggers `billingDeliveryService.processBillingDocumentDelivery`, then `sendBillingInvoiceEmail` when enabled and recipient valid; template ids **`billing-invoice`** (initial) and **`billing-invoice-resend`** (admin). Disable outbound invoice mail with `BILLING_SEND_INVOICE_EMAIL=false` (PDF can still be generated). |
 | Pre-session reminder | **Yes** — cron job `pre-session-reminder` (`src/jobs/preSessionReminder.js`), template id `pre-session-reminder`. |
 | `email_sent_log` table | **Yes** — audit for sends with template id, entity link, `provider_message_id` when available. |
-| Queue / worker | **No** — confirmation uses fire-and-forget `async` from webhook handler (errors logged). |
-| Operator manual send UI | **No** — still external / future. |
+| Queue / worker | **No** — confirmation and invoice pipelines use fire-and-forget `async` from webhook or admin redirects (errors logged). |
+| Operator manual send UI | **No** — still external / future. Admin **resend invoice** for an existing billing document: **`POST /admin/billing/:id/resend-email`**. |
 
 ### Required env vars (Resend)
 
@@ -24,6 +25,8 @@ Set in `.env` (or environment); see `src/config/index.js` and `.env.example`.
 | `RESEND_API_KEY` | API key from [Resend Dashboard → API Keys](https://resend.com/api-keys). |
 | `RESEND_FROM_EMAIL` | Sender address (verified domain in Resend). |
 | `RESEND_FROM_NAME` | Display name (default in config: `citimtedasom.sk`). |
+
+**Billing invoice email** also respects **`BILLING_SEND_INVOICE_EMAIL`** and supplier/PDF dirs under the **`billing`** config block — see `docs/STRIPE-ARCHITECTURE.md` (Billing / invoice env).
 
 ---
 
@@ -42,7 +45,7 @@ This doc is a thinking input. Final decisions will be captured elsewhere once ma
 
 ### What exists today (code)
 
-- **Reservation flow:** Slot → lock → reservation (email) → Stripe Checkout → webhook confirms payment → **confirmation email** sent asynchronously.
+- **Reservation flow:** Slot → lock → reservation (email) → Stripe Checkout → webhook confirms payment → **confirmation email** and (when configured) **billing invoice email** with PDF sent asynchronously.
 - **Success page:** `src/views/funnels/_funnel-success.ejs` — thanks copy; details also loaded via `GET /api/payments/status` where implemented client-side.
 - **Provider:** Resend; HTML from EJS templates in `src/templates/emails/`.
 - **Schema:** `users.email`, `reservations.email`, **`email_sent_log`** for sends linked by `template_id`, `entity_type`, `entity_id`.
@@ -60,7 +63,7 @@ This doc is a thinking input. Final decisions will be captured elsewhere once ma
 ### Where This Doc Connects
 
 - **Reservation flow:** Confirmation email after payment; see `docs/RESERVATION-SYSTEM-ARCHITECTURE.md` Flow A step 9.
-- **Payment flow:** Webhook confirms payment; email can be triggered from there (or deferred to background); see `docs/STRIPE-ARCHITECTURE.md` Section 9.
+- **Payment flow:** Webhook confirms payment; reservation confirmation + invoice pipeline run from there; see `docs/STRIPE-ARCHITECTURE.md` §8 (Post-payment emails).
 - **Post-payment journey:** Confirmation, onboarding, reminders, follow-up; see `docs/POST-PAYMENT-CLIENT-JOURNEY.md`.
 - **Future admin/CRM:** Operator needs to see history, send manual emails, possibly manage sequences.
 
@@ -354,17 +357,18 @@ Ak by Meet u vás nefungoval, môžeme použiť aj inú platformu.
 | Item | Notes |
 |------|--------|
 | Reservation confirmation email | Stripe webhook → `sendReservationConfirmation`; template `reservation-confirmation.ejs`. |
+| Billing invoice email | Webhook → `processBillingDocumentDelivery` → `sendBillingInvoiceEmail`; templates `billing-invoice.ejs`, `billing-invoice-resend.ejs`; entity `billing_document` in send log. |
 | Provider integration | Resend via `src/email/provider.js`. |
 | Code-level templates | EJS in `src/templates/emails/`. |
 | Send log | `email_sent_log` + `emailSentLogRepo`. |
-| Non-blocking webhook | Async send with `.catch` logging. |
+| Non-blocking webhook | Async send with `.catch` logging (confirmation + billing pipeline). |
 | Pre-session reminder | Cron + `pre-session-reminder` template; see `SCHEDULED-EMAILS-CRON.md`. |
 
 ### 9.2 Still open / postponed
 
 | Item | Rationale |
 |------|------------|
-| **Operator manual email** | Internal admin at `/admin` exists (`docs/ui-ux/admin-interface.md`), but there is **no** compose/send-to-client email action yet — only transactional + cron templates. |
+| **Operator manual email** | Internal admin at `/admin` exists (`docs/ui-ux/admin-interface.md`), but there is **no** free-form compose/send-to-client action yet. **Resend billing invoice** for an existing document is available at `/admin/billing/:id/resend-email`. |
 | **Customizable templates** | Fixed templates in repo for now. |
 | **Follow-up / doplatok emails** | Needs session-completion flow + product rules. |
 | **Delivery status webhooks** | Optional. |
@@ -393,15 +397,17 @@ Ak by Meet u vás nefungoval, môžeme použiť aj inú platformu.
 
 2. **Confirmation email:** Sent after successful `checkout.session.completed` processing; template `reservation-confirmation.ejs`; subject `Rezervácia potvrdená`.
 
-3. **Templates:** EJS under `src/templates/emails/` — `reservation-confirmation.ejs`, `pre-session-reminder.ejs`.
+3. **Billing invoice email:** Same webhook after commit via `billingDeliveryService.processBillingDocumentDelivery`; templates `billing-invoice.ejs`, `billing-invoice-resend.ejs`; PDF attachment; subject includes document number. Optional env to suppress send: `BILLING_SEND_INVOICE_EMAIL=false`.
 
-4. **Logging:** `email_sent_log` as in `docs/DB-SCHEMA.md`.
+4. **Templates:** EJS under `src/templates/emails/` — `reservation-confirmation.ejs`, `pre-session-reminder.ejs`, `billing-invoice.ejs`, `billing-invoice-resend.ejs`.
 
-5. **Webhook path:** `sendConfirmationEmailAsync` — no `await` in the request path; errors logged.
+5. **Logging:** `email_sent_log` as in `docs/DB-SCHEMA.md`.
 
-6. **Operator-composed emails:** Still future — admin UI is present for slots/reservations, but **sending** ad-hoc mail to a client from the app is not implemented (`docs/IMPLEMENTATION-PLAN.md` §3C).
+6. **Webhook path:** `sendConfirmationEmailAsync` and `processBillingDocumentDelivery(...).catch(...)` — not `await`’d in the Stripe HTTP handler; errors logged.
 
-7. **Follow-up / doplatok / newsletter:** Still future or product-dependent.
+7. **Operator-composed emails:** Still future — admin UI is present for slots/reservations, but **sending** ad-hoc mail to a client from the app is not implemented (`docs/IMPLEMENTATION-PLAN.md` §3C).
+
+8. **Follow-up / doplatok / newsletter:** Still future or product-dependent.
 
 ---
 

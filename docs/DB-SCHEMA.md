@@ -139,7 +139,7 @@ Payment records. One row per Stripe Checkout Session. See `docs/STRIPE-ARCHITECT
 
 **Relations:** `user_id` → users, `reservation_id` → reservations. At most one **`billing_documents`** row per payment (`UNIQUE (payment_id)`).
 
-**Notes:** `provider_ref` stores Stripe Checkout Session ID. Webhook updates `status` and `paid_at` on `checkout.session.completed`. The same webhook path inserts **`billing_documents`** (when applicable) and triggers PDF/email delivery — see `src/routes/api/stripe.js`, `docs/payments/invoicing-mvp-implementation.md`.
+**Notes:** `provider_ref` stores Stripe Checkout Session ID. Webhook updates `status` and `paid_at` on `checkout.session.completed`. The same webhook path inserts **`billing_documents`** and triggers PDF/email delivery — see `docs/STRIPE-ARCHITECTURE.md` §4–§8, `src/routes/api/stripe.js`, `docs/payments/invoicing-mvp-implementation.md`.
 
 ---
 
