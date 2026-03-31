@@ -2,7 +2,7 @@
 
 **Purpose:** Point-in-time inventory of what the codebase actually does. **HTTP details (public JSON):** `docs/API.md`. **Tables/columns:** `docs/DB-SCHEMA.md`. **Planned / not built yet:** `docs/IMPLEMENTATION-PLAN.md`. Regenerate or update this file when making large behavior changes.
 
-**Generated:** 2026-03-26 (from repository state).
+**Generated:** 2026-03-31 (from repository state).
 
 ---
 
@@ -19,7 +19,8 @@
 3. `express-session` — admin session cookie `admin.sid` (see `src/app.js`).
 4. `morgan` in non-production.
 5. `GET /assets` static.
-6. **Mount order:** `/api` → `/admin` → funnel routes (`/`) → index (`/`) → static (`/robots.txt`, `/sitemap.xml`) → `/health`.
+6. `res.locals.metaPixelId` — from `config.metaPixelId` (`META_PIXEL_ID`); used with marketing cookie consent on public pages.
+7. **Mount order:** `/api` → `/admin` → **`/` legal** (`src/routes/legal.js`) → funnels (`src/routes/funnels.js`) → index (`src/routes/index.js`) → static (`src/routes/static.js`: `robots.txt`, `sitemap.xml`) → health (`src/routes/health.js`).
 
 ---
 
@@ -33,6 +34,8 @@
 | GET | `/:funnelName` | Funnel instance (see Funnels). Invalid name → `next('route')`. |
 | GET | `/:funnelName/success` | Post–Stripe Checkout success (query `session_id` used client-side / status flow). |
 | GET | `/:funnelName/cancel` | Checkout cancelled. |
+| GET | `/ochrana-udajov` | Privacy / GDPR page; `src/routes/legal.js` → `ochrana-udajov.ejs`. |
+| GET | `/obchodne-podmienky` | Terms; `src/routes/legal.js` → `obchodne-podmienky.ejs`. |
 | GET | `/robots.txt` | File from repo root `robots.txt`. |
 | GET | `/sitemap.xml` | File from repo root `sitemap.xml`. |
 | GET | `/health` | JSON DB health (`src/routes/health.js`). |
@@ -64,6 +67,12 @@
 | POST | `/admin/reservations/:id/cancel` | Cancel reservation (admin). |
 | POST | `/admin/reservations/:id/note` | Set `admin_note`. |
 | POST | `/admin/reservations/:id/external` | Append external-handling note. |
+| GET | `/admin/billing` | List billing documents (search). |
+| GET | `/admin/billing/export.csv` | CSV export (search). |
+| GET | `/admin/billing/:id` | Billing document detail. |
+| POST | `/admin/billing/:id/regenerate-pdf` | Regenerate PDF on disk. |
+| POST | `/admin/billing/:id/resend-email` | Resend invoice email (`billing-invoice-resend`). |
+| POST | `/admin/billing/:id/note` | Operator notes on document. |
 
 There is **no** public **`/api/admin/*`** JSON surface; operator actions are form posts to `/admin/*`.
 
@@ -92,7 +101,7 @@ All JSON APIs use `requestId` middleware. Base: `src/routes/api/index.js`.
 
 **Handled Stripe event types (in code):**
 
-- `checkout.session.completed` — marks payment completed, reservation `confirmed`, idempotency via `webhook_events`, triggers reservation confirmation email (async).
+- `checkout.session.completed` — in a transaction: payment **`completed`**, reservation **`confirmed`** (if linked), **`billing_documents`** row via `billingDocumentService`, **`webhook_events`** insert; after commit: async **`billingDeliveryService.processBillingDocumentDelivery`** (document number, PDF, optional invoice email) and **`sendReservationConfirmation`** when `reservation_id` present (async).
 - `checkout.session.expired` — marks payment `expired` if pending.
 - Other event types: logged, no DB update.
 
@@ -104,11 +113,15 @@ All JSON APIs use `requestId` middleware. Base: `src/routes/api/index.js`.
 |----------|----------|
 | `PORT` | Server listen (default 3000). |
 | `NODE_ENV` | Morgan dev logging; API error message detail in `apiError`. |
-| `DB_HOST`, `DB_PORT`, `DB_USER`, `DB_PASSWORD`, `DB_NAME` | MySQL pool (`src/config/index.js`, `src/config/database.js`). Pool is **disabled** if `host`, `user`, or `database` is missing. |
+| `DB_HOST`, `DB_PORT`, `DB_USER`, `DB_PASSWORD`, `DB_NAME` | MySQL pool (`getPoolConfig` in `src/config/database.js`). Pool is **disabled** when **`host`**, **`user`**, or **`database`** is falsy after defaults (empty **`DB_USER`** is the usual case until `.env` is set). |
+| `META_PIXEL_ID` | Facebook Pixel id; `res.locals.metaPixelId` (`src/app.js`). |
+| `SITE_LEGAL_ENTITY`, `SITE_LEGAL_EMAIL` | Legal pages + imprint; `SITE_LEGAL_EMAIL` falls back to `RESEND_FROM_EMAIL` (`src/config/index.js` → `views`). |
 | `STRIPE_SECRET_KEY` | Stripe Checkout Session creation (`/api/payments/start`). |
 | `STRIPE_WEBHOOK_SECRET` | Webhook signature verification. |
 | `BASE_URL` | Success/cancel URLs for Checkout; fallback `req.protocol` + host. |
 | `RESEND_API_KEY`, `RESEND_FROM_EMAIL`, `RESEND_FROM_NAME` | Resend email (`src/email/provider.js`, `src/config/index.js`). |
+| `BILLING_VAT_RATE` | Optional; VAT decimal for net/VAT split on billing rows (`src/services/billingDocumentService.js`; default 0.23). |
+| `BILLING_DOCUMENT_PREFIX`, `BILLING_PDF_STORAGE_DIR`, `BILLING_SEND_INVOICE_EMAIL`, `BILLING_INVOICE_*` | Invoice numbering, PDF dir, suppress email, supplier block on PDF (`src/config/index.js`, `billingDeliveryService`). |
 | `CRON_SECRET` | Cron auth (`Authorization: Bearer`, `X-Cron-Secret`, or `?secret=`); dev localhost bypass. |
 | `ADMIN_USERNAME`, `ADMIN_PASSWORD` | Internal admin login (`src/config/index.js`). |
 | `SESSION_SECRET` | Signs admin session cookie; required in production (`src/app.js`). |
@@ -131,6 +144,8 @@ All JSON APIs use `requestId` middleware. Base: `src/routes/api/index.js`.
 | `slot_locks` | Short-lived locks (`lock_token` UUID, `expires_at` — duration set by API: 5 min after lock, 15 min after extend). |
 | `reservations` | Booking workflow (`status`: draft, pending_payment, confirmed, cancelled, expired); funnel fields; optional `admin_note`. |
 | `payments` | Stripe Checkout (`provider_ref` = session id `cs_...`; unique); `payment_type` deposit, session, topup. |
+| `billing_documents` | Internal invoicing; unique `payment_id`; PDF + email pipeline. |
+| `billing_document_counters` | Per-year sequence for `document_number`. |
 | `webhook_events` | Stripe `evt_...` idempotency. |
 | `email_sent_log` | Transactional email audit. |
 | `audit_logs` | Generic audit trail. |
@@ -160,7 +175,7 @@ All JSON APIs use `requestId` middleware. Base: `src/routes/api/index.js`.
 
 **Video resolution:** `src/config/funnelVideo.js` (`resolveCampaignVideo`) — supports `self`, `wistia`, legacy iframe `videoUrl`.
 
-**Sitemap:** `sitemap.xml` lists `https://citimtedasom.sk/` and `https://citimtedasom.sk/pilot` (no query campaign variants).
+**Sitemap:** `sitemap.xml` lists home, `/pilot`, `/ochrana-udajov`, `/obchodne-podmienky` (no `?campaign=` variants).
 
 ---
 
@@ -180,14 +195,16 @@ Loaded by funnel template (see `funnels.js` `extraStyles` / `extraScripts`):
 ## Email
 
 - **Provider:** Resend (`src/email/provider.js`).
-- **Templates (EJS):** `src/templates/emails/reservation-confirmation.ejs`, `pre-session-reminder.ejs`.
+- **Templates (EJS):** `reservation-confirmation.ejs`, `pre-session-reminder.ejs`, `billing-invoice.ejs`, `billing-invoice-resend.ejs` under `src/templates/emails/`.
 - **Sent from code:**
-  - After successful `checkout.session.completed` webhook — `emailService.sendReservationConfirmation`.
-  - Cron job `pre-session-reminder` — `emailService.sendPreSessionReminder` for due reservations (see `src/jobs/preSessionReminder.js`, `reservationsRepo.findDueForPreSessionReminder`).
+  - After `checkout.session.completed` — `emailService.sendReservationConfirmation` (async; when payment has reservation).
+  - Same webhook path — `billingDeliveryService.processBillingDocumentDelivery` → `sendBillingInvoiceEmail` (initial invoice, PDF attach) unless disabled / invalid recipient.
+  - Admin **`POST /admin/billing/:id/resend-email`** — `resendBillingInvoiceEmailAdmin` → `sendBillingInvoiceEmail` with `resend: true`.
+  - Cron **`pre-session-reminder`** — `emailService.sendPreSessionReminder` (`reservationsRepo.findDueForPreSessionReminder`).
 
-**Template IDs (logging):** `reservation-confirmation`, `pre-session-reminder` (see `emailService` / `preSessionReminder.js`).
+**Template IDs (logging):** `reservation-confirmation`, `pre-session-reminder`, `billing-invoice`, `billing-invoice-resend` — see `docs/EMAILING.md` (parity table).
 
-**Operator-composed email** from admin is **not** implemented; transactional sends only (see `docs/EMAILING.md`).
+**Operator free-form email** from admin is **not** implemented; **invoice resend** is (see above).
 
 ---
 
@@ -201,7 +218,7 @@ Loaded by funnel template (see `funnels.js` `extraStyles` / `extraScripts`):
 
 ## Related config modules
 
-- `src/config/index.js` — port, env, db, Resend, cron secret, admin credentials.
+- `src/config/index.js` — port, env, db, Meta Pixel id, **site** (legal entity/email), Resend, **billing**, cron secret, admin credentials.
 - `src/config/database.js` — pool creation guard (needs host, user, database).
 - `src/config/funnelVideo.js` — campaign video resolution for EJS.
 - `src/config/slotGrid.js` — grid times / timezone helpers used by API and admin.
