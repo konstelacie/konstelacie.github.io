@@ -1,6 +1,6 @@
 # Database Schema
 
-**For AI assistants (Cursor, Copilot, etc.):** This document describes the database structure and purpose. **Schema source of truth:** `src/db/migrations/001_initial.sql`. For a compact inventory aligned with code, see `docs/IMPLEMENTATION-SNAPSHOT.md`. For migration commands and env vars, see `docs/DB-MIGRATIONS.md`. For domain flows and API design, see `docs/RESERVATION-SYSTEM-ARCHITECTURE.md` and `docs/STRIPE-ARCHITECTURE.md`.
+**For AI assistants (Cursor, Copilot, etc.):** This document describes the database structure and purpose. **Schema source of truth:** `src/db/migrations/001_initial.sql`. For a compact inventory aligned with code, see `docs/IMPLEMENTATION-SNAPSHOT.md`. For migration commands and env vars, see `docs/DB-MIGRATIONS.md`. For domain flows and API design, see `docs/RESERVATION-SYSTEM-ARCHITECTURE.md` and `docs/STRIPE-ARCHITECTURE.md`. For invoicing flows and rollout notes, see `docs/payments/invoicing-mvp-implementation.md` and `src/services/billingDocumentService.js`, `src/services/billingDeliveryService.js`, `src/db/repositories/billingDocumentsRepo.js`.
 
 ---
 
@@ -39,7 +39,7 @@ Identity by email. A row is created when a **reservation** is created with that 
 | created_at | DATETIME(3)  |                |
 | updated_at | DATETIME(3)  |                |
 
-**Relations:** Referenced by `reservations.user_id`, `payments.user_id`.
+**Relations:** Referenced by `reservations.user_id`, `payments.user_id`, `billing_documents.user_id` (optional link).
 
 ---
 
@@ -110,7 +110,7 @@ Links user + slot. Created after lock, before payment. See `docs/RESERVATION-SYS
 
 **Indexes:** `(email, created_at)`, `(slot_id)`, `(status, created_at)`, `(funnel_name, funnel_campaign, created_at)`.
 
-**Relations:** `slot_id` → slots, `user_id` → users. Referenced by `payments.reservation_id`.
+**Relations:** `slot_id` → slots, `user_id` → users. Referenced by `payments.reservation_id`, `billing_documents.reservation_id` (optional).
 
 **Status flow:** New rows from the public API are created as `pending_payment` (not `draft`). `confirmed` after Stripe `checkout.session.completed` webhook; other terminal states per business rules.
 
@@ -137,9 +137,67 @@ Payment records. One row per Stripe Checkout Session. See `docs/STRIPE-ARCHITECT
 
 **Indexes:** `(reservation_id)`, `(user_id)`, `(provider, provider_ref)`, UNIQUE `(provider_ref)`, `(status, created_at)`.
 
-**Relations:** `user_id` → users, `reservation_id` → reservations.
+**Relations:** `user_id` → users, `reservation_id` → reservations. At most one **`billing_documents`** row per payment (`UNIQUE (payment_id)`).
 
-**Notes:** `provider_ref` stores Stripe Checkout Session ID. Webhook updates `status` and `paid_at` on `checkout.session.completed`.
+**Notes:** `provider_ref` stores Stripe Checkout Session ID. Webhook updates `status` and `paid_at` on `checkout.session.completed`. The same webhook path inserts **`billing_documents`** (when applicable) and triggers PDF/email delivery — see `src/routes/api/stripe.js`, `docs/payments/invoicing-mvp-implementation.md`.
+
+---
+
+### billing_documents
+
+Internal invoicing documents tied to a **single Stripe-settled payment**. Created after `checkout.session.completed` (see `src/services/billingDocumentService.js`); PDF path, document number, and customer email send are handled by `src/services/billingDeliveryService.js`. Admin UI: `/admin/billing`.
+
+| Column | Type | Description |
+|--------|------|-------------|
+| id | PK | Auto-increment |
+| document_number | VARCHAR(64) | NULL until issued — human-visible number (year sequence via `billing_document_counters`) |
+| internal_type | ENUM | deposit, full, topup, final, correction, refund — class of document |
+| status | ENUM | recorded, issued, void, superseded — default **recorded** |
+| user_id | FK → users | NULL — optional link to app user |
+| customer_email_snapshot | VARCHAR(255) | NOT NULL — copy at issue time |
+| customer_name_snapshot | VARCHAR(255) | NULL |
+| reservation_id | FK → reservations | NULL |
+| payment_id | FK → payments | NOT NULL — **one document per payment** |
+| stripe_checkout_session_id | VARCHAR(255) | NOT NULL — `cs_...` |
+| stripe_payment_intent_id | VARCHAR(255) | NULL |
+| stripe_charge_id | VARCHAR(255) | NULL |
+| currency | CHAR(3) | NOT NULL, default eur |
+| amount_net_cents | INT | NOT NULL |
+| amount_vat_cents | INT | NOT NULL |
+| amount_gross_cents | INT | NOT NULL |
+| vat_rate | DECIMAL(6,5) | NOT NULL |
+| issued_at | DATETIME(3) | NULL |
+| paid_at | DATETIME(3) | NULL |
+| refunded_at | DATETIME(3) | NULL |
+| related_document_id | FK → billing_documents | NULL — e.g. correction/refund links to original |
+| pdf_storage_ref | VARCHAR(512) | NULL — app-relative path under storage |
+| pdf_generated_at | DATETIME(3) | NULL |
+| email_sent_at | DATETIME(3) | NULL |
+| email_message_id | VARCHAR(255) | NULL — Resend id when sent |
+| metadata | JSON | NULL |
+| notes | TEXT | NULL — operator notes (admin) |
+| created_at | DATETIME(3) | |
+| updated_at | DATETIME(3) | |
+
+**Constraints:** UNIQUE **`(payment_id)`** — idempotent one document per payment for the MVP insert path.
+
+**Indexes:** `(created_at)`, `(stripe_checkout_session_id)`.
+
+**Relations:** `user_id` → users, `reservation_id` → reservations, `payment_id` → payments, `related_document_id` → self (optional chain).
+
+---
+
+### billing_document_counters
+
+Year-scoped sequence for **`billing_documents.document_number`**. One row per calendar year (`scope_year` PK); `next_seq` advanced under row lock when issuing (see `billingDeliveryService`).
+
+| Column | Type | Description |
+|--------|------|-------------|
+| scope_year | SMALLINT UNSIGNED | PK — e.g. 2026 |
+| next_seq | INT UNSIGNED | NOT NULL, default 1 — next sequence value to allocate |
+| updated_at | DATETIME(3) | |
+
+**Relations:** Standalone; used only by billing issuance logic.
 
 ---
 
@@ -202,6 +260,11 @@ Logging for critical actions. See `docs/RESERVATION-SYSTEM-ARCHITECTURE.md`.
 users ←── reservations ──→ slots
    ↑            ↑
    └── payments ─┘
+          │
+          └── billing_documents (FK payment_id, optional user_id, reservation_id;
+              optional related_document_id → billing_documents)
+
+billing_document_counters — yearly `next_seq` for document_number (no FK from billing_documents)
 
 slot_locks → slots
 payments → reservations
@@ -221,3 +284,5 @@ audit_logs (standalone)
 | `docs/RESERVATION-SYSTEM-ARCHITECTURE.md` | Booking flows, slots, locks, reservations |
 | `docs/STRIPE-ARCHITECTURE.md` | Payments, webhooks, Checkout Sessions |
 | `docs/SESSION-PRICING.md` | Amounts, deposit vs full payment |
+| `docs/payments/invoicing-mvp-implementation.md` | Invoicing MVP design, edge cases, rollout |
+| `docs/EMAILING.md` | Templates incl. billing invoice email |
