@@ -375,7 +375,7 @@ a.funnel-scroll-hint__arrow:focus-visible {
 
 .booking-calendar__days--reflowing .booking-day {
   opacity: 0.88;
-  transition: opacity 0.45s ease;
+  transition: opacity 1s ease;
 }
 
 @keyframes booking-calendar-day-flash {
@@ -393,7 +393,7 @@ a.funnel-scroll-hint__arrow:focus-visible {
 
 .booking-day--flash {
   overflow: hidden;
-  animation: booking-calendar-day-flash 0.75s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+  animation: booking-calendar-day-flash 1.35s cubic-bezier(0.22, 1, 0.36, 1) forwards;
 }
 
 .booking-calendar__days-more {
@@ -402,8 +402,8 @@ a.funnel-scroll-hint__arrow:focus-visible {
   max-height: 0;
   overflow: hidden;
   transition:
-    grid-template-rows 0.55s ease,
-    max-height 0.55s ease;
+    grid-template-rows 1.05s ease,
+    max-height 1.05s ease;
 }
 
 .booking-calendar__days-more--open {
