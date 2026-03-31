@@ -36,6 +36,12 @@
   let loadSeq = 0;
   let pollTimer = null;
   let calendarDaysExpanded = false;
+  /**
+   * Collapsed (minified) strip only: dates that were ever shown in the main column this session.
+   * When a day drops from the API and returns, it stays in the set, so the column can grow (e.g. 3 → 4).
+   * Cleared on expand and when the calendar empties; page reload clears implicitly.
+   */
+  let minifiedEverShownDates = new Set();
   /** Fingerprint of last `#booking-calendar-days` markup — when it changes after first paint, we animate + guard clicks. */
   let calendarLastDaysHtmlSig = '';
   let calendarReflowTimer = null;
@@ -534,20 +540,46 @@
     return null;
   }
 
+  /**
+   * Updates `minifiedEverShownDates` and returns ordered date keys for the collapsed main column.
+   */
+  function minifiedMainDateOrder(eligibleOrdered) {
+    if (eligibleOrdered.length === 0) return [];
+
+    if (minifiedEverShownDates.size === 0) {
+      const n = Math.min(INITIAL_VISIBLE_FUNNEL_DAYS, eligibleOrdered.length);
+      for (let i = 0; i < n; i++) minifiedEverShownDates.add(eligibleOrdered[i]);
+    }
+
+    let main = eligibleOrdered.filter((d) => minifiedEverShownDates.has(d));
+
+    while (main.length < INITIAL_VISIBLE_FUNNEL_DAYS) {
+      const next = eligibleOrdered.find((d) => !minifiedEverShownDates.has(d));
+      if (!next) break;
+      minifiedEverShownDates.add(next);
+      main = eligibleOrdered.filter((d) => minifiedEverShownDates.has(d));
+    }
+
+    return main;
+  }
+
   function syncCalendarDaysExpandUi() {
     const root = $('booking-calendar-days');
     if (!root) return;
     const wrap = root.querySelector('.booking-calendar__days-more');
     const inner = root.querySelector('.booking-calendar__days-more-inner');
     const btn = root.querySelector('[data-booking-days-toggle]');
-    if (!wrap || !btn) return;
+    if (!btn) return;
     const open = calendarDaysExpanded;
-    wrap.classList.toggle('booking-calendar__days-more--open', open);
-    btn.textContent = open ? 'Zobraziť menej' : 'Pozrieť ďalšie termíny';
-    btn.setAttribute('aria-expanded', open ? 'true' : 'false');
-    if (inner) {
+    if (wrap && inner) {
+      wrap.classList.toggle('booking-calendar__days-more--open', open);
+      btn.textContent = open ? 'Zobraziť menej' : 'Pozrieť ďalšie termíny';
+      btn.setAttribute('aria-expanded', open ? 'true' : 'false');
       if (open) inner.removeAttribute('inert');
       else inner.setAttribute('inert', '');
+    } else {
+      btn.textContent = 'Zobraziť menej';
+      btn.setAttribute('aria-expanded', 'true');
     }
   }
 
@@ -572,6 +604,7 @@
       if (heroSlotHost) heroSlotHost.innerHTML = '';
       daysEl.innerHTML = '';
       calendarDaysExpanded = false;
+      minifiedEverShownDates = new Set();
       calendarLastDaysHtmlSig = '';
       if (calendarReflowTimer) {
         clearTimeout(calendarReflowTimer);
@@ -649,28 +682,43 @@
       `);
     }
 
-    const visibleArticles = articles.slice(0, INITIAL_VISIBLE_FUNNEL_DAYS);
-    const extraArticles = articles.slice(INITIAL_VISIBLE_FUNNEL_DAYS);
+    const expandRowOpen = `<p class="booking-calendar__expand-row"><button type="button" class="booking-calendar__expand-btn" data-booking-days-toggle aria-expanded="true">Zobraziť menej</button></p>`;
+    const expandRowClosed = `<p class="booking-calendar__expand-row"><button type="button" class="booking-calendar__expand-btn" data-booking-days-toggle aria-expanded="false">Pozrieť ďalšie termíny</button></p>`;
+
+    const eligibleOrdered = days.map((d) => d.dateStr);
+    const articleByDate = new Map(days.map((d, i) => [d.dateStr, articles[i]]));
 
     if (calendarReflowTimer) {
       clearTimeout(calendarReflowTimer);
       calendarReflowTimer = null;
     }
 
-    const nextInnerHtml =
-      extraArticles.length === 0
-        ? visibleArticles.join('')
-        : `${visibleArticles.join('')}<div class="booking-calendar__days-more"><div class="booking-calendar__days-more-inner">${extraArticles.join(
-            ''
-          )}</div></div><p class="booking-calendar__expand-row"><button type="button" class="booking-calendar__expand-btn" data-booking-days-toggle aria-expanded="false">Pozrieť ďalšie termíny</button></p>`;
+    let nextInnerHtml;
+    if (calendarDaysExpanded) {
+      nextInnerHtml = `${articles.join('')}${expandRowOpen}`;
+    } else {
+      const mainOrder = minifiedMainDateOrder(eligibleOrdered);
+      const mainSet = new Set(mainOrder);
+      const visibleArticles = mainOrder.map((ds) => articleByDate.get(ds));
+      const extraArticles = eligibleOrdered
+        .filter((d) => !mainSet.has(d))
+        .map((ds) => articleByDate.get(ds));
+
+      if (extraArticles.length === 0) {
+        calendarDaysExpanded = false;
+        nextInnerHtml = visibleArticles.join('');
+      } else {
+        nextInnerHtml = `${visibleArticles.join(
+          ''
+        )}<div class="booking-calendar__days-more"><div class="booking-calendar__days-more-inner">${extraArticles.join(
+          ''
+        )}</div></div>${expandRowClosed}`;
+      }
+    }
 
     const prevHtml = calendarLastDaysHtmlSig;
     const layoutChanged = prevHtml !== '' && prevHtml !== nextInnerHtml;
     calendarLastDaysHtmlSig = nextInnerHtml;
-
-    if (extraArticles.length === 0) {
-      calendarDaysExpanded = false;
-    }
     daysEl.innerHTML = nextInnerHtml;
 
     if (layoutChanged) {
@@ -1145,7 +1193,8 @@
         if (e.target.closest('[data-booking-days-toggle]')) {
           e.preventDefault();
           calendarDaysExpanded = !calendarDaysExpanded;
-          syncCalendarDaysExpandUi();
+          if (calendarDaysExpanded) minifiedEverShownDates = new Set();
+          renderCalendar();
           return;
         }
         const btn = e.target.closest('.booking-slot');
