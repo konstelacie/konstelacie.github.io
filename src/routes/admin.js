@@ -20,6 +20,7 @@ const {
 } = require('../lib/bulkSlotCandidates');
 const { requireAdmin } = require('../middleware/requireAdmin');
 const billingDocumentsRepo = require('../db/repositories/billingDocumentsRepo');
+const locksRepo = require('../db/repositories/locksRepo');
 const billingDeliveryService = require('../services/billingDeliveryService');
 const { mapBillingListRow, mapBillingDetailRow, csvEscape } = require('../lib/adminBillingDisplay');
 
@@ -116,6 +117,107 @@ router.post('/logout', (req, res) => {
   req.session.destroy(() => {
     res.redirect('/admin/login');
   });
+});
+
+function formatDbInstantForAdmin(value) {
+  if (value == null) return '';
+  const asDate = value instanceof Date ? value : new Date(value);
+  const d = DateTime.fromJSDate(asDate, { zone: 'utc' });
+  if (!d.isValid) return String(value);
+  return d.setZone(SLOT_TIMEZONE).setLocale('sk').toLocaleString(DateTime.DATETIME_MED_WITH_SECONDS);
+}
+
+router.get('/maintenance', requireAdmin, async (req, res) => {
+  const flash = req.session.adminFlash;
+  if (flash) {
+    delete req.session.adminFlash;
+  }
+  const pool = getPool();
+  if (!pool) {
+    return res.render('admin/maintenance', {
+      layout: 'layouts/admin',
+      title: 'Údržba — administrácia',
+      adminSection: 'maintenance',
+      dbConfigured: false,
+      loadError: false,
+      flash,
+      stats: null,
+      previewRows: [],
+      oldestExpiredLabel: '',
+      purgeBatchMax: locksRepo.EXPIRED_LOCK_PURGE_BATCH_MAX,
+    });
+  }
+  try {
+    const stats = await locksRepo.getSlotLocksMaintenanceStats();
+    const rawPreview = await locksRepo.listExpiredSlotLocksPreview(5);
+    const previewRows = rawPreview.map((row) => ({
+      id: row.id,
+      slot_id: row.slot_id,
+      expiresLabel: formatDbInstantForAdmin(row.expires_at),
+    }));
+    const oldestExpiredLabel = stats.oldestExpiredAt ? formatDbInstantForAdmin(stats.oldestExpiredAt) : '';
+    return res.render('admin/maintenance', {
+      layout: 'layouts/admin',
+      title: 'Údržba — administrácia',
+      adminSection: 'maintenance',
+      dbConfigured: true,
+      loadError: false,
+      flash,
+      stats,
+      previewRows,
+      oldestExpiredLabel,
+      purgeBatchMax: locksRepo.EXPIRED_LOCK_PURGE_BATCH_MAX,
+    });
+  } catch (err) {
+    console.error('[admin/maintenance]', err);
+    return res.status(500).render('admin/maintenance', {
+      layout: 'layouts/admin',
+      title: 'Údržba — administrácia',
+      adminSection: 'maintenance',
+      dbConfigured: true,
+      loadError: true,
+      flash,
+      stats: null,
+      previewRows: [],
+      oldestExpiredLabel: '',
+      purgeBatchMax: locksRepo.EXPIRED_LOCK_PURGE_BATCH_MAX,
+    });
+  }
+});
+
+router.post('/maintenance/delete-expired-slot-locks', requireAdmin, async (req, res) => {
+  const confirmOn = req.body && req.body.confirm === 'on';
+  if (!confirmOn) {
+    req.session.adminFlash = { level: 'error', message: 'Potvrďte akciu zaškrtnutím políčka.' };
+    return res.redirect('/admin/maintenance');
+  }
+  try {
+    const pool = getPool();
+    if (!pool) {
+      req.session.adminFlash = { level: 'error', message: 'Databáza nie je dostupná.' };
+      return res.redirect('/admin/maintenance');
+    }
+    const deleted = await locksRepo.deleteExpiredSlotLocksBatch(locksRepo.EXPIRED_LOCK_PURGE_BATCH_MAX);
+    const statsAfter = await locksRepo.getSlotLocksMaintenanceStats();
+    await auditRepo.log(
+      'slot_locks_expired_purged',
+      'slot_lock',
+      null,
+      { deleted, expiredRemaining: statsAfter.expired },
+      'admin'
+    );
+    let message = `Zmazaných ${deleted} expirovaných záznamov zámku.`;
+    if (statsAfter.expired > 0) {
+      message += ` Ešte ich ostáva ${statsAfter.expired} — môžete spustiť znova.`;
+    } else if (deleted === 0) {
+      message = 'Žiadne expirované zámky na zmazanie.';
+    }
+    req.session.adminFlash = { level: 'success', message };
+  } catch (err) {
+    console.error('[admin/maintenance/delete-expired-slot-locks]', err);
+    req.session.adminFlash = { level: 'error', message: 'Operácia zlyhala. Skúste znova.' };
+  }
+  return res.redirect('/admin/maintenance');
 });
 
 function parseView(raw) {

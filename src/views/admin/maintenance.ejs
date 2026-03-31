@@ -1,0 +1,95 @@
+<div class="admin-wrap admin-wrap--wide">
+  <header class="admin-header admin-header--bar">
+    <h1 class="admin-title">Údržba</h1>
+    <form method="post" action="/admin/logout">
+      <button type="submit" class="admin-btn admin-btn--ghost">Odhlásiť sa</button>
+    </form>
+  </header>
+
+  <% if (typeof flash !== 'undefined' && flash) { %>
+    <p class="admin-flash admin-flash--<%= flash.level %>" role="status"><%= flash.message %></p>
+  <% } %>
+
+  <% if (typeof loadError !== 'undefined' && loadError) { %>
+    <p class="admin-error" role="alert">Nepodarilo sa načítať stav databázy. Skúste znova neskôr.</p>
+  <% } %>
+
+  <% if (typeof dbConfigured !== 'undefined' && !dbConfigured) { %>
+    <p class="admin-error" role="alert">Databáza nie je nakonfigurovaná.</p>
+  <% } %>
+
+  <% if (typeof dbConfigured !== 'undefined' && dbConfigured && typeof stats !== 'undefined' && stats) { %>
+  <section class="admin-detail" aria-labelledby="maintenance-locks-heading">
+    <h2 id="maintenance-locks-heading" class="admin-create__title">Dočasné zámky termínov (<code>slot_locks</code>)</h2>
+    <p class="admin-bulk__hint">
+      Platnosť zámku sa pri zobrazovaní voľných termínov kontroluje podľa času expirácie — expirované riadky teda <strong>neblokujú</strong> rezervácie.
+      Mazanie slúži na údržbu tabuľky a zníženie uchovávania zbytočných údajov.
+    </p>
+
+    <dl class="admin-dl">
+      <div class="admin-dl__row">
+        <dt>Záznamov celkom</dt>
+        <dd><%= stats.total %></dd>
+      </div>
+      <div class="admin-dl__row">
+        <dt>Aktívnych zámkov</dt>
+        <dd><%= stats.active %></dd>
+      </div>
+      <div class="admin-dl__row">
+        <dt>Expirovaných (na zmazanie)</dt>
+        <dd><%= stats.expired %></dd>
+      </div>
+      <% if (typeof oldestExpiredLabel !== 'undefined' && oldestExpiredLabel) { %>
+      <div class="admin-dl__row">
+        <dt>Najstaršia expirácia (expirovaných)</dt>
+        <dd><%= oldestExpiredLabel %></dd>
+      </div>
+      <% } %>
+    </dl>
+
+    <% if (typeof previewRows !== 'undefined' && previewRows.length) { %>
+    <h3 class="admin-detail__subtitle">Náhľad (najstaršie expirované, max. <%= previewRows.length %>)</h3>
+    <div class="admin-table-wrap admin-table-wrap--scroll">
+      <table class="admin-table">
+        <thead>
+          <tr>
+            <th scope="col">ID zámku</th>
+            <th scope="col">ID termínu</th>
+            <th scope="col">Expirovalo</th>
+          </tr>
+        </thead>
+        <tbody>
+          <% for (const row of previewRows) { %>
+          <tr>
+            <td><%= row.id %></td>
+            <td><%= row.slot_id %></td>
+            <td><%= row.expiresLabel %></td>
+          </tr>
+          <% } %>
+        </tbody>
+      </table>
+    </div>
+    <% } else if (stats.expired === 0) { %>
+    <p class="admin-placeholder">Žiadne expirované záznamy.</p>
+    <% } %>
+
+    <% if (stats.expired > 0) { %>
+    <form method="post" action="/admin/maintenance/delete-expired-slot-locks" class="admin-detail__form" style="margin-top: 1.25rem;">
+      <p class="admin-bulk__hint">
+        Jedným spustením sa zmaže najviac <strong><%= purgeBatchMax %></strong> expirovaných riadkov.
+        Ak ich ostane viac, akciu zopakujte.
+      </p>
+      <div class="admin-field admin-field--checkbox">
+        <label class="admin-bulk__checklabel">
+          <input type="checkbox" name="confirm" value="on" required>
+          Chcem zmazať expirované zámky (max. <%= purgeBatchMax %> na krok)
+        </label>
+      </div>
+      <div class="admin-detail__actions">
+        <button type="submit" class="admin-btn admin-btn--primary">Zmazať expirované zámky</button>
+      </div>
+    </form>
+    <% } %>
+  </section>
+  <% } %>
+</div>
