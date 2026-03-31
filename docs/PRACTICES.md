@@ -87,16 +87,20 @@ project-root/
 │   ├── db/                             # Migrations, repositories
 │   ├── middleware/
 │   ├── routes/
-│   │   ├── api/                        # /api/slots, /api/reservations
-│   │   ├── booking.js                  # Embedded in pilot funnel
+│   │   ├── api/                        # JSON /api/* (+ stripe webhook mounted separately in app.js)
+│   │   ├── admin.js                    # /admin HTML (slots, reservations, billing)
 │   │   ├── funnels.js                  # /{name} routes (e.g. /pilot)
 │   │   ├── health.js                   # /health
 │   │   ├── index.js                    # /
+│   │   ├── legal.js                    # /ochrana-udajov, /obchodne-podmienky
 │   │   └── static.js                   # sitemap, robots
 │   └── views/
-│       ├── layouts/                    # default.ejs
-│       ├── partials/                   # header.ejs, footer.ejs
+│       ├── admin/                      # operator UI (slots, reservations, billing, login)
+│       ├── layouts/                    # default.ejs, admin.ejs
+│       ├── partials/                   # header.ejs, footer.ejs, cookie-banner.ejs
 │       ├── index.ejs                   # Home page
+│       ├── ochrana-udajov.ejs
+│       ├── obchodne-podmienky.ejs
 │       └── funnels/                    # {name}.ejs instances; _funnel-content, _funnel-success, _funnel-cancel (generic)
 ├── public/assets/
 │   ├── css/                            # site.css, funnel.css, pseudochat.css
@@ -112,7 +116,8 @@ project-root/
 - **`/`** – Home page (`views/index.ejs`)
 - **`/assets/`** – Static assets from `public/assets/` (funnel video files: `public/assets/media/funnel/` → `/assets/media/funnel/…`; see `docs/CREATIVE-MEDIA.md`)
 - **`/{name}`** – Funnel pages (`views/funnels/{name}.ejs`), e.g. `/pilot`
-- **Booking** – Embedded in pilot funnel; CTA "Rezervovať sedenie" reveals form inline (`public/assets/js/booking.js`). Flow: slot → email → payment choice → payment → confirmation (see `docs/RESERVATION-SYSTEM-ARCHITECTURE.md`).
+- **`/ochrana-udajov`**, **`/obchodne-podmienky`** – Legal pages (`routes/legal.js`, `ochrana-udajov.ejs`, `obchodne-podmienky.ejs`); listed in `sitemap.xml`
+- **Booking** – Embedded in pilot funnel; CTA "Rezervovať sedenie" reveals form inline (`public/assets/js/booking.js` — not under `src/routes/`). Flow: slot → email → payment choice → payment → confirmation (see `docs/RESERVATION-SYSTEM-ARCHITECTURE.md`).
 
 New funnels: add `views/funnels/{name}.ejs`, add to `FUNNEL_INSTANCES` and `INSTANCE_*` in `routes/funnels.js`, update `sitemap.xml`.
 
