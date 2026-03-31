@@ -25,7 +25,7 @@
 | | |
 |---|--|
 | **Item** | Hardening and optional extras beyond the **session HTML admin** at `/admin` |
-| **Current state** | **Implemented:** `src/routes/admin.js` — login, slot grid, single + bulk create, block/unblock/cancel slot, reservation list/detail, confirm/cancel reservation, `admin_note`, external-handling note. **Docs:** `docs/ui-ux/admin-interface.md`, `docs/IMPLEMENTATION-SNAPSHOT.md`, `docs/API.md` (Admin section). Env: `ADMIN_USERNAME`, `ADMIN_PASSWORD`, `SESSION_SECRET`. |
+| **Current state** | **Implemented:** `src/routes/admin.js` — login, slot grid, single + bulk create, block/unblock/cancel slot, reservation list/detail, confirm/cancel reservation, `admin_note`, external-handling note; **billing** — list/search (`/admin/billing`), CSV export, document detail, regenerate PDF, resend invoice email, notes on `billing_documents`. **Docs:** `docs/ui-ux/admin-interface.md`, `docs/IMPLEMENTATION-SNAPSHOT.md`, `docs/API.md` (Admin section). Env: `ADMIN_USERNAME`, `ADMIN_PASSWORD`, `SESSION_SECRET`. |
 | **Target** | Product-dependent: CSRF tokens on admin forms, rate limiting, optional **JSON admin API** for automation, SSO — only if needed. |
 | **Dependencies** | Same admin auth; Stripe refunds if cancel-with-refund is added (`docs/STRIPE-ARCHITECTURE.md`). |
 | **Definition of done** | Scoped per sub-feature; update snapshot + `docs/API.md` if a new public contract appears. |

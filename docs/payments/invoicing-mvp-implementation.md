@@ -2,7 +2,20 @@
 
 **Audience:** Engineering and operations planning for a minimal internal invoicing layer.  
 **Stack context:** Express 5, EJS, MySQL/MariaDB, Stripe Checkout + webhooks, Resend, existing `reservations`, `payments`, `users`, `slots`, `slot_locks`, `webhook_events` (see `docs/STRIPE-ARCHITECTURE.md`, `docs/DB-SCHEMA.md`).  
-**This document:** System design, flows, data model *proposal*, edge cases, rollout. **It is not** legal or tax advice.
+**This document:** System design, flows, data model, edge cases, rollout. **It is not** legal or tax advice. Some sections read as *proposal* for features not yet built (refund webhooks, line-item tables); the **live schema and services** are the other docs + `src/` below.
+
+### Implementation status (repository)
+
+| Area | Status |
+|------|--------|
+| **`billing_documents` / `billing_document_counters`** | **Shipped** in `src/db/migrations/001_initial.sql` — see `docs/DB-SCHEMA.md`. |
+| **Insert on `checkout.session.completed`** | **Shipped** — `src/services/billingDocumentService.js` inside transaction in `src/routes/api/stripe.js`. |
+| **PDF + document number + optional Resend** | **Shipped** — `src/services/billingDeliveryService.js`, `billingInvoicePdfService.js`; env in `src/config/index.js` (`billing`). |
+| **Admin** | **Shipped** — `/admin/billing`, export CSV, detail, regenerate PDF, resend email, notes (`src/routes/admin.js`, `views/admin/billing-*.ejs`). |
+| **`billing_document_lines`, refund/correction automation** | **Not implemented** — single header row + PDF; no `charge.refunded` pipeline yet (`docs/STRIPE-ARCHITECTURE.md` §11). |
+| **Accountant gate** | Wording, numbering format on PDF, and VAT lines still need sign-off before treating customer PDFs as production-final — same as §14 **Gate**. |
+
+**Canonical pointers:** `docs/STRIPE-ARCHITECTURE.md` §4–§8, `docs/EMAILING.md` (invoice templates), `docs/IMPLEMENTATION-SNAPSHOT.md`.
 
 ---
 
@@ -29,7 +42,7 @@
 
 ## 2. Supported payment scenarios
 
-Handling below describes **target MVP behavior** aligned with today’s domain (`payments.payment_type`: `deposit`, `session`, `topup`; Stripe Checkout Session id in `provider_ref`; webhook idempotency via `webhook_events`). Some paths (e.g. automated refund webhooks) may need to be **added** in code when invoicing ships; this section defines the intended mapping.
+Handling below describes **target MVP behavior** aligned with today’s domain (`payments.payment_type`: `deposit`, `session`, `topup`; Stripe Checkout Session id in `provider_ref`; webhook idempotency via `webhook_events`). **Deposit / full / top-up** completion → **one `billing_documents` row per `payment_id`** is **implemented** on `checkout.session.completed`. Paths such as **automated refund webhooks** → correction/refund rows are **still to be added**; this section defines the full intended mapping.
 
 | Scenario | Trigger | Invoicing intent (MVP) |
 |----------|---------|------------------------|
@@ -76,10 +89,10 @@ All items below require **confirmation with your accountant** (and possibly a ta
 
 ### Minimal component view
 
-- **Webhook handler (existing):** Verify signature, `webhook_events` guard, update `payments` / `reservation` as today.
-- **Document service (new concept):** Input: normalized “payment settled” context (DB row + Stripe session payload snapshot). Output: DB rows for `billing_documents`, PDF blob or file path, email job.
-- **Queue or inline worker:** Prefer async PDF + email after HTTP 200 to Stripe; failures logged with retry.
-- **Storage:** Filesystem path or object storage key; DB holds `pdf_storage_ref` + checksum optional.
+- **Webhook handler:** Verify signature, `webhook_events` guard, update `payments` / `reservation`, insert **`billing_documents`** — `src/routes/api/stripe.js`.
+- **Document service (implemented):** **`billingDocumentService.insertBillingDocumentForCompletedPayment`** — payment row + Stripe session → insert `billing_documents` (`status = recorded`, VAT split via `BILLING_VAT_RATE`).
+- **Delivery (implemented):** **`billingDeliveryService.processBillingDocumentDelivery`** — after HTTP 200 to Stripe, async: allocate **`document_number`** (`billing_document_counters`), write PDF under `storage/billing-pdfs` (or `BILLING_PDF_STORAGE_DIR`), optional **`sendBillingInvoiceEmail`** unless disabled / invalid recipient. Failures logged; no separate queue worker yet.
+- **Storage:** Filesystem path; DB holds `pdf_storage_ref` (relative under project or absolute if configured).
 
 ### Dependencies on existing tables
 
@@ -87,9 +100,11 @@ All items below require **confirmation with your accountant** (and possibly a ta
 
 ---
 
-## 5. Data model proposal
+## 5. Data model (`billing_documents`)
 
-### Primary table: `billing_documents` (name illustrative)
+**Source of truth:** `src/db/migrations/001_initial.sql` and `docs/DB-SCHEMA.md`. The field list below was the design checklist; **status** in DB is `recorded` → `issued` (not `draft` on insert).
+
+### Primary table: `billing_documents`
 
 Central table for each issuer-side document instance. Suggested fields:
 
@@ -98,7 +113,7 @@ Central table for each issuer-side document instance. Suggested fields:
 | `id` | Surrogate PK |
 | `document_number` | Human-visible sequential number (string to allow prefixes/year) |
 | `internal_type` | Enum: `deposit`, `full`, `topup`, `final`, `correction`, `refund` (see §6) |
-| `status` | e.g. `draft`, `issued`, `void`, `superseded` — exact set TBD |
+| `status` | **Implemented enum:** `recorded`, `issued`, `void`, `superseded` (row inserted as **`recorded`**; **`issued`** when number + PDF path assigned in delivery) |
 | `user_id` | FK nullable; link when known |
 | `customer_email_snapshot` | Required copy at issue time |
 | `customer_name_snapshot` | Optional; for future profile fields |
@@ -134,7 +149,7 @@ Central table for each issuer-side document instance. Suggested fields:
 
 ### Uniqueness
 
-- **Recommended:** Unique index on `(payment_id)` where `internal_type` is not `correction`/`refund`, or partial unique rules so one “primary” document exists per completed payment. **Exactly one** idempotency rule must be chosen in implementation.
+- **Implemented:** **`UNIQUE (payment_id)`** on `billing_documents` — one primary row per completed payment on the MVP webhook path; correction/refund rows would need a follow-up design if `related_document_id` chains share payment context.
 
 ---
 
@@ -181,7 +196,7 @@ Each flow: **trigger → validation → DB → PDF → email → audit → failu
 
 1. **Trigger:** `checkout.session.completed` after `payments` set to `completed`, reservation confirmed.
 2. **Validation:** Amount matches configured deposit; `payment_type = deposit`; idempotency: no existing `billing_documents` for this `payment_id`.
-3. **DB:** Insert `billing_documents` (`internal_type = deposit`, amounts from payment + VAT split per rules), optional lines; `status = issued` when number assigned.
+3. **DB:** Insert `billing_documents` (`internal_type = deposit`, amounts from payment + VAT split per rules, `status = recorded`); **`issued`** when `document_number` allocated in delivery transaction.
 4. **PDF:** Generate from template; store file; update `pdf_storage_ref`.
 5. **Email:** Send Resend message with PDF attach (if policy says attach); subject e.g. payment confirmation + document reference (wording TBD).
 6. **Audit:** Log `document_created`, `pdf_ok`, `email_sent` (or failures).
@@ -233,13 +248,19 @@ Lightweight one-page (or short) PDF, **subject to accountant template review**:
 
 ## 11. Admin / backoffice needs
 
-Minimal future capabilities (may follow MVP):
+**Implemented** in `src/routes/admin.js` (see `docs/ui-ux/admin-interface.md` §5):
 
-- **List/search** documents by date, `document_number`, customer email, reservation id, Stripe session id.
-- **Regenerate PDF** (new file version; keep audit trail of regeneration — consider `pdf_version` or events).
-- **Resend email** (manual, logged).
-- **Mark manual correction** (operator creates linked `correction` with reason; strongly discouraged routine use).
-- **Export** CSV for accountant (documents + lines + payment ids).
+- **List/search** — `GET /admin/billing` (repo search + template filters).
+- **Export CSV** — `GET /admin/billing/export.csv`.
+- **Detail** — `GET /admin/billing/:id`.
+- **Regenerate PDF** — `POST /admin/billing/:id/regenerate-pdf` (overwrites file; audit via `audit_logs` where logged in code).
+- **Resend email** — `POST /admin/billing/:id/resend-email` (template `billing-invoice-resend`, `actor_type = admin` in `email_sent_log`).
+- **Operator notes** — `POST /admin/billing/:id/note`.
+
+**Still future:**
+
+- **Mark manual correction** — operator creates linked `correction` / refund row from UI (strongly discouraged routine use); prefer automated refund webhook when built.
+- **Export with line items** — CSV today reflects document header rows; **`billing_document_lines`** not in schema yet.
 
 ---
 
@@ -269,20 +290,22 @@ Minimal future capabilities (may follow MVP):
 
 ## 14. Rollout plan
 
+Historical phasing below describes how the work was **planned**; **in the current codebase**, Phases 1–3 **core** items are implemented (tables, webhook insert, PDF + optional email, admin list/detail/export/regenerate/resend). Remaining work: refund/correction automation, optional line-item tables, hardened retries/queues, accountant-approved PDF copy.
+
 ### Phase 1 — Model + webhook mapping (no customer PDF email)
 
-- Add `billing_documents` (+ optional lines) and idempotency rules.
-- On `checkout.session.completed`, after current logic, create document rows only; validate against `payments`.
-- Metrics/logging only; optional read-only admin SQL or internal API.
+- ~~Add `billing_documents` (+ optional lines) and idempotency rules.~~ **Done** (no line table).
+- ~~On `checkout.session.completed`, after current logic, create document rows~~ **Done**.
 
 ### Phase 2 — PDF + email
 
-- Template per accountant draft; PDF generation + storage; Resend with attachment.
-- Retry queues; failure dashboards (simple logs first).
+- ~~PDF generation + storage; Resend with attachment.~~ **Done** (`billingDeliveryService`, templates under `src/templates/emails/`).
+- **Still light:** dedicated retry queue / dashboards — today **console logs** + manual admin resend.
 
 ### Phase 3 — Admin and export
 
-- List/search UI; regenerate/resend; CSV export; manual correction workflow with audit.
+- ~~List/search UI; regenerate/resend; CSV export.~~ **Done**.
+- **Manual correction workflow** — not implemented.
 
 **Gate:** Accountant sign-off on document types, wording, numbering, and VAT lines **before** sending customer-facing PDFs in production.
 

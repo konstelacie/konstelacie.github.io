@@ -235,6 +235,54 @@ Filters must be:
 
 ---
 
+## 5. Billing documents (`/admin/billing`)
+
+### Purpose
+
+Read and operate on **internal billing documents** created when Stripe `checkout.session.completed` runs (`billing_documents` in DB). Complements accounting needs without replacing the accounting system — see `docs/payments/invoicing-mvp-implementation.md`, `docs/DB-SCHEMA.md`, `docs/STRIPE-ARCHITECTURE.md`.
+
+### Navigation
+
+* Entry from the admin shell (same session as slots/reservations): list at **`GET /admin/billing`**.
+* **Detail** per document: **`GET /admin/billing/:id`**.
+
+### List screen (`/admin/billing`)
+
+* **Table** of documents for the current query (up to **150** rows per request in code).
+* **Search:** one field **`q`** (GET) — e-mail, doklad ID, ID rezervácie/platby, číslo **`CT-…`**, Stripe **`cs_…`** (see label on `admin/billing-list.ejs`; backed by `billingDocumentsRepo.searchForAdmin`).
+* **Export:** **`GET /admin/billing/export.csv`** — optional same **`q`**; up to **2000** rows; UTF-8 BOM for Excel; filename `billing-documents.csv`.
+
+### Detail screen (`/admin/billing/:id`)
+
+Show at minimum (parity with ops needs):
+
+* **document_number** (when issued), internal type, status, amounts (net / VAT / gross), **customer_email_snapshot**, links to **payment** / **reservation** where present.
+* **Stripe** session id and related refs for support.
+* **PDF:** path / “generated at”; indicate if missing.
+* **Email:** last send (`email_sent_at`, provider message id if stored).
+* **Notes:** operator-visible **notes** field (internal).
+
+### Actions
+
+| Action | HTTP | UX expectation |
+|--------|------|----------------|
+| Regenerate PDF | `POST /admin/billing/:id/regenerate-pdf` | Replace PDF on disk; redirect back to detail; show flash/error if `NO_NUMBER` / missing row (`billingDeliveryService.regenerateBillingPdfAdmin`). |
+| Resend invoice email | `POST /admin/billing/:id/resend-email` | Uses template **`billing-invoice-resend`**; requires existing PDF and valid snapshot email; logs with **`actor_type = admin`** in `email_sent_log`. |
+| Update note | `POST /admin/billing/:id/note` | Persist operator note on the document row. |
+
+### UX principles (same as rest of admin)
+
+* **Fast** table + detail; no wizard.
+* **Flash messages** after POST actions (`adminFlash` session): success/error text from `mapBillingActionError` for regenerate/resend (e.g. missing PDF, bad email, Resend skipped).
+* **Destructive:** regenerating PDF overwrites file; operator should understand replacement (no multi-version history in MVP).
+
+### Out of scope in UI (today)
+
+* Creating or voiding documents by hand (except pipeline + actions above).
+* Linked **correction / refund** documents — **not** implemented; refunds remain `docs/STRIPE-ARCHITECTURE.md` future extensions.
+
+---
+
 ## States & Logic
 
 ---
@@ -341,6 +389,6 @@ This admin is:
 
 * a practical internal tool
 * focused on speed and clarity
-* optimized for managing slots and reservations with minimal friction
+* optimized for managing **slots**, **reservations**, and **billing documents** (list, detail, export, PDF regenerate, invoice resend) with minimal friction
 
 No advanced features, no visual complexity — only what is necessary for daily operation.
