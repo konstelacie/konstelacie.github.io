@@ -5,6 +5,7 @@ const { validateSlotId, validateDateRange, validateEmail, validateLockToken } = 
 const slotsRepo = require('../../db/repositories/slotsRepo');
 const locksRepo = require('../../db/repositories/locksRepo');
 const reservationsRepo = require('../../db/repositories/reservationsRepo');
+const paymentsRepo = require('../../db/repositories/paymentsRepo');
 const auditRepo = require('../../db/repositories/auditRepo');
 const { getPool } = require('../../db');
 const { slotPassesBookingWindow } = require('../../lib/slotBookingRules');
@@ -19,19 +20,29 @@ const LOCK_HOLD_AFTER_EMAIL_MS = 15 * 60 * 1000;
 router.get(
   '/',
   asyncHandler(async (req, res) => {
-    const { from, to, lockToken: clientLockToken } = req.query;
+    const { from, to, lockToken: clientLockToken, stripeSessionId: rawStripeSessionId } = req.query;
     const { from: f, to: t } = validateDateRange(from, to);
 
     const rows = await slotsRepo.listSlotsWithLocks(f, t);
+
+    let checkoutSessionId =
+      typeof rawStripeSessionId === 'string' ? rawStripeSessionId.trim() : '';
+    if (checkoutSessionId && !checkoutSessionId.startsWith('cs_')) {
+      checkoutSessionId = '';
+    }
 
     const clientToken = typeof clientLockToken === 'string' ? clientLockToken.trim() : null;
     const slots = rows.map((r) => {
       const hasLock = r.lock_id != null;
       const rowToken = r.lock_token != null ? String(r.lock_token).trim() : null;
-      const isMyLock = hasLock && clientToken && rowToken && rowToken === clientToken;
+      const isMyLockByToken = !!(hasLock && clientToken && rowToken && rowToken === clientToken);
+      const pendingRef =
+        r.pending_checkout_provider_ref != null ? String(r.pending_checkout_provider_ref).trim() : '';
+      const isMyLockByCheckout =
+        !!checkoutSessionId && !!pendingRef && pendingRef === checkoutSessionId;
+      const isMyLock = isMyLockByToken || isMyLockByCheckout;
       return mapSlotRowToApi(r, {
-        isLocked: hasLock,
-        isMyLock: !!isMyLock,
+        isMyLock,
         lockExpiresAt: hasLock && r.lock_expires_at ? r.lock_expires_at.toISOString() : null,
       });
     });
@@ -71,6 +82,11 @@ router.post(
 
     if (await reservationsRepo.hasActiveReservationForSlot(slotId)) {
       await auditRepo.log('lock_failed', 'slot', slotId, { reason: 'slot_already_reserved' });
+      throw new ApiError('SLOT_RESERVED', 'Slot already has an active reservation', 409);
+    }
+
+    if (await paymentsRepo.hasPendingSlotPayment(slotId)) {
+      await auditRepo.log('lock_failed', 'slot', slotId, { reason: 'checkout_pending' });
       throw new ApiError('SLOT_RESERVED', 'Slot already has an active reservation', 409);
     }
 

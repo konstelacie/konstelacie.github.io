@@ -25,7 +25,11 @@ async function listSlotsWithLocks(from, to) {
       l.id AS lock_id,
       l.lock_token,
       l.expires_at AS lock_expires_at,
-      ar.id AS active_reservation_id
+      ar.id AS active_reservation_id,
+      (SELECT p2.id FROM payments p2
+        WHERE p2.slot_id = s.id AND p2.status = 'pending' AND p2.provider = 'stripe' LIMIT 1) AS pending_checkout_payment_id,
+      (SELECT p2.provider_ref FROM payments p2
+        WHERE p2.slot_id = s.id AND p2.status = 'pending' AND p2.provider = 'stripe' LIMIT 1) AS pending_checkout_provider_ref
     FROM slots s
     LEFT JOIN slot_locks l ON l.slot_id = s.id AND l.expires_at > NOW(3)
     LEFT JOIN reservations ar
@@ -74,6 +78,8 @@ async function listSlotsForAdmin(from, to) {
       l.id AS lock_id,
       l.email AS lock_email,
       l.expires_at AS lock_expires_at,
+      (SELECT p2.id FROM payments p2
+        WHERE p2.slot_id = s.id AND p2.status = 'pending' AND p2.provider = 'stripe' LIMIT 1) AS pending_checkout_payment_id,
       r.id AS reservation_id,
       r.email AS reservation_email,
       r.status AS reservation_status
@@ -118,6 +124,15 @@ async function adminBlockSlot(slotId) {
     if (resRows.length > 0) {
       await conn.rollback();
       return { ok: false, code: 'HAS_RESERVATION' };
+    }
+
+    const [payRows] = await conn.execute(
+      "SELECT id FROM payments WHERE slot_id = ? AND status = 'pending' LIMIT 1",
+      [slotId]
+    );
+    if (payRows.length > 0) {
+      await conn.rollback();
+      return { ok: false, code: 'HAS_PENDING_PAYMENT' };
     }
 
     await conn.execute('DELETE FROM slot_locks WHERE slot_id = ?', [slotId]);

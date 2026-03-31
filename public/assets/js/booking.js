@@ -59,7 +59,15 @@
   }
 
   const STORAGE_KEY = 'booking_lock';
+  /** Set when redirecting to Stripe so GET /api/slots can treat the hold as mine if the lock row already expired. */
+  const CHECKOUT_SESSION_STORAGE_KEY = 'booking_checkout_session';
   const FUNNEL_CTX_KEY = 'booking_funnel_ctx';
+
+  function clearCheckoutSessionStorage() {
+    try {
+      sessionStorage.removeItem(CHECKOUT_SESSION_STORAGE_KEY);
+    } catch (_) {}
+  }
 
   function readFunnelContext() {
     const section = document.getElementById('booking');
@@ -402,6 +410,12 @@
   async function fetchSlots(from, to, token = null, externalSignal = null) {
     let url = `/api/slots?from=${from}&to=${to}`;
     if (token) url += `&lockToken=${encodeURIComponent(token)}`;
+    try {
+      const cs = sessionStorage.getItem(CHECKOUT_SESSION_STORAGE_KEY);
+      if (cs && cs.startsWith('cs_')) {
+        url += `&stripeSessionId=${encodeURIComponent(cs)}`;
+      }
+    } catch (_) {}
     const ctrl = new AbortController();
     const tid = setTimeout(() => ctrl.abort(), FETCH_SLOTS_TIMEOUT_MS);
     const onExternalAbort = () => {
@@ -854,6 +868,7 @@
     lockedEmail = '';
     lockPhase = 'email';
     clearStoredLock();
+    clearCheckoutSessionStorage();
     closeEmailModal();
     const hold = $('booking-hold-banner');
     if (hold) hold.hidden = true;
@@ -945,6 +960,7 @@
         return;
       }
 
+      clearCheckoutSessionStorage();
       lockToken = data.lockToken;
       expiresAt = data.expiresAt;
       lockedSlotId = data.slotId;
@@ -1067,7 +1083,12 @@
     if (!payData.url) {
       return { ok: false, error: 'Platba sa nepodarila spustiť. Skús znova.' };
     }
-    return { ok: true, url: payData.url, lockExpiresAt: payData.lockExpiresAt || null };
+    return {
+      ok: true,
+      url: payData.url,
+      lockExpiresAt: payData.lockExpiresAt || null,
+      checkoutSessionId: typeof payData.checkoutSessionId === 'string' ? payData.checkoutSessionId : null,
+    };
   }
 
   function showPaymentFailure(message) {
@@ -1124,6 +1145,11 @@
           expiresAt = result.lockExpiresAt;
           storeLock();
           if (countdownInterval) updateCountdown();
+        }
+        if (result.checkoutSessionId) {
+          try {
+            sessionStorage.setItem(CHECKOUT_SESSION_STORAGE_KEY, result.checkoutSessionId);
+          } catch (_) {}
         }
         window.location.href = result.url;
         return;
@@ -1311,6 +1337,11 @@
           amount: pending.amount,
         });
         if (result.ok) {
+          if (result.checkoutSessionId) {
+            try {
+              sessionStorage.setItem(CHECKOUT_SESSION_STORAGE_KEY, result.checkoutSessionId);
+            } catch (_) {}
+          }
           window.location.href = result.url;
           return;
         }

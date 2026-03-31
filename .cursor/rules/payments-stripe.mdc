@@ -29,6 +29,7 @@ globs: ["src/routes/api/stripe*", "src/**/payment*", "src/**/payments*"]
 ## Payment creation (`POST /api/payments/start`)
 
 - Body: `slotId`, `lockToken`, `email`, `paymentType`, optional `amount` (full), `returnPath`, funnel attribution
+- Set Stripe **`expires_at`** (Unix seconds) and the **`slot_locks.expires_at`** to the same instant — **`src/config/checkoutHold.js`** (**30 minutes** from creation, Stripe’s minimum window)
 - After `stripe.checkout.sessions.create`, persist row with `provider_ref = session.id`, `slot_id`, `reservation_id = NULL`
 - Checkout **metadata:** `slotId`, `lockToken`, `paymentType` (deposit|session DB values), funnel fields — not `reservationId`
-- Return `{ url, lockExpiresAt }` for client redirect
+- Return `{ url, checkoutSessionId, lockExpiresAt }` for client redirect (`checkoutSessionId` for `GET /api/slots?stripeSessionId=` while on Stripe)

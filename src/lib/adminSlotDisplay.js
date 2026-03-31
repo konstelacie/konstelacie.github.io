@@ -5,6 +5,7 @@ const { mysqlLocalDateToYmd } = require('./slotApiMap');
 function computeAdminSlotActions(row) {
   const slotStatus = row.slot_status;
   const hasRes = row.reservation_id != null;
+  const hasPendingCheckout = row.pending_checkout_payment_id != null;
 
   if (slotStatus === 'cancelled') {
     return { block: false, unblock: false, cancel: false };
@@ -13,6 +14,9 @@ function computeAdminSlotActions(row) {
     return { block: false, unblock: true, cancel: true };
   }
   if (hasRes) {
+    return { block: false, unblock: false, cancel: true };
+  }
+  if (hasPendingCheckout) {
     return { block: false, unblock: false, cancel: true };
   }
   return { block: true, unblock: false, cancel: true };
@@ -55,6 +59,17 @@ function mapAdminSlotRow(row) {
       statusKey: 'locked',
       statusLabel: 'Uzamknuté',
       email: row.lock_email || null,
+      actions,
+    };
+  }
+
+  if (row.pending_checkout_payment_id != null && row.reservation_id == null) {
+    return {
+      id: row.id,
+      timeKey,
+      statusKey: 'locked',
+      statusLabel: 'Stripe platba',
+      email: null,
       actions,
     };
   }

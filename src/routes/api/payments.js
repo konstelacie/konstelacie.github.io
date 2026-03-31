@@ -9,14 +9,12 @@ const { timeKeyForGridIndex } = require('../../config/slotGrid');
 const { mysqlLocalDateToYmd } = require('../../lib/slotApiMap');
 const { validateSlotId, validateEmail, validateLockToken } = require('../../middleware/validators');
 const { slotPassesBookingWindow } = require('../../lib/slotBookingRules');
+const { checkoutExpiresAtFromNow } = require('../../config/checkoutHold');
 
 const router = express.Router();
 
 const DEPOSIT_CENTS_FIRST = 1000; // 10 €
 const MIN_FULL_CENTS = 4500; // 45 €
-
-/** Far-future hold while the user is on Stripe; dedicated expiry policy comes later. */
-const CHECKOUT_LOCK_EXPIRES_AT = new Date('2099-12-30T23:59:59.999Z');
 
 function validatePaymentType(raw) {
   if (raw === 'deposit' || raw === 'full') return raw;
@@ -208,7 +206,7 @@ router.post(
         throw new ApiError('CONFLICT', 'Payment already in progress for this slot', 409);
       }
 
-      const held = await locksRepo.setLockCheckoutHoldConn(conn, slotId, lockToken, email, CHECKOUT_LOCK_EXPIRES_AT);
+      const held = await locksRepo.setLockCheckoutHoldConn(conn, slotId, lockToken, email, checkoutExpiresAt);
       if (!held) {
         throw new ApiError('LOCK_INVALID', 'Lock not found', 404);
       }
@@ -252,7 +250,8 @@ router.post(
     res.status(200).json({
       ok: true,
       url: session.url,
-      lockExpiresAt: CHECKOUT_LOCK_EXPIRES_AT.toISOString(),
+      checkoutSessionId: session.id,
+      lockExpiresAt: checkoutExpiresAt.toISOString(),
     });
   })
 );

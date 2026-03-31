@@ -13,4 +13,15 @@ async function listByReservationId(reservationId) {
   return rows;
 }
 
-module.exports = { listByReservationId };
+async function hasPendingSlotPayment(slotId) {
+  const pool = getPool();
+  if (!pool) throw new Error('Database not configured');
+
+  const [rows] = await pool.execute(
+    "SELECT id FROM payments WHERE slot_id = ? AND status = 'pending' LIMIT 1",
+    [slotId]
+  );
+  return rows.length > 0;
+}
+
+module.exports = { listByReservationId, hasPendingSlotPayment };
