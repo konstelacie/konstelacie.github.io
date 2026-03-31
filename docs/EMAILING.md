@@ -16,6 +16,21 @@
 | Queue / worker | **No** — confirmation and invoice pipelines use fire-and-forget `async` from webhook or admin redirects (errors logged). |
 | Operator manual send UI | **No** — still external / future. Admin **resend invoice** for an existing billing document: **`POST /admin/billing/:id/resend-email`**. |
 
+### Implemented sends (parity with code)
+
+| Template file | `email_sent_log.template_id` | Subject (fixed in code) | Trigger | `entity_type` / `entity_id` in log | `actor_type` in log |
+|---------------|------------------------------|-------------------------|---------|-------------------------------------|---------------------|
+| `reservation-confirmation.ejs` | `reservation-confirmation` | `Rezervácia potvrdená` | `checkout.session.completed` when payment has `reservation_id` (`sendConfirmationEmailAsync` in `stripe.js`) | `reservation` / reservation id | `system` |
+| `billing-invoice.ejs` | `billing-invoice` | `Platobný doklad {documentNumber} — citimtedasom.sk` | After billing row exists + PDF on disk; `processBillingDocumentDelivery` (skipped if duplicate log, invalid email, or `BILLING_SEND_INVOICE_EMAIL` off) | `billing_document` / document id | `system` |
+| `billing-invoice-resend.ejs` | `billing-invoice-resend` | `Platobný doklad {documentNumber} (znova) — citimtedasom.sk` | Admin **`resendBillingInvoiceEmailAdmin`** → **`POST /admin/billing/:id/resend-email`** | `billing_document` / document id | **`admin`** |
+| `pre-session-reminder.ejs` | `pre-session-reminder` | `Pripomienka sedenia zajtra` | Cron **`pre-session-reminder`**: `confirmed` reservations whose slot **`start_at_utc`** falls in **`[NOW+23:30h, NOW+24:30h)`** (`reservationsRepo.findDueForPreSessionReminder`) | `reservation` / reservation id | `system` |
+
+**Provider API:** `src/email/provider.js` — **`sendEmail(to, subject, html, metadata, options?)`**. If Resend is not configured (`RESEND_API_KEY` + `RESEND_FROM_EMAIL`), returns **`{ ok: false, skipped: true }`** and nothing is sent. **`options.attachments`** is used for billing PDFs. **`reply_to`** is set to the configured from address.
+
+**Logging:** Rows are written to **`email_sent_log` only when** the provider returns **`ok: true`** and a **`messageId`** (`emailService`); failed sends are not logged there.
+
+**Idempotency:** Pre-session and initial billing invoice use **`emailSentLogRepo.wasAlreadySent`** (template + entity) so cron/webhook retries do not double-send; reservation confirmation has no duplicate guard beyond business rules (one payment flow per reservation).
+
 ### Required env vars (Resend)
 
 Set in `.env` (or environment); see `src/config/index.js` and `.env.example`.
@@ -77,10 +92,10 @@ This doc is a thinking input. Final decisions will be captured elsewhere once ma
 
 | Example | Trigger | Typical content |
 |---------|---------|-----------------|
-| Reservation confirmation | Payment webhook confirms reservation | Slot, date, amount, receipt reference, link to client zone |
-| Payment receipt | Same webhook | Amount, date, Stripe receipt link (if applicable) |
-| Slot lock reminder | Lock about to expire | "You have X minutes to complete your reservation" |
-| Pre-session reminder | Cron / scheduled job | Date, time, how to join, preparation tips |
+| Reservation confirmation | Payment webhook confirms reservation | Slot date/time, amount (see `reservation-confirmation.ejs`) |
+| Platobný doklad (billing invoice) | Same webhook path + PDF pipeline (or admin resend) | Amount, document number; **PDF attachment** — internal doc, not Stripe’s receipt email |
+| Slot lock reminder | *Not implemented* — no email before lock expiry | — |
+| Pre-session reminder | Cron **~24h before** session (`pre-session-reminder` job) | Date, time (see template) |
 
 **Characteristics:**
 - Automated; no human writes each one.
@@ -242,9 +257,9 @@ Ak by Meet u vás nefungoval, môžeme použiť aj inú platformu.
 ### 6.3 Business / Event Layer
 
 **Role:** Decide *when* to send. Triggers from:
-- Webhook (payment confirmed) — **implemented:** async send after DB commit in `stripe.js` (not a separate queue worker).
+- Webhook (payment confirmed) — **implemented:** async sends after DB commit in `stripe.js` — reservation confirmation (if `reservation_id`) + billing delivery pipeline (not a separate queue worker).
 - Cron (pre-session reminder) — **implemented:** `docs/SCHEDULED-EMAILS-CRON.md`.
-- Admin action (operator clicks "Send follow-up") — **not implemented.**
+- Admin action — **partially implemented:** **resend billing invoice** (`POST /admin/billing/:id/resend-email`). Free-form “send any email to client” from admin — **not implemented.**
 - Future: session completion event.
 
 **Consideration:** Stripe webhook returns quickly; confirmation send is `.catch`’d so failures do not block HTTP. A dedicated queue is still optional for future scale.
@@ -260,7 +275,7 @@ Ak by Meet u vás nefungoval, môžeme použiť aj inú platformu.
 - **Operator-assisted:** Log actor (admin user), recipient, timestamp, optional subject/body snapshot.
 - **Delivery status:** Provider webhooks (delivered, bounced, opened) — nice to have; not required for V1.
 
-**Open:** Storage (new table `email_sent_log` or similar); retention; what to store (full body vs. reference only).
+**Open:** Retention policy; optional storage of full body vs. template id only (today: **no body** in DB — `email_sent_log` stores template id, recipient, entity link, provider message id, `actor_type`).
 
 ### 6.5 Admin / Operator Usability
 
@@ -381,8 +396,8 @@ Ak by Meet u vás nefungoval, môžeme použiť aj inú platformu.
 1. **Provider** — Resend vs. others; final choice.
 2. **Confirmation email** — One vs. multiple; exact content; timing.
 3. **Template storage** — Code-level only for V1, or DB from start?
-4. **Background job** — How to defer email from webhook (queue, worker, simple async).
-5. **Email send log schema** — Table design; what to store.
+4. **Background job** — **Current:** fire-and-forget `async` from webhook/admin; optional future queue if volume grows.
+5. **Email send log schema** — **`email_sent_log` implemented** (`docs/DB-SCHEMA.md`); open: retention, whether to store body snapshots.
 6. **Operator manual email** — In V1 or deferred? If in V1, where does operator compose?
 7. **Customizable content** — Needed for V1? If yes, how (template slot vs. free-form)?
 8. **Reminder strategy** — Yes/no; count; timing; when to build.
@@ -393,7 +408,7 @@ Ak by Meet u vás nefungoval, môžeme použiť aj inú platformu.
 
 ## 11. Direction (updated to match code)
 
-1. **Provider:** Resend; `sendEmail(to, subject, html, metadata)` in `src/email/provider.js`.
+1. **Provider:** Resend; `sendEmail(to, subject, html, metadata, options?)` in `src/email/provider.js` — optional **`options.attachments`** for PDFs; returns **`{ ok: false, skipped: true }`** when API/from not configured.
 
 2. **Confirmation email:** Sent after successful `checkout.session.completed` processing; template `reservation-confirmation.ejs`; subject `Rezervácia potvrdená`.
 
