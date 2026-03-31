@@ -436,6 +436,9 @@
     if (slot.status !== 'open') {
       return { label: 'Obsadené', disabled: true, busy: false, state: 'confirmed-other', primary: false };
     }
+    if (slot.isReserved) {
+      return { label: 'Obsadené', disabled: true, busy: false, state: 'confirmed-other', primary: false };
+    }
     if (slot.isLocked && !slot.isMyLock) {
       return { label: 'Práve držané', disabled: true, busy: false, state: 'locked-other', primary: false };
     }

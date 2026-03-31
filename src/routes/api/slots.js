@@ -4,6 +4,7 @@ const { asyncHandler, ApiError } = require('../../middleware/apiError');
 const { validateSlotId, validateDateRange, validateEmail, validateLockToken } = require('../../middleware/validators');
 const slotsRepo = require('../../db/repositories/slotsRepo');
 const locksRepo = require('../../db/repositories/locksRepo');
+const reservationsRepo = require('../../db/repositories/reservationsRepo');
 const auditRepo = require('../../db/repositories/auditRepo');
 const { getPool } = require('../../db');
 const { slotPassesBookingWindow } = require('../../lib/slotBookingRules');
@@ -66,6 +67,11 @@ router.post(
     if (!slotPassesBookingWindow(slot)) {
       await auditRepo.log('lock_failed', 'slot', slotId, { reason: 'outside_booking_window' });
       throw new ApiError('SLOT_NOT_OPEN', 'Slot is not open for booking', 409);
+    }
+
+    if (await reservationsRepo.hasActiveReservationForSlot(slotId)) {
+      await auditRepo.log('lock_failed', 'slot', slotId, { reason: 'slot_already_reserved' });
+      throw new ApiError('SLOT_RESERVED', 'Slot already has an active reservation', 409);
     }
 
     const existingLock = await locksRepo.getActiveLockForSlot(slotId);

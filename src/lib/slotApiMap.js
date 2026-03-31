@@ -20,6 +20,7 @@ function mapSlotRowToApi(r, extras = {}) {
   const localDate = mysqlLocalDateToYmd(r.local_date);
   const gridIndex = Number(r.grid_index);
   const hasLock = r.lock_id != null;
+  const hasReservation = r.active_reservation_id != null;
   return {
     id: r.id,
     localDate,
@@ -34,6 +35,7 @@ function mapSlotRowToApi(r, extras = {}) {
     isMyLock: extras.isMyLock ?? false,
     lockExpiresAt:
       extras.lockExpiresAt ?? (r.lock_expires_at ? r.lock_expires_at.toISOString() : null),
+    isReserved: extras.isReserved ?? hasReservation,
   };
 }
 

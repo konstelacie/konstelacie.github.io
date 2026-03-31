@@ -24,9 +24,12 @@ async function listSlotsWithLocks(from, to) {
       s.capacity,
       l.id AS lock_id,
       l.lock_token,
-      l.expires_at AS lock_expires_at
+      l.expires_at AS lock_expires_at,
+      ar.id AS active_reservation_id
     FROM slots s
     LEFT JOIN slot_locks l ON l.slot_id = s.id AND l.expires_at > NOW(3)
+    LEFT JOIN reservations ar
+      ON ar.slot_id = s.id AND ar.status IN ('pending_payment', 'confirmed')
     WHERE s.local_date >= ?
       AND s.local_date <= ?
       AND s.start_at_utc >= DATE_ADD(NOW(3), INTERVAL 24 HOUR)
