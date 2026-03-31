@@ -368,6 +368,31 @@ a.funnel-scroll-hint__arrow:focus-visible {
   gap: 0.5rem;
 }
 
+/* Poll / lock updates: block pointer while day rows change to avoid wrong-slot taps */
+.booking-calendar__days--reflowing {
+  pointer-events: none;
+}
+
+.booking-calendar__days--reflowing .booking-day {
+  opacity: 0.88;
+  transition: opacity 0.2s ease;
+}
+
+@keyframes booking-calendar-day-flash {
+  0% {
+    opacity: 0.72;
+    transform: translateY(0.45rem);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.booking-day--flash {
+  animation: booking-calendar-day-flash 0.4s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+
 .booking-calendar__days-more {
   display: grid;
   grid-template-rows: 0fr;
@@ -415,6 +440,14 @@ a.funnel-scroll-hint__arrow:focus-visible {
 @media (prefers-reduced-motion: reduce) {
   .booking-calendar__days-more {
     transition-duration: 0.01ms;
+  }
+
+  .booking-calendar__days--reflowing .booking-day {
+    transition: none;
+  }
+
+  .booking-day--flash {
+    animation: none;
   }
 }
 

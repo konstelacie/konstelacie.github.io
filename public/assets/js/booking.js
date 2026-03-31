@@ -36,6 +36,9 @@
   let loadSeq = 0;
   let pollTimer = null;
   let calendarDaysExpanded = false;
+  /** Fingerprint of last `#booking-calendar-days` markup — when it changes after first paint, we animate + guard clicks. */
+  let calendarLastDaysHtmlSig = '';
+  let calendarReflowTimer = null;
 
   const $ = (id) => document.getElementById(id);
 
@@ -442,6 +445,17 @@
     return { label: '', disabled: false, busy: false, state: 'free', primary: true };
   }
 
+  /** Day row is shown if the user can act here (bookable free slot, pending choice, or their hold). */
+  function dayShouldAppearInCalendar(rows) {
+    for (const { slot } of rows) {
+      if (!slot) continue;
+      const ui = mapSlotUi(slot);
+      if (ui.state === 'pending' || ui.state === 'locked-me') return true;
+      if (ui.state === 'free' && ui.primary && !ui.disabled && !ui.busy) return true;
+    }
+    return false;
+  }
+
   /**
    * @param {object|null} slot
    * @param {string} timeLineFirst — visible line: time (same for grid and hero)
@@ -496,14 +510,16 @@
     const byDate = groupSlotsByLocalDate(filtered);
     const sortedDates = Object.keys(byDate).sort();
     const capped = sortedDates.slice(0, MAX_FUNNEL_DAYS);
-    return capped.map((dateStr) => {
-      const daySlots = byDate[dateStr] || [];
-      const rows = gridTimes.map((timeKey, gridIndex) => ({
-        timeKey,
-        slot: daySlots.find((s) => s.gridIndex === gridIndex) || null,
-      }));
-      return { dateStr, rows };
-    });
+    return capped
+      .map((dateStr) => {
+        const daySlots = byDate[dateStr] || [];
+        const rows = gridTimes.map((timeKey, gridIndex) => ({
+          timeKey,
+          slot: daySlots.find((s) => s.gridIndex === gridIndex) || null,
+        }));
+        return { dateStr, rows };
+      })
+      .filter((day) => dayShouldAppearInCalendar(day.rows));
   }
 
   function findFirstFreeSlotId() {
@@ -556,6 +572,12 @@
       if (heroSlotHost) heroSlotHost.innerHTML = '';
       daysEl.innerHTML = '';
       calendarDaysExpanded = false;
+      calendarLastDaysHtmlSig = '';
+      if (calendarReflowTimer) {
+        clearTimeout(calendarReflowTimer);
+        calendarReflowTimer = null;
+      }
+      daysEl.classList.remove('booking-calendar__days--reflowing');
       return;
     }
 
@@ -629,16 +651,44 @@
 
     const visibleArticles = articles.slice(0, INITIAL_VISIBLE_FUNNEL_DAYS);
     const extraArticles = articles.slice(INITIAL_VISIBLE_FUNNEL_DAYS);
+
+    if (calendarReflowTimer) {
+      clearTimeout(calendarReflowTimer);
+      calendarReflowTimer = null;
+    }
+
+    const nextInnerHtml =
+      extraArticles.length === 0
+        ? visibleArticles.join('')
+        : `${visibleArticles.join('')}<div class="booking-calendar__days-more"><div class="booking-calendar__days-more-inner">${extraArticles.join(
+            ''
+          )}</div></div><p class="booking-calendar__expand-row"><button type="button" class="booking-calendar__expand-btn" data-booking-days-toggle aria-expanded="false">Pozrieť ďalšie termíny</button></p>`;
+
+    const prevHtml = calendarLastDaysHtmlSig;
+    const layoutChanged = prevHtml !== '' && prevHtml !== nextInnerHtml;
+    calendarLastDaysHtmlSig = nextInnerHtml;
+
     if (extraArticles.length === 0) {
       calendarDaysExpanded = false;
-      daysEl.innerHTML = visibleArticles.join('');
-    } else {
-      daysEl.innerHTML =
-        visibleArticles.join('') +
-        `<div class="booking-calendar__days-more"><div class="booking-calendar__days-more-inner">${extraArticles.join(
-          ''
-        )}</div></div>` +
-        `<p class="booking-calendar__expand-row"><button type="button" class="booking-calendar__expand-btn" data-booking-days-toggle aria-expanded="false">Pozrieť ďalšie termíny</button></p>`;
+    }
+    daysEl.innerHTML = nextInnerHtml;
+
+    if (layoutChanged) {
+      daysEl.classList.add('booking-calendar__days--reflowing');
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          daysEl.querySelectorAll('.booking-day').forEach((el) => {
+            el.classList.remove('booking-day--flash');
+            void el.offsetWidth;
+            el.classList.add('booking-day--flash');
+          });
+        });
+      });
+      calendarReflowTimer = setTimeout(() => {
+        daysEl.classList.remove('booking-calendar__days--reflowing');
+        daysEl.querySelectorAll('.booking-day--flash').forEach((el) => el.classList.remove('booking-day--flash'));
+        calendarReflowTimer = null;
+      }, 480);
     }
 
     syncCalendarDaysExpandUi();
