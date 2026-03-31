@@ -692,6 +692,8 @@
       clearTimeout(calendarReflowTimer);
       calendarReflowTimer = null;
     }
+    /* Dropping pointer-events:none when aborting a reflow timer; same-HTML skips scheduling a new clear. */
+    daysEl.classList.remove('booking-calendar__days--reflowing');
 
     let nextInnerHtml;
     if (calendarDaysExpanded) {
