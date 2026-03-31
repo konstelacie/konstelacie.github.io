@@ -11,6 +11,47 @@ async function getActiveLockForSlot(slotId) {
   return rows[0] ?? null;
 }
 
+/**
+ * True if `email` is set on another non-expired lock (not the excepted slot/token pair).
+ */
+async function hasActiveLockForEmailExcept(email, exceptSlotId, exceptLockToken) {
+  const pool = getPool();
+  if (!pool) throw new Error('Database not configured');
+
+  const norm =
+    typeof email === 'string' ? email.trim().toLowerCase() : String(email || '').trim().toLowerCase();
+  if (!norm) return false;
+
+  const hasExcept =
+    exceptSlotId != null &&
+    exceptLockToken != null &&
+    String(exceptLockToken).trim().length === 36;
+
+  if (hasExcept) {
+    const token = String(exceptLockToken).trim();
+    const [rows] = await pool.execute(
+      `SELECT id FROM slot_locks
+       WHERE expires_at > NOW(3)
+         AND email IS NOT NULL
+         AND LOWER(TRIM(email)) = ?
+         AND NOT (slot_id = ? AND lock_token = ?)
+       LIMIT 1`,
+      [norm, Number(exceptSlotId), token]
+    );
+    return rows.length > 0;
+  }
+
+  const [rows] = await pool.execute(
+    `SELECT id FROM slot_locks
+     WHERE expires_at > NOW(3)
+       AND email IS NOT NULL
+       AND LOWER(TRIM(email)) = ?
+     LIMIT 1`,
+    [norm]
+  );
+  return rows.length > 0;
+}
+
 async function createLock(slotId, lockToken, expiresAt, email = null) {
   const pool = getPool();
   if (!pool) throw new Error('Database not configured');
@@ -128,6 +169,7 @@ async function deleteExpiredSlotLocksBatch(batchSize) {
 
 module.exports = {
   getActiveLockForSlot,
+  hasActiveLockForEmailExcept,
   createLock,
   findValidLock,
   deleteLock,

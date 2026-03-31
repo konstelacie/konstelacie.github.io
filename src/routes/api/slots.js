@@ -10,6 +10,7 @@ const auditRepo = require('../../db/repositories/auditRepo');
 const { getPool } = require('../../db');
 const { slotPassesBookingWindow } = require('../../lib/slotBookingRules');
 const { mapSlotRowToApi, gridMetadata } = require('../../lib/slotApiMap');
+const { ensureEmailAvailableForBooking } = require('../../lib/bookingEmailAvailability');
 
 const router = express.Router();
 /** Hold window while the user enters email (no full payment countdown yet). */
@@ -107,6 +108,10 @@ router.post(
       });
     }
 
+    if (email) {
+      await ensureEmailAvailableForBooking(email);
+    }
+
     const lockToken = crypto.randomUUID();
     const expiresAt = new Date(Date.now() + LOCK_HOLD_BEFORE_EMAIL_MS);
 
@@ -159,6 +164,8 @@ router.post(
     const slotId = validateSlotId(req.params.slotId);
     const lockToken = validateLockToken(req.body?.lockToken);
     const email = validateEmail(req.body?.email, true);
+
+    await ensureEmailAvailableForBooking(email, { exceptSlotId: slotId, exceptLockToken: lockToken });
 
     const expiresAt = new Date(Date.now() + LOCK_HOLD_AFTER_EMAIL_MS);
     const updated = await locksRepo.extendLockExpiration(slotId, lockToken, email, expiresAt);

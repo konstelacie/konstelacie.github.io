@@ -11,6 +11,7 @@ const { validateSlotId, validateEmail, validateLockToken } = require('../../midd
 const { slotPassesBookingWindow } = require('../../lib/slotBookingRules');
 const { checkoutExpiresAtFromNow } = require('../../config/checkoutHold');
 const paymentsRepo = require('../../db/repositories/paymentsRepo');
+const { ensureEmailAvailableForBooking } = require('../../lib/bookingEmailAvailability');
 
 const router = express.Router();
 
@@ -115,6 +116,7 @@ router.post(
     const slotId = validateSlotId(body.slotId);
     const lockToken = validateLockToken(body.lockToken);
     const email = validateEmail(body.email, true);
+    await ensureEmailAvailableForBooking(email, { exceptSlotId: slotId, exceptLockToken });
     const paymentType = validatePaymentType(body.paymentType);
     const amountCents = validateAmount(body.amount, paymentType);
     const funnel = parseFunnelAttribution(body);

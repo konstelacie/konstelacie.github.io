@@ -5,6 +5,9 @@ const { getPool } = require('../index');
 
 const ACTIVE_STATUSES = ['pending_payment', 'confirmed'];
 
+/** Block booking same email when any of these rows exist (aligns with slot reservation join in slotsRepo). */
+const EMAIL_BOOKING_BLOCK_STATUSES = ['draft', 'pending_payment', 'confirmed'];
+
 async function hasActiveReservationForSlot(slotId) {
   const pool = getPool();
   if (!pool) throw new Error('Database not configured');
@@ -13,6 +16,30 @@ async function hasActiveReservationForSlot(slotId) {
   const [rows] = await pool.execute(
     `SELECT id FROM reservations WHERE slot_id = ? AND status IN (${placeholders}) LIMIT 1`,
     [slotId, ...ACTIVE_STATUSES]
+  );
+  return rows.length > 0;
+}
+
+async function hasActiveReservationForEmail(email) {
+  const pool = getPool();
+  if (!pool) throw new Error('Database not configured');
+
+  const norm =
+    typeof email === 'string' ? email.trim().toLowerCase() : String(email || '').trim().toLowerCase();
+  if (!norm) return false;
+
+  const placeholders = EMAIL_BOOKING_BLOCK_STATUSES.map(() => '?').join(',');
+  const [rows] = await pool.execute(
+    `SELECT r.id FROM reservations r
+     INNER JOIN slots s ON s.id = r.slot_id
+     WHERE LOWER(TRIM(r.email)) = ?
+       AND r.status IN (${placeholders})
+       AND (
+         r.status IN ('draft', 'pending_payment')
+         OR (r.status = 'confirmed' AND s.start_at_utc >= NOW(3))
+       )
+     LIMIT 1`,
+    [norm, ...EMAIL_BOOKING_BLOCK_STATUSES]
   );
   return rows.length > 0;
 }
@@ -222,6 +249,7 @@ async function listForAdmin(opts) {
 
 module.exports = {
   hasActiveReservationForSlot,
+  hasActiveReservationForEmail,
   getById,
   findDueForPreSessionReminder,
   listForAdmin,

@@ -267,6 +267,8 @@
     LOCK_EXPIRED: 'Vypršal čas podržania. Vyber termín znova.',
     SLOT_RESERVED: 'Termín už nie je voľný.',
     SLOT_ALREADY_RESERVED: 'Termín už nie je voľný.',
+    EMAIL_HAS_LOCK: 'Tento e-mail už drží iný termín. Zadaj iný e-mail.',
+    EMAIL_HAS_RESERVATION: 'Na tento e-mail už existuje rezervácia. Zadaj iný e-mail.',
     INTERNAL_ERROR: 'Niečo sa pokazilo. Skús neskôr.',
   };
 
