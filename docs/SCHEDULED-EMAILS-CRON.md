@@ -14,6 +14,8 @@
 
 **Also implemented elsewhere:** Reservation confirmation email after Stripe `checkout.session.completed` (webhook), not via this cron. See `src/routes/api/stripe.js`, `docs/EMAILING.md`.
 
+**Not part of `/api/cron/run`:** Cleanup of expired **`slot_locks`** or unused past **`slots`** — handled by operator actions at **`/admin/maintenance`** (`docs/IMPLEMENTATION-SNAPSHOT.md`, `docs/ui-ux/admin-interface.md`).
+
 ---
 
 ## 2. Use Cases by Type

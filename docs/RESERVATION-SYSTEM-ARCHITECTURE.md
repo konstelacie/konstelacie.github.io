@@ -67,7 +67,7 @@
 - **Lock creation:** `POST /api/slots/:slotId/lock` returns `lockToken` and `expiresAt`.
 - **Lock usage:** `lockToken` required for `POST create reservation` and `POST start payment`.
 - **Manual revoke:** `POST /api/revoke` with body `{ slotId, lockToken }` releases the lock before expiry.
-- **Unlock:** Automatic on expiry; cron cleans expired locks; reads treat expired locks as unlocked.
+- **Unlock:** On expiry the lock is invalid for API checks (`expires_at > NOW()`). Row cleanup is **operator-driven:** `GET /admin/maintenance` shows counts and preview; `POST` actions delete expired `slot_locks` in batches (optional hygiene—availability already ignores expired rows).
 
 ---
 
@@ -280,9 +280,9 @@ Index: `(action, created_at)`, `(entity_type, entity_id)`.
 4. **Idempotency:** `X-Idempotency-Key` on POST create reservation and POST start payment; store and reject duplicates.
 
 ### Lock expiry
-1. **Cron:** Every 5 minutes delete `slot_locks` where `expires_at < NOW()`.
-2. **Read-time check:** When using `lockToken`, verify `expires_at > NOW()`; treat expired as invalid.
-3. **Write-time check:** Before creating reservation, re-validate lock.
+1. **Read-time check:** When using `lockToken`, verify `expires_at > NOW()`; treat expired as invalid.
+2. **Write-time check:** Before creating reservation, re-validate lock.
+3. **Hygiene (no cron job):** Operators may purge expired `slot_locks` rows from **`/admin/maintenance`** (batched deletes, audit `slot_locks_expired_purged`). Same screen supports deleting **past slots** that have **no** `reservations` row (batched, audit `old_unused_slots_purged`); see `docs/IMPLEMENTATION-SNAPSHOT.md` and `src/routes/admin.js`.
 
 ---
 
@@ -298,10 +298,11 @@ Index: `(action, created_at)`, `(entity_type, entity_id)`.
 
 ## 8) Admin & Operations
 
-- **Admin auth:** Session cookie or simple JWT; routes under `/api/admin/*`.
-- **Slot creation:** Manual via `POST /api/admin/slots` or script that inserts into `slots`.
+- **Admin auth:** Session-based HTML admin under **`/admin`** (no JSON **`/api/admin/*`** in current code).
+- **Slot creation:** Operator UI at `/admin/slots` (single + bulk); see `docs/ui-ux/admin-interface.md`.
+- **DB hygiene:** `/admin/maintenance` — purge expired `slot_locks`; purge past slots with no reservations (see §6 Lock expiry).
 - **Monitoring:** Health check for DB; log webhook failures; optional alert on repeated 5xx.
-- **Migrations:** Sequential SQL files (e.g. `migrations/001_initial.sql`); run on deploy.
+- **Migrations:** Single source file `src/db/migrations/001_initial.sql` (recreate DB while not live); see project practices.
 
 ---
 

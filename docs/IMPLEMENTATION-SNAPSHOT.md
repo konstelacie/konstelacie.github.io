@@ -52,6 +52,9 @@
 | GET | `/admin/login` | Login form. |
 | POST | `/admin/login` | Authenticate; redirect with `next` (same-origin `/admin/*` only). |
 | POST | `/admin/logout` | End session. |
+| GET | `/admin/maintenance` | Údržba: stats + preview for expired `slot_locks` and deletable past slots (no reservations). |
+| POST | `/admin/maintenance/delete-expired-slot-locks` | Purge expired `slot_locks` (batched; checkbox `confirm`; audit `slot_locks_expired_purged`). |
+| POST | `/admin/maintenance/delete-old-unused-slots` | Delete past slots with `end_at_utc < NOW` and no `reservations` row (batched; checkbox `confirmUnusedSlots`; audit `old_unused_slots_purged`). |
 | GET | `/admin/slots` | Slot grid / management. |
 | POST | `/admin/slots/create` | Create slot(s). |
 | POST | `/admin/slots/bulk/preview` | Bulk slot preview. |
@@ -141,7 +144,7 @@ All JSON APIs use `requestId` middleware. Base: `src/routes/api/index.js`.
 | `schema_migrations` | Migration runner bookkeeping. |
 | `users` | Identity by email. |
 | `slots` | Bookable slots (`status`: open, blocked, cancelled). |
-| `slot_locks` | Short-lived locks (`lock_token` UUID, `expires_at` — duration set by API: 5 min after lock, 15 min after extend). |
+| `slot_locks` | Short-lived locks (`lock_token` UUID, `expires_at` — duration set by API: 5 min after lock, 15 min after extend). Expired rows are ignored by availability queries; optional row purge via **`/admin/maintenance`** (no scheduled cron job for this). |
 | `reservations` | Booking workflow (`status`: draft, pending_payment, confirmed, cancelled, expired); funnel fields; optional `admin_note`. |
 | `payments` | Stripe Checkout (`provider_ref` = session id `cs_...`; unique); `payment_type` deposit, session, topup. |
 | `billing_documents` | Internal invoicing; unique `payment_id`; PDF + email pipeline. |

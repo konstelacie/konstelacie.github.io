@@ -389,7 +389,7 @@ INSERT INTO slots (local_date, grid_index, timezone, start_at_utc, end_at_utc, s
 
 **Not a JSON API.** The internal admin is **HTML + form posts** under **`/admin`**, with cookie session (`admin.sid`). Credentials: `ADMIN_USERNAME` / `ADMIN_PASSWORD`; `SESSION_SECRET` signs the session in production.
 
-**Purpose:** Slot management (create, bulk, block/unblock/cancel), reservation list/detail, operator actions (confirm/cancel reservation, notes, external-handling note), **billing documents** (list, export CSV, detail, regenerate PDF, resend invoice mail, notes). Full route list and UX: `docs/ui-ux/admin-interface.md` and `docs/IMPLEMENTATION-SNAPSHOT.md` — Admin section.
+**Purpose:** Slot management (create, bulk, block/unblock/cancel), reservation list/detail, operator actions (confirm/cancel reservation, notes, external-handling note), **billing documents** (list, export CSV, detail, regenerate PDF, resend invoice mail, notes), and **`/admin/maintenance`** (batched purge of expired `slot_locks`; batched delete of past slots with no `reservations` row). Full route list and UX: `docs/ui-ux/admin-interface.md` and `docs/IMPLEMENTATION-SNAPSHOT.md` — Admin section.
 
 There is **no** public **`/api/admin/*`** or REST surface for these actions today.
 

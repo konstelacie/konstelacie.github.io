@@ -154,7 +154,26 @@ Before confirming, system must show:
 
 ---
 
-## 3. Reservations List (`/admin/reservations`)
+## 3. Maintenance (`/admin/maintenance`)
+
+### Purpose
+
+Optional **database hygiene** without a scheduled cron job:
+
+1. **Expired slot locks** — remove stale `slot_locks` rows (`expires_at` in the past). Public availability already treats these as unlocked; deletion shrinks the table and limits retention of lock metadata.
+2. **Past unused slots** — remove `slots` whose `end_at_utc` is in the past and which have **no** `reservations` row (any reservation, including cancelled, blocks deletion because of FK rules).
+
+### UI / behavior
+
+* Nav link **Údržba** next to other admin sections.
+* Read-only **counts** and small **preview** tables before any delete.
+* Each destructive action requires an explicit **checkbox** confirmation.
+* Deletes run in **batches** (caps in `src/db/repositories/locksRepo.js` and `slotsRepo.js`); repeat if more rows remain.
+* Actions are written to **`audit_logs`** (`slot_locks_expired_purged`, `old_unused_slots_purged`).
+
+---
+
+## 4. Reservations List (`/admin/reservations`)
 
 ### Purpose
 
@@ -204,7 +223,7 @@ Filters must be:
 
 ---
 
-## 4. Reservation Detail (`/admin/reservations/:id`)
+## 5. Reservation Detail (`/admin/reservations/:id`)
 
 ### Content
 
@@ -235,7 +254,7 @@ Filters must be:
 
 ---
 
-## 5. Billing documents (`/admin/billing`)
+## 6. Billing documents (`/admin/billing`)
 
 ### Purpose
 

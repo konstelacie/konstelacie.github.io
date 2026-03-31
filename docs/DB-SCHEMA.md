@@ -70,7 +70,7 @@ Bookable time slots. Admin-created. See `docs/RESERVATION-SYSTEM-ARCHITECTURE.md
 
 ### slot_locks
 
-Short-lived holds on a slot while the funnel books. **`expires_at`** is set by the API: **`POST /api/slots/:slotId/lock`** starts a **5-minute** window; **`POST /api/slots/:slotId/extend-lock`** resets the window to **15 minutes** from that moment (after email is collected). Used until a reservation is created.
+Short-lived holds on a slot while the funnel books. **`expires_at`** is set by the API: **`POST /api/slots/:slotId/lock`** starts a **5-minute** window; **`POST /api/slots/:slotId/extend-lock`** resets the window to **15 minutes** from that moment (after email is collected). Used until a reservation is created. Listings treat expired locks as absent; operators may delete stale rows in batches from **`/admin/maintenance`** (no scheduled job).
 
 | Column     | Type         | Description              |
 |------------|--------------|--------------------------|
