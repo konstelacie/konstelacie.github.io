@@ -2,6 +2,11 @@ const { SLOT_TIMEZONE } = require('../../config/slotGrid');
 const { computeUtcRangeForCell } = require('../../lib/slotInstants');
 const { mysqlLocalDateToYmd } = require('../../lib/slotApiMap');
 const { getPool } = require('../index');
+const paymentsRepo = require('./paymentsRepo');
+
+/** Same predicate for listing: active Stripe checkout hold (not past checkout_expires_at). */
+const PENDING_CHECKOUT_WHERE =
+  "p2.slot_id = s.id AND p2.status = 'pending' AND p2.provider = 'stripe' AND p2.checkout_expires_at > NOW(3)";
 
 /**
  * List slots in [from, to] by calendar local_date (Europe/Bratislava business dates),
@@ -11,6 +16,8 @@ const { getPool } = require('../index');
 async function listSlotsWithLocks(from, to) {
   const pool = getPool();
   if (!pool) throw new Error('Database not configured');
+
+  await paymentsRepo.reconcileExpiredStripeCheckouts(pool);
 
   const [rows] = await pool.execute(
     `SELECT
@@ -26,10 +33,8 @@ async function listSlotsWithLocks(from, to) {
       l.lock_token,
       l.expires_at AS lock_expires_at,
       ar.id AS active_reservation_id,
-      (SELECT p2.id FROM payments p2
-        WHERE p2.slot_id = s.id AND p2.status = 'pending' AND p2.provider = 'stripe' LIMIT 1) AS pending_checkout_payment_id,
-      (SELECT p2.provider_ref FROM payments p2
-        WHERE p2.slot_id = s.id AND p2.status = 'pending' AND p2.provider = 'stripe' LIMIT 1) AS pending_checkout_provider_ref
+      (SELECT p2.id FROM payments p2 WHERE ${PENDING_CHECKOUT_WHERE} LIMIT 1) AS pending_checkout_payment_id,
+      (SELECT p2.provider_ref FROM payments p2 WHERE ${PENDING_CHECKOUT_WHERE} LIMIT 1) AS pending_checkout_provider_ref
     FROM slots s
     LEFT JOIN slot_locks l ON l.slot_id = s.id AND l.expires_at > NOW(3)
     LEFT JOIN reservations ar
@@ -65,6 +70,8 @@ async function listSlotsForAdmin(from, to) {
   const pool = getPool();
   if (!pool) throw new Error('Database not configured');
 
+  await paymentsRepo.reconcileExpiredStripeCheckouts(pool);
+
   const [rows] = await pool.execute(
     `SELECT
       s.id,
@@ -78,8 +85,7 @@ async function listSlotsForAdmin(from, to) {
       l.id AS lock_id,
       l.email AS lock_email,
       l.expires_at AS lock_expires_at,
-      (SELECT p2.id FROM payments p2
-        WHERE p2.slot_id = s.id AND p2.status = 'pending' AND p2.provider = 'stripe' LIMIT 1) AS pending_checkout_payment_id,
+      (SELECT p2.id FROM payments p2 WHERE ${PENDING_CHECKOUT_WHERE} LIMIT 1) AS pending_checkout_payment_id,
       r.id AS reservation_id,
       r.email AS reservation_email,
       r.status AS reservation_status
@@ -126,8 +132,11 @@ async function adminBlockSlot(slotId) {
       return { ok: false, code: 'HAS_RESERVATION' };
     }
 
+    await paymentsRepo.reconcileExpiredStripeCheckouts(conn, { slotId });
+
     const [payRows] = await conn.execute(
-      "SELECT id FROM payments WHERE slot_id = ? AND status = 'pending' LIMIT 1",
+      `SELECT id FROM payments WHERE slot_id = ? AND status = 'pending' AND provider = 'stripe'
+       AND checkout_expires_at > NOW(3) LIMIT 1`,
       [slotId]
     );
     if (payRows.length > 0) {

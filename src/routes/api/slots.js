@@ -85,6 +85,10 @@ router.post(
       throw new ApiError('SLOT_RESERVED', 'Slot already has an active reservation', 409);
     }
 
+    const pool = getPool();
+    if (!pool) throw new Error('Database not configured');
+    await paymentsRepo.reconcileExpiredStripeCheckouts(pool, { slotId });
+
     if (await paymentsRepo.hasPendingSlotPayment(slotId)) {
       await auditRepo.log('lock_failed', 'slot', slotId, { reason: 'checkout_pending' });
       throw new ApiError('SLOT_RESERVED', 'Slot already has an active reservation', 409);
@@ -106,8 +110,6 @@ router.post(
     const lockToken = crypto.randomUUID();
     const expiresAt = new Date(Date.now() + LOCK_HOLD_BEFORE_EMAIL_MS);
 
-    const pool = getPool();
-    if (!pool) throw new Error('Database not configured');
     const conn = await pool.getConnection();
     try {
       await conn.beginTransaction();

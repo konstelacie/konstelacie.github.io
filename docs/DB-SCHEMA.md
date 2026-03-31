@@ -132,6 +132,7 @@ Payment records. One row per Stripe Checkout Session. See `docs/STRIPE-ARCHITECT
 | currency       | CHAR(3)      | Default eur                                              |
 | status         | ENUM         | pending, completed, failed, expired, refunded             |
 | paid_at        | DATETIME(3)  | NULL. Set when webhook confirms                          |
+| checkout_expires_at | DATETIME(3) | NOT NULL. Stripe Checkout session end (and slot hold) for funnel `pending` rows; used to release the slot without cron if `checkout.session.expired` is delayed |
 | created_at     | DATETIME(3)  |                                                          |
 | updated_at     | DATETIME(3)  |                                                          |
 

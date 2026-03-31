@@ -10,6 +10,7 @@ const { mysqlLocalDateToYmd } = require('../../lib/slotApiMap');
 const { validateSlotId, validateEmail, validateLockToken } = require('../../middleware/validators');
 const { slotPassesBookingWindow } = require('../../lib/slotBookingRules');
 const { checkoutExpiresAtFromNow } = require('../../config/checkoutHold');
+const paymentsRepo = require('../../db/repositories/paymentsRepo');
 
 const router = express.Router();
 
@@ -180,6 +181,8 @@ router.post(
     try {
       await conn.beginTransaction();
 
+      await paymentsRepo.reconcileExpiredStripeCheckouts(conn, { slotId });
+
       const [slotRows] = await conn.execute('SELECT id, status, start_at_utc FROM slots WHERE id = ? FOR UPDATE', [
         slotId,
       ]);
@@ -203,7 +206,8 @@ router.post(
       }
 
       const [pendingPay] = await conn.execute(
-        "SELECT id FROM payments WHERE slot_id = ? AND status = 'pending' LIMIT 1",
+        `SELECT id FROM payments WHERE slot_id = ? AND status = 'pending' AND provider = 'stripe'
+         AND checkout_expires_at > NOW(3) LIMIT 1`,
         [slotId]
       );
       if (pendingPay.length > 0) {
@@ -224,9 +228,9 @@ router.post(
       }
 
       await conn.execute(
-        `INSERT INTO payments (user_id, reservation_id, slot_id, provider, provider_ref, payment_type, amount_cents, currency, status)
-         VALUES (?, NULL, ?, 'stripe', ?, ?, ?, 'eur', 'pending')`,
-        [userId, slotId, session.id, paymentTypeForDb, cents]
+        `INSERT INTO payments (user_id, reservation_id, slot_id, provider, provider_ref, payment_type, amount_cents, currency, status, checkout_expires_at)
+         VALUES (?, NULL, ?, 'stripe', ?, ?, ?, 'eur', 'pending', ?)`,
+        [userId, slotId, session.id, paymentTypeForDb, cents, checkoutExpiresAt]
       );
 
       await conn.commit();

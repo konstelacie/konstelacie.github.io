@@ -94,6 +94,7 @@ CREATE TABLE payments (
   currency CHAR(3) NOT NULL DEFAULT 'eur',
   status ENUM('pending','completed','failed','expired','refunded') NOT NULL DEFAULT 'pending',
   paid_at DATETIME(3) NULL,
+  checkout_expires_at DATETIME(3) NOT NULL,
   created_at DATETIME(3) DEFAULT CURRENT_TIMESTAMP(3),
   updated_at DATETIME(3) DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3),
   INDEX idx_payments_reservation (reservation_id),
