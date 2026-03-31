@@ -1,9 +1,14 @@
 /**
  * MVP billing PDF (predbežné znenie — confirm layout and tax lines with accountant).
+ * Embedded Noto Sans (variable TTF) so Slovak / Latin Extended and € render correctly;
+ * PDFKit’s built-in Helvetica is WinAnsi-only.
  */
 
+const path = require('path');
 const PDFDocument = require('pdfkit');
 const config = require('../config');
+
+const BODY_FONT = path.join(__dirname, '..', 'assets', 'fonts', 'NotoSans-VF.ttf');
 
 const LINE_LABELS = {
   deposit: 'Rezervačný poplatok',
@@ -61,6 +66,8 @@ function renderBillingPdf(row) {
     doc.on('data', (c) => chunks.push(c));
     doc.on('end', () => resolve(Buffer.concat(chunks)));
     doc.on('error', reject);
+
+    doc.font(BODY_FONT);
 
     const lineLabel = LINE_LABELS[row.internal_type] || row.internal_type;
 
