@@ -1,0 +1,75 @@
+<div class="admin-wrap admin-wrap--wide">
+  <header class="admin-header admin-header--bar">
+    <h1 class="admin-title">Platobné doklady</h1>
+    <div class="admin-header__actions" style="display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap;">
+      <a class="admin-btn admin-btn--ghost admin-btn--small" href="/admin/billing/export.csv<%= typeof searchQ !== 'undefined' && searchQ ? `?q=${encodeURIComponent(searchQ)}` : '' %>">Export CSV</a>
+      <form method="post" action="/admin/logout">
+        <button type="submit" class="admin-btn admin-btn--ghost">Odhlásiť sa</button>
+      </form>
+    </div>
+  </header>
+
+  <% if (typeof flash !== 'undefined' && flash) { %>
+    <p class="admin-flash admin-flash--<%= flash.level %>" role="status"><%= flash.message %></p>
+  <% } %>
+
+  <% if (typeof loadError !== 'undefined' && loadError) { %>
+    <p class="admin-error" role="alert">Nepodarilo sa načítať zoznam dokladov.</p>
+  <% } %>
+
+  <% if (typeof dbConfigured !== 'undefined' && !dbConfigured) { %>
+    <p class="admin-error" role="alert">Databáza nie je nakonfigurovaná.</p>
+  <% } %>
+
+  <% if (typeof dbConfigured !== 'undefined' && dbConfigured) { %>
+  <form method="get" action="/admin/billing" class="admin-create__form" style="margin-bottom: 1.25rem;">
+    <div class="admin-create__row">
+      <div class="admin-field" style="flex: 1;">
+        <label for="billing-search">Hľadať (e-mail, ID, ID rezervácie/platby, číslo CT-…, Stripe cs_…)</label>
+        <input type="search" id="billing-search" name="q" value="<%= typeof searchQ !== 'undefined' ? searchQ : '' %>" placeholder="napr. meno@domena.sk alebo cs_…" autocomplete="off">
+      </div>
+      <div class="admin-field admin-field--checkbox" style="align-self: flex-end;">
+        <button type="submit" class="admin-btn admin-btn--primary">Hľadať</button>
+      </div>
+    </div>
+  </form>
+
+  <% if (typeof documents !== 'undefined' && documents.length) { %>
+  <div class="admin-table-wrap">
+    <table class="admin-table">
+      <thead>
+        <tr>
+          <th scope="col">ID</th>
+          <th scope="col">Číslo</th>
+          <th scope="col">Typ</th>
+          <th scope="col">E-mail</th>
+          <th scope="col">Suma</th>
+          <th scope="col">Stav</th>
+          <th scope="col">Zaplatené</th>
+          <th scope="col">PDF / e-mail</th>
+        </tr>
+      </thead>
+      <tbody>
+        <% for (const row of documents) { %>
+          <tr>
+            <td><a href="/admin/billing/<%= row.id %>"><%= row.id %></a></td>
+            <td><%= row.document_number || '—' %></td>
+            <td><%= row.internalTypeLabel %></td>
+            <td class="admin-table__email"><%= row.customer_email_snapshot %></td>
+            <td><%= row.amountLabel %></td>
+            <td><%= row.status %></td>
+            <td><%= row.paidAtLabel %></td>
+            <td>
+              <%= row.pdf_storage_ref ? 'PDF' : '—' %>
+              <% if (row.email_sent_at) { %> / ✓<% } %>
+            </td>
+          </tr>
+        <% } %>
+      </tbody>
+    </table>
+  </div>
+  <% } else { %>
+  <p class="admin-placeholder">Žiadne doklady pre tento dotaz.</p>
+  <% } %>
+  <% } %>
+</div>

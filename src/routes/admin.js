@@ -19,6 +19,9 @@ const {
   MAX_BULK_RANGE_DAYS,
 } = require('../lib/bulkSlotCandidates');
 const { requireAdmin } = require('../middleware/requireAdmin');
+const billingDocumentsRepo = require('../db/repositories/billingDocumentsRepo');
+const billingDeliveryService = require('../services/billingDeliveryService');
+const { mapBillingListRow, mapBillingDetailRow, csvEscape } = require('../lib/adminBillingDisplay');
 
 const router = express.Router();
 
@@ -185,6 +188,34 @@ function parseReservationIdParam(raw) {
   const id = parseInt(raw, 10);
   if (!Number.isInteger(id) || id <= 0) return null;
   return id;
+}
+
+function parseBillingIdParam(raw) {
+  const id = parseInt(raw, 10);
+  if (!Number.isInteger(id) || id <= 0) return null;
+  return id;
+}
+
+function mapBillingActionError(code) {
+  switch (code) {
+    case 'NOT_FOUND':
+      return 'Doklad sa nenašiel.';
+    case 'NO_DB':
+      return 'Databáza nie je dostupná.';
+    case 'NO_NUMBER':
+      return 'Doklad ešte nemá pridelené číslo.';
+    case 'NO_PDF':
+      return 'Chýba PDF. Skúste najprv znovu vygenerovať súbor.';
+    case 'BAD_EMAIL':
+      return 'E-mail odberateľa v zázname nie je platný.';
+    case 'PDF_READ':
+      return 'PDF sa nepodarilo načítať z úložiska.';
+    case 'EMAIL_SKIPPED':
+    case 'SEND_FAILED':
+      return 'E-mail sa neodoslal (skontrolujte Resend / konfiguráciu).';
+    default:
+      return 'Akciu sa nepodarilo vykonať.';
+  }
 }
 
 function mapReservationActionError(code) {
@@ -688,6 +719,255 @@ router.get('/reservations/:id', requireAdmin, async (req, res) => {
       flash,
       detail: null,
       reservationId: id,
+    });
+  }
+});
+
+router.get('/billing/export.csv', requireAdmin, async (req, res) => {
+  try {
+    const pool = getPool();
+    if (!pool) {
+      return res.status(503).type('text/plain').send('Database not configured');
+    }
+    const q = typeof req.query.q === 'string' ? req.query.q : '';
+    const rows = await billingDocumentsRepo.searchForAdmin(q, 2000);
+    const headers = [
+      'id',
+      'document_number',
+      'internal_type',
+      'status',
+      'customer_email_snapshot',
+      'reservation_id',
+      'payment_id',
+      'stripe_checkout_session_id',
+      'stripe_payment_intent_id',
+      'amount_gross_cents',
+      'amount_net_cents',
+      'amount_vat_cents',
+      'currency',
+      'vat_rate',
+      'paid_at',
+      'issued_at',
+      'pdf_storage_ref',
+      'email_sent_at',
+      'email_message_id',
+      'notes',
+    ];
+    const lines = [headers.join(',')];
+    for (const r of rows) {
+      lines.push(headers.map((h) => csvEscape(r[h])).join(','));
+    }
+    res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+    res.setHeader('Content-Disposition', 'attachment; filename="billing-documents.csv"');
+    res.send(`\ufeff${lines.join('\r\n')}`);
+  } catch (err) {
+    console.error('[admin/billing/export]', err);
+    res.status(500).type('text/plain').send('Export failed');
+  }
+});
+
+router.get('/billing', requireAdmin, async (req, res) => {
+  const flash = req.session.adminFlash;
+  if (flash) {
+    delete req.session.adminFlash;
+  }
+  const q = typeof req.query.q === 'string' ? req.query.q : '';
+
+  try {
+    const pool = getPool();
+    if (!pool) {
+      return res.render('admin/billing-list', {
+        layout: 'layouts/admin',
+        title: 'Platobné doklady — administrácia',
+        adminSection: 'billing',
+        dbConfigured: false,
+        loadError: false,
+        flash,
+        searchQ: q,
+        documents: [],
+      });
+    }
+    const raw = await billingDocumentsRepo.searchForAdmin(q, 150);
+    const documents = raw.map(mapBillingListRow);
+    return res.render('admin/billing-list', {
+      layout: 'layouts/admin',
+      title: 'Platobné doklady — administrácia',
+      adminSection: 'billing',
+      dbConfigured: true,
+      loadError: false,
+      flash,
+      searchQ: q,
+      documents,
+    });
+  } catch (err) {
+    console.error('[admin/billing]', err);
+    return res.status(500).render('admin/billing-list', {
+      layout: 'layouts/admin',
+      title: 'Platobné doklady — administrácia',
+      adminSection: 'billing',
+      dbConfigured: !!getPool(),
+      loadError: true,
+      flash,
+      searchQ: q,
+      documents: [],
+    });
+  }
+});
+
+router.post('/billing/:id/regenerate-pdf', requireAdmin, async (req, res) => {
+  const id = parseBillingIdParam(req.params.id);
+  const redirect = id ? `/admin/billing/${id}` : '/admin/billing';
+  if (!id) {
+    req.session.adminFlash = { level: 'error', message: 'Neplatný doklad.' };
+    return res.redirect('/admin/billing');
+  }
+  try {
+    const pool = getPool();
+    if (!pool) {
+      req.session.adminFlash = { level: 'error', message: 'Databáza nie je dostupná.' };
+      return res.redirect(redirect);
+    }
+    const result = await billingDeliveryService.regenerateBillingPdfAdmin(id);
+    if (!result.ok) {
+      req.session.adminFlash = { level: 'error', message: mapBillingActionError(result.code) };
+    } else {
+      await auditRepo.log('billing_pdf_regenerated', 'billing_document', id, null, 'admin');
+      req.session.adminFlash = { level: 'success', message: 'PDF bolo znovu vygenerované.' };
+    }
+    return res.redirect(redirect);
+  } catch (err) {
+    console.error('[admin/billing/regenerate-pdf]', err);
+    req.session.adminFlash = { level: 'error', message: 'Neznáma chyba.' };
+    return res.redirect(redirect);
+  }
+});
+
+router.post('/billing/:id/resend-email', requireAdmin, async (req, res) => {
+  const id = parseBillingIdParam(req.params.id);
+  const redirect = id ? `/admin/billing/${id}` : '/admin/billing';
+  if (!id) {
+    req.session.adminFlash = { level: 'error', message: 'Neplatný doklad.' };
+    return res.redirect('/admin/billing');
+  }
+  try {
+    const pool = getPool();
+    if (!pool) {
+      req.session.adminFlash = { level: 'error', message: 'Databáza nie je dostupná.' };
+      return res.redirect(redirect);
+    }
+    const result = await billingDeliveryService.resendBillingInvoiceEmailAdmin(id);
+    if (!result.ok) {
+      req.session.adminFlash = { level: 'error', message: mapBillingActionError(result.code) };
+    } else {
+      await auditRepo.log('billing_invoice_resent', 'billing_document', id, null, 'admin');
+      req.session.adminFlash = { level: 'success', message: 'E-mail s dokladom bol odoslaný znova.' };
+    }
+    return res.redirect(redirect);
+  } catch (err) {
+    console.error('[admin/billing/resend-email]', err);
+    req.session.adminFlash = { level: 'error', message: 'Neznáma chyba.' };
+    return res.redirect(redirect);
+  }
+});
+
+router.post('/billing/:id/note', requireAdmin, async (req, res) => {
+  const id = parseBillingIdParam(req.params.id);
+  const redirect = id ? `/admin/billing/${id}` : '/admin/billing';
+  if (!id) {
+    req.session.adminFlash = { level: 'error', message: 'Neplatný doklad.' };
+    return res.redirect('/admin/billing');
+  }
+  const note = typeof req.body.note === 'string' ? req.body.note : '';
+  try {
+    const pool = getPool();
+    if (!pool) {
+      req.session.adminFlash = { level: 'error', message: 'Databáza nie je nakonfigurovaná.' };
+      return res.redirect(redirect);
+    }
+    const ok = await billingDocumentsRepo.updateNotes(id, note);
+    if (!ok) {
+      req.session.adminFlash = { level: 'error', message: 'Doklad sa nenašiel.' };
+    } else {
+      await auditRepo.log(
+        'billing_document_note_updated',
+        'billing_document',
+        id,
+        { preview: note.slice(0, 120) },
+        'admin'
+      );
+      req.session.adminFlash = { level: 'success', message: 'Interná poznámka bola uložená.' };
+    }
+    return res.redirect(redirect);
+  } catch (err) {
+    console.error('[admin/billing/note]', err);
+    req.session.adminFlash = { level: 'error', message: 'Neznáma chyba.' };
+    return res.redirect(redirect);
+  }
+});
+
+router.get('/billing/:id', requireAdmin, async (req, res) => {
+  const id = parseBillingIdParam(req.params.id);
+  if (!id) {
+    return res.redirect('/admin/billing');
+  }
+  const flash = req.session.adminFlash;
+  if (flash) {
+    delete req.session.adminFlash;
+  }
+
+  try {
+    const pool = getPool();
+    if (!pool) {
+      return res.render('admin/billing-detail', {
+        layout: 'layouts/admin',
+        title: `Doklad #${id}`,
+        adminSection: 'billing',
+        dbConfigured: false,
+        loadError: false,
+        notFound: false,
+        flash,
+        detail: null,
+        documentId: id,
+      });
+    }
+    const raw = await billingDocumentsRepo.findByIdWithPayment(id);
+    if (!raw) {
+      return res.status(404).render('admin/billing-detail', {
+        layout: 'layouts/admin',
+        title: 'Platobný doklad',
+        adminSection: 'billing',
+        dbConfigured: true,
+        loadError: false,
+        notFound: true,
+        flash,
+        detail: null,
+        documentId: id,
+      });
+    }
+    const detail = mapBillingDetailRow(raw);
+    return res.render('admin/billing-detail', {
+      layout: 'layouts/admin',
+      title: `Doklad ${detail.document_number || '#' + id}`,
+      adminSection: 'billing',
+      dbConfigured: true,
+      loadError: false,
+      notFound: false,
+      flash,
+      detail,
+      documentId: id,
+    });
+  } catch (err) {
+    console.error('[admin/billing/:id]', err);
+    return res.status(500).render('admin/billing-detail', {
+      layout: 'layouts/admin',
+      title: `Doklad #${id}`,
+      adminSection: 'billing',
+      dbConfigured: !!getPool(),
+      loadError: true,
+      notFound: false,
+      flash,
+      detail: null,
+      documentId: id,
     });
   }
 });

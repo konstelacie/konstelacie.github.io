@@ -113,25 +113,33 @@ async function sendPreSessionReminder({ to, slot }, metadata = {}) {
  * @param {string} params.to
  * @param {object} params.documentRow - billing_documents row
  * @param {Buffer} params.pdfBuffer
+ * @param {boolean} [params.resend] - admin resend; separate template id for logging
  * @param {object} [metadata]
+ * @param {string} [metadata.actorType] - e.g. admin for resend audit
  * @returns {Promise<{ok: boolean, skipped?: boolean, messageId?: string}>}
  */
-async function sendBillingInvoiceEmail({ to, documentRow, pdfBuffer }, metadata = {}) {
+async function sendBillingInvoiceEmail(
+  { to, documentRow, pdfBuffer, resend = false },
+  metadata = {}
+) {
   const documentNumber = documentRow.document_number || '';
   const amountFormatted = formatAmount(documentRow.amount_gross_cents, documentRow.currency);
   const safeFilename = `${documentNumber.replace(/[^\w.-]/g, '_')}.pdf`;
 
-  const html = await ejs.renderFile(
-    path.join(EMAIL_TEMPLATES_DIR, 'billing-invoice.ejs'),
-    {
-      documentNumber,
-      amountFormatted,
-    }
-  );
+  const templateFile = resend ? 'billing-invoice-resend.ejs' : 'billing-invoice.ejs';
+  const templateId = resend ? 'billing-invoice-resend' : 'billing-invoice';
+  const subject = resend
+    ? `Platobný doklad ${documentNumber} (znova) — citimtedasom.sk`
+    : `Platobný doklad ${documentNumber} — citimtedasom.sk`;
+
+  const html = await ejs.renderFile(path.join(EMAIL_TEMPLATES_DIR, templateFile), {
+    documentNumber,
+    amountFormatted,
+  });
 
   const result = await emailProvider.sendEmail(
     to,
-    `Platobný doklad ${documentNumber} — citimtedasom.sk`,
+    subject,
     html,
     metadata,
     {
@@ -142,11 +150,11 @@ async function sendBillingInvoiceEmail({ to, documentRow, pdfBuffer }, metadata 
   if (result.ok && result.messageId) {
     await emailSentLogRepo.log({
       recipientEmail: to,
-      templateId: 'billing-invoice',
+      templateId,
       entityType: metadata.entity_type,
       entityId: metadata.entity_id,
       providerMessageId: result.messageId,
-      actorType: 'system',
+      actorType: metadata.actorType || 'system',
     });
   }
 

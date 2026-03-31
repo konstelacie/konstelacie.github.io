@@ -1,0 +1,84 @@
+<div class="admin-wrap admin-wrap--wide">
+  <header class="admin-header admin-header--bar">
+    <h1 class="admin-title">
+      <% if (typeof notFound !== 'undefined' && notFound) { %>
+        Platobný doklad
+      <% } else { %>
+        <%= typeof detail !== 'undefined' && detail && detail.document_number ? detail.document_number : 'Doklad #' + documentId %>
+      <% } %>
+    </h1>
+    <a class="admin-btn admin-btn--ghost" href="/admin/billing">Späť na zoznam</a>
+  </header>
+
+  <% if (typeof flash !== 'undefined' && flash) { %>
+    <p class="admin-flash admin-flash--<%= flash.level %>" role="status"><%= flash.message %></p>
+  <% } %>
+
+  <% if (typeof loadError !== 'undefined' && loadError) { %>
+    <p class="admin-error" role="alert">Nepodarilo sa načítať doklad.</p>
+  <% } %>
+
+  <% if (typeof dbConfigured !== 'undefined' && !dbConfigured) { %>
+    <p class="admin-error" role="alert">Databáza nie je nakonfigurovaná.</p>
+  <% } %>
+
+  <% if (typeof notFound !== 'undefined' && notFound) { %>
+    <p class="admin-placeholder">Doklad #<%= documentId %> sa nenašiel.</p>
+  <% } %>
+
+  <% if (typeof detail !== 'undefined' && detail) { %>
+  <section class="admin-detail" aria-label="Údaje dokladu">
+    <dl class="admin-dl">
+      <div class="admin-dl__row"><dt>Interné ID</dt><dd><%= detail.id %></dd></div>
+      <div class="admin-dl__row"><dt>Číslo dokladu</dt><dd><%= detail.document_number || '—' %></dd></div>
+      <div class="admin-dl__row"><dt>Typ</dt><dd><%= detail.internalTypeLabel %> (<%= detail.internal_type %>)</dd></div>
+      <div class="admin-dl__row"><dt>Stav</dt><dd><%= detail.status %></dd></div>
+      <div class="admin-dl__row"><dt>Odberateľ (e-mail)</dt><dd class="admin-table__email"><%= detail.customer_email_snapshot %></dd></div>
+      <% if (detail.customer_name_snapshot) { %>
+      <div class="admin-dl__row"><dt>Meno (snapshot)</dt><dd><%= detail.customer_name_snapshot %></dd></div>
+      <% } %>
+      <div class="admin-dl__row"><dt>Rezervácia</dt><dd><% if (detail.reservation_id) { %><a href="/admin/reservations/<%= detail.reservation_id %>">#<%= detail.reservation_id %></a><% } else { %>—<% } %></dd></div>
+      <div class="admin-dl__row"><dt>Platba (ID)</dt><dd><%= detail.payment_id %></dd></div>
+      <div class="admin-dl__row"><dt>Stripe Checkout</dt><dd class="admin-table__email"><%= detail.stripe_checkout_session_id %></dd></div>
+      <% if (detail.stripe_payment_intent_id) { %>
+      <div class="admin-dl__row"><dt>Stripe PaymentIntent</dt><dd class="admin-table__email"><%= detail.stripe_payment_intent_id %></dd></div>
+      <% } %>
+      <div class="admin-dl__row"><dt>Základ / DPH / Celkom</dt><dd><%= detail.netLabel %> / <%= detail.vatLabel %> (<%= detail.vatPercentLabel %>) / <strong><%= detail.amountLabel %></strong></dd></div>
+      <div class="admin-dl__row"><dt>Zaplatené</dt><dd><%= detail.paidAtLabel %></dd></div>
+      <div class="admin-dl__row"><dt>Vystavené</dt><dd><%= detail.issuedAtLabel %></dd></div>
+      <div class="admin-dl__row"><dt>PDF</dt><dd><%= detail.pdf_storage_ref || '—' %> <% if (detail.pdf_generated_at) { %>(<%= detail.pdfGeneratedAtLabel %>)<% } %></dd></div>
+      <div class="admin-dl__row"><dt>E-mail odoslaný</dt><dd><%= detail.email_sent_at ? detail.emailSentAtLabel : '—' %></dd></div>
+      <div class="admin-dl__row"><dt>Stav platby (DB)</dt><dd><%= detail.payment_status || '—' %></dd></div>
+    </dl>
+  </section>
+
+  <section class="admin-detail" aria-label="Interná poznámka / účtovná poznámka">
+    <h2 class="admin-detail__subtitle">Interná poznámka</h2>
+    <p class="admin-bulk__hint" style="margin-top: 0;">Krátky text pre účtovníka alebo opravy — nie je na PDF pre zákazníka.</p>
+    <form method="post" action="/admin/billing/<%= detail.id %>/note" class="admin-detail__form">
+      <textarea name="note" class="admin-detail__textarea" rows="5" cols="60"><%= detail.notes != null ? detail.notes : '' %></textarea>
+      <div class="admin-detail__actions">
+        <button type="submit" class="admin-btn admin-btn--primary">Uložiť poznámku</button>
+      </div>
+    </form>
+  </section>
+
+  <section class="admin-detail" aria-label="Akcie">
+    <h2 class="admin-detail__subtitle">Akcie</h2>
+    <div class="admin-detail__actions admin-detail__actions--split" style="flex-wrap: wrap; gap: 0.75rem;">
+      <form method="post" action="/admin/billing/<%= detail.id %>/regenerate-pdf" onsubmit="return confirm('Znovu vygenerovať PDF? Prepíše súbor pri rovnakom čísle dokladu.');">
+        <button type="submit" class="admin-btn admin-btn--ghost" <%= !detail.document_number ? 'disabled' : '' %>>Znovu vygenerovať PDF</button>
+      </form>
+      <form method="post" action="/admin/billing/<%= detail.id %>/resend-email" onsubmit="return confirm('Znova odoslať e-mail s dokladom zákazníkovi?');">
+        <button type="submit" class="admin-btn admin-btn--ghost" <%= !detail.pdf_storage_ref ? 'disabled' : '' %>>Znova odoslať e-mail</button>
+      </form>
+    </div>
+    <% if (!detail.document_number) { %>
+    <p class="admin-bulk__hint">Bez čísla dokladu nie je možné vygenerovať PDF (čaká sa na pipeline alebo chyba pri vystavení).</p>
+    <% } %>
+    <% if (!detail.pdf_storage_ref) { %>
+    <p class="admin-bulk__hint">Bez PDF nie je možné odoslať e-mail. Najprv dokončiť automatické spracovanie alebo znovu vygenerovať PDF.</p>
+    <% } %>
+  </section>
+  <% } %>
+</div>

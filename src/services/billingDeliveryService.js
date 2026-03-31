@@ -188,4 +188,97 @@ async function processBillingDocumentDelivery(billingDocumentId) {
   }
 }
 
-module.exports = { processBillingDocumentDelivery, billingPdfDir };
+/**
+ * @returns {Promise<{ ok: true } | { ok: false, code: string }>}
+ */
+async function regenerateBillingPdfAdmin(billingDocumentId) {
+  const pool = getPool();
+  if (!pool) return { ok: false, code: 'NO_DB' };
+
+  const row = await billingDocumentsRepo.findByIdWithPayment(billingDocumentId);
+  if (!row) return { ok: false, code: 'NOT_FOUND' };
+  if (!row.document_number) return { ok: false, code: 'NO_NUMBER' };
+
+  const safeName = `${row.document_number.replace(/[^\w.-]/g, '_')}.pdf`;
+  const dir = billingPdfDir();
+  await fs.mkdir(dir, { recursive: true });
+  const absPath = path.join(dir, safeName);
+  const oldRef = row.pdf_storage_ref;
+
+  const buffer = await renderBillingPdf(row);
+  await fs.writeFile(absPath, buffer);
+  const relRef = path.posix.join('storage', 'billing-pdfs', safeName);
+
+  await pool.execute(
+    'UPDATE billing_documents SET pdf_storage_ref = ?, pdf_generated_at = NOW(3) WHERE id = ?',
+    [relRef, billingDocumentId]
+  );
+
+  if (oldRef && oldRef !== relRef) {
+    const oldAbs = path.isAbsolute(oldRef)
+      ? oldRef
+      : path.join(process.cwd(), ...oldRef.split('/'));
+    await fs.unlink(oldAbs).catch(() => {});
+  }
+
+  return { ok: true };
+}
+
+/**
+ * @returns {Promise<{ ok: true, messageId?: string } | { ok: false, code: string }>}
+ */
+async function resendBillingInvoiceEmailAdmin(billingDocumentId) {
+  const pool = getPool();
+  if (!pool) return { ok: false, code: 'NO_DB' };
+
+  const row = await billingDocumentsRepo.findById(billingDocumentId);
+  if (!row) return { ok: false, code: 'NOT_FOUND' };
+  if (!row.pdf_storage_ref) return { ok: false, code: 'NO_PDF' };
+
+  if (!isValidRecipientEmail(row.customer_email_snapshot)) {
+    return { ok: false, code: 'BAD_EMAIL' };
+  }
+
+  const absPdf = path.isAbsolute(row.pdf_storage_ref)
+    ? row.pdf_storage_ref
+    : path.join(process.cwd(), ...row.pdf_storage_ref.split('/'));
+
+  let pdfBuffer;
+  try {
+    pdfBuffer = await fs.readFile(absPdf);
+  } catch {
+    return { ok: false, code: 'PDF_READ' };
+  }
+
+  const result = await emailService.sendBillingInvoiceEmail(
+    {
+      to: row.customer_email_snapshot.trim(),
+      documentRow: row,
+      pdfBuffer,
+      resend: true,
+    },
+    {
+      entity_type: 'billing_document',
+      entity_id: billingDocumentId,
+      actorType: 'admin',
+    }
+  );
+
+  if (!result.ok || result.skipped) {
+    return { ok: false, code: result.skipped ? 'EMAIL_SKIPPED' : 'SEND_FAILED' };
+  }
+
+  await pool.execute(
+    'UPDATE billing_documents SET email_sent_at = NOW(3), email_message_id = ? WHERE id = ?',
+    [result.messageId ?? null, billingDocumentId]
+  );
+
+  return { ok: true, messageId: result.messageId };
+}
+
+module.exports = {
+  processBillingDocumentDelivery,
+  billingPdfDir,
+  regenerateBillingPdfAdmin,
+  resendBillingInvoiceEmailAdmin,
+};
