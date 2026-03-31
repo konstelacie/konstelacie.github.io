@@ -29,6 +29,24 @@ module.exports = {
       fromName: process.env.RESEND_FROM_NAME || 'citimtedasom.sk',
     },
   },
+  /**
+   * Billing PDF / supplier block on invoices (see docs/payments/invoicing-mvp-implementation.md).
+   * Wording is not legal advice; confirm with accountant before live use.
+   */
+  billing: {
+    documentPrefix: (process.env.BILLING_DOCUMENT_PREFIX || 'CT').trim() || 'CT',
+    pdfStorageDir: (process.env.BILLING_PDF_STORAGE_DIR || '').trim(),
+    sendInvoiceEmail:
+      process.env.BILLING_SEND_INVOICE_EMAIL !== '0' &&
+      String(process.env.BILLING_SEND_INVOICE_EMAIL).toLowerCase() !== 'false',
+    supplier: {
+      companyName: (process.env.BILLING_INVOICE_COMPANY_NAME || '').trim(),
+      companyAddress: (process.env.BILLING_INVOICE_COMPANY_ADDRESS || '').trim(),
+      ico: (process.env.BILLING_INVOICE_ICO || '').trim(),
+      dic: (process.env.BILLING_INVOICE_DIC || '').trim(),
+      icDph: (process.env.BILLING_INVOICE_IC_DPH || '').trim(),
+    },
+  },
   cron: {
     secret: process.env.CRON_SECRET || '',
   },

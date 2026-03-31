@@ -18,9 +18,11 @@ function buildFrom() {
  * @param {string} subject - Email subject
  * @param {string} html - HTML body
  * @param {object} [metadata] - Optional metadata (e.g. entity_type, entity_id for logging)
+ * @param {object} [options]
+ * @param {Array<{ filename: string, content: Buffer }>} [options.attachments]
  * @returns {Promise<{ok: boolean, skipped?: boolean, messageId?: string}>}
  */
-async function sendEmail(to, subject, html, metadata = {}) {
+async function sendEmail(to, subject, html, metadata = {}, options = {}) {
   if (!isConfigured()) {
     console.warn('[email] Resend not configured; skipping send');
     return { ok: false, skipped: true };
@@ -29,13 +31,18 @@ async function sendEmail(to, subject, html, metadata = {}) {
   const from = buildFrom();
   const replyTo = config.email?.resend?.fromEmail || '';
 
-  const { data, error } = await resend.emails.send({
+  const payload = {
     from,
     to,
     reply_to: replyTo,
     subject,
     html,
-  });
+  };
+  if (options.attachments?.length) {
+    payload.attachments = options.attachments;
+  }
+
+  const { data, error } = await resend.emails.send(payload);
 
   if (error) {
     console.error('[email] Resend send failed:', error);

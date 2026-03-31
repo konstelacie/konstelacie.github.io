@@ -107,7 +107,54 @@ async function sendPreSessionReminder({ to, slot }, metadata = {}) {
   return result;
 }
 
+/**
+ * Send billing invoice email (PDF from Phase 2 pipeline).
+ * @param {object} params
+ * @param {string} params.to
+ * @param {object} params.documentRow - billing_documents row
+ * @param {Buffer} params.pdfBuffer
+ * @param {object} [metadata]
+ * @returns {Promise<{ok: boolean, skipped?: boolean, messageId?: string}>}
+ */
+async function sendBillingInvoiceEmail({ to, documentRow, pdfBuffer }, metadata = {}) {
+  const documentNumber = documentRow.document_number || '';
+  const amountFormatted = formatAmount(documentRow.amount_gross_cents, documentRow.currency);
+  const safeFilename = `${documentNumber.replace(/[^\w.-]/g, '_')}.pdf`;
+
+  const html = await ejs.renderFile(
+    path.join(EMAIL_TEMPLATES_DIR, 'billing-invoice.ejs'),
+    {
+      documentNumber,
+      amountFormatted,
+    }
+  );
+
+  const result = await emailProvider.sendEmail(
+    to,
+    `Platobný doklad ${documentNumber} — citimtedasom.sk`,
+    html,
+    metadata,
+    {
+      attachments: [{ filename: safeFilename, content: pdfBuffer }],
+    }
+  );
+
+  if (result.ok && result.messageId) {
+    await emailSentLogRepo.log({
+      recipientEmail: to,
+      templateId: 'billing-invoice',
+      entityType: metadata.entity_type,
+      entityId: metadata.entity_id,
+      providerMessageId: result.messageId,
+      actorType: 'system',
+    });
+  }
+
+  return result;
+}
+
 module.exports = {
   sendReservationConfirmation,
   sendPreSessionReminder,
+  sendBillingInvoiceEmail,
 };

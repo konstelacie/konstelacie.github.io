@@ -144,6 +144,13 @@ CREATE TABLE billing_documents (
   CONSTRAINT fk_billing_documents_related FOREIGN KEY (related_document_id) REFERENCES billing_documents(id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+-- billing_document_counters: yearly sequence for document_number (see billingDeliveryService)
+CREATE TABLE billing_document_counters (
+  scope_year SMALLINT UNSIGNED NOT NULL PRIMARY KEY,
+  next_seq INT UNSIGNED NOT NULL DEFAULT 1,
+  updated_at DATETIME(3) DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
 -- webhook_events: idempotency for Stripe webhooks (evt_...)
 CREATE TABLE webhook_events (
   id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,

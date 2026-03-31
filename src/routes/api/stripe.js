@@ -5,6 +5,7 @@ const { getPool } = require('../../db');
 const auditRepo = require('../../db/repositories/auditRepo');
 const emailService = require('../../services/emailService');
 const billingDocumentService = require('../../services/billingDocumentService');
+const billingDeliveryService = require('../../services/billingDeliveryService');
 
 const router = express.Router();
 
@@ -134,6 +135,10 @@ router.post(
             { paymentId: payment.id, stripeSessionId: session.id },
             'system'
           );
+
+          billingDeliveryService.processBillingDocumentDelivery(billingDocumentId).catch((err) => {
+            console.error('[billing] Invoice PDF/email pipeline failed:', err);
+          });
 
           if (payment.reservation_id) {
             sendConfirmationEmailAsync(payment.id, payment.reservation_id).catch((err) => {
