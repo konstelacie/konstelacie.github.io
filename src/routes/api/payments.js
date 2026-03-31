@@ -141,10 +141,14 @@ router.post(
     const successUrl = `${baseUrl}/${funnelName}/success?session_id={CHECKOUT_SESSION_ID}`;
     const cancelUrl = `${baseUrl}/${funnelName}/cancel`;
 
+    const checkoutExpiresAt = checkoutExpiresAtFromNow();
+    const checkoutExpiresUnix = Math.floor(checkoutExpiresAt.getTime() / 1000);
+
     const stripe = new Stripe(stripeSecret);
     const session = await stripe.checkout.sessions.create({
       mode: 'payment',
       payment_method_types: ['card'],
+      expires_at: checkoutExpiresUnix,
       line_items: [
         {
           price_data: {
