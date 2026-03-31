@@ -738,7 +738,7 @@
         daysEl.classList.remove('booking-calendar__days--reflowing');
         daysEl.querySelectorAll('.booking-day--flash').forEach((el) => el.classList.remove('booking-day--flash'));
         calendarReflowTimer = null;
-      }, 480);
+      }, 820);
     }
 
     syncCalendarDaysExpandUi();
