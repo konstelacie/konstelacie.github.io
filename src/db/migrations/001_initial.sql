@@ -104,6 +104,46 @@ CREATE TABLE payments (
   CONSTRAINT fk_payments_reservation FOREIGN KEY (reservation_id) REFERENCES reservations(id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+-- billing_documents: internal invoicing layer (Phase 1: record on payment only; PDF/email later)
+CREATE TABLE billing_documents (
+  id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  document_number VARCHAR(64) NULL,
+  internal_type ENUM('deposit','full','topup','final','correction','refund') NOT NULL,
+  status ENUM('recorded','issued','void','superseded') NOT NULL DEFAULT 'recorded',
+  user_id BIGINT UNSIGNED NULL,
+  customer_email_snapshot VARCHAR(255) NOT NULL,
+  customer_name_snapshot VARCHAR(255) NULL,
+  reservation_id BIGINT UNSIGNED NULL,
+  payment_id BIGINT UNSIGNED NOT NULL,
+  stripe_checkout_session_id VARCHAR(255) NOT NULL,
+  stripe_payment_intent_id VARCHAR(255) NULL,
+  stripe_charge_id VARCHAR(255) NULL,
+  currency CHAR(3) NOT NULL DEFAULT 'eur',
+  amount_net_cents INT NOT NULL,
+  amount_vat_cents INT NOT NULL,
+  amount_gross_cents INT NOT NULL,
+  vat_rate DECIMAL(6,5) NOT NULL,
+  issued_at DATETIME(3) NULL,
+  paid_at DATETIME(3) NULL,
+  refunded_at DATETIME(3) NULL,
+  related_document_id BIGINT UNSIGNED NULL,
+  pdf_storage_ref VARCHAR(512) NULL,
+  pdf_generated_at DATETIME(3) NULL,
+  email_sent_at DATETIME(3) NULL,
+  email_message_id VARCHAR(255) NULL,
+  metadata JSON NULL,
+  notes TEXT NULL,
+  created_at DATETIME(3) DEFAULT CURRENT_TIMESTAMP(3),
+  updated_at DATETIME(3) DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3),
+  UNIQUE KEY uq_billing_documents_payment (payment_id),
+  INDEX idx_billing_documents_created (created_at),
+  INDEX idx_billing_documents_stripe_session (stripe_checkout_session_id),
+  CONSTRAINT fk_billing_documents_user FOREIGN KEY (user_id) REFERENCES users(id),
+  CONSTRAINT fk_billing_documents_reservation FOREIGN KEY (reservation_id) REFERENCES reservations(id),
+  CONSTRAINT fk_billing_documents_payment FOREIGN KEY (payment_id) REFERENCES payments(id),
+  CONSTRAINT fk_billing_documents_related FOREIGN KEY (related_document_id) REFERENCES billing_documents(id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
 -- webhook_events: idempotency for Stripe webhooks (evt_...)
 CREATE TABLE webhook_events (
   id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,

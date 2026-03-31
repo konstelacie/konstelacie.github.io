@@ -4,6 +4,7 @@ const { asyncHandler } = require('../../middleware/apiError');
 const { getPool } = require('../../db');
 const auditRepo = require('../../db/repositories/auditRepo');
 const emailService = require('../../services/emailService');
+const billingDocumentService = require('../../services/billingDocumentService');
 
 const router = express.Router();
 
@@ -82,7 +83,13 @@ router.post(
           await conn.beginTransaction();
 
           const [paymentRows] = await conn.execute(
-            'SELECT id, reservation_id FROM payments WHERE provider_ref = ? AND status = ? LIMIT 1',
+            `SELECT p.id, p.reservation_id, p.user_id, p.payment_type, p.amount_cents, p.currency,
+                    r.email AS reservation_email, r.funnel_name, r.funnel_campaign, r.funnel_video_id,
+                    u.email AS user_email, u.name AS user_name
+             FROM payments p
+             LEFT JOIN reservations r ON r.id = p.reservation_id
+             LEFT JOIN users u ON u.id = p.user_id
+             WHERE p.provider_ref = ? AND p.status = ? LIMIT 1`,
             [session.id, 'pending']
           );
           const payment = paymentRows[0];
@@ -104,6 +111,11 @@ router.post(
             );
           }
 
+          const billingDocumentId = await billingDocumentService.insertBillingDocumentForCompletedPayment(
+            conn,
+            { paymentRow: payment, session, stripeEventId: event.id }
+          );
+
           await conn.execute(
             'INSERT INTO webhook_events (stripe_event_id) VALUES (?)',
             [event.id]
@@ -114,6 +126,14 @@ router.post(
             stripeSessionId: session.id,
             reservationId: payment.reservation_id,
           });
+
+          await auditRepo.log(
+            'billing_document_recorded',
+            'billing_document',
+            billingDocumentId,
+            { paymentId: payment.id, stripeSessionId: session.id },
+            'system'
+          );
 
           if (payment.reservation_id) {
             sendConfirmationEmailAsync(payment.id, payment.reservation_id).catch((err) => {
