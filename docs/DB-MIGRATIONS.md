@@ -18,7 +18,7 @@ Set in `.env` (or environment). Copy from `.env.example` at the repo root.
 
 **Application pool (`src/config/database.js`):** The pool is **not** created unless `DB_HOST`, `DB_USER`, and `DB_NAME` are all set (non-empty). If the pool is missing, API routes that need the DB return **503** where applicable.
 
-For Stripe vars (`STRIPE_PUBLIC_KEY`, `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`), see `docs/STRIPE-ARCHITECTURE.md`. For Resend (`RESEND_API_KEY`, `RESEND_FROM_EMAIL`, `RESEND_FROM_NAME`), see `docs/EMAILING.md`.
+For Stripe vars (`STRIPE_PUBLIC_KEY`, `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`), see `docs/STRIPE-ARCHITECTURE.md`. For Resend (`RESEND_API_KEY`, `RESEND_FROM_EMAIL`, `RESEND_FROM_NAME`), see `docs/EMAILING.md`. For **billing / invoicing** env (`BILLING_PDF_STORAGE_DIR`, `BILLING_SEND_INVOICE_EMAIL`, supplier fields, etc.), see `docs/STRIPE-ARCHITECTURE.md` (Billing / invoice env) and `src/config/index.js` (`billing`).
 
 ## How it works
 
@@ -52,6 +52,16 @@ npm run db:status
 
 1. **SSH:** Deploy code, then run `npm run db:migrate` in the app directory.
 2. **Admin SQL console:** If you prefer, run migration SQL manually from `src/db/migrations/` in order.
+
+## Billing PDF storage (after migrate)
+
+Migrations create **`billing_documents`** / **`billing_document_counters`** only — not the filesystem for generated PDFs.
+
+- **Default directory:** `{project root}/storage/billing-pdfs/`. The app creates this when writing PDFs; ensure the **process can write** there on the host (permissions, persistent volume if the app dir is read-only or ephemeral).
+- **Override:** set **`BILLING_PDF_STORAGE_DIR`** to an absolute path on the server (see `src/services/billingDeliveryService.js`).
+- **DB:** `billing_documents.pdf_storage_ref` stores a path such as `storage/billing-pdfs/…` (or the custom prefix) so the same volume must remain available for **admin regenerate** and **invoice email** attachment reads.
+
+Do not treat PDFs as disposable cache on production unless you accept broken “resend” and detail views until regeneration.
 
 ## Safety notes
 
