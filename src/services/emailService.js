@@ -5,6 +5,9 @@ const emailSentLogRepo = require('../db/repositories/emailSentLogRepo');
 
 const EMAIL_TEMPLATES_DIR = path.join(__dirname, '..', 'templates', 'emails');
 
+/** Delay before sending automatic billing receipt email (ms), after reservation confirmation. */
+const BILLING_RECEIPT_SCHEDULE_DELAY_MS = 15 * 60 * 1000;
+
 function formatSlotDate(startAtUtc, timezone = 'Europe/Bratislava') {
   const d = startAtUtc instanceof Date ? startAtUtc : new Date(startAtUtc);
   return new Intl.DateTimeFormat('sk-SK', {
@@ -113,7 +116,7 @@ async function sendPreSessionReminder({ to, slot }, metadata = {}) {
  * @param {string} params.to
  * @param {object} params.documentRow - billing_documents row
  * @param {Buffer} params.pdfBuffer
- * @param {boolean} [params.resend] - admin resend; separate template id for logging
+ * @param {boolean} [params.resend] - admin resend (immediate send); first send is scheduled +15m via Resend
  * @param {object} [metadata]
  * @param {string} [metadata.actorType] - e.g. admin for resend audit
  * @returns {Promise<{ok: boolean, skipped?: boolean, messageId?: string}>}
@@ -137,15 +140,14 @@ async function sendBillingInvoiceEmail(
     amountFormatted,
   });
 
-  const result = await emailProvider.sendEmail(
-    to,
-    subject,
-    html,
-    metadata,
-    {
-      attachments: [{ filename: safeFilename, content: pdfBuffer }],
-    }
-  );
+  const sendOptions = {
+    attachments: [{ filename: safeFilename, content: pdfBuffer }],
+  };
+  if (!resend) {
+    sendOptions.scheduledAt = new Date(Date.now() + BILLING_RECEIPT_SCHEDULE_DELAY_MS).toISOString();
+  }
+
+  const result = await emailProvider.sendEmail(to, subject, html, metadata, sendOptions);
 
   if (result.ok && result.messageId) {
     await emailSentLogRepo.log({

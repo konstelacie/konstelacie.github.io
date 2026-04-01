@@ -20,6 +20,7 @@ function buildFrom() {
  * @param {object} [metadata] - Optional metadata (e.g. entity_type, entity_id for logging)
  * @param {object} [options]
  * @param {Array<{ filename: string, content: Buffer }>} [options.attachments]
+ * @param {string} [options.scheduledAt] - ISO 8601 time for Resend scheduled send
  * @returns {Promise<{ok: boolean, skipped?: boolean, messageId?: string}>}
  */
 async function sendEmail(to, subject, html, metadata = {}, options = {}) {
@@ -40,6 +41,9 @@ async function sendEmail(to, subject, html, metadata = {}, options = {}) {
   };
   if (options.attachments?.length) {
     payload.attachments = options.attachments;
+  }
+  if (options.scheduledAt) {
+    payload.scheduledAt = options.scheduledAt;
   }
 
   const { data, error } = await resend.emails.send(payload);
