@@ -116,7 +116,7 @@ router.post(
     const slotId = validateSlotId(body.slotId);
     const lockToken = validateLockToken(body.lockToken);
     const email = validateEmail(body.email, true);
-    await ensureEmailAvailableForBooking(email, { exceptSlotId: slotId, exceptLockToken });
+    await ensureEmailAvailableForBooking(email, { exceptSlotId: slotId, exceptLockToken: lockToken });
     const paymentType = validatePaymentType(body.paymentType);
     const amountCents = validateAmount(body.amount, paymentType);
     const funnel = parseFunnelAttribution(body);
@@ -148,35 +148,45 @@ router.post(
     const checkoutExpiresUnix = Math.floor(checkoutExpiresAt.getTime() / 1000);
 
     const stripe = new Stripe(stripeSecret);
-    const session = await stripe.checkout.sessions.create({
-      mode: 'payment',
-      payment_method_types: ['card'],
-      expires_at: checkoutExpiresUnix,
-      line_items: [
-        {
-          price_data: {
-            currency: 'eur',
-            product_data: {
-              name: paymentType === 'deposit' ? 'Rezervačný poplatok' : 'Sedenie – plná platba',
-              description: paymentType === 'deposit' ? 'Rezervácia termínu' : 'Platba za sedenie',
+    let session;
+    try {
+      session = await stripe.checkout.sessions.create({
+        mode: 'payment',
+        payment_method_types: ['card'],
+        expires_at: checkoutExpiresUnix,
+        line_items: [
+          {
+            price_data: {
+              currency: 'eur',
+              product_data: {
+                name: paymentType === 'deposit' ? 'Rezervačný poplatok' : 'Sedenie – plná platba',
+                description: paymentType === 'deposit' ? 'Rezervácia termínu' : 'Platba za sedenie',
+              },
+              unit_amount: cents,
             },
-            unit_amount: cents,
+            quantity: 1,
           },
-          quantity: 1,
+        ],
+        customer_email: email,
+        metadata: {
+          slotId: String(slotId),
+          lockToken,
+          paymentType: paymentTypeForDb,
+          funnelName: funnel.funnelName ? String(funnel.funnelName) : '',
+          funnelCampaign: funnel.funnelCampaign ? String(funnel.funnelCampaign) : '',
+          funnelVideoId: funnel.funnelVideoId ? String(funnel.funnelVideoId) : '',
         },
-      ],
-      customer_email: email,
-      metadata: {
-        slotId: String(slotId),
-        lockToken,
-        paymentType: paymentTypeForDb,
-        funnelName: funnel.funnelName ? String(funnel.funnelName) : '',
-        funnelCampaign: funnel.funnelCampaign ? String(funnel.funnelCampaign) : '',
-        funnelVideoId: funnel.funnelVideoId ? String(funnel.funnelVideoId) : '',
-      },
-      success_url: successUrl,
-      cancel_url: cancelUrl,
-    });
+        success_url: successUrl,
+        cancel_url: cancelUrl,
+      });
+    } catch (e) {
+      console.error('[payments/start] Stripe checkout.sessions.create', e);
+      throw new ApiError(
+        'STRIPE_ERROR',
+        process.env.NODE_ENV === 'production' ? 'Payment provider error' : e.message || 'Stripe error',
+        502
+      );
+    }
 
     const conn = await pool.getConnection();
     let userId;
@@ -248,14 +258,18 @@ router.post(
       conn.release();
     }
 
-    await auditRepo.log('payment_started', 'slot', slotId, {
-      paymentType: paymentTypeForDb,
-      amountCents: cents,
-      sessionId: session.id,
-      funnelName: funnel.funnelName,
-      funnelCampaign: funnel.funnelCampaign,
-      funnelVideoId: funnel.funnelVideoId,
-    });
+    try {
+      await auditRepo.log('payment_started', 'slot', slotId, {
+        paymentType: paymentTypeForDb,
+        amountCents: cents,
+        sessionId: session.id,
+        funnelName: funnel.funnelName,
+        funnelCampaign: funnel.funnelCampaign,
+        funnelVideoId: funnel.funnelVideoId,
+      });
+    } catch (auditErr) {
+      console.error('[payments/start] auditRepo.log failed (payment still ok)', auditErr);
+    }
 
     res.status(200).json({
       ok: true,

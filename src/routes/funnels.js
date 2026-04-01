@@ -178,8 +178,8 @@ function resolveLowerContentReveal(campaign) {
 }
 
 /**
- * Parse and validate funnel A/B attribution from API body (booking).
- * Campaign ids must exist in INSTANCE_CAMPAIGNS for the funnel.
+ * Parse funnel A/B attribution from API body (booking).
+ * Unknown funnel name → null attribution; invalid/unknown campaign id → default campaign.
  * @param {object} body - req.body
  * @returns {{ funnelName: string|null, funnelCampaign: string|null, funnelVideoId: string|null }}
  */
@@ -191,16 +191,16 @@ function parseFunnelAttribution(body) {
   }
   const funnelName = String(rawName).trim();
   if (!FUNNEL_INSTANCES.includes(funnelName)) {
-    throw new ApiError('VALIDATION_ERROR', 'Invalid funnelName', 400);
+    return { funnelName: null, funnelCampaign: null, funnelVideoId: null };
   }
   const campaigns = INSTANCE_CAMPAIGNS[funnelName] || { default: {} };
-  const campaignId =
+  let campaignId =
     rawCampaign != null && String(rawCampaign).trim() !== '' ? String(rawCampaign).trim() : 'default';
   if (!/^[a-zA-Z0-9_-]{1,64}$/.test(campaignId)) {
-    throw new ApiError('VALIDATION_ERROR', 'Invalid funnelCampaign', 400);
+    campaignId = 'default';
   }
   if (!Object.prototype.hasOwnProperty.call(campaigns, campaignId)) {
-    throw new ApiError('VALIDATION_ERROR', 'Unknown funnel campaign', 400);
+    campaignId = 'default';
   }
   const merged = { ...campaigns.default, ...campaigns[campaignId] };
   const funnelVideoId = merged.videoId != null ? String(merged.videoId).slice(0, 128) : null;

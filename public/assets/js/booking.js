@@ -81,6 +81,14 @@
   /** While > 0, `storeLock` is a no-op (avoid echo when applying another tab's snapshot). */
   let suppressCrossTabApply = 0;
 
+  /** Match server `parseFunnelAttribution` campaign id pattern; invalid stored values fall back. */
+  function sanitizeFunnelCampaignId(raw, fallback) {
+    const fb = fallback != null && String(fallback).trim() !== '' ? String(fallback).trim() : 'default';
+    if (raw == null || String(raw).trim() === '') return fb;
+    const s = String(raw).trim();
+    return /^[a-zA-Z0-9_-]{1,64}$/.test(s) ? s : fb;
+  }
+
   function clearCheckoutSessionStorage() {
     try {
       localStorage.removeItem(CHECKOUT_SESSION_STORAGE_KEY);
@@ -119,14 +127,14 @@
         if (fromUrl != null && fromUrl !== '') {
           return {
             funnelName: serverName,
-            funnelCampaign: fromUrl.trim(),
+            funnelCampaign: sanitizeFunnelCampaignId(fromUrl.trim(), serverCampaign),
             funnelVideoId: serverVideo,
           };
         }
         if (stored && stored.funnelName === serverName) {
           return {
             funnelName: serverName,
-            funnelCampaign: stored.funnelCampaign || serverCampaign,
+            funnelCampaign: sanitizeFunnelCampaignId(stored.funnelCampaign, serverCampaign),
             funnelVideoId: serverVideo || stored.funnelVideoId || '',
           };
         }
@@ -454,6 +462,7 @@
     EMAIL_HAS_LOCK: 'Tento e-mail už drží iný termín. Zadaj iný e-mail.',
     EMAIL_HAS_RESERVATION: 'Na tento e-mail už existuje rezervácia. Zadaj iný e-mail.',
     INTERNAL_ERROR: 'Niečo sa pokazilo. Skús neskôr.',
+    STRIPE_ERROR: 'Platobná brána je dočasne nedostupná. Skús neskôr.',
   };
 
   function userMessage(code) {

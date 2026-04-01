@@ -22,8 +22,14 @@ function asyncHandler(fn) {
 function apiErrorHandler(err, req, res, next) {
   if (res.headersSent) return next(err);
 
-  const isApiRoute = req.path.startsWith('/api');
+  // Mounted routers use req.baseUrl (e.g. '/api'); req.path is only the suffix (e.g. '/payments/start').
+  const pathNoQuery = (req.originalUrl || req.url || '').split('?')[0];
+  const isApiRoute = pathNoQuery.startsWith('/api') || (req.baseUrl || '').startsWith('/api');
   if (!isApiRoute) return next(err);
+
+  if (process.env.NODE_ENV !== 'production' && !(err instanceof ApiError)) {
+    console.error('[api]', req.method, pathNoQuery, err);
+  }
 
   if (err instanceof ApiError) {
     return res.status(err.statusCode).json({
