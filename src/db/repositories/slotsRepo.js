@@ -131,9 +131,11 @@ async function listSlotsForAdmin(from, to) {
       l.email AS lock_email,
       l.expires_at AS lock_expires_at,
       (SELECT p2.id FROM payments p2 WHERE ${PENDING_CHECKOUT_WHERE} LIMIT 1) AS pending_checkout_payment_id,
+      (SELECT p2.status FROM payments p2 WHERE ${PENDING_CHECKOUT_WHERE} LIMIT 1) AS pending_checkout_payment_status,
       r.id AS reservation_id,
       r.email AS reservation_email,
-      r.status AS reservation_status
+      r.status AS reservation_status,
+      (SELECT pr.status FROM payments pr WHERE pr.reservation_id = r.id ORDER BY pr.created_at DESC LIMIT 1) AS reservation_payment_status
     FROM slots s
     LEFT JOIN slot_locks l ON l.slot_id = s.id AND l.expires_at > NOW(3)
     LEFT JOIN reservations r

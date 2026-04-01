@@ -1,7 +1,7 @@
 const { DateTime } = require('luxon');
 const { timeKeyForGridIndex, SLOT_TIMEZONE } = require('../config/slotGrid');
 const { mysqlLocalDateToYmd } = require('./slotApiMap');
-const { reservationStatusLabel, formatAmountCents } = require('./adminReservationDisplay');
+const { reservationStatusLabel, formatAmountCents, paymentDisplay } = require('./adminReservationDisplay');
 
 function slotStatusDbLabel(status) {
   switch (status) {
@@ -94,6 +94,24 @@ function mapAdminSlotDetail(raw) {
   };
 }
 
+function paymentDisplayForAdminSlotRow(row) {
+  if (row.reservation_id != null && row.reservation_status) {
+    return paymentDisplay(row.reservation_payment_status, row.reservation_status);
+  }
+  if (row.pending_checkout_payment_id != null && row.reservation_id == null) {
+    return paymentDisplay(row.pending_checkout_payment_status, null);
+  }
+  return null;
+}
+
+function withPaymentLine(row, summary) {
+  const pay = paymentDisplayForAdminSlotRow(row);
+  if (pay && pay.label !== '—') {
+    return { ...summary, paymentStatusKey: pay.key, paymentStatusLabel: pay.label };
+  }
+  return summary;
+}
+
 function computeAdminSlotActions(row) {
   const slotStatus = row.slot_status;
   const hasRes = row.reservation_id != null;
@@ -124,89 +142,89 @@ function mapAdminSlotRow(row) {
   const actions = computeAdminSlotActions(row);
 
   if (slotStatus === 'cancelled') {
-    return {
+    return withPaymentLine(row, {
       id: row.id,
       timeKey,
       statusKey: 'cancelled',
       statusLabel: 'Zrušené',
       email: row.reservation_email || row.lock_email || null,
       actions,
-    };
+    });
   }
   if (slotStatus === 'blocked') {
-    return {
+    return withPaymentLine(row, {
       id: row.id,
       timeKey,
       statusKey: 'blocked',
       statusLabel: 'Zablokované',
       email: null,
       actions,
-    };
+    });
   }
 
   if (row.lock_id != null) {
-    return {
+    return withPaymentLine(row, {
       id: row.id,
       timeKey,
       statusKey: 'locked',
       statusLabel: 'Uzamknuté',
       email: row.lock_email || null,
       actions,
-    };
+    });
   }
 
   if (row.pending_checkout_payment_id != null && row.reservation_id == null) {
-    return {
+    return withPaymentLine(row, {
       id: row.id,
       timeKey,
       statusKey: 'locked',
       statusLabel: 'Stripe platba',
       email: null,
       actions,
-    };
+    });
   }
 
   if (row.reservation_status === 'draft') {
-    return {
+    return withPaymentLine(row, {
       id: row.id,
       timeKey,
       statusKey: 'reserved',
       statusLabel: 'Koncept',
       email: row.reservation_email || null,
       actions,
-    };
+    });
   }
 
   if (row.reservation_status === 'pending_payment') {
-    return {
+    return withPaymentLine(row, {
       id: row.id,
       timeKey,
       statusKey: 'reserved',
       statusLabel: 'Čaká na platbu',
       email: row.reservation_email || null,
       actions,
-    };
+    });
   }
 
   if (row.reservation_status === 'confirmed') {
-    return {
+    return withPaymentLine(row, {
       id: row.id,
       timeKey,
       statusKey: 'confirmed',
       statusLabel: 'Potvrdené',
       email: row.reservation_email || null,
       actions,
-    };
+    });
   }
 
-  return {
+  return withPaymentLine(row, {
     id: row.id,
     timeKey,
     statusKey: 'open',
     statusLabel: 'Voľné',
     email: null,
     actions,
-  };
+  });
 }
 
 /**
