@@ -1297,6 +1297,7 @@
       if (emailInput) requestAnimationFrame(() => emailInput.focus());
     }
     if (lockToken) storeLock();
+    broadcastBookingLockToOtherTabs();
   }
 
   /** @returns {{ paymentType: 'deposit', amount: null } | { paymentType: 'full', amount: number } | null} */
@@ -1674,6 +1675,13 @@
       if (modalUiStep === 'email' && modalEmailEdit) {
         if (!isEmailModalOpen()) {
           openBookingModal({ step: 'email', edit: true });
+        } else {
+          ensureBookingModalPortaledToBody();
+          setBookingModalStep('email');
+          configureBookingModal('email-edit');
+          const emailIn = $('booking-email');
+          if (emailIn && lockedEmail) emailIn.value = lockedEmail;
+          if (emailIn) requestAnimationFrame(() => emailIn.focus());
         }
       } else {
         const alreadyOnPayment =
