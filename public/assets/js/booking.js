@@ -1348,7 +1348,11 @@
    */
   async function startPayment({ slotId, lockToken, email, paymentType, amount }) {
     const returnPath = (window.location.pathname || '').replace(/\/$/, '') || '/pilot';
-    const payBody = { slotId, lockToken, email, paymentType, returnPath };
+    const cancelReturn =
+      (window.location.pathname || '/') +
+      (window.location.search || '') +
+      (window.location.hash || '');
+    const payBody = { slotId, lockToken, email, paymentType, returnPath, cancelReturn };
     if (paymentType === 'full') payBody.amount = amount;
     const funnelCtx = readFunnelContext();
     if (funnelCtx.funnelName) {

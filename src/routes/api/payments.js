@@ -5,6 +5,26 @@ const { getPool } = require('../../db');
 const auditRepo = require('../../db/repositories/auditRepo');
 const locksRepo = require('../../db/repositories/locksRepo');
 const { FUNNEL_INSTANCES, parseFunnelAttribution } = require('../funnels');
+
+const MAX_CANCEL_RETURN_LEN = 2048;
+
+/** Root-relative path (+ optional ?query #hash) for Stripe cancel_url; must stay under /:funnelName. */
+function validateCancelReturn(raw, funnelName) {
+  const fallback = `/${funnelName}`;
+  if (typeof raw !== 'string' || !raw.trim()) return fallback;
+  const s = raw.trim();
+  if (s.length > MAX_CANCEL_RETURN_LEN) return fallback;
+  if (!s.startsWith('/') || s.startsWith('//')) return fallback;
+  if (s.includes('..')) return fallback;
+
+  const hashIdx = s.indexOf('#');
+  const beforeHash = hashIdx === -1 ? s : s.slice(0, hashIdx);
+  const qIdx = beforeHash.indexOf('?');
+  const pathOnly = (qIdx === -1 ? beforeHash : beforeHash.slice(0, qIdx)).replace(/\/+$/, '') || '/';
+
+  if (pathOnly !== `/${funnelName}`) return fallback;
+  return s;
+}
 const { timeKeyForGridIndex } = require('../../config/slotGrid');
 const { mysqlLocalDateToYmd } = require('../../lib/slotApiMap');
 const { validateSlotId, validateEmail, validateLockToken } = require('../../middleware/validators');
@@ -142,7 +162,8 @@ router.post(
     const funnelName = validateReturnPath(body.returnPath);
     const baseUrl = process.env.BASE_URL || (req.protocol + '://' + req.get('host'));
     const successUrl = `${baseUrl}/${funnelName}/success?session_id={CHECKOUT_SESSION_ID}`;
-    const cancelUrl = `${baseUrl}/${funnelName}/cancel`;
+    const cancelReturnPath = validateCancelReturn(body.cancelReturn, funnelName);
+    const cancelUrl = `${baseUrl}${cancelReturnPath}`;
 
     const checkoutExpiresAt = checkoutExpiresAtFromNow();
     const checkoutExpiresUnix = Math.floor(checkoutExpiresAt.getTime() / 1000);
