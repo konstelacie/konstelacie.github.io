@@ -261,14 +261,16 @@ router.post(
               ? Number(payment.slot_id)
               : parseInt(md.slotId, 10);
 
+          let didExpirePayment = false;
           if (payment) {
-            await conn.execute(
-              'UPDATE payments SET status = ? WHERE id = ?',
-              ['expired', payment.id]
+            const [upd] = await conn.execute(
+              'UPDATE payments SET status = ? WHERE id = ? AND status = ?',
+              ['expired', payment.id, 'pending']
             );
+            didExpirePayment = upd.affectedRows > 0;
           }
 
-          if (Number.isInteger(slotId) && slotId > 0 && lockTokenRaw) {
+          if (didExpirePayment && Number.isInteger(slotId) && slotId > 0 && lockTokenRaw) {
             await conn.execute('DELETE FROM slot_locks WHERE slot_id = ? AND lock_token = ?', [
               slotId,
               lockTokenRaw,

@@ -60,6 +60,10 @@
   }
 
   function run() {
+    try {
+      sessionStorage.removeItem('booking_stripe_redirect');
+    } catch (_) {}
+
     const sessionId = getSessionId();
     if (!sessionId || !sessionId.startsWith('cs_')) {
       showState('error');

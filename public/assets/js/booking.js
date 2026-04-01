@@ -74,6 +74,8 @@
   const STORAGE_KEY = 'booking_lock';
   /** Set when redirecting to Stripe so GET /api/slots can treat the hold as mine if the lock row already expired. */
   const CHECKOUT_SESSION_STORAGE_KEY = 'booking_checkout_session';
+  /** Set before redirect to Stripe; cleared after POST /api/payments/abandon-checkout or on success page. */
+  const STRIPE_REDIRECT_FLAG = 'booking_stripe_redirect';
   const FUNNEL_CTX_KEY = 'booking_funnel_ctx';
   /** Cross-tab: localStorage `storage` + BroadcastChannel so other tabs reopen the booking modal when one tab locks. */
   const BROADCAST_CHANNEL_NAME = 'booking_lock_sync';
@@ -1444,6 +1446,9 @@
             logStorageError('startPayment: checkout session id', e);
           }
         }
+        try {
+          sessionStorage.setItem(STRIPE_REDIRECT_FLAG, '1');
+        } catch (_) {}
         window.location.href = result.url;
         return;
       }
@@ -1645,6 +1650,9 @@
               logStorageError('payment retry: checkout session id', e);
             }
           }
+          try {
+            sessionStorage.setItem(STRIPE_REDIRECT_FLAG, '1');
+          } catch (_) {}
           window.location.href = result.url;
           return;
         }
@@ -1723,6 +1731,51 @@
     startCountdown();
   }
 
+  async function abandonCheckoutIfStripeReturn() {
+    try {
+      if (sessionStorage.getItem(STRIPE_REDIRECT_FLAG) !== '1') return;
+      if (!lockToken || lockedSlotId == null) {
+        try {
+          sessionStorage.removeItem(STRIPE_REDIRECT_FLAG);
+        } catch (_) {}
+        return;
+      }
+      let csId = null;
+      try {
+        csId = localStorage.getItem(CHECKOUT_SESSION_STORAGE_KEY);
+      } catch (_) {}
+      if (!csId || !String(csId).startsWith('cs_')) {
+        try {
+          sessionStorage.removeItem(STRIPE_REDIRECT_FLAG);
+        } catch (_) {}
+        return;
+      }
+      const r = await fetch('/api/payments/abandon-checkout', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          slotId: lockedSlotId,
+          lockToken,
+          checkoutSessionId: csId,
+        }),
+      });
+      const data = await r.json().catch(() => ({}));
+      clearCheckoutSessionStorage();
+      try {
+        sessionStorage.removeItem(STRIPE_REDIRECT_FLAG);
+      } catch (_) {}
+      if (r.ok && data.ok && data.lockExpiresAt) {
+        expiresAt = data.lockExpiresAt;
+        storeLock();
+      }
+    } catch (e) {
+      console.error('[booking] abandonCheckoutIfStripeReturn', e);
+      try {
+        clearCheckoutSessionStorage();
+      } catch (_) {}
+    }
+  }
+
   async function init() {
     dbg('init start', { readyState: document.readyState });
     try {
@@ -1756,6 +1809,8 @@
           modalEmailEdit,
         });
       }
+
+      await abandonCheckoutIfStripeReturn();
 
       await loadSlots();
       dbg('loadSlots done', { slots: slotsRaw.length, lockToken: !!lockToken });

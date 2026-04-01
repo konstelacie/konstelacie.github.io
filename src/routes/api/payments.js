@@ -29,7 +29,7 @@ const { timeKeyForGridIndex } = require('../../config/slotGrid');
 const { mysqlLocalDateToYmd } = require('../../lib/slotApiMap');
 const { validateSlotId, validateEmail, validateLockToken } = require('../../middleware/validators');
 const { slotPassesBookingWindow } = require('../../lib/slotBookingRules');
-const { checkoutExpiresAtFromNow } = require('../../config/checkoutHold');
+const { checkoutExpiresAtFromNow, lockExpiresAtAfterCheckoutCancel } = require('../../config/checkoutHold');
 const paymentsRepo = require('../../db/repositories/paymentsRepo');
 const { ensureEmailAvailableForBooking } = require('../../lib/bookingEmailAvailability');
 
@@ -125,6 +125,117 @@ router.get(
             timezone: slot.timezone,
           }
         : null,
+    });
+  })
+);
+
+/**
+ * User left Stripe Checkout (cancel/back). Expire the Checkout Session, mark payment expired,
+ * and set the slot lock to now + clamp(remaining checkout window, 5 min … 15 min).
+ */
+router.post(
+  '/abandon-checkout',
+  asyncHandler(async (req, res) => {
+    const body = req.body ?? {};
+    const slotId = validateSlotId(body.slotId);
+    const lockToken = validateLockToken(body.lockToken);
+    const checkoutSessionId =
+      typeof body.checkoutSessionId === 'string' ? body.checkoutSessionId.trim() : '';
+    if (!checkoutSessionId.startsWith('cs_')) {
+      throw new ApiError('VALIDATION_ERROR', 'checkoutSessionId must be a Stripe Checkout Session id', 400);
+    }
+
+    const stripeSecret = process.env.STRIPE_SECRET_KEY;
+    if (!stripeSecret) {
+      throw new ApiError('INTERNAL_ERROR', 'Stripe not configured', 503);
+    }
+
+    const pool = getPool();
+    if (!pool) throw new ApiError('INTERNAL_ERROR', 'Database not configured', 503);
+
+    const stripe = new Stripe(stripeSecret);
+
+    const conn = await pool.getConnection();
+    let lockExpiresAt;
+    try {
+      await conn.beginTransaction();
+
+      const [payRows] = await conn.execute(
+        `SELECT id, slot_id, checkout_expires_at FROM payments WHERE provider_ref = ? AND status = 'pending' AND provider = 'stripe' FOR UPDATE`,
+        [checkoutSessionId]
+      );
+      const payment = payRows[0];
+      if (!payment || Number(payment.slot_id) !== slotId) {
+        await conn.rollback();
+        throw new ApiError('NOT_FOUND', 'No pending checkout for this session', 404);
+      }
+
+      const [lockRows] = await conn.execute(
+        'SELECT id FROM slot_locks WHERE slot_id = ? AND lock_token = ? AND expires_at > NOW(3) FOR UPDATE',
+        [slotId, lockToken]
+      );
+      if (lockRows.length === 0) {
+        await conn.rollback();
+        throw new ApiError('LOCK_INVALID', 'Lock not found', 404);
+      }
+
+      const coAt = payment.checkout_expires_at;
+      const coMs = coAt instanceof Date ? coAt.getTime() : new Date(coAt).getTime();
+      const remainingCheckoutMs =
+        Number.isFinite(coMs) ? Math.max(0, coMs - Date.now()) : 0;
+      lockExpiresAt = lockExpiresAtAfterCheckoutCancel(remainingCheckoutMs);
+
+      const [upd] = await conn.execute(
+        `UPDATE payments SET status = 'expired' WHERE id = ? AND status = 'pending'`,
+        [payment.id]
+      );
+      if (upd.affectedRows === 0) {
+        await conn.rollback();
+        throw new ApiError('CONFLICT', 'Checkout already closed', 409);
+      }
+
+      await conn.execute(
+        'UPDATE slot_locks SET expires_at = ? WHERE slot_id = ? AND lock_token = ?',
+        [lockExpiresAt, slotId, lockToken]
+      );
+
+      await conn.commit();
+    } catch (e) {
+      await conn.rollback();
+      throw e;
+    } finally {
+      conn.release();
+    }
+
+    for (let attempt = 0; attempt < 3; attempt++) {
+      try {
+        await stripe.checkout.sessions.expire(checkoutSessionId);
+        break;
+      } catch (e) {
+        const code = e && e.code ? String(e.code) : '';
+        const msg = e && e.message ? String(e.message) : '';
+        const benign =
+          code === 'resource_missing' ||
+          /already been completed|already expired|expired/i.test(msg);
+        if (benign || attempt === 2) {
+          if (!benign) {
+            console.error('[payments/abandon-checkout] Stripe expire failed', checkoutSessionId, e);
+          }
+          break;
+        }
+        await new Promise((r) => setTimeout(r, 400 * (attempt + 1)));
+      }
+    }
+
+    try {
+      await auditRepo.log('checkout_abandoned', 'slot', slotId, { checkoutSessionId });
+    } catch (auditErr) {
+      console.error('[payments/abandon-checkout] audit', auditErr);
+    }
+
+    res.status(200).json({
+      ok: true,
+      lockExpiresAt: lockExpiresAt.toISOString(),
     });
   })
 );
