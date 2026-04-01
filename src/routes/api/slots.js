@@ -185,4 +185,44 @@ router.post(
   })
 );
 
+/** "Upraviť e-mail" — trim hold to the same window as first email step (5 min). */
+router.post(
+  '/:slotId/lock-for-email-edit',
+  asyncHandler(async (req, res) => {
+    const slotId = validateSlotId(req.params.slotId);
+    const lockToken = validateLockToken(req.body?.lockToken);
+
+    const pool = getPool();
+    if (!pool) throw new ApiError('INTERNAL_ERROR', 'Database not configured', 503);
+
+    await paymentsRepo.reconcileExpiredStripeCheckouts(pool, { slotId });
+
+    const [rows] = await pool.execute(
+      'SELECT email FROM slot_locks WHERE slot_id = ? AND lock_token = ? AND expires_at > NOW(3) LIMIT 1',
+      [slotId, lockToken]
+    );
+    if (rows.length === 0) {
+      await auditRepo.log('lock_extend_failed', 'slot', slotId, { reason: 'not_found_or_expired', context: 'email_edit' });
+      throw new ApiError('LOCK_INVALID', 'Lock not found or expired', 404);
+    }
+
+    const expiresAt = new Date(Date.now() + LOCK_HOLD_BEFORE_EMAIL_MS);
+    const updated = await locksRepo.extendLockExpiration(slotId, lockToken, rows[0].email, expiresAt);
+    if (!updated) {
+      await auditRepo.log('lock_extend_failed', 'slot', slotId, { reason: 'not_found_or_expired', context: 'email_edit' });
+      throw new ApiError('LOCK_INVALID', 'Lock not found or expired', 404);
+    }
+
+    await auditRepo.log('lock_extended', 'slot', slotId, {
+      lockToken: lockToken.slice(0, 8) + '...',
+      reason: 'email_edit',
+    });
+
+    res.json({
+      ok: true,
+      expiresAt: expiresAt.toISOString(),
+    });
+  })
+);
+
 module.exports = router;

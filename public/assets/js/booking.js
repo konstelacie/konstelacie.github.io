@@ -1292,7 +1292,22 @@
     if (lockToken) storeLock();
   }
 
-  function showEmailForm() {
+  async function showEmailForm() {
+    if (lockToken && lockedSlotId != null) {
+      try {
+        const r = await fetch(`/api/slots/${lockedSlotId}/lock-for-email-edit`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ lockToken }),
+        });
+        const data = await r.json().catch(() => ({}));
+        if (r.ok && data.expiresAt) {
+          expiresAt = data.expiresAt;
+          storeLock();
+          updateCountdown();
+        }
+      } catch (_) {}
+    }
     modalVisible = true;
     modalUiStep = 'email';
     modalEmailEdit = true;
@@ -1605,7 +1620,9 @@
       });
     });
     if (paymentBackBtn) {
-      paymentBackBtn.addEventListener('click', showEmailForm);
+      paymentBackBtn.addEventListener('click', () => {
+        void showEmailForm();
+      });
     }
 
     const customAmountInput = $('booking-custom-amount');
