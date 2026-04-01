@@ -2,6 +2,7 @@
   'use strict';
 
   /** Set `?bookingDebug=1` or `sessionStorage.setItem('bookingDebug','1')` then reload — verbose logs in console. */
+  /** Storage read/write failures always use `console.error('[booking]', …)` (not gated by bookingDebug). */
   const BOOKING_DEBUG =
     typeof location !== 'undefined' &&
     (new URLSearchParams(location.search).get('bookingDebug') === '1' ||
@@ -9,6 +10,10 @@
 
   function dbg(...args) {
     if (BOOKING_DEBUG) console.log('[booking]', ...args);
+  }
+
+  function logStorageError(where, err) {
+    console.error('[booking]', where, err);
   }
 
   const TIMEZONE = 'Europe/Bratislava';
@@ -30,6 +35,14 @@
   let lockedEmail = '';
   /** `'email'` — modal, krok e-mail; `'payment'` — modal, krok výber platby */
   let lockPhase = 'email';
+  /** Modal open/closed (persisted). */
+  let modalVisible = true;
+  /** Visible modal step: email vs payment (can differ from lockPhase when editing email after payment step). */
+  let modalUiStep = 'email';
+  /** True when modal shows "Zmeniť e-mail" while lockPhase is already payment. */
+  let modalEmailEdit = false;
+  /** Payment radios/custom amount restored from storage after `openBookingModal({ step: 'payment' })`. */
+  let pendingPaymentFormRestore = null;
   let countdownInterval = null;
   let pendingSlotId = null;
   let lastFocusBeforeModal = null;
@@ -65,6 +78,9 @@
 
   function clearCheckoutSessionStorage() {
     try {
+      localStorage.removeItem(CHECKOUT_SESSION_STORAGE_KEY);
+    } catch (_) {}
+    try {
       sessionStorage.removeItem(CHECKOUT_SESSION_STORAGE_KEY);
     } catch (_) {}
   }
@@ -76,7 +92,24 @@
     const serverCampaign = section?.dataset?.funnelCampaign?.trim() || 'default';
     const serverVideo = section?.dataset?.funnelVideoId?.trim() || '';
     try {
-      const stored = JSON.parse(sessionStorage.getItem(FUNNEL_CTX_KEY) || 'null');
+      let raw = null;
+      try {
+        raw = localStorage.getItem(FUNNEL_CTX_KEY);
+      } catch (_) {}
+      if (raw == null) {
+        try {
+          raw = sessionStorage.getItem(FUNNEL_CTX_KEY);
+          if (raw != null) {
+            try {
+              localStorage.setItem(FUNNEL_CTX_KEY, raw);
+            } catch (_) {}
+            try {
+              sessionStorage.removeItem(FUNNEL_CTX_KEY);
+            } catch (_) {}
+          }
+        } catch (_) {}
+      }
+      const stored = JSON.parse(raw || 'null');
       if (section && serverName) {
         if (fromUrl != null && fromUrl !== '') {
           return {
@@ -108,8 +141,77 @@
   function persistFunnelContext(ctx) {
     if (!ctx || !ctx.funnelName) return;
     try {
-      sessionStorage.setItem(FUNNEL_CTX_KEY, JSON.stringify(ctx));
-    } catch (_) {}
+      const json = JSON.stringify(ctx);
+      localStorage.setItem(FUNNEL_CTX_KEY, json);
+      try {
+        sessionStorage.removeItem(FUNNEL_CTX_KEY);
+      } catch (_) {}
+    } catch (e) {
+      logStorageError('persistFunnelContext: localStorage.setItem', e);
+    }
+  }
+
+  function readPaymentFormStateFromDom() {
+    const path = document.querySelector('input[name="paymentPath"]:checked')?.value;
+    const fullAmt = document.querySelector('input[name="fullAmount"]:checked')?.value;
+    const customEl = $('booking-custom-amount');
+    const customAmount = customEl ? String(customEl.value || '').trim() : '';
+    return { path: path || null, fullAmount: fullAmt || null, customAmount };
+  }
+
+  function applyPaymentFormStateToDom(state) {
+    if (!state || typeof state !== 'object') return;
+    if (state.path) {
+      const el = document.querySelector(`input[name="paymentPath"][value="${state.path}"]`);
+      if (el) el.checked = true;
+    }
+    if (state.fullAmount) {
+      const el = document.querySelector(`input[name="fullAmount"][value="${state.fullAmount}"]`);
+      if (el) el.checked = true;
+    }
+    const customEl = $('booking-custom-amount');
+    if (customEl && state.customAmount != null) {
+      customEl.value = state.customAmount;
+    }
+    updatePaymentSubmitButtonLabel();
+  }
+
+  /** Persist lock blob in localStorage (shared across tabs). Migrates away from legacy sessionStorage on read. */
+  function persistLockBlob(json) {
+    try {
+      localStorage.setItem(STORAGE_KEY, json);
+      try {
+        sessionStorage.removeItem(STORAGE_KEY);
+      } catch (_) {}
+    } catch (e) {
+      logStorageError('persistLockBlob: localStorage.setItem', e);
+    }
+  }
+
+  function readLockBlob() {
+    try {
+      const fromLocal = localStorage.getItem(STORAGE_KEY);
+      if (fromLocal) return fromLocal;
+    } catch (e) {
+      logStorageError('readLockBlob: localStorage.getItem', e);
+    }
+    try {
+      const legacy = sessionStorage.getItem(STORAGE_KEY);
+      if (legacy) {
+        try {
+          localStorage.setItem(STORAGE_KEY, legacy);
+        } catch (e) {
+          logStorageError('readLockBlob: migrate to localStorage', e);
+        }
+        try {
+          sessionStorage.removeItem(STORAGE_KEY);
+        } catch (_) {}
+        return legacy;
+      }
+    } catch (e) {
+      logStorageError('readLockBlob: sessionStorage.getItem (legacy)', e);
+    }
+    return null;
   }
 
   function storeLock() {
@@ -117,44 +219,93 @@
       let lockedSlotDate = '';
       if (lockedSlotId) {
         const s = slotsRaw.find((x) => x.id === lockedSlotId);
-        if (s) lockedSlotDate = localDateFromIso(s.startAt);
+        if (s) {
+          lockedSlotDate =
+            s.localDate ||
+            (s.startAt
+              ? new Intl.DateTimeFormat('en-CA', { timeZone: TIMEZONE }).format(new Date(s.startAt))
+              : '');
+        }
       }
-      sessionStorage.setItem(
-        STORAGE_KEY,
+      let paymentForm = null;
+      if (lockToken && lockPhase === 'payment' && modalUiStep === 'payment') {
+        paymentForm = readPaymentFormStateFromDom();
+      }
+      // Always include expiresAt key (null if missing) — JSON.stringify drops `undefined`, and
+      // getStoredLock used to reject when the key was absent.
+      persistLockBlob(
         JSON.stringify({
           lockToken,
           lockedSlotId,
-          expiresAt,
+          expiresAt: expiresAt != null ? expiresAt : null,
           lockedSlotDate,
           phase: lockPhase,
           email: lockedEmail || undefined,
+          modalVisible,
+          modalUiStep,
+          modalEmailEdit,
+          paymentForm,
         })
       );
-    } catch (_) {}
+    } catch (e) {
+      logStorageError('storeLock', e);
+    }
   }
 
   function clearStoredLock() {
     try {
+      localStorage.removeItem(STORAGE_KEY);
+    } catch (e) {
+      logStorageError('clearStoredLock: localStorage.removeItem', e);
+    }
+    try {
       sessionStorage.removeItem(STORAGE_KEY);
-    } catch (_) {}
+    } catch (e) {
+      logStorageError('clearStoredLock: sessionStorage.removeItem (legacy)', e);
+    }
   }
 
   function getStoredLock() {
     try {
-      const raw = sessionStorage.getItem(STORAGE_KEY);
+      const raw = readLockBlob();
       if (!raw) return null;
       const data = JSON.parse(raw);
-      if (!data.lockToken || data.lockedSlotId == null || !data.expiresAt) return null;
-      const expMs = new Date(data.expiresAt).getTime();
-      if (Number.isNaN(expMs) || expMs <= Date.now()) {
-        clearStoredLock();
-        return null;
+      if (!data.lockToken || data.lockedSlotId == null) return null;
+      if (data.expiresAt != null && data.expiresAt !== '') {
+        const expMs = new Date(data.expiresAt).getTime();
+        if (Number.isNaN(expMs)) {
+          clearStoredLock();
+          return null;
+        }
       }
+      // Do not reject based on Date.now() vs expiresAt — client clock ahead of the server would
+      // clear session on every reload. Expiry is enforced by GET /api/slots (isMyLock), countdown,
+      // and revoke.
       if (data.phase !== 'payment' && data.phase !== 'email') {
         data.phase = 'email';
       }
-      return data;
-    } catch (_) {
+      const modalVisibleParsed = data.modalVisible !== false;
+      let modalUiStepParsed = data.modalUiStep === 'payment' ? 'payment' : 'email';
+      let modalEmailEditParsed = !!data.modalEmailEdit;
+      if (data.modalUiStep == null && data.modalEmailEdit == null) {
+        modalUiStepParsed = data.phase === 'payment' ? 'payment' : 'email';
+        modalEmailEditParsed = false;
+      }
+      if (data.phase === 'email') {
+        modalUiStepParsed = 'email';
+        modalEmailEditParsed = false;
+      }
+      const paymentFormParsed =
+        data.paymentForm && typeof data.paymentForm === 'object' ? data.paymentForm : null;
+      return {
+        ...data,
+        modalVisible: modalVisibleParsed,
+        modalUiStep: modalUiStepParsed,
+        modalEmailEdit: modalEmailEditParsed,
+        paymentForm: paymentFormParsed,
+      };
+    } catch (e) {
+      logStorageError('getStoredLock', e);
       return null;
     }
   }
@@ -331,6 +482,9 @@
   function openBookingModal(options) {
     const step = options && options.step === 'payment' ? 'payment' : 'email';
     const edit = !!(options && options.edit);
+    modalVisible = true;
+    modalUiStep = step;
+    modalEmailEdit = step === 'email' && edit;
     ensureBookingModalPortaledToBody();
     const modal = $('booking-email-modal');
     const main = $('booking-main');
@@ -358,6 +512,7 @@
       const firstPay = $('payment-deposit');
       if (firstPay) requestAnimationFrame(() => firstPay.focus());
     }
+    if (lockToken) storeLock();
   }
 
   function openEmailModal(edit) {
@@ -365,6 +520,7 @@
   }
 
   function closeEmailModal() {
+    modalVisible = false;
     const modal = $('booking-email-modal');
     const main = $('booking-main');
     if (modal) {
@@ -413,11 +569,29 @@
     let url = `/api/slots?from=${from}&to=${to}`;
     if (token) url += `&lockToken=${encodeURIComponent(token)}`;
     try {
-      const cs = sessionStorage.getItem(CHECKOUT_SESSION_STORAGE_KEY);
+      let cs = null;
+      try {
+        cs = localStorage.getItem(CHECKOUT_SESSION_STORAGE_KEY);
+      } catch (_) {}
+      if (cs == null) {
+        try {
+          cs = sessionStorage.getItem(CHECKOUT_SESSION_STORAGE_KEY);
+          if (cs != null) {
+            try {
+              localStorage.setItem(CHECKOUT_SESSION_STORAGE_KEY, cs);
+            } catch (_) {}
+            try {
+              sessionStorage.removeItem(CHECKOUT_SESSION_STORAGE_KEY);
+            } catch (_) {}
+          }
+        } catch (_) {}
+      }
       if (cs && cs.startsWith('cs_')) {
         url += `&stripeSessionId=${encodeURIComponent(cs)}`;
       }
-    } catch (_) {}
+    } catch (e) {
+      logStorageError('fetchSlots: checkout id read', e);
+    }
     const ctrl = new AbortController();
     const tid = setTimeout(() => ctrl.abort(), FETCH_SLOTS_TIMEOUT_MS);
     const onExternalAbort = () => {
@@ -788,6 +962,8 @@
 
   /**
    * After GET /api/slots: drop stale client locks and align expiresAt with server (fixes refresh / clock skew).
+   * If the locked slot is missing from this response, keep the client lock — the list query can omit
+   * rows (e.g. 24h window) while the lock row still exists; clearing here made reload drop stored lock.
    */
   function syncLockStateWithSlots() {
     if (!lockToken || lockedSlotId == null) return;
@@ -795,7 +971,8 @@
     const slot = slotsRaw.find(
       (s) => s.id === lockedSlotId || String(s.id) === String(lockedSlotId)
     );
-    if (!slot || !slot.isMyLock) {
+    if (!slot) return;
+    if (!slot.isMyLock) {
       clearLockClientState();
       return;
     }
@@ -869,6 +1046,10 @@
     lockedSlotId = null;
     lockedEmail = '';
     lockPhase = 'email';
+    modalVisible = true;
+    modalUiStep = 'email';
+    modalEmailEdit = false;
+    pendingPaymentFormRestore = null;
     clearStoredLock();
     clearCheckoutSessionStorage();
     closeEmailModal();
@@ -992,6 +1173,9 @@
   }
 
   function showPaymentChoice() {
+    modalVisible = true;
+    modalUiStep = 'payment';
+    modalEmailEdit = false;
     const modal = $('booking-email-modal');
     if (!modal || modal.hidden) {
       openBookingModal({ step: 'payment' });
@@ -1008,9 +1192,13 @@
     const firstPay = $('payment-deposit');
     if (firstPay) requestAnimationFrame(() => firstPay.focus());
     updatePaymentSubmitButtonLabel();
+    if (lockToken) storeLock();
   }
 
   function showEmailForm() {
+    modalVisible = true;
+    modalUiStep = 'email';
+    modalEmailEdit = true;
     const hold = $('booking-hold-banner');
     if (hold) hold.hidden = true;
     const emailInput = $('booking-email');
@@ -1022,6 +1210,7 @@
       configureBookingModal('email-edit');
       if (emailInput) requestAnimationFrame(() => emailInput.focus());
     }
+    if (lockToken) storeLock();
   }
 
   /** @returns {{ paymentType: 'deposit', amount: null } | { paymentType: 'full', amount: number } | null} */
@@ -1150,8 +1339,10 @@
         }
         if (result.checkoutSessionId) {
           try {
-            sessionStorage.setItem(CHECKOUT_SESSION_STORAGE_KEY, result.checkoutSessionId);
-          } catch (_) {}
+            localStorage.setItem(CHECKOUT_SESSION_STORAGE_KEY, result.checkoutSessionId);
+          } catch (e) {
+            logStorageError('startPayment: checkout session id', e);
+          }
         }
         window.location.href = result.url;
         return;
@@ -1299,10 +1490,14 @@
         const pathVal = $('booking-payment-path-validation');
         if (pathVal) pathVal.hidden = true;
         updatePaymentSubmitButtonLabel();
+        if (lockToken) storeLock();
       });
     });
     document.querySelectorAll('input[name="fullAmount"]').forEach((el) => {
-      el.addEventListener('change', updatePaymentSubmitButtonLabel);
+      el.addEventListener('change', () => {
+        updatePaymentSubmitButtonLabel();
+        if (lockToken) storeLock();
+      });
     });
     if (paymentBackBtn) {
       paymentBackBtn.addEventListener('click', showEmailForm);
@@ -1314,8 +1509,12 @@
         const customRadio = document.getElementById('full-amount-custom');
         if (customRadio) customRadio.checked = true;
         updatePaymentSubmitButtonLabel();
+        if (lockToken) storeLock();
       });
-      customAmountInput.addEventListener('input', updatePaymentSubmitButtonLabel);
+      customAmountInput.addEventListener('input', () => {
+        updatePaymentSubmitButtonLabel();
+        if (lockToken) storeLock();
+      });
     }
 
     const paymentRetryBtn = $('booking-payment-retry');
@@ -1341,8 +1540,10 @@
         if (result.ok) {
           if (result.checkoutSessionId) {
             try {
-              sessionStorage.setItem(CHECKOUT_SESSION_STORAGE_KEY, result.checkoutSessionId);
-            } catch (_) {}
+              localStorage.setItem(CHECKOUT_SESSION_STORAGE_KEY, result.checkoutSessionId);
+            } catch (e) {
+              logStorageError('payment retry: checkout session id', e);
+            }
           }
           window.location.href = result.url;
           return;
@@ -1365,20 +1566,33 @@
     if (!lockToken) return;
     const emailErr = $('booking-email-error');
     if (emailErr) emailErr.hidden = true;
-    if (lockPhase === 'payment') {
-      const emailInput = $('booking-email');
-      if (emailInput) emailInput.value = lockedEmail;
-      const hold = $('booking-hold-banner');
-      if (hold) hold.hidden = true;
-      openBookingModal({ step: 'payment' });
+    const hold = $('booking-hold-banner');
+
+    if (!modalVisible) {
+      if (hold) hold.hidden = false;
       updateCountdown();
       startCountdown();
       return;
     }
-    const emailInput = $('booking-email');
-    if (emailInput) emailInput.value = '';
-    const hold = $('booking-hold-banner');
     if (hold) hold.hidden = true;
+
+    if (lockPhase === 'payment') {
+      const emailInput = $('booking-email');
+      if (emailInput) emailInput.value = lockedEmail;
+      if (modalUiStep === 'email' && modalEmailEdit) {
+        openBookingModal({ step: 'email', edit: true });
+      } else {
+        openBookingModal({ step: 'payment' });
+        applyPaymentFormStateToDom(pendingPaymentFormRestore);
+        pendingPaymentFormRestore = null;
+        if (lockToken) storeLock();
+      }
+      updateCountdown();
+      startCountdown();
+      return;
+    }
+    const emailInputOpen = $('booking-email');
+    if (emailInputOpen) emailInputOpen.value = '';
     openEmailModal(false);
     updateCountdown();
     startCountdown();
@@ -1411,7 +1625,22 @@
         expiresAt = storedLock.expiresAt;
         lockPhase = storedLock.phase === 'payment' ? 'payment' : 'email';
         lockedEmail = typeof storedLock.email === 'string' ? storedLock.email.trim() : '';
-        dbg('restored session lock', { lockedSlotId, lockPhase, expiresAt });
+        modalVisible = storedLock.modalVisible !== false;
+        modalUiStep = storedLock.modalUiStep === 'payment' ? 'payment' : 'email';
+        modalEmailEdit = !!storedLock.modalEmailEdit;
+        if (lockPhase === 'email') {
+          modalUiStep = 'email';
+          modalEmailEdit = false;
+        }
+        pendingPaymentFormRestore = storedLock.paymentForm || null;
+        dbg('restored session lock', {
+          lockedSlotId,
+          lockPhase,
+          expiresAt,
+          modalVisible,
+          modalUiStep,
+          modalEmailEdit,
+        });
       }
 
       await loadSlots();
@@ -1433,6 +1662,9 @@
         lockedSlotId,
         expiresAt,
         lockPhase,
+        modalVisible,
+        modalUiStep,
+        modalEmailEdit,
         slotsLen: slotsRaw.length,
         modalHidden: m ? m.hidden : null,
         hasHiddenAttr: m ? m.hasAttribute('hidden') : null,
@@ -1441,10 +1673,6 @@
     revokeSlot,
     clearLockClientState,
   };
-
-  console.log(
-    '[booking] ready — add ?bookingDebug=1 for verbose logs; in console: __booking.getState() or __booking.revokeSlot()'
-  );
 
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', () => {
