@@ -1,0 +1,123 @@
+<div class="admin-wrap admin-wrap--wide">
+  <header class="admin-header admin-header--bar">
+    <h1 class="admin-title">
+      <% if (typeof notFound !== 'undefined' && notFound) { %>
+        Termín
+      <% } else { %>
+        Termín #<%= slotId %>
+      <% } %>
+    </h1>
+    <a class="admin-btn admin-btn--ghost" href="<%= typeof backHref !== 'undefined' ? backHref : '/admin/slots' %>">Späť na kalendár</a>
+  </header>
+
+  <% if (typeof flash !== 'undefined' && flash) { %>
+    <p class="admin-flash admin-flash--<%= flash.level %>" role="status"><%= flash.message %></p>
+  <% } %>
+
+  <% if (typeof loadError !== 'undefined' && loadError) { %>
+    <p class="admin-error" role="alert">Nepodarilo sa načítať termín.</p>
+  <% } %>
+
+  <% if (typeof dbConfigured !== 'undefined' && !dbConfigured) { %>
+    <p class="admin-error" role="alert">Databáza nie je nakonfigurovaná.</p>
+  <% } %>
+
+  <% if (typeof notFound !== 'undefined' && notFound) { %>
+    <p class="admin-placeholder">Termín #<%= slotId %> sa nenašiel.</p>
+  <% } %>
+
+  <% if (typeof detail !== 'undefined' && detail) { %>
+  <section class="admin-detail" aria-label="Údaje termínu">
+    <dl class="admin-dl">
+      <div class="admin-dl__row"><dt>Dátum a čas (mriežka)</dt><dd><%= detail.sessionLabel %></dd></div>
+      <div class="admin-dl__row"><dt>Začiatok (<%= detail.timezone %>)</dt><dd><%= detail.startAtLabel %></dd></div>
+      <div class="admin-dl__row"><dt>Koniec (<%= detail.timezone %>)</dt><dd><%= detail.endAtLabel %></dd></div>
+      <div class="admin-dl__row"><dt>Kapacita</dt><dd><%= detail.capacity %></dd></div>
+      <div class="admin-dl__row"><dt>Stav v databáze</dt><dd><%= detail.slotStatusDbLabel %></dd></div>
+      <div class="admin-dl__row"><dt>Prehľad</dt><dd><span class="admin-status admin-status--<%= detail.summary.statusKey %>"><%= detail.summary.statusLabel %></span></dd></div>
+      <% if (detail.summary.email) { %>
+      <div class="admin-dl__row"><dt>E-mail (zámok / rezervácia)</dt><dd class="admin-table__email"><%= detail.summary.email %></dd></div>
+      <% } %>
+    </dl>
+  </section>
+
+  <% if (detail.lock) { %>
+  <section class="admin-detail" aria-label="Zámok">
+    <h2 class="admin-detail__subtitle">Aktívny zámok</h2>
+    <dl class="admin-dl">
+      <div class="admin-dl__row"><dt>E-mail</dt><dd class="admin-table__email"><%= detail.lock.email %></dd></div>
+      <div class="admin-dl__row"><dt>Expirovanie</dt><dd><%= detail.lock.expiresAtLabel %></dd></div>
+    </dl>
+  </section>
+  <% } %>
+
+  <% if (detail.pendingCheckout) { %>
+  <section class="admin-detail" aria-label="Stripe platba">
+    <h2 class="admin-detail__subtitle">Rozbehnutá platba (Stripe Checkout)</h2>
+    <dl class="admin-dl">
+      <div class="admin-dl__row"><dt>ID platby</dt><dd><%= detail.pendingCheckout.id %></dd></div>
+      <div class="admin-dl__row"><dt>Suma</dt><dd><%= detail.pendingCheckout.amountLabel %></dd></div>
+      <div class="admin-dl__row"><dt>Expirovanie checkoutu</dt><dd><%= detail.pendingCheckout.expiresAtLabel %></dd></div>
+      <div class="admin-dl__row"><dt>Stripe ref.</dt><dd class="admin-table__email"><%= detail.pendingCheckout.providerRef %></dd></div>
+    </dl>
+  </section>
+  <% } %>
+
+  <% if (detail.reservations && detail.reservations.length) { %>
+  <section class="admin-detail" aria-label="Rezervácie">
+    <h2 class="admin-detail__subtitle">Rezervácie na tento termín</h2>
+    <div class="admin-table-wrap">
+      <table class="admin-table">
+        <thead>
+          <tr>
+            <th scope="col">ID</th>
+            <th scope="col">E-mail</th>
+            <th scope="col">Stav</th>
+            <th scope="col">Vytvorené</th>
+            <th scope="col"></th>
+          </tr>
+        </thead>
+        <tbody>
+          <% for (const r of detail.reservations) { %>
+            <tr>
+              <td><%= r.id %><% if (r.isPrimary) { %> <span class="admin-bulk__hint">(aktívna)</span><% } %></td>
+              <td class="admin-table__email"><%= r.email %></td>
+              <td><span class="admin-status admin-status--<%= r.statusKey %>"><%= r.statusLabel %></span></td>
+              <td><%= r.createdAtLabel %></td>
+              <td><a class="admin-btn admin-btn--ghost admin-btn--small" href="/admin/reservations/<%= r.id %>">Detail</a></td>
+            </tr>
+          <% } %>
+        </tbody>
+      </table>
+    </div>
+  </section>
+  <% } %>
+
+  <section class="admin-detail" aria-label="Akcie">
+    <h2 class="admin-detail__subtitle">Akcie</h2>
+    <div class="admin-detail__actions admin-detail__actions--split">
+      <% if (detail.actions.block) { %>
+      <form method="post" action="/admin/slots/<%= detail.id %>/block" class="admin-inline-form">
+        <input type="hidden" name="returnMode" value="detail">
+        <button type="submit" class="admin-btn admin-btn--ghost">Zablokovať</button>
+      </form>
+      <% } %>
+      <% if (detail.actions.unblock) { %>
+      <form method="post" action="/admin/slots/<%= detail.id %>/unblock" class="admin-inline-form">
+        <input type="hidden" name="returnMode" value="detail">
+        <button type="submit" class="admin-btn admin-btn--ghost">Odblokovať</button>
+      </form>
+      <% } %>
+      <% if (detail.actions.cancel) { %>
+      <form method="post" action="/admin/slots/<%= detail.id %>/cancel" class="admin-inline-form" onsubmit="return confirm('Zrušiť tento termín?');">
+        <input type="hidden" name="returnMode" value="detail">
+        <button type="submit" class="admin-btn admin-btn--ghost">Zrušiť termín</button>
+      </form>
+      <% } %>
+    </div>
+    <% if (!detail.actions.block && !detail.actions.unblock && !detail.actions.cancel) { %>
+      <p class="admin-bulk__hint">Pre tento termín nie sú k dispozícii žiadne akcie.</p>
+    <% } %>
+  </section>
+  <% } %>
+</div>

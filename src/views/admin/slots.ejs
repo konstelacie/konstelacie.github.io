@@ -119,7 +119,7 @@
               <tbody>
                 <% for (const slot of day.slots) { %>
                   <tr>
-                    <td><%= slot.timeKey %></td>
+                    <td><a href="/admin/slots/<%= slot.id %>?view=<%= view %>&amp;date=<%= anchorDate %>"><%= slot.timeKey %></a></td>
                     <td><span class="admin-status admin-status--<%= slot.statusKey %>"><%= slot.statusLabel %></span></td>
                     <td class="admin-table__email"><%= slot.email ? slot.email : '—' %></td>
                     <td class="admin-table__actions">

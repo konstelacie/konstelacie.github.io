@@ -7,7 +7,7 @@ const { getPool } = require('../db');
 const auditRepo = require('../db/repositories/auditRepo');
 const slotsRepo = require('../db/repositories/slotsRepo');
 const reservationsRepo = require('../db/repositories/reservationsRepo');
-const { groupAdminSlotsByDay } = require('../lib/adminSlotDisplay');
+const { groupAdminSlotsByDay, mapAdminSlotDetail } = require('../lib/adminSlotDisplay');
 const { mapReservationListRow, mapAdminDetail } = require('../lib/adminReservationDisplay');
 const {
   parseTimeKeysFromForm,
@@ -329,6 +329,22 @@ function parseReturnQuery(body) {
   return slotsQuery(view, date);
 }
 
+function parseSlotActionRedirect(body, slotId) {
+  if (body && body.returnMode === 'detail' && slotId) {
+    return `/admin/slots/${slotId}`;
+  }
+  return `/admin/slots${parseReturnQuery(body)}`;
+}
+
+function slotDetailBackHref(req) {
+  const view = req.query.view === 'week' ? 'week' : 'day';
+  const raw = typeof req.query.date === 'string' ? req.query.date : '';
+  const date = /^\d{4}-\d{2}-\d{2}$/.test(raw)
+    ? raw
+    : DateTime.now().setZone(SLOT_TIMEZONE).toISODate();
+  return `/admin/slots${slotsQuery(view, date)}`;
+}
+
 function sortCellsForDisplay(cells) {
   return [...cells].sort((a, b) => {
     if (a.localDate !== b.localDate) return a.localDate.localeCompare(b.localDate);
@@ -417,6 +433,8 @@ function mapSlotActionError(code) {
       return 'Táto akcia nie je v aktuálnom stave dostupná.';
     case 'HAS_RESERVATION':
       return 'Termín má aktívnu rezerváciu. Zablokovať sa dá len voľný termín.';
+    case 'HAS_PENDING_PAYMENT':
+      return 'Termín má rozbehnutú platbu Stripe. Počkajte alebo zrušte termín.';
     case 'ALREADY_CANCELLED':
       return 'Termín je už zrušený.';
     default:
@@ -425,8 +443,8 @@ function mapSlotActionError(code) {
 }
 
 async function handleSlotPost(req, res, actionFn, successMessage, auditAction) {
-  const returnTo = `/admin/slots${parseReturnQuery(req.body)}`;
   const slotId = parseSlotIdParam(req.params.slotId);
+  const returnTo = parseSlotActionRedirect(req.body, slotId);
   if (!slotId) {
     req.session.adminFlash = { level: 'error', message: 'Neplatný termín.' };
     return res.redirect(returnTo);
@@ -1147,6 +1165,80 @@ router.post('/slots/:slotId/unblock', requireAdmin, async (req, res) => {
 
 router.post('/slots/:slotId/cancel', requireAdmin, async (req, res) => {
   await handleSlotPost(req, res, slotsRepo.adminCancelSlot, 'Termín bol zrušený.', 'slot_cancelled');
+});
+
+router.get('/slots/:slotId', requireAdmin, async (req, res) => {
+  const slotId = parseSlotIdParam(req.params.slotId);
+  if (!slotId) {
+    return res.redirect('/admin/slots');
+  }
+  const flash = req.session.adminFlash;
+  if (flash) {
+    delete req.session.adminFlash;
+  }
+  const backHref = slotDetailBackHref(req);
+
+  try {
+    const pool = getPool();
+    if (!pool) {
+      return res.render('admin/slot-detail', {
+        layout: 'layouts/admin',
+        title: `Termín #${slotId}`,
+        adminSection: 'slots',
+        dbConfigured: false,
+        loadError: false,
+        notFound: false,
+        flash,
+        detail: null,
+        slotId,
+        backHref,
+      });
+    }
+
+    const raw = await slotsRepo.getAdminDetailById(slotId);
+    if (!raw) {
+      return res.status(404).render('admin/slot-detail', {
+        layout: 'layouts/admin',
+        title: 'Termín',
+        adminSection: 'slots',
+        dbConfigured: true,
+        loadError: false,
+        notFound: true,
+        flash,
+        detail: null,
+        slotId,
+        backHref,
+      });
+    }
+
+    const detail = mapAdminSlotDetail(raw);
+    return res.render('admin/slot-detail', {
+      layout: 'layouts/admin',
+      title: `Termín #${slotId} — ${detail.sessionLabel}`,
+      adminSection: 'slots',
+      dbConfigured: true,
+      loadError: false,
+      notFound: false,
+      flash,
+      detail,
+      slotId,
+      backHref,
+    });
+  } catch (err) {
+    console.error('[admin/slots/:slotId]', err);
+    return res.status(500).render('admin/slot-detail', {
+      layout: 'layouts/admin',
+      title: `Termín #${slotId}`,
+      adminSection: 'slots',
+      dbConfigured: !!getPool(),
+      loadError: true,
+      notFound: false,
+      flash,
+      detail: null,
+      slotId,
+      backHref,
+    });
+  }
 });
 
 router.get('/slots', requireAdmin, async (req, res) => {

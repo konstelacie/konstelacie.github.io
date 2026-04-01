@@ -1,6 +1,98 @@
 const { DateTime } = require('luxon');
 const { timeKeyForGridIndex, SLOT_TIMEZONE } = require('../config/slotGrid');
 const { mysqlLocalDateToYmd } = require('./slotApiMap');
+const { reservationStatusLabel, formatAmountCents } = require('./adminReservationDisplay');
+
+function slotStatusDbLabel(status) {
+  switch (status) {
+    case 'open':
+      return 'Voľný';
+    case 'blocked':
+      return 'Zablokovaný';
+    case 'cancelled':
+      return 'Zrušený';
+    default:
+      return status || '—';
+  }
+}
+
+function pickPrimaryReservationForActions(reservations) {
+  const order = ['confirmed', 'pending_payment', 'draft'];
+  for (const st of order) {
+    const r = reservations.find((x) => x.status === st);
+    if (r) return r;
+  }
+  return null;
+}
+
+function formatTsLocal(value) {
+  if (value == null) return '—';
+  const asDate = value instanceof Date ? value : new Date(value);
+  return DateTime.fromJSDate(asDate).setZone(SLOT_TIMEZONE).setLocale('sk').toLocaleString(DateTime.DATETIME_SHORT);
+}
+
+/**
+ * @param {{ slotRow: object, reservations: object[] }} raw from slotsRepo.getAdminDetailById
+ */
+function mapAdminSlotDetail(raw) {
+  const { slotRow, reservations } = raw;
+  const primary = pickPrimaryReservationForActions(reservations);
+  const synthetic = {
+    ...slotRow,
+    reservation_id: primary ? primary.id : null,
+    reservation_email: primary ? primary.email : null,
+    reservation_status: primary ? primary.status : null,
+  };
+  const summary = mapAdminSlotRow(synthetic);
+  const localDate = mysqlLocalDateToYmd(slotRow.local_date);
+  const timeKey = timeKeyForGridIndex(Number(slotRow.grid_index));
+
+  const lock =
+    slotRow.lock_id != null
+      ? {
+          email: slotRow.lock_email || '—',
+          expiresAtLabel: formatTsLocal(slotRow.lock_expires_at),
+        }
+      : null;
+
+  const pendingCheckout =
+    slotRow.pending_checkout_payment_id != null
+      ? {
+          id: slotRow.pending_checkout_payment_id,
+          providerRef: slotRow.pending_checkout_provider_ref || '—',
+          amountLabel: formatAmountCents(slotRow.pending_checkout_amount_cents),
+          expiresAtLabel: formatTsLocal(slotRow.pending_checkout_expires_at),
+        }
+      : null;
+
+  const primaryId = primary ? primary.id : null;
+  const reservationRows = reservations.map((r) => ({
+    id: r.id,
+    email: r.email,
+    statusKey: r.status,
+    statusLabel: reservationStatusLabel(r.status),
+    createdAtLabel: formatTsLocal(r.created_at),
+    isPrimary: primaryId != null && r.id === primaryId,
+  }));
+
+  return {
+    id: slotRow.id,
+    localDate,
+    timeKey,
+    sessionLabel: `${localDate} ${timeKey}`,
+    startAtLabel: formatTsLocal(slotRow.start_at_utc),
+    endAtLabel: formatTsLocal(slotRow.end_at_utc),
+    timezone: slotRow.timezone || SLOT_TIMEZONE,
+    capacity: slotRow.capacity,
+    slotStatusRaw: slotRow.slot_status,
+    slotStatusDbLabel: slotStatusDbLabel(slotRow.slot_status),
+    summary,
+    lock,
+    pendingCheckout,
+    reservations: reservationRows,
+    actions: summary.actions,
+  };
+}
 
 function computeAdminSlotActions(row) {
   const slotStatus = row.slot_status;
@@ -155,4 +247,8 @@ function groupAdminSlotsByDay(rows, fromIso, toIso, zone = SLOT_TIMEZONE) {
   return Array.from(byDate.values());
 }
 
-module.exports = { mapAdminSlotRow, groupAdminSlotsByDay };
+module.exports = {
+  mapAdminSlotRow,
+  groupAdminSlotsByDay,
+  mapAdminSlotDetail,
+};

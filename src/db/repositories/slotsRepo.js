@@ -66,6 +66,51 @@ async function getById(slotId) {
  * Includes active lock and active reservation (pending_payment | confirmed) for display.
  * from/to: ISO date strings YYYY-MM-DD.
  */
+/**
+ * Single slot for admin detail: lock + pending Stripe checkout (if any); no reservation join (use list query separately).
+ */
+async function getAdminDetailById(slotId) {
+  const pool = getPool();
+  if (!pool) throw new Error('Database not configured');
+
+  await paymentsRepo.reconcileExpiredStripeCheckouts(pool);
+
+  const [slotRows] = await pool.execute(
+    `SELECT
+      s.id,
+      s.local_date,
+      s.grid_index,
+      s.start_at_utc,
+      s.end_at_utc,
+      s.timezone,
+      s.status AS slot_status,
+      s.capacity,
+      l.id AS lock_id,
+      l.email AS lock_email,
+      l.expires_at AS lock_expires_at,
+      (SELECT p2.id FROM payments p2 WHERE ${PENDING_CHECKOUT_WHERE} LIMIT 1) AS pending_checkout_payment_id,
+      (SELECT p2.provider_ref FROM payments p2 WHERE ${PENDING_CHECKOUT_WHERE} LIMIT 1) AS pending_checkout_provider_ref,
+      (SELECT p2.checkout_expires_at FROM payments p2 WHERE ${PENDING_CHECKOUT_WHERE} LIMIT 1) AS pending_checkout_expires_at,
+      (SELECT p2.amount_cents FROM payments p2 WHERE ${PENDING_CHECKOUT_WHERE} LIMIT 1) AS pending_checkout_amount_cents
+    FROM slots s
+    LEFT JOIN slot_locks l ON l.slot_id = s.id AND l.expires_at > NOW(3)
+    WHERE s.id = ?`,
+    [slotId]
+  );
+  if (!slotRows[0]) return null;
+
+  const [reservationRows] = await pool.execute(
+    `SELECT id, email, status, payment_type, created_at, cancelled_at
+     FROM reservations
+     WHERE slot_id = ?
+     ORDER BY id DESC
+     LIMIT 50`,
+    [slotId]
+  );
+
+  return { slotRow: slotRows[0], reservations: reservationRows };
+}
+
 async function listSlotsForAdmin(from, to) {
   const pool = getPool();
   if (!pool) throw new Error('Database not configured');
@@ -379,6 +424,7 @@ async function deleteOldUnusedSlotsBatch(batchSize) {
 module.exports = {
   listSlotsWithLocks,
   getById,
+  getAdminDetailById,
   listSlotsForAdmin,
   adminBlockSlot,
   adminUnblockSlot,
