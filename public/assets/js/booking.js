@@ -75,6 +75,11 @@
   /** Set when redirecting to Stripe so GET /api/slots can treat the hold as mine if the lock row already expired. */
   const CHECKOUT_SESSION_STORAGE_KEY = 'booking_checkout_session';
   const FUNNEL_CTX_KEY = 'booking_funnel_ctx';
+  /** Cross-tab: localStorage `storage` + BroadcastChannel so other tabs reopen the booking modal when one tab locks. */
+  const BROADCAST_CHANNEL_NAME = 'booking_lock_sync';
+  let bookingCrossTabChannel = null;
+  /** While > 0, `storeLock` is a no-op (avoid echo when applying another tab's snapshot). */
+  let suppressCrossTabApply = 0;
 
   function clearCheckoutSessionStorage() {
     try {
@@ -214,7 +219,17 @@
     return null;
   }
 
+  function broadcastBookingLockToOtherTabs() {
+    if (!bookingCrossTabChannel) return;
+    try {
+      bookingCrossTabChannel.postMessage({ type: 'booking_lock' });
+    } catch (e) {
+      logStorageError('broadcastBookingLockToOtherTabs', e);
+    }
+  }
+
   function storeLock() {
+    if (suppressCrossTabApply > 0) return;
     try {
       let lockedSlotDate = '';
       if (lockedSlotId) {
@@ -247,6 +262,7 @@
           paymentForm,
         })
       );
+      broadcastBookingLockToOtherTabs();
     } catch (e) {
       logStorageError('storeLock', e);
     }
@@ -308,6 +324,23 @@
       logStorageError('getStoredLock', e);
       return null;
     }
+  }
+
+  /** Apply parsed lock + modal fields from `getStoredLock()` into module state (no I/O). */
+  function applyMemoryFromStoredLockPayload(stored) {
+    lockToken = stored.lockToken;
+    lockedSlotId = stored.lockedSlotId;
+    expiresAt = stored.expiresAt;
+    lockPhase = stored.phase === 'payment' ? 'payment' : 'email';
+    lockedEmail = typeof stored.email === 'string' ? stored.email.trim() : '';
+    modalVisible = stored.modalVisible !== false;
+    modalUiStep = stored.modalUiStep === 'payment' ? 'payment' : 'email';
+    modalEmailEdit = !!stored.modalEmailEdit;
+    if (lockPhase === 'email') {
+      modalUiStep = 'email';
+      modalEmailEdit = false;
+    }
+    pendingPaymentFormRestore = stored.paymentForm || null;
   }
 
   function getTodayLocal() {
@@ -1055,6 +1088,54 @@
     closeEmailModal();
     const hold = $('booking-hold-banner');
     if (hold) hold.hidden = true;
+    // Clears are visible to other tabs via the `storage` event on removeItem — no BroadcastChannel needed.
+  }
+
+  /** Sync modal + lock from localStorage after another tab updated it (`storage` or BroadcastChannel). */
+  function applyBookingStateFromOtherTabs() {
+    const inner = $('booking-calendar-inner');
+    if (!inner) return;
+
+    const stored = getStoredLock();
+    if (!stored) {
+      if (!lockToken && !isEmailModalOpen()) return;
+      suppressCrossTabApply++;
+      try {
+        clearLockClientState();
+      } finally {
+        suppressCrossTabApply--;
+      }
+      void loadSlots({ silent: true });
+      return;
+    }
+
+    applyMemoryFromStoredLockPayload(stored);
+    suppressCrossTabApply++;
+    try {
+      ensureBookingModalPortaledToBody();
+      showRestoredLockUiIfNeeded();
+    } finally {
+      suppressCrossTabApply--;
+    }
+    void loadSlots({ silent: true });
+  }
+
+  function registerCrossTabSync() {
+    window.addEventListener('storage', (e) => {
+      if (e.key !== STORAGE_KEY || e.storageArea !== localStorage) return;
+      dbg('cross-tab storage', { key: e.key });
+      applyBookingStateFromOtherTabs();
+    });
+    if (typeof BroadcastChannel === 'undefined') return;
+    try {
+      bookingCrossTabChannel = new BroadcastChannel(BROADCAST_CHANNEL_NAME);
+      bookingCrossTabChannel.onmessage = () => {
+        dbg('cross-tab BroadcastChannel message');
+        applyBookingStateFromOtherTabs();
+      };
+    } catch (e) {
+      logStorageError('registerCrossTabSync: BroadcastChannel', e);
+    }
   }
 
   /** Beyond this, the hold is tied to Stripe checkout (far-future server expiry) — show copy instead of a minute timer. */
@@ -1609,6 +1690,7 @@
 
       ensureBookingModalPortaledToBody();
       registerBookingEventListeners();
+      registerCrossTabSync();
       dbg('listeners registered');
 
       if (location.hash === '#booking') {
@@ -1620,19 +1702,7 @@
 
       const storedLock = getStoredLock();
       if (storedLock) {
-        lockToken = storedLock.lockToken;
-        lockedSlotId = storedLock.lockedSlotId;
-        expiresAt = storedLock.expiresAt;
-        lockPhase = storedLock.phase === 'payment' ? 'payment' : 'email';
-        lockedEmail = typeof storedLock.email === 'string' ? storedLock.email.trim() : '';
-        modalVisible = storedLock.modalVisible !== false;
-        modalUiStep = storedLock.modalUiStep === 'payment' ? 'payment' : 'email';
-        modalEmailEdit = !!storedLock.modalEmailEdit;
-        if (lockPhase === 'email') {
-          modalUiStep = 'email';
-          modalEmailEdit = false;
-        }
-        pendingPaymentFormRestore = storedLock.paymentForm || null;
+        applyMemoryFromStoredLockPayload(storedLock);
         dbg('restored session lock', {
           lockedSlotId,
           lockPhase,
