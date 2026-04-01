@@ -465,6 +465,11 @@
     return !!(modal && !modal.hidden);
   }
 
+  function isBookingPaymentStepVisible() {
+    const pay = $('booking-payment-choice');
+    return !!(pay && !pay.hidden);
+  }
+
   function setBookingModalStep(step) {
     const emailStep = $('booking-modal-step-email');
     const payChoice = $('booking-payment-choice');
@@ -1659,22 +1664,40 @@
 
     if (lockPhase === 'payment') {
       const emailInput = $('booking-email');
-      if (emailInput) emailInput.value = lockedEmail;
+      if (emailInput) {
+        const editingEmail =
+          isEmailModalOpen() && modalUiStep === 'email' && modalEmailEdit;
+        if (!editingEmail) {
+          emailInput.value = lockedEmail;
+        }
+      }
       if (modalUiStep === 'email' && modalEmailEdit) {
-        openBookingModal({ step: 'email', edit: true });
+        if (!isEmailModalOpen()) {
+          openBookingModal({ step: 'email', edit: true });
+        }
       } else {
-        openBookingModal({ step: 'payment' });
-        applyPaymentFormStateToDom(pendingPaymentFormRestore);
-        pendingPaymentFormRestore = null;
-        if (lockToken) storeLock();
+        const alreadyOnPayment =
+          isEmailModalOpen() &&
+          isBookingPaymentStepVisible() &&
+          modalUiStep === 'payment';
+        if (!alreadyOnPayment) {
+          openBookingModal({ step: 'payment' });
+          applyPaymentFormStateToDom(pendingPaymentFormRestore);
+          pendingPaymentFormRestore = null;
+          if (lockToken) storeLock();
+        } else {
+          pendingPaymentFormRestore = null;
+        }
       }
       updateCountdown();
       startCountdown();
       return;
     }
-    const emailInputOpen = $('booking-email');
-    if (emailInputOpen) emailInputOpen.value = '';
-    openEmailModal(false);
+    if (!isEmailModalOpen()) {
+      const emailInputOpen = $('booking-email');
+      if (emailInputOpen) emailInputOpen.value = '';
+      openEmailModal(false);
+    }
     updateCountdown();
     startCountdown();
   }
