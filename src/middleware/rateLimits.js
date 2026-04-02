@@ -78,10 +78,22 @@ const cronLimiter = rateLimit({
   max: 30,
 });
 
+/** GET /api/slots/:slotId/lock-challenge — cooldown-style cap per IP+slot. */
+const lockChallengeGetLimiter = rateLimit({
+  ...limiterOptions,
+  max: 15,
+  keyGenerator: (req) => {
+    const ip = ipKeyGenerator(req.ip || req.socket?.remoteAddress || '', 56);
+    const sid = req.params?.slotId != null ? String(req.params.slotId) : 'na';
+    return `lockch:${sid}:${ip}`;
+  },
+});
+
 module.exports = {
   slotsListLimiter,
   bookingWriteLimiter,
   slotPostBySlotLimiter,
+  lockChallengeGetLimiter,
   revokeLimiter,
   paymentsStatusLimiter,
   paymentsMutationLimiter,

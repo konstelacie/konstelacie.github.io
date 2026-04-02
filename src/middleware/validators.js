@@ -62,9 +62,25 @@ function validateLockToken(lockToken) {
   return lockToken;
 }
 
+/** 32-byte token as base64url (~43 chars); min 128 bits entropy. */
+function validateChallengeToken(raw) {
+  if (raw == null || typeof raw !== 'string') {
+    throw new ApiError('VALIDATION_ERROR', 'challengeToken is required', 400);
+  }
+  const t = raw.trim();
+  if (t.length < 32 || t.length > 128) {
+    throw new ApiError('VALIDATION_ERROR', 'challengeToken is invalid', 400);
+  }
+  if (!/^[A-Za-z0-9_-]+$/.test(t)) {
+    throw new ApiError('VALIDATION_ERROR', 'challengeToken is invalid', 400);
+  }
+  return t;
+}
+
 module.exports = {
   validateSlotId,
   validateDateRange,
   validateEmail,
   validateLockToken,
+  validateChallengeToken,
 };

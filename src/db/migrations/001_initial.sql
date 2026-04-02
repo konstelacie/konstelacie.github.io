@@ -57,6 +57,19 @@ CREATE TABLE slot_locks (
   CONSTRAINT fk_slot_locks_slot FOREIGN KEY (slot_id) REFERENCES slots(id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+-- slot_lock_challenges: capability tokens for POST /slots/:id/lock (Phase 2 security; short TTL, single-use)
+CREATE TABLE slot_lock_challenges (
+  id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  slot_id BIGINT UNSIGNED NOT NULL,
+  challenge_token VARCHAR(128) NOT NULL,
+  expires_at DATETIME(3) NOT NULL,
+  used_at DATETIME(3) NULL,
+  created_at DATETIME(3) DEFAULT CURRENT_TIMESTAMP(3),
+  UNIQUE KEY uq_challenge_token (challenge_token),
+  INDEX idx_challenge_slot_expires (slot_id, expires_at),
+  CONSTRAINT fk_challenge_slot FOREIGN KEY (slot_id) REFERENCES slots(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
 -- reservations: created after lock, before payment
 CREATE TABLE reservations (
   id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,

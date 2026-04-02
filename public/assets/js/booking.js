@@ -1223,10 +1223,27 @@
     renderCalendar();
 
     try {
+      const chRes = await fetch(`/api/slots/${slotId}/lock-challenge`, { method: 'GET' });
+      const chData = await chRes.json().catch(() => ({}));
+      if (!chRes.ok) {
+        pendingSlotId = null;
+        await loadSlots();
+        showGlobalError(userMessage(chData.error) || 'Termíny nie sú dostupné');
+        return;
+      }
+      const challengeToken =
+        typeof chData.challengeToken === 'string' ? chData.challengeToken.trim() : '';
+      if (!challengeToken) {
+        pendingSlotId = null;
+        await loadSlots();
+        showGlobalError('Termíny nie sú dostupné');
+        return;
+      }
+
       const res = await fetch(`/api/slots/${slotId}/lock`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: null }),
+        body: JSON.stringify({ email: null, challengeToken }),
       });
       const data = await res.json();
 

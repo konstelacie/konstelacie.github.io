@@ -80,14 +80,37 @@ Slots include explicit calendar coordinates (`localDate`, `gridIndex`, `timeKey`
 
 ---
 
+## GET /api/slots/:slotId/lock-challenge
+
+Issue a short-lived **challenge token** (≈2 minutes, single-use) bound to the slot. The booking UI calls this **immediately before** **POST /api/slots/:slotId/lock** and sends the token in the lock body.
+
+**Response 200:**
+
+```json
+{
+  "ok": true,
+  "challengeToken": "<base64url ~43 chars>",
+  "challengeExpiresAt": "2026-03-05T18:02:00.000Z"
+}
+```
+
+**Response 409:** Slot not bookable (same opaque handling as lock; no extra detail in production).
+
+---
+
 ## POST /api/slots/:slotId/lock
 
 Lock a slot for **5 minutes** (time to enter email in the booking UI). Use **POST /api/slots/:slotId/extend-lock** after the user submits email to extend the hold to **15 minutes** for payment.
 
-**Body (optional):**
+Requires a valid **`challengeToken`** from **GET /api/slots/:slotId/lock-challenge** (single-use, not expired).
+
+**Body:**
 
 ```json
-{ "email": "optional@domain.com" }
+{
+  "challengeToken": "<from lock-challenge>",
+  "email": "optional@domain.com"
+}
 ```
 
 **Response 200:**

@@ -64,7 +64,24 @@ Bookable time slots. Admin-created. See `docs/RESERVATION-SYSTEM-ARCHITECTURE.md
 
 **Indexes:** `(local_date)`, `(start_at_utc)`, `(status, start_at_utc)`.
 
-**Relations:** Referenced by `slot_locks.slot_id`, `reservations.slot_id`.
+**Relations:** Referenced by `slot_locks.slot_id`, `slot_lock_challenges.slot_id`, `reservations.slot_id`.
+
+---
+
+### slot_lock_challenges
+
+Single-use capability tokens for **POST /api/slots/:slotId/lock** (see **GET /api/slots/:slotId/lock-challenge**). Short TTL (~2 minutes); expired rows are deleted opportunistically.
+
+| Column          | Type         | Description                    |
+|-----------------|--------------|--------------------------------|
+| id              | PK           | Auto-increment                 |
+| slot_id         | FK → slots   | NOT NULL                       |
+| challenge_token | VARCHAR(128) | NOT NULL, UNIQUE               |
+| expires_at      | DATETIME(3)  | NOT NULL                       |
+| used_at         | DATETIME(3)  | NULL — set when lock consumes  |
+| created_at      | DATETIME(3)  |                                |
+
+**Indexes:** `(slot_id, expires_at)`; unique on `challenge_token`.
 
 ---
 
@@ -84,6 +101,8 @@ Short-lived holds on a slot while the funnel books. **`expires_at`** is set by t
 **Indexes:** `(slot_id)`, `(expires_at)`.
 
 **Relations:** `slot_id` → slots. Lock is deleted after reservation is created.
+
+**See also:** `slot_lock_challenges` (pre-lock capability tokens).
 
 ---
 
@@ -268,6 +287,7 @@ users ←── reservations ──→ slots
 billing_document_counters — yearly `next_seq` for document_number (no FK from billing_documents)
 
 slot_locks → slots
+slot_lock_challenges → slots
 payments → reservations
 webhook_events (standalone)
 email_sent_log (standalone)
