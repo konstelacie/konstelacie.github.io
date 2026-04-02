@@ -1,8 +1,11 @@
+const crypto = require('crypto');
 const express = require('express');
 const path = require('path');
 const session = require('express-session');
 
 const config = require('./config');
+const securityHeaders = require('./middleware/securityHeaders');
+const apiAccessLog = require('./middleware/apiAccessLog');
 const indexRouter = require('./routes/index');
 const legalRouter = require('./routes/legal');
 const funnelsRouter = require('./routes/funnels');
@@ -18,6 +21,8 @@ if (config.env === 'production') {
   app.set('trust proxy', 1);
 }
 
+app.use(securityHeaders);
+
 function resolveSessionSecret() {
   if (config.admin.sessionSecret) return config.admin.sessionSecret;
   if (config.env !== 'production') return 'dev-session-secret-change-in-prod';
@@ -29,9 +34,20 @@ app.set('view engine', 'ejs');
 app.set('views', path.join(__dirname, 'views'));
 app.use(require('express-ejs-layouts'));
 
-// Stripe webhook: raw body + signature verification (see src/routes/api/stripe.js).
+// Stripe webhook: request id + access log + raw body + signature verification (see src/routes/api/stripe.js).
 const stripeWebhookRouter = require('./routes/api/stripe');
-app.use('/api/stripe/webhook', express.raw({ type: 'application/json' }), stripeWebhookRouter);
+function stripeWebhookRequestId(req, res, next) {
+  req.id = req.get('X-Request-Id') || crypto.randomBytes(8).toString('hex');
+  res.setHeader('X-Request-Id', req.id);
+  next();
+}
+app.use(
+  '/api/stripe/webhook',
+  stripeWebhookRequestId,
+  apiAccessLog,
+  express.raw({ type: 'application/json' }),
+  stripeWebhookRouter
+);
 
 // Middleware
 app.use(express.json());

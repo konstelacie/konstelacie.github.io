@@ -50,6 +50,12 @@ module.exports = {
   cron: {
     secret: process.env.CRON_SECRET || '',
   },
+  /**
+   * Phase 3 security headers. Set ENABLE_SECURITY_CSP=0 to disable CSP in production if needed.
+   */
+  security: {
+    enableCsp: process.env.ENABLE_SECURITY_CSP !== '0',
+  },
   admin: {
     /** Plain-text env credentials for the internal admin UI (single operator). */
     username: process.env.ADMIN_USERNAME || '',

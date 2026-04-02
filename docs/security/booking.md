@@ -482,6 +482,19 @@ Recommended:
 * Optional WAF / proxy rules
 * DB privilege hardening
 
+**Implemented in app (Phase 3)**
+
+* **Request IDs** — `X-Request-Id` on `/api/*` and `/api/stripe/webhook` (see `requestId.js`, `app.js`).
+* **Structured access logs** — one JSON line per API response (`tag: api_access`, `requestId`, `method`, `path`, `status`, `ms`) — grep for `"status":429` or `"status":5` for spikes; `level` is `warn` for 429, `error` for 5xx.
+* **Stripe webhook logs** — `stripe_webhook_received`, `stripe_webhook_checkout_completed` (after successful `checkout.session.completed`), `duplicate`, `invalid_signature`, `stripe_webhook_unhandled` (see `src/routes/api/stripe.js`).
+* **Security headers** — `X-Content-Type-Options`, `Referrer-Policy`, `X-Frame-Options`, `Permissions-Policy`; in production also **HSTS** and **CSP** (Meta Pixel allowed: `connect.facebook.net`, `www.facebook.com`). Disable CSP with **`ENABLE_SECURITY_CSP=0`** if something breaks.
+
+**Operator / infra (not in repo)**
+
+* **Alerts** — point your log stack at JSON lines above (e.g. high counts of `api_access` lines with `"status":429` or `"level":"error"`).
+* **WAF / proxy** — optional rate limits and bot rules at alwaysdata or CDN.
+* **DB privileges** — grant the app MySQL user only `SELECT/INSERT/UPDATE/DELETE` on app tables; separate migration/admin user.
+
 ---
 
 ## Final Model Summary

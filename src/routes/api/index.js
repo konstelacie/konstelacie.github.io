@@ -1,5 +1,6 @@
 const express = require('express');
 const requestIdMiddleware = require('../../middleware/requestId');
+const apiAccessLog = require('../../middleware/apiAccessLog');
 const { revokeLimiter } = require('../../middleware/rateLimits');
 const { asyncHandler } = require('../../middleware/apiError');
 const { validateSlotId, validateLockToken } = require('../../middleware/validators');
@@ -14,6 +15,7 @@ const cronRouter = require('./cron');
 const router = express.Router();
 
 router.use(requestIdMiddleware);
+router.use(apiAccessLog);
 
 router.post(
   '/revoke',

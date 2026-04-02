@@ -1,5 +1,6 @@
 const express = require('express');
 const Stripe = require('stripe');
+const { logLine } = require('../../lib/structuredLog');
 const { asyncHandler } = require('../../middleware/apiError');
 const { validateLockToken } = require('../../middleware/validators');
 const { getPool } = require('../../db');
@@ -123,6 +124,12 @@ router.post(
     const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
 
     if (!sig || !webhookSecret) {
+      logLine({
+        level: 'warn',
+        tag: 'stripe_webhook',
+        requestId: req.id,
+        error: 'missing_signature_or_webhook_secret',
+      });
       return res.status(400).json({ ok: false, error: 'Missing signature or webhook secret' });
     }
 
@@ -130,8 +137,22 @@ router.post(
     try {
       event = Stripe.webhooks.constructEvent(req.body, sig, webhookSecret);
     } catch (err) {
+      logLine({
+        level: 'warn',
+        tag: 'stripe_webhook',
+        requestId: req.id,
+        error: 'invalid_signature',
+      });
       return res.status(400).json({ ok: false, error: 'Invalid signature' });
     }
+
+    logLine({
+      level: 'info',
+      tag: 'stripe_webhook_received',
+      requestId: req.id,
+      eventType: event.type,
+      eventId: event.id,
+    });
 
     const pool = getPool();
     if (!pool) {
@@ -139,6 +160,14 @@ router.post(
     }
 
     if (await isEventAlreadyProcessed(pool, event.id)) {
+      logLine({
+        level: 'info',
+        tag: 'stripe_webhook',
+        requestId: req.id,
+        eventType: event.type,
+        eventId: event.id,
+        duplicate: true,
+      });
       return res.status(200).json({ received: true });
     }
 
@@ -194,6 +223,16 @@ router.post(
             [event.id]
           );
           await conn.commit();
+
+          logLine({
+            level: 'info',
+            tag: 'stripe_webhook_checkout_completed',
+            requestId: req.id,
+            eventId: event.id,
+            reservationId: reservationIdForEmail,
+            paymentId: payment.id,
+            sessionId: session.id,
+          });
 
           await auditRepo.log(
             'reservation_created',
@@ -291,7 +330,13 @@ router.post(
         break;
       }
       default:
-        console.log('[Stripe webhook] unhandled event', event.type, event.id);
+        logLine({
+          level: 'info',
+          tag: 'stripe_webhook_unhandled',
+          requestId: req.id,
+          eventType: event.type,
+          eventId: event.id,
+        });
     }
 
     res.status(200).json({ received: true });
