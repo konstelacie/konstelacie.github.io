@@ -53,7 +53,7 @@
     if (state === 'loading') {
       setTitle(titleEl, 'Potvrdzujeme platbu');
     } else if (state === 'processing') {
-      setTitle(titleEl, 'Platba sa spracováva');
+      setTitle(titleEl, 'Potvrdenie ešte pripravujeme');
     } else if (state === 'error') {
       setTitle(titleEl, 'Nepodarilo sa načítať potvrdenie');
     } else if (state === 'confirmed' && data) {
