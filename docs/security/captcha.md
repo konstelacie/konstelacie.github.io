@@ -479,6 +479,57 @@ This reduces risk of hurting conversion too early.
 
 ---
 
+## Implementation (app)
+
+This codebase implements adaptive **Google reCAPTCHA v3** as a secondary layer:
+
+| Surface | HTTP route | `route` in logs |
+|--------|------------|-----------------|
+| Lock | `POST /api/slots/:slotId/lock` | `lock` |
+| Payment / checkout start | `POST /api/payments/start` | `payment_start` |
+
+There is no separate `POST /api/reservations` for the public funnel; the doc’s “reservation” step here is **payment start** (Stripe Checkout session creation). **Read** endpoints are unchanged (no captcha).
+
+### Modes (`CAPTCHA_MODE`)
+
+| Value | Behavior |
+|-------|----------|
+| `off` (default) | No velocity recording, no captcha. |
+| `shadow` | Record per-IP POST counts; when the threshold would be exceeded, log JSON with `tag: captcha_would_require` and still allow the request. |
+| `enforce` | Same velocity; when threshold exceeded, require valid `captchaToken` in the JSON body or respond `403` with `error: captcha_required`. |
+
+If `enforce` is set but `RECAPTCHA_SECRET_KEY` is missing, the server logs a warning and **allows** the request (avoid locking users out).
+
+### Environment variables
+
+| Variable | Purpose |
+|----------|---------|
+| `CAPTCHA_MODE` | `off` \| `shadow` \| `enforce` |
+| `RECAPTCHA_SECRET_KEY` | Server-side secret for Google `siteverify` (required for enforce to actually block). |
+| `RECAPTCHA_SITE_KEY` | Public v3 key; funnel pages inject it for `booking.js` (required for users to solve in enforce). |
+| `RECAPTCHA_MIN_SCORE` | v3 score floor (default `0.5`). |
+| `CAPTCHA_LOCK_THRESHOLD` | Per-IP `POST …/lock` count in the sliding window before captcha tier (default `25`). |
+| `CAPTCHA_PAYMENT_START_THRESHOLD` | Per-IP `POST …/payments/start` count before captcha tier (default `20`). |
+
+Velocity window is **5 minutes** (in-memory per process; not shared across multiple Node instances).
+
+### Structured log tags
+
+| `tag` | When |
+|-------|------|
+| `captcha_would_require` | Shadow (or reference for tuning): threshold exceeded. |
+| `captcha_required_response` | Enforce: blocked with `captcha_required`. |
+| `captcha_passed` | Enforce: token verified. |
+| `captcha_failed` | Enforce: token present but verification failed. |
+
+### Code / CSP
+
+* Logic: `src/lib/captcha.js` — config: `src/config/index.js` (`captcha.*`).
+* Funnel: `src/routes/funnels.js` sets `window.__BOOKING_RECAPTCHA_SITE_KEY` when `RECAPTCHA_SITE_KEY` is set; client retries: `public/assets/js/booking.js`.
+* Production CSP allows Google reCAPTCHA script/frame hosts (`src/middleware/securityHeaders.js`).
+
+---
+
 ## Final Model Summary
 
 Google reCAPTCHA should be used as an **adaptive secondary defense layer**.

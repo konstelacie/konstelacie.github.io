@@ -65,6 +65,11 @@ module.exports = {
     const raw = (process.env.CAPTCHA_MODE || 'off').trim().toLowerCase();
     const mode = raw === 'shadow' || raw === 'enforce' ? raw : 'off';
     const minScore = parseFloat(process.env.RECAPTCHA_MIN_SCORE || '0.5');
+    function capInt(name, def, max) {
+      const n = parseInt(String(process.env[name] ?? '').trim(), 10);
+      if (!Number.isInteger(n) || n < 1) return def;
+      return Math.min(n, max);
+    }
     return {
       mode,
       secret: (process.env.RECAPTCHA_SECRET_KEY || '').trim(),
@@ -72,6 +77,9 @@ module.exports = {
       siteKey: (process.env.RECAPTCHA_SITE_KEY || '').trim(),
       /** reCAPTCHA v3 score threshold (ignored for v2 responses without score). */
       minScore: Number.isFinite(minScore) ? Math.min(1, Math.max(0, minScore)) : 0.5,
+      /** Per-IP POST count in sliding window to trigger captcha tier (see captcha.js). */
+      lockThreshold: capInt('CAPTCHA_LOCK_THRESHOLD', 25, 100_000),
+      paymentStartThreshold: capInt('CAPTCHA_PAYMENT_START_THRESHOLD', 20, 100_000),
     };
   })(),
   admin: {

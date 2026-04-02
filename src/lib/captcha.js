@@ -9,10 +9,6 @@ const { logLine } = require('./structuredLog');
 const config = require('../config');
 
 const WINDOW_MS = 5 * 60 * 1000;
-/** POST /api/slots/:slotId/lock — strong signal: burst of lock attempts. */
-const LOCK_THRESHOLD = 25;
-/** POST /api/payments/start — reservation/checkout step; burst of starts from one IP. */
-const PAYMENT_START_THRESHOLD = 20;
 
 const ROUTE_LOCK = 'lock';
 const ROUTE_PAYMENT_START = 'payment_start';
@@ -65,7 +61,10 @@ function shouldRequireCaptcha(ip, route) {
   const tsList = buckets.get(key);
   if (!tsList) return false;
   prune(tsList, now);
-  const threshold = route === ROUTE_LOCK ? LOCK_THRESHOLD : PAYMENT_START_THRESHOLD;
+  const threshold =
+    route === ROUTE_LOCK
+      ? config.captcha?.lockThreshold ?? 25
+      : config.captcha?.paymentStartThreshold ?? 20;
   return tsList.length >= threshold;
 }
 
