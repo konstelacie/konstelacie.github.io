@@ -14,6 +14,10 @@ const { apiErrorHandler } = require('./middleware/apiError');
 
 const app = express();
 
+if (config.env === 'production') {
+  app.set('trust proxy', 1);
+}
+
 function resolveSessionSecret() {
   if (config.admin.sessionSecret) return config.admin.sessionSecret;
   if (config.env !== 'production') return 'dev-session-secret-change-in-prod';
@@ -25,7 +29,7 @@ app.set('view engine', 'ejs');
 app.set('views', path.join(__dirname, 'views'));
 app.use(require('express-ejs-layouts'));
 
-// Stripe webhook needs raw body for signature verification (must be before express.json)
+// Stripe webhook: raw body + signature verification (see src/routes/api/stripe.js).
 const stripeWebhookRouter = require('./routes/api/stripe');
 app.use('/api/stripe/webhook', express.raw({ type: 'application/json' }), stripeWebhookRouter);
 

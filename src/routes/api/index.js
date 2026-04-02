@@ -1,5 +1,6 @@
 const express = require('express');
 const requestIdMiddleware = require('../../middleware/requestId');
+const { revokeLimiter } = require('../../middleware/rateLimits');
 const { asyncHandler } = require('../../middleware/apiError');
 const { validateSlotId, validateLockToken } = require('../../middleware/validators');
 const locksRepo = require('../../db/repositories/locksRepo');
@@ -16,6 +17,7 @@ router.use(requestIdMiddleware);
 
 router.post(
   '/revoke',
+  revokeLimiter,
   asyncHandler(async (req, res) => {
     const slotId = validateSlotId(req.body?.slotId ?? req.query?.slotId);
     const lockToken = validateLockToken(req.body?.lockToken ?? req.query?.lockToken ?? req.get('X-Lock-Token'));

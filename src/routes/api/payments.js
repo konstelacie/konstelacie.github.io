@@ -32,6 +32,12 @@ const { slotPassesBookingWindow } = require('../../lib/slotBookingRules');
 const { checkoutExpiresAtFromNow, lockExpiresAtAfterCheckoutCancel } = require('../../config/checkoutHold');
 const paymentsRepo = require('../../db/repositories/paymentsRepo');
 const { ensureEmailAvailableForBooking } = require('../../lib/bookingEmailAvailability');
+const { bookingCannotCompleteError } = require('../../lib/bookingApiMessages');
+const {
+  paymentsStatusLimiter,
+  paymentsMutationLimiter,
+  paymentStartEmailLimiter,
+} = require('../../middleware/rateLimits');
 
 const router = express.Router();
 
@@ -63,6 +69,7 @@ function validateReturnPath(raw) {
 
 router.get(
   '/status',
+  paymentsStatusLimiter,
   asyncHandler(async (req, res) => {
     const sessionId = req.query.session_id;
     if (!sessionId || typeof sessionId !== 'string' || !sessionId.startsWith('cs_')) {
@@ -135,6 +142,7 @@ router.get(
  */
 router.post(
   '/abandon-checkout',
+  paymentsMutationLimiter,
   asyncHandler(async (req, res) => {
     const body = req.body ?? {};
     const slotId = validateSlotId(body.slotId);
@@ -167,7 +175,7 @@ router.post(
       const payment = payRows[0];
       if (!payment || Number(payment.slot_id) !== slotId) {
         await conn.rollback();
-        throw new ApiError('NOT_FOUND', 'No pending checkout for this session', 404);
+        throw bookingCannotCompleteError(409);
       }
 
       const [lockRows] = await conn.execute(
@@ -176,7 +184,7 @@ router.post(
       );
       if (lockRows.length === 0) {
         await conn.rollback();
-        throw new ApiError('LOCK_INVALID', 'Lock not found', 404);
+        throw bookingCannotCompleteError(409);
       }
 
       const coAt = payment.checkout_expires_at;
@@ -191,7 +199,7 @@ router.post(
       );
       if (upd.affectedRows === 0) {
         await conn.rollback();
-        throw new ApiError('CONFLICT', 'Checkout already closed', 409);
+        throw bookingCannotCompleteError(409);
       }
 
       await conn.execute(
@@ -242,6 +250,8 @@ router.post(
 
 router.post(
   '/start',
+  paymentsMutationLimiter,
+  paymentStartEmailLimiter,
   asyncHandler(async (req, res) => {
     const body = req.body ?? {};
     const slotId = validateSlotId(body.slotId);
@@ -280,6 +290,115 @@ router.post(
     const checkoutExpiresUnix = Math.floor(checkoutExpiresAt.getTime() / 1000);
 
     const stripe = new Stripe(stripeSecret);
+
+    let idempotentProviderRef = null;
+    let idempotentLockExpiresAt = null;
+    let userId;
+
+    const holdConn = await pool.getConnection();
+    try {
+      await holdConn.beginTransaction();
+      await paymentsRepo.reconcileExpiredStripeCheckouts(holdConn, { slotId });
+
+      const [slotRows] = await holdConn.execute('SELECT id, status, start_at_utc FROM slots WHERE id = ? FOR UPDATE', [
+        slotId,
+      ]);
+      const slot = slotRows[0];
+      if (!slot) {
+        throw bookingCannotCompleteError(409);
+      }
+      if (slot.status !== 'open') {
+        throw bookingCannotCompleteError(409);
+      }
+      if (!slotPassesBookingWindow(slot)) {
+        throw bookingCannotCompleteError(409);
+      }
+
+      const [existingRes] = await holdConn.execute(
+        "SELECT id FROM reservations WHERE slot_id = ? AND status IN ('pending_payment','confirmed') LIMIT 1",
+        [slotId]
+      );
+      if (existingRes.length > 0) {
+        throw bookingCannotCompleteError(409);
+      }
+
+      const [idemRows] = await holdConn.execute(
+        `SELECT p.id, p.provider_ref FROM payments p
+         INNER JOIN slot_locks sl ON sl.slot_id = p.slot_id AND sl.lock_token = ?
+         WHERE p.slot_id = ? AND p.status = 'pending' AND p.provider = 'stripe'
+           AND p.checkout_expires_at > NOW(3) AND sl.expires_at > NOW(3)
+         FOR UPDATE`,
+        [lockToken, slotId]
+      );
+
+      if (idemRows.length > 0) {
+        idempotentProviderRef = idemRows[0].provider_ref;
+        const [lockExpRow] = await holdConn.execute(
+          'SELECT expires_at FROM slot_locks WHERE slot_id = ? AND lock_token = ? LIMIT 1',
+          [slotId, lockToken]
+        );
+        idempotentLockExpiresAt = lockExpRow[0]?.expires_at ?? null;
+        await holdConn.commit();
+      } else {
+        const [pendingOther] = await holdConn.execute(
+          `SELECT id FROM payments WHERE slot_id = ? AND status = 'pending' AND provider = 'stripe'
+           AND checkout_expires_at > NOW(3) FOR UPDATE`,
+          [slotId]
+        );
+        if (pendingOther.length > 0) {
+          throw bookingCannotCompleteError(409);
+        }
+
+        const held = await locksRepo.setLockCheckoutHoldConn(holdConn, slotId, lockToken, email, checkoutExpiresAt);
+        if (!held) {
+          throw bookingCannotCompleteError(409);
+        }
+
+        const [userRows] = await holdConn.execute('SELECT id FROM users WHERE email = ?', [email]);
+        if (userRows.length > 0) {
+          userId = userRows[0].id;
+        } else {
+          const [ins] = await holdConn.execute('INSERT INTO users (email) VALUES (?)', [email]);
+          userId = ins.insertId;
+        }
+
+        await holdConn.commit();
+      }
+    } catch (e) {
+      await holdConn.rollback();
+      throw e;
+    } finally {
+      holdConn.release();
+    }
+
+    if (idempotentProviderRef) {
+      let existingSession;
+      try {
+        existingSession = await stripe.checkout.sessions.retrieve(idempotentProviderRef);
+      } catch (e) {
+        console.error('[payments/start] idempotent retrieve', idempotentProviderRef, e);
+        throw new ApiError(
+          'STRIPE_ERROR',
+          process.env.NODE_ENV === 'production' ? 'Payment provider error' : e.message || 'Stripe error',
+          502
+        );
+      }
+      if (!existingSession?.url) {
+        throw new ApiError('STRIPE_ERROR', 'Payment provider error', 502);
+      }
+      const lockExpiresAt = idempotentLockExpiresAt
+        ? idempotentLockExpiresAt instanceof Date
+          ? idempotentLockExpiresAt
+          : new Date(idempotentLockExpiresAt)
+        : checkoutExpiresAt;
+      return res.status(200).json({
+        ok: true,
+        url: existingSession.url,
+        checkoutSessionId: idempotentProviderRef,
+        lockExpiresAt: lockExpiresAt.toISOString(),
+      });
+    }
+
     let session;
     try {
       session = await stripe.checkout.sessions.create({
@@ -320,66 +439,65 @@ router.post(
       );
     }
 
-    const conn = await pool.getConnection();
-    let userId;
+    const conn2 = await pool.getConnection();
     try {
-      await conn.beginTransaction();
+      await conn2.beginTransaction();
+      await paymentsRepo.reconcileExpiredStripeCheckouts(conn2, { slotId });
 
-      await paymentsRepo.reconcileExpiredStripeCheckouts(conn, { slotId });
-
-      const [slotRows] = await conn.execute('SELECT id, status, start_at_utc FROM slots WHERE id = ? FOR UPDATE', [
-        slotId,
-      ]);
-      const slot = slotRows[0];
-      if (!slot) {
-        throw new ApiError('NOT_FOUND', 'Slot not found', 404);
-      }
-      if (slot.status !== 'open') {
-        throw new ApiError('SLOT_NOT_OPEN', 'Slot is not open', 409);
-      }
-      if (!slotPassesBookingWindow(slot)) {
-        throw new ApiError('SLOT_NOT_OPEN', 'Slot is not open for booking', 409);
-      }
-
-      const [existingRes] = await conn.execute(
-        "SELECT id FROM reservations WHERE slot_id = ? AND status IN ('pending_payment','confirmed') LIMIT 1",
+      const [dup] = await conn2.execute(
+        `SELECT id, provider_ref FROM payments WHERE slot_id = ? AND status = 'pending' AND provider = 'stripe'
+         AND checkout_expires_at > NOW(3) FOR UPDATE`,
         [slotId]
       );
-      if (existingRes.length > 0) {
-        throw new ApiError('SLOT_RESERVED', 'Slot already has an active reservation', 409);
+      if (dup.length > 0) {
+        await conn2.rollback();
+        const firstRef = dup[0].provider_ref;
+        const [lockExpRows] = await pool.execute(
+          'SELECT expires_at FROM slot_locks WHERE slot_id = ? AND lock_token = ? LIMIT 1',
+          [slotId, lockToken]
+        );
+        const lockExp = lockExpRows[0]?.expires_at;
+        try {
+          await stripe.checkout.sessions.expire(session.id);
+        } catch (expireErr) {
+          console.error('[payments/start] expire duplicate session after race', session.id, expireErr);
+        }
+        let existingSession;
+        try {
+          existingSession = await stripe.checkout.sessions.retrieve(firstRef);
+        } catch (e) {
+          console.error('[payments/start] retrieve after race', firstRef, e);
+          throw new ApiError(
+            'STRIPE_ERROR',
+            process.env.NODE_ENV === 'production' ? 'Payment provider error' : e.message || 'Stripe error',
+            502
+          );
+        }
+        if (!existingSession?.url) {
+          throw new ApiError('STRIPE_ERROR', 'Payment provider error', 502);
+        }
+        const lockExpiresAt = lockExp
+          ? lockExp instanceof Date
+            ? lockExp
+            : new Date(lockExp)
+          : checkoutExpiresAt;
+        return res.status(200).json({
+          ok: true,
+          url: existingSession.url,
+          checkoutSessionId: firstRef,
+          lockExpiresAt: lockExpiresAt.toISOString(),
+        });
       }
 
-      const [pendingPay] = await conn.execute(
-        `SELECT id FROM payments WHERE slot_id = ? AND status = 'pending' AND provider = 'stripe'
-         AND checkout_expires_at > NOW(3) LIMIT 1`,
-        [slotId]
-      );
-      if (pendingPay.length > 0) {
-        throw new ApiError('CONFLICT', 'Payment already in progress for this slot', 409);
-      }
-
-      const held = await locksRepo.setLockCheckoutHoldConn(conn, slotId, lockToken, email, checkoutExpiresAt);
-      if (!held) {
-        throw new ApiError('LOCK_INVALID', 'Lock not found', 404);
-      }
-
-      const [userRows] = await conn.execute('SELECT id FROM users WHERE email = ?', [email]);
-      if (userRows.length > 0) {
-        userId = userRows[0].id;
-      } else {
-        const [ins] = await conn.execute('INSERT INTO users (email) VALUES (?)', [email]);
-        userId = ins.insertId;
-      }
-
-      await conn.execute(
+      await conn2.execute(
         `INSERT INTO payments (user_id, reservation_id, slot_id, provider, provider_ref, payment_type, amount_cents, currency, status, checkout_expires_at)
          VALUES (?, NULL, ?, 'stripe', ?, ?, ?, 'eur', 'pending', ?)`,
         [userId, slotId, session.id, paymentTypeForDb, cents, checkoutExpiresAt]
       );
 
-      await conn.commit();
+      await conn2.commit();
     } catch (e) {
-      await conn.rollback();
+      await conn2.rollback();
       try {
         await stripe.checkout.sessions.expire(session.id);
       } catch (expireErr) {
@@ -387,7 +505,7 @@ router.post(
       }
       throw e;
     } finally {
-      conn.release();
+      conn2.release();
     }
 
     try {

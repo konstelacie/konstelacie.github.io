@@ -456,6 +456,8 @@
     SLOT_LOCKED: 'Termín je práve podržaný iným záujemcom.',
     SLOT_NOT_FOUND: 'Termín už nie je dostupný.',
     NOT_FOUND: 'Termín už nie je dostupný.',
+    REQUEST_CANNOT_COMPLETE: 'Požiadavku nebolo možné dokončiť. Skús to prosím znova alebo vyber iný termín.',
+    RATE_LIMITED: 'Príliš veľa pokusov. Skús o chvíľu.',
     SLOT_NOT_OPEN: 'Termín nie je dostupný.',
     LOCK_INVALID: 'Vypršal čas podržania. Vyber termín znova.',
     LOCK_EXPIRED: 'Vypršal čas podržania. Vyber termín znova.',

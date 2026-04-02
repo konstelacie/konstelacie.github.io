@@ -10,6 +10,7 @@ const express = require('express');
 const config = require('../../config');
 const { runAll } = require('../../jobs');
 const { asyncHandler } = require('../../middleware/apiError');
+const { cronLimiter } = require('../../middleware/rateLimits');
 
 const router = express.Router();
 
@@ -23,11 +24,11 @@ function isDevLocalhost(req) {
 }
 
 function hasValidSecret(req) {
-  const secret =
-    req.get('Authorization')?.replace(/^Bearer\s+/i, '') ||
-    req.get('X-Cron-Secret') ||
-    req.query?.secret ||
-    '';
+  const fromHeaders =
+    req.get('Authorization')?.replace(/^Bearer\s+/i, '') || req.get('X-Cron-Secret') || '';
+  /** Query secret only outside production (Phase 1: no secret in URL in prod). */
+  const fromQuery = config.env === 'production' ? '' : (req.query?.secret != null ? String(req.query.secret) : '');
+  const secret = fromHeaders || fromQuery;
   return config.cron.secret && secret === config.cron.secret;
 }
 
@@ -37,6 +38,7 @@ function isAuthorized(req) {
 
 router.post(
   '/run',
+  cronLimiter,
   asyncHandler(async (req, res) => {
     if (!isAuthorized(req)) {
       return res.status(401).json({
@@ -54,6 +56,7 @@ router.post(
 // GET also supported for browser testing and alwaysdata (if it only supports GET)
 router.get(
   '/run',
+  cronLimiter,
   asyncHandler(async (req, res) => {
     if (!isAuthorized(req)) {
       return res.status(401).json({

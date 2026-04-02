@@ -1,4 +1,5 @@
 const express = require('express');
+const { reservationStatusLimiter } = require('../../middleware/rateLimits');
 const { asyncHandler, ApiError } = require('../../middleware/apiError');
 const { getPool } = require('../../db');
 const { timeKeyForGridIndex } = require('../../config/slotGrid');
@@ -16,6 +17,7 @@ function validateReservationId(raw) {
 
 router.get(
   '/:id/status',
+  reservationStatusLimiter,
   asyncHandler(async (req, res) => {
     const id = validateReservationId(req.params.id);
     const pool = getPool();

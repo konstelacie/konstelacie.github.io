@@ -11,6 +11,12 @@ const { getPool } = require('../../db');
 const { slotPassesBookingWindow } = require('../../lib/slotBookingRules');
 const { mapSlotRowToApi, gridMetadata } = require('../../lib/slotApiMap');
 const { ensureEmailAvailableForBooking } = require('../../lib/bookingEmailAvailability');
+const { bookingCannotCompleteError } = require('../../lib/bookingApiMessages');
+const {
+  slotsListLimiter,
+  bookingWriteLimiter,
+  slotPostBySlotLimiter,
+} = require('../../middleware/rateLimits');
 
 const router = express.Router();
 /** Hold window while the user enters email (no full payment countdown yet). */
@@ -20,6 +26,7 @@ const LOCK_HOLD_AFTER_EMAIL_MS = 15 * 60 * 1000;
 
 router.get(
   '/',
+  slotsListLimiter,
   asyncHandler(async (req, res) => {
     const { from, to, lockToken: clientLockToken, stripeSessionId: rawStripeSessionId } = req.query;
     const { from: f, to: t } = validateDateRange(from, to);
@@ -59,6 +66,8 @@ router.get(
 
 router.post(
   '/:slotId/lock',
+  bookingWriteLimiter,
+  slotPostBySlotLimiter,
   asyncHandler(async (req, res) => {
     const slotId = validateSlotId(req.params.slotId);
     const email = validateEmail(req.body?.email ?? null, false);
@@ -66,24 +75,24 @@ router.post(
     const slot = await slotsRepo.getById(slotId);
     if (!slot) {
       await auditRepo.log('lock_failed', 'slot', slotId, { reason: 'slot_not_found' });
-      throw new ApiError('NOT_FOUND', 'Slot not found', 404);
+      throw bookingCannotCompleteError(409);
     }
     if (slot.status !== 'open') {
       await auditRepo.log('lock_failed', 'slot', slotId, {
         reason: 'slot_not_open',
         status: slot.status,
       });
-      throw new ApiError('SLOT_NOT_OPEN', 'Slot is not open for booking', 409);
+      throw bookingCannotCompleteError(409);
     }
 
     if (!slotPassesBookingWindow(slot)) {
       await auditRepo.log('lock_failed', 'slot', slotId, { reason: 'outside_booking_window' });
-      throw new ApiError('SLOT_NOT_OPEN', 'Slot is not open for booking', 409);
+      throw bookingCannotCompleteError(409);
     }
 
     if (await reservationsRepo.hasActiveReservationForSlot(slotId)) {
       await auditRepo.log('lock_failed', 'slot', slotId, { reason: 'slot_already_reserved' });
-      throw new ApiError('SLOT_RESERVED', 'Slot already has an active reservation', 409);
+      throw bookingCannotCompleteError(409);
     }
 
     const pool = getPool();
@@ -92,7 +101,7 @@ router.post(
 
     if (await paymentsRepo.hasPendingSlotPayment(slotId)) {
       await auditRepo.log('lock_failed', 'slot', slotId, { reason: 'checkout_pending' });
-      throw new ApiError('SLOT_RESERVED', 'Slot already has an active reservation', 409);
+      throw bookingCannotCompleteError(409);
     }
 
     const existingLock = await locksRepo.getActiveLockForSlot(slotId);
@@ -160,6 +169,8 @@ router.post(
 
 router.post(
   '/:slotId/extend-lock',
+  bookingWriteLimiter,
+  slotPostBySlotLimiter,
   asyncHandler(async (req, res) => {
     const slotId = validateSlotId(req.params.slotId);
     const lockToken = validateLockToken(req.body?.lockToken);
@@ -171,7 +182,7 @@ router.post(
     const updated = await locksRepo.extendLockExpiration(slotId, lockToken, email, expiresAt);
     if (!updated) {
       await auditRepo.log('lock_extend_failed', 'slot', slotId, { reason: 'not_found_or_expired' });
-      throw new ApiError('LOCK_INVALID', 'Lock not found or expired', 404);
+      throw bookingCannotCompleteError(409);
     }
 
     await auditRepo.log('lock_extended', 'slot', slotId, {
@@ -188,6 +199,8 @@ router.post(
 /** "Upraviť e-mail" — trim hold to the same window as first email step (5 min). */
 router.post(
   '/:slotId/lock-for-email-edit',
+  bookingWriteLimiter,
+  slotPostBySlotLimiter,
   asyncHandler(async (req, res) => {
     const slotId = validateSlotId(req.params.slotId);
     const lockToken = validateLockToken(req.body?.lockToken);
@@ -203,14 +216,14 @@ router.post(
     );
     if (rows.length === 0) {
       await auditRepo.log('lock_extend_failed', 'slot', slotId, { reason: 'not_found_or_expired', context: 'email_edit' });
-      throw new ApiError('LOCK_INVALID', 'Lock not found or expired', 404);
+      throw bookingCannotCompleteError(409);
     }
 
     const expiresAt = new Date(Date.now() + LOCK_HOLD_BEFORE_EMAIL_MS);
     const updated = await locksRepo.extendLockExpiration(slotId, lockToken, rows[0].email, expiresAt);
     if (!updated) {
       await auditRepo.log('lock_extend_failed', 'slot', slotId, { reason: 'not_found_or_expired', context: 'email_edit' });
-      throw new ApiError('LOCK_INVALID', 'Lock not found or expired', 404);
+      throw bookingCannotCompleteError(409);
     }
 
     await auditRepo.log('lock_extended', 'slot', slotId, {
