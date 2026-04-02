@@ -17,11 +17,12 @@ function securityHeaders(req, res, next) {
         'Content-Security-Policy',
         [
           "default-src 'self'",
-          "script-src 'self' 'unsafe-inline' https://connect.facebook.net",
+          "script-src 'self' 'unsafe-inline' https://connect.facebook.net https://www.google.com https://www.gstatic.com",
           "style-src 'self' 'unsafe-inline'",
           "img-src 'self' data: https:",
           "font-src 'self' data:",
           "connect-src 'self' https://www.facebook.com https://connect.facebook.net",
+          "frame-src 'self' https://www.google.com",
           "frame-ancestors 'self'",
         ].join('; ')
       );

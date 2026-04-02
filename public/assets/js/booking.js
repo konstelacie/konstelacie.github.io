@@ -16,6 +16,46 @@
     console.error('[booking]', where, err);
   }
 
+  let recaptchaScriptPromise = null;
+
+  function getRecaptchaSiteKey() {
+    return typeof window !== 'undefined' && window.__BOOKING_RECAPTCHA_SITE_KEY
+      ? String(window.__BOOKING_RECAPTCHA_SITE_KEY).trim()
+      : '';
+  }
+
+  /**
+   * reCAPTCHA v3 token for adaptive gate (docs/security/captcha.md). No-op when site key unset.
+   * @param {string} [action]
+   * @returns {Promise<string>}
+   */
+  async function getRecaptchaToken(action) {
+    const key = getRecaptchaSiteKey();
+    if (!key) return '';
+    if (!recaptchaScriptPromise) {
+      recaptchaScriptPromise = new Promise((resolve, reject) => {
+        const s = document.createElement('script');
+        s.src = `https://www.google.com/recaptcha/api.js?render=${encodeURIComponent(key)}`;
+        s.async = true;
+        s.onload = () => resolve();
+        s.onerror = () => reject(new Error('recaptcha script'));
+        document.head.appendChild(s);
+      });
+    }
+    await recaptchaScriptPromise;
+    if (!window.grecaptcha || typeof window.grecaptcha.execute !== 'function') {
+      throw new Error('grecaptcha');
+    }
+    return new Promise((resolve, reject) => {
+      window.grecaptcha.ready(() => {
+        window.grecaptcha
+          .execute(key, { action: action || 'booking' })
+          .then(resolve)
+          .catch(reject);
+      });
+    });
+  }
+
   const TIMEZONE = 'Europe/Bratislava';
   const RANGE_DAYS = 21;
   const MAX_FUNNEL_DAYS = 10;
@@ -467,6 +507,9 @@
     EMAIL_HAS_RESERVATION: 'Na tento e-mail už existuje rezervácia. Zadaj iný e-mail.',
     INTERNAL_ERROR: 'Niečo sa pokazilo. Skús neskôr.',
     STRIPE_ERROR: 'Platobná brána je dočasne nedostupná. Skús neskôr.',
+    captcha_required: 'Potrebujeme overiť, že nie si robot. Skús znova.',
+    request_cannot_be_completed:
+      'Požiadavku nebolo možné dokončiť. Skús to prosím znova alebo vyber iný termín.',
   };
 
   function userMessage(code) {
@@ -1240,12 +1283,38 @@
         return;
       }
 
-      const res = await fetch(`/api/slots/${slotId}/lock`, {
+      const lockBody = { email: null, challengeToken };
+      let res = await fetch(`/api/slots/${slotId}/lock`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: null, challengeToken }),
+        body: JSON.stringify(lockBody),
       });
-      const data = await res.json();
+      let data = await res.json();
+
+      if (res.status === 403 && data.error === 'captcha_required') {
+        let cap;
+        try {
+          cap = await getRecaptchaToken('lock_slot');
+        } catch (_) {
+          pendingSlotId = null;
+          await loadSlots();
+          showGlobalError('Overenie bezpečnosti zlyhalo. Skús znova.');
+          return;
+        }
+        if (!cap) {
+          pendingSlotId = null;
+          await loadSlots();
+          showGlobalError(userMessage('INTERNAL_ERROR'));
+          return;
+        }
+        lockBody.captchaToken = cap;
+        res = await fetch(`/api/slots/${slotId}/lock`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(lockBody),
+        });
+        data = await res.json();
+      }
 
       if (!res.ok) {
         pendingSlotId = null;
@@ -1397,12 +1466,31 @@
       if (funnelCtx.funnelVideoId) payBody.funnelVideoId = funnelCtx.funnelVideoId;
     }
 
-    const payRes = await fetch('/api/payments/start', {
+    let payRes = await fetch('/api/payments/start', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payBody),
     });
-    const payData = await payRes.json();
+    let payData = await payRes.json();
+
+    if (payRes.status === 403 && payData.error === 'captcha_required') {
+      let cap;
+      try {
+        cap = await getRecaptchaToken('payment_start');
+      } catch (_) {
+        return { ok: false, error: 'Overenie bezpečnosti zlyhalo. Skús znova.' };
+      }
+      if (!cap) {
+        return { ok: false, error: userMessage('INTERNAL_ERROR') };
+      }
+      payBody.captchaToken = cap;
+      payRes = await fetch('/api/payments/start', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payBody),
+      });
+      payData = await payRes.json();
+    }
 
     if (!payRes.ok) {
       return { ok: false, error: userMessage(payData.error) || 'Platba sa nepodarila spustiť. Skús znova.' };

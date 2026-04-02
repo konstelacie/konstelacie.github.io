@@ -56,6 +56,24 @@ module.exports = {
   security: {
     enableCsp: process.env.ENABLE_SECURITY_CSP !== '0',
   },
+  /**
+   * Adaptive captcha (docs/security/captcha.md).
+   * CAPTCHA_MODE=off | shadow | enforce (default off).
+   * RECAPTCHA_SECRET_KEY — server-side secret for Google siteverify (required for enforce).
+   */
+  captcha: (() => {
+    const raw = (process.env.CAPTCHA_MODE || 'off').trim().toLowerCase();
+    const mode = raw === 'shadow' || raw === 'enforce' ? raw : 'off';
+    const minScore = parseFloat(process.env.RECAPTCHA_MIN_SCORE || '0.5');
+    return {
+      mode,
+      secret: (process.env.RECAPTCHA_SECRET_KEY || '').trim(),
+      /** Public site key (funnel pages only); pair with RECAPTCHA_SECRET_KEY. */
+      siteKey: (process.env.RECAPTCHA_SITE_KEY || '').trim(),
+      /** reCAPTCHA v3 score threshold (ignored for v2 responses without score). */
+      minScore: Number.isFinite(minScore) ? Math.min(1, Math.max(0, minScore)) : 0.5,
+    };
+  })(),
   admin: {
     /** Plain-text env credentials for the internal admin UI (single operator). */
     username: process.env.ADMIN_USERNAME || '',

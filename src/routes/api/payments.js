@@ -33,6 +33,7 @@ const { checkoutExpiresAtFromNow, lockExpiresAtAfterCheckoutCancel } = require('
 const paymentsRepo = require('../../db/repositories/paymentsRepo');
 const { ensureEmailAvailableForBooking } = require('../../lib/bookingEmailAvailability');
 const { bookingCannotCompleteError } = require('../../lib/bookingApiMessages');
+const { handleCaptchaGate, ROUTE_PAYMENT_START } = require('../../lib/captcha');
 const {
   paymentsStatusLimiter,
   paymentsMutationLimiter,
@@ -257,6 +258,12 @@ router.post(
     const slotId = validateSlotId(body.slotId);
     const lockToken = validateLockToken(body.lockToken);
     const email = validateEmail(body.email, true);
+
+    const captchaGate = await handleCaptchaGate(req, res, { route: ROUTE_PAYMENT_START, slotId });
+    if (!captchaGate.proceed) {
+      return res.status(captchaGate.status).json(captchaGate.body);
+    }
+
     await ensureEmailAvailableForBooking(email, { exceptSlotId: slotId, exceptLockToken: lockToken });
     const paymentType = validatePaymentType(body.paymentType);
     const amountCents = validateAmount(body.amount, paymentType);

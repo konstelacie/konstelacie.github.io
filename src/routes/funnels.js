@@ -1,4 +1,5 @@
 const express = require('express');
+const appConfig = require('../config');
 const { resolveCampaignVideo } = require('../config/funnelVideo');
 const { ApiError } = require('../middleware/apiError');
 
@@ -235,6 +236,11 @@ router.get('/:funnelName', (req, res, next) => {
       <link rel="stylesheet" href="/assets/css/funnel.css">
     `,
     extraScripts: `
+      ${
+        appConfig.captcha?.siteKey
+          ? `<script>window.__BOOKING_RECAPTCHA_SITE_KEY=${JSON.stringify(appConfig.captcha.siteKey)}</script>`
+          : ''
+      }
       <script src="/assets/js/booking.js"></script>
       <script src="/assets/js/funnel.js"></script>
     `

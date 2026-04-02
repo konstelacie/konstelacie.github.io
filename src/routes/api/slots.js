@@ -19,6 +19,7 @@ const { slotPassesBookingWindow } = require('../../lib/slotBookingRules');
 const { mapSlotRowToApi, gridMetadata } = require('../../lib/slotApiMap');
 const { ensureEmailAvailableForBooking } = require('../../lib/bookingEmailAvailability');
 const { bookingCannotCompleteError } = require('../../lib/bookingApiMessages');
+const { handleCaptchaGate, ROUTE_LOCK } = require('../../lib/captcha');
 const {
   slotsListLimiter,
   bookingWriteLimiter,
@@ -140,6 +141,11 @@ router.post(
     const slotId = validateSlotId(req.params.slotId);
     const email = validateEmail(req.body?.email ?? null, false);
     const challengeToken = validateChallengeToken(req.body?.challengeToken);
+
+    const captchaGate = await handleCaptchaGate(req, res, { route: ROUTE_LOCK, slotId });
+    if (!captchaGate.proceed) {
+      return res.status(captchaGate.status).json(captchaGate.body);
+    }
 
     const pool = getPool();
     if (!pool) throw new Error('Database not configured');
