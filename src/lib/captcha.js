@@ -8,8 +8,6 @@
 const { logLine } = require('./structuredLog');
 const config = require('../config');
 
-const WINDOW_MS = 5 * 60 * 1000;
-
 const ROUTE_LOCK = 'lock';
 const ROUTE_PAYMENT_START = 'payment_start';
 
@@ -31,14 +29,25 @@ function bucketKey(ip, route) {
   return `${route}:${ip}`;
 }
 
-function prune(tsList, now) {
-  const cutoff = now - WINDOW_MS;
+function getVelocityWindowMs() {
+  return config.captcha?.velocityWindowMs ?? 5 * 60 * 1000;
+}
+
+function thresholdForRoute(route) {
+  return route === ROUTE_LOCK
+    ? config.captcha?.lockThreshold ?? 25
+    : config.captcha?.paymentStartThreshold ?? 20;
+}
+
+function prune(tsList, now, windowMs) {
+  const cutoff = now - windowMs;
   while (tsList.length && tsList[0] < cutoff) {
     tsList.shift();
   }
 }
 
 function recordAttempt(ip, route) {
+  const windowMs = getVelocityWindowMs();
   const key = bucketKey(ip, route);
   const now = Date.now();
   let tsList = buckets.get(key);
@@ -46,8 +55,29 @@ function recordAttempt(ip, route) {
     tsList = [];
     buckets.set(key, tsList);
   }
-  prune(tsList, now);
+  prune(tsList, now, windowMs);
   tsList.push(now);
+}
+
+/**
+ * Current per-IP count in window and threshold (after pruning).
+ * @param {string} ip
+ * @param {'lock'|'payment_start'} route
+ */
+function velocitySnapshot(ip, route) {
+  const windowMs = getVelocityWindowMs();
+  const key = bucketKey(ip, route);
+  const now = Date.now();
+  const tsList = buckets.get(key);
+  if (!tsList) {
+    return { count: 0, threshold: thresholdForRoute(route), velocityWindowMs: windowMs };
+  }
+  prune(tsList, now, windowMs);
+  return {
+    count: tsList.length,
+    threshold: thresholdForRoute(route),
+    velocityWindowMs: windowMs,
+  };
 }
 
 /**
@@ -56,16 +86,13 @@ function recordAttempt(ip, route) {
  * @param {'lock'|'payment_start'} route
  */
 function shouldRequireCaptcha(ip, route) {
+  const windowMs = getVelocityWindowMs();
   const key = bucketKey(ip, route);
   const now = Date.now();
   const tsList = buckets.get(key);
   if (!tsList) return false;
-  prune(tsList, now);
-  const threshold =
-    route === ROUTE_LOCK
-      ? config.captcha?.lockThreshold ?? 25
-      : config.captcha?.paymentStartThreshold ?? 20;
-  return tsList.length >= threshold;
+  prune(tsList, now, windowMs);
+  return tsList.length >= thresholdForRoute(route);
 }
 
 function extractCaptchaToken(body) {
@@ -123,10 +150,17 @@ async function handleCaptchaGate(req, res, ctx) {
 
   recordAttempt(ip, route);
   const need = shouldRequireCaptcha(ip, route);
+  const snap = velocitySnapshot(ip, route);
 
   if (!need) {
     return { proceed: true };
   }
+
+  const velocityLog = {
+    count: snap.count,
+    threshold: snap.threshold,
+    velocityWindowMs: snap.velocityWindowMs,
+  };
 
   if (mode === 'shadow') {
     logLine({
@@ -136,6 +170,7 @@ async function handleCaptchaGate(req, res, ctx) {
       route,
       slotId: slotId != null ? slotId : null,
       ip,
+      ...velocityLog,
     });
     return { proceed: true };
   }
@@ -155,6 +190,7 @@ async function handleCaptchaGate(req, res, ctx) {
       route,
       slotId: slotId != null ? slotId : null,
       ip,
+      ...velocityLog,
     });
     return {
       proceed: false,
@@ -172,6 +208,7 @@ async function handleCaptchaGate(req, res, ctx) {
       route,
       slotId: slotId != null ? slotId : null,
       ip,
+      ...velocityLog,
     });
     return {
       proceed: false,
@@ -187,6 +224,7 @@ async function handleCaptchaGate(req, res, ctx) {
     route,
     slotId: slotId != null ? slotId : null,
     ip,
+    ...velocityLog,
   });
   return { proceed: true };
 }

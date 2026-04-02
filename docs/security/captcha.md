@@ -510,8 +510,9 @@ If `enforce` is set but `RECAPTCHA_SECRET_KEY` is missing, the server logs a war
 | `RECAPTCHA_MIN_SCORE` | v3 score floor (default `0.5`). |
 | `CAPTCHA_LOCK_THRESHOLD` | Per-IP `POST …/lock` count in the sliding window before captcha tier (default `25`). |
 | `CAPTCHA_PAYMENT_START_THRESHOLD` | Per-IP `POST …/payments/start` count before captcha tier (default `20`). |
+| `CAPTCHA_VELOCITY_WINDOW_MS` | Sliding window length in milliseconds (default **300000** = 5 min). Minimum **60000** (1 min), maximum **3600000** (60 min). |
 
-Velocity window is **5 minutes** (in-memory per process; not shared across multiple Node instances).
+Velocity state is **in-memory per process** (not shared across multiple Node instances).
 
 ### Structured log tags
 
@@ -521,6 +522,8 @@ Velocity window is **5 minutes** (in-memory per process; not shared across multi
 | `captcha_required_response` | Enforce: blocked with `captcha_required`. |
 | `captcha_passed` | Enforce: token verified. |
 | `captcha_failed` | Enforce: token present but verification failed. |
+
+For the four tags above (when the captcha tier applies), lines also include **`count`** (requests in window), **`threshold`**, and **`velocityWindowMs`** so operators can tune without cross-checking config.
 
 ### Code / CSP
 

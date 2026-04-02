@@ -70,6 +70,13 @@ module.exports = {
       if (!Number.isInteger(n) || n < 1) return def;
       return Math.min(n, max);
     }
+    const DEFAULT_VELOCITY_MS = 5 * 60 * 1000;
+    /** Sliding window for per-IP POST velocity (captcha tier). Min 1 min, max 60 min. */
+    function velocityWindowMs() {
+      const n = parseInt(String(process.env.CAPTCHA_VELOCITY_WINDOW_MS ?? '').trim(), 10);
+      if (!Number.isInteger(n) || n < 60_000) return DEFAULT_VELOCITY_MS;
+      return Math.min(n, 60 * 60 * 1000);
+    }
     return {
       mode,
       secret: (process.env.RECAPTCHA_SECRET_KEY || '').trim(),
@@ -80,6 +87,7 @@ module.exports = {
       /** Per-IP POST count in sliding window to trigger captcha tier (see captcha.js). */
       lockThreshold: capInt('CAPTCHA_LOCK_THRESHOLD', 25, 100_000),
       paymentStartThreshold: capInt('CAPTCHA_PAYMENT_START_THRESHOLD', 20, 100_000),
+      velocityWindowMs: velocityWindowMs(),
     };
   })(),
   admin: {
