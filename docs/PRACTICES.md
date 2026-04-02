@@ -2,7 +2,7 @@
 
 **For AI assistants (Cursor, Copilot, etc.):** Follow these rules when editing this codebase. Apply them consistently.
 
-**Deployment:** We deploy on alwaysdata (not GitHub Pages).
+**Deployment:** We deploy on alwaysdata (not GitHub Pages). Production checklist (env, cron, Stripe)—for when we go live: `docs/DEPLOY-ALWAYSDATA.md`.
 
 **Phase:** We are in **early dev phase**—not live yet. Testing and release flows are in `docs/STRIPE-ARCHITECTURE.md` (Section 10).
 

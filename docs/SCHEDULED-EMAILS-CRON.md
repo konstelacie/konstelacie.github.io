@@ -103,7 +103,7 @@ Only jobs registered in `src/jobs/index.js` appear (currently **one** job). Futu
 
 ### 4.4 alwaysdata Setup Guide
 
-When deploying to production on alwaysdata:
+When deploying to production on alwaysdata (see also **`docs/DEPLOY-ALWAYSDATA.md`** for the full checklist—we are not on prod yet):
 
 **1. Set `CRON_SECRET` in environment**
 

@@ -53,6 +53,8 @@ npm run db:status
 1. **SSH:** Deploy code, then run `npm run db:migrate` in the app directory.
 2. **Admin SQL console:** If you prefer, run migration SQL manually from `src/db/migrations/` in order.
 
+Broader production setup (security env, cron, Stripe, verification checklist) is in **`docs/DEPLOY-ALWAYSDATA.md`** (for go-live; we are not on prod yet).
+
 ## Billing PDF storage (after migrate)
 
 Migrations create **`billing_documents`** / **`billing_document_counters`** only — not the filesystem for generated PDFs.
