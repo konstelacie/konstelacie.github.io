@@ -32,6 +32,7 @@
       <div class="admin-dl__row"><dt>E-mail</dt><dd><%= detail.email %></dd></div>
       <div class="admin-dl__row"><dt>Termín</dt><dd><%= detail.sessionLabel %> (<%= detail.slotStatusLabel %>)</dd></div>
       <div class="admin-dl__row"><dt>Stav rezervácie</dt><dd><span class="admin-status admin-status--<%= detail.reservationStatus %>"><%= detail.reservationStatusLabel %></span></dd></div>
+      <div class="admin-dl__row"><dt>Platba pri rezervácii</dt><dd><%= detail.bookingPaymentLabel %></dd></div>
       <div class="admin-dl__row"><dt>Platba (súhrn)</dt><dd><span class="admin-pay-status admin-pay-status--<%= detail.paymentStatusKey %>"><%= detail.paymentStatusLabel %></span></dd></div>
       <div class="admin-dl__row"><dt>Suma (posledná platba)</dt><dd><%= detail.amountLabel %></dd></div>
       <div class="admin-dl__row"><dt>Vytvorené</dt><dd><%= detail.createdAtLabel %></dd></div>
@@ -60,7 +61,7 @@
           <% for (const p of detail.paymentsForTable) { %>
             <tr>
               <td><%= p.id %></td>
-              <td><%= p.paymentType %></td>
+              <td><%= p.paymentTypeLabel %></td>
               <td><%= p.amountLabel %></td>
               <td><%= p.statusLabel %></td>
               <td><%= p.paidAtLabel %></td>

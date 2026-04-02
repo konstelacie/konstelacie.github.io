@@ -83,6 +83,32 @@ function slotStatusLabel(status) {
   }
 }
 
+/** Reservation row: user's choice at booking (deposit = reservation fee only, full = full amount upfront). */
+function reservationBookingPaymentLabel(paymentType) {
+  switch (paymentType) {
+    case 'deposit':
+      return 'Rezervačný poplatok';
+    case 'full':
+      return 'Plná suma vopred';
+    default:
+      return paymentType || '—';
+  }
+}
+
+/** Individual payment record (payments.payment_type: deposit | session | topup). */
+function paymentRowTypeLabel(paymentType) {
+  switch (paymentType) {
+    case 'deposit':
+      return 'Rezervačný poplatok';
+    case 'session':
+      return 'Plná platba (sedenie)';
+    case 'topup':
+      return 'Doplatok';
+    default:
+      return paymentType || '—';
+  }
+}
+
 function paymentRowStatusLabel(status) {
   switch (status) {
     case 'pending':
@@ -149,6 +175,7 @@ function mapAdminDetail(detail) {
   const paymentsForTable = payments.map((p) => ({
     id: p.id,
     paymentType: p.payment_type,
+    paymentTypeLabel: paymentRowTypeLabel(p.payment_type),
     amountLabel: formatAmountCents(p.amount_cents),
     statusLabel: paymentRowStatusLabel(p.status),
     paidAtLabel: p.paid_at ? formatTs(p.paid_at) : '—',
@@ -160,6 +187,7 @@ function mapAdminDetail(detail) {
     email: reservation.email,
     reservationStatus: reservation.status,
     reservationStatusLabel: reservationStatusLabel(reservation.status),
+    bookingPaymentLabel: reservationBookingPaymentLabel(reservation.payment_type),
     paymentStatusKey: pay.key,
     paymentStatusLabel: pay.label,
     amountLabel: formatAmountCents(latestPayment ? latestPayment.amount_cents : null),
@@ -179,6 +207,7 @@ module.exports = {
   mapReservationListRow,
   mapAdminDetail,
   reservationStatusLabel,
+  reservationBookingPaymentLabel,
   formatAmountCents,
   computeDetailActions,
   paymentDisplay,
