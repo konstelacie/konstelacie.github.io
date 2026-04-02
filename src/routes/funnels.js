@@ -258,7 +258,7 @@ router.get('/:funnelName/success', (req, res, next) => {
     hideHeader: true,
     title: meta.successTitle || 'Platba dokončená',
     description: 'Ďakujeme, platba je dokončená.',
-    backUrl: `/${funnelName}#booking`,
+    homeUrl: '/',
     extraStyles: '<link rel="stylesheet" href="/assets/css/funnel.css">',
     extraScripts: '<script src="/assets/js/success-page.js"></script>',
   });

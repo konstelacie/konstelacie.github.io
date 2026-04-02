@@ -95,7 +95,7 @@ router.get(
     let slot = null;
     if (payment.reservation_id) {
       const [resRows] = await pool.execute(
-        `SELECT r.id, r.status AS reservation_status, r.slot_id
+        `SELECT r.id, r.status AS reservation_status, r.slot_id, r.payment_type AS reservation_payment_type
          FROM reservations r WHERE r.id = ?`,
         [payment.reservation_id]
       );
@@ -121,6 +121,7 @@ router.get(
             id: reservation.id,
             status: reservation.reservation_status,
             slotId: reservation.slot_id,
+            paymentType: reservation.reservation_payment_type,
           }
         : null,
       slot: slot

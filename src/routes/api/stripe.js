@@ -16,7 +16,7 @@ async function sendConfirmationEmailAsync(paymentId, reservationId) {
   if (!pool) return;
 
   const [rows] = await pool.execute(
-    `SELECT r.email, s.start_at_utc, s.end_at_utc, s.timezone, p.amount_cents, p.currency
+    `SELECT r.email, r.payment_type AS reservation_payment_type, s.start_at_utc, s.end_at_utc, s.timezone, p.amount_cents, p.currency
      FROM reservations r
      JOIN slots s ON r.slot_id = s.id
      JOIN payments p ON p.reservation_id = r.id
@@ -32,6 +32,7 @@ async function sendConfirmationEmailAsync(paymentId, reservationId) {
       slot: { start_at_utc: row.start_at_utc, end_at_utc: row.end_at_utc, timezone: row.timezone },
       amountCents: row.amount_cents,
       currency: row.currency,
+      bookingPaymentType: row.reservation_payment_type === 'full' ? 'full' : 'deposit',
     },
     { entity_type: 'reservation', entity_id: reservationId }
   );

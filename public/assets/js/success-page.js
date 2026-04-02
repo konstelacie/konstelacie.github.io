@@ -27,25 +27,60 @@
     return (cents / 100).toFixed(2) + ' €';
   }
 
+  /** @param {'deposit'|'full'} paymentType */
+  function isFullPayment(paymentType) {
+    return paymentType === 'full';
+  }
+
+  function setTitle(el, text) {
+    if (el) el.textContent = text;
+  }
+
   function showState(state, data) {
+    const titleEl = document.getElementById('success-main-title');
     const loadingEl = document.getElementById('success-loading');
     const confirmedEl = document.getElementById('success-confirmed');
     const processingEl = document.getElementById('success-processing');
     const errorEl = document.getElementById('success-error');
+    const variantDeposit = document.getElementById('success-variant-deposit');
+    const variantFull = document.getElementById('success-variant-full');
 
     if (loadingEl) loadingEl.hidden = state !== 'loading';
     if (confirmedEl) confirmedEl.hidden = state !== 'confirmed';
     if (processingEl) processingEl.hidden = state !== 'processing';
     if (errorEl) errorEl.hidden = state !== 'error';
 
-    if (state === 'confirmed' && data) {
-      const slotEl = document.getElementById('success-slot');
-      const amountEl = document.getElementById('success-amount');
-      if (slotEl && data.slot) {
-        slotEl.textContent = 'Termín: ' + formatDateTime(data.slot.startAt);
-      }
-      if (amountEl && data.payment) {
-        amountEl.textContent = 'Zaplatená suma: ' + formatAmount(data.payment.amountCents);
+    if (state === 'loading') {
+      setTitle(titleEl, 'Potvrdzujeme platbu');
+    } else if (state === 'processing') {
+      setTitle(titleEl, 'Platba sa spracováva');
+    } else if (state === 'error') {
+      setTitle(titleEl, 'Nepodarilo sa načítať potvrdenie');
+    } else if (state === 'confirmed' && data) {
+      const paymentType =
+        data.reservation && data.reservation.paymentType === 'full' ? 'full' : 'deposit';
+      const full = isFullPayment(paymentType);
+      setTitle(titleEl, full ? 'Platba je dokončená' : 'Rezervácia je potvrdená');
+      if (variantDeposit) variantDeposit.hidden = full;
+      if (variantFull) variantFull.hidden = !full;
+
+      const slotText = data.slot ? 'Termín: ' + formatDateTime(data.slot.startAt) : '';
+      const amountText =
+        data.payment && typeof data.payment.amountCents === 'number'
+          ? (full ? 'Zaplatená suma: ' : 'Zaplatená rezervačná suma: ') +
+            formatAmount(data.payment.amountCents)
+          : '';
+
+      if (full) {
+        const slotEl = document.getElementById('success-slot-full');
+        const amountEl = document.getElementById('success-amount-full');
+        if (slotEl) slotEl.textContent = slotText;
+        if (amountEl) amountEl.textContent = amountText;
+      } else {
+        const slotEl = document.getElementById('success-slot-deposit');
+        const amountEl = document.getElementById('success-amount-deposit');
+        if (slotEl) slotEl.textContent = slotText;
+        if (amountEl) amountEl.textContent = amountText;
       }
     }
   }

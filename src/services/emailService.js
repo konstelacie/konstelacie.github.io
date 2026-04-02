@@ -41,14 +41,19 @@ function formatAmount(amountCents, currency = 'eur') {
  * @param {object} params.slot - { start_at_utc, end_at_utc, timezone }
  * @param {number} params.amountCents - Amount paid in cents
  * @param {string} [params.currency='eur'] - Currency code
+ * @param {'deposit'|'full'} [params.bookingPaymentType='deposit'] - Reservation fee only vs full session upfront (from reservations.payment_type)
  * @param {object} [metadata] - Optional metadata for logging
  * @returns {Promise<{ok: boolean, skipped?: boolean, messageId?: string}>}
  */
-async function sendReservationConfirmation({ to, slot, amountCents, currency = 'eur' }, metadata = {}) {
+async function sendReservationConfirmation(
+  { to, slot, amountCents, currency = 'eur', bookingPaymentType = 'deposit' },
+  metadata = {}
+) {
   const tz = slot.timezone || 'Europe/Bratislava';
   const slotDateFormatted = formatSlotDate(slot.start_at_utc, tz);
   const slotTimeFormatted = formatSlotTime(slot.start_at_utc, tz);
   const amountFormatted = formatAmount(amountCents, currency);
+  const isFullPayment = bookingPaymentType === 'full';
 
   const html = await ejs.renderFile(
     path.join(EMAIL_TEMPLATES_DIR, 'reservation-confirmation.ejs'),
@@ -57,10 +62,15 @@ async function sendReservationConfirmation({ to, slot, amountCents, currency = '
       slotTimeFormatted,
       timezone: tz,
       amountFormatted,
+      isFullPayment,
     }
   );
 
-  const result = await emailProvider.sendEmail(to, 'Rezervácia potvrdená', html, metadata);
+  const subject = isFullPayment
+    ? 'Platba je dokončená — rezervácia potvrdená'
+    : 'Rezervácia je potvrdená';
+
+  const result = await emailProvider.sendEmail(to, subject, html, metadata);
 
   if (result.ok && result.messageId) {
     await emailSentLogRepo.log({

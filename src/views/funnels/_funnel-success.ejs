@@ -1,19 +1,31 @@
 <main>
   <section class="funnel-hero">
     <div class="container">
-      <h1>Ďakujeme, platba je dokončená</h1>
+      <h1 id="success-main-title">Potvrdzujeme platbu</h1>
 
       <div id="success-loading" class="success-state">
         <p class="muted">Potvrdzujeme tvoju platbu. Chvíľu to môže trvať…</p>
       </div>
 
       <div id="success-confirmed" class="success-state" hidden>
-        <p>Tvoja rezervácia je potvrdená.</p>
-        <p class="success-details">
-          <span id="success-slot" class="success-detail"></span><br>
-          <span id="success-amount" class="success-detail muted"></span>
-        </p>
-        <p class="muted">O ďalších krokoch ťa budeme informovať e-mailom.</p>
+        <div id="success-variant-deposit" class="success-variant" hidden>
+          <p class="success-lead">Tvoje miesto je rezervované.</p>
+          <p class="success-details">
+            <span id="success-slot-deposit" class="success-detail"></span><br>
+            <span id="success-amount-deposit" class="success-detail muted"></span>
+          </p>
+          <p class="muted">Potvrdenie ti prišlo e-mailom. Pred termínom môže prísť ešte pripomienka — stačí prísť v dohodnutom čase.</p>
+          <p class="muted">Ide o plnohodnotné sedenie, nie ochutnávku. Po ňom sa môžeš v pokoji rozhodnúť, či budeš pokračovať a doplatíš zvyšok — žiadny tlak teraz.</p>
+        </div>
+        <div id="success-variant-full" class="success-variant" hidden>
+          <p class="success-lead">Teším sa na naše stretnutie.</p>
+          <p class="success-details">
+            <span id="success-slot-full" class="success-detail"></span><br>
+            <span id="success-amount-full" class="success-detail muted"></span>
+          </p>
+          <p class="muted">Potvrdenie máš v e-maile. Stačí prísť v dohodnutom čase.</p>
+          <p class="muted">Na sedenie sa nemusíš nijako špeciálne pripravovať — aj jedno stretnutie môže byť plnohodnotné.</p>
+        </div>
       </div>
 
       <div id="success-processing" class="success-state" hidden>
@@ -30,7 +42,7 @@
   <section class="funnel-cta prose">
     <div class="container">
       <p>
-        <a href="<%= backUrl %>" class="cta">Späť na rezerváciu</a>
+        <a href="<%= homeUrl %>" class="cta">Späť na úvod</a>
       </p>
     </div>
   </section>

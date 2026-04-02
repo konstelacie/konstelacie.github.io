@@ -280,6 +280,10 @@ a.funnel-scroll-hint__arrow:focus-visible {
 .success-state {
   margin-top: var(--spacing-md);
 }
+.success-lead {
+  margin: 0 0 var(--spacing-md);
+  font-size: 1.125rem;
+}
 .success-details {
   margin: var(--spacing-md) 0;
 }

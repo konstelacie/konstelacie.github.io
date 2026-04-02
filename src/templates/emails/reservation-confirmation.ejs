@@ -3,24 +3,36 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Rezervácia potvrdená</title>
+  <title><%= isFullPayment ? 'Platba dokončená' : 'Rezervácia potvrdená' %></title>
 </head>
 <body style="margin: 0; padding: 0; font-family: system-ui, -apple-system, 'Segoe UI', sans-serif; font-size: 16px; line-height: 1.6; color: #0f172a; background-color: #f8fafc;">
   <div style="max-width: 600px; margin: 0 auto; padding: 24px;">
-    <h1 style="margin: 0 0 24px; font-size: 1.5rem; font-weight: 600;">Rezervácia potvrdená</h1>
+<% if (isFullPayment) { %>
+    <h1 style="margin: 0 0 24px; font-size: 1.5rem; font-weight: 600;">Platba je dokončená</h1>
 
     <p style="margin: 0 0 16px;">Ahoj,</p>
-    <p style="margin: 0 0 24px;">tvoja platba bola úspešne prijatá a rezervácia je potvrdená.</p>
+    <p style="margin: 0 0 24px;">tvoja platba prebehla v poriadku a tvoje sedenie je rezervované. Teším sa na naše stretnutie.</p>
+<% } else { %>
+    <h1 style="margin: 0 0 24px; font-size: 1.5rem; font-weight: 600;">Rezervácia je potvrdená</h1>
+
+    <p style="margin: 0 0 16px;">Ahoj,</p>
+    <p style="margin: 0 0 24px;">tvoja rezervačná platba prebehla v poriadku a tvoje miesto na sedenie je rezervované. Ide o plnohodnotné sedenie — po ňom sa môžeš v pokoji rozhodnúť, či budeš pokračovať a doplatíš zvyšok, alebo nie. Žiadny tlak.</p>
+<% } %>
 
     <div style="background: #ffffff; border: 1px solid #e2e8f0; border-radius: 8px; padding: 20px; margin-bottom: 24px;">
       <p style="margin: 0 0 8px; font-weight: 600;">Termín</p>
       <p style="margin: 0 0 16px; color: #334155;"><%= slotDateFormatted %> o <%= slotTimeFormatted %> (<%= timezone %>)</p>
-      <p style="margin: 0 0 8px; font-weight: 600;">Suma</p>
+      <p style="margin: 0 0 8px; font-weight: 600;"><%= isFullPayment ? 'Zaplatená suma' : 'Zaplatená rezervačná suma' %></p>
       <p style="margin: 0; color: #334155;"><%= amountFormatted %></p>
     </div>
 
-    <p style="margin: 0 0 16px;">O ďalších krokoch ťa budeme informovať e-mailom.</p>
-    <p style="margin: 0 0 24px; color: #64748b; font-size: 0.9rem;">Ak máš otázky, odpovedz na tento e-mail.</p>
+<% if (isFullPayment) { %>
+    <p style="margin: 0 0 16px;">Potvrdenie máš aj v tejto správe. Na sedenie sa nemusíš nijako špeciálne pripravovať.</p>
+    <p style="margin: 0 0 24px; color: #64748b; font-size: 0.9rem;">Ak máš otázky, pokojne mi odpíš na tento e-mail.</p>
+<% } else { %>
+    <p style="margin: 0 0 16px;">Ďalšie podrobnosti ti pošlem e-mailom; ak bude treba, môže prísť aj pripomienka pred termínom.</p>
+    <p style="margin: 0 0 24px; color: #64748b; font-size: 0.9rem;">Ak máš otázky, pokojne mi odpíš na tento e-mail.</p>
+<% } %>
 
     <p style="margin: 0; color: #64748b; font-size: 0.875rem;">S pozdravom,<br>Michal Mihálik</p>
   </div>
