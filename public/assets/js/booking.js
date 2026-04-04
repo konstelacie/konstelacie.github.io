@@ -119,6 +119,11 @@
   const FUNNEL_CTX_KEY = 'booking_funnel_ctx';
   /** Cross-tab: localStorage `storage` + BroadcastChannel so other tabs reopen the booking modal when one tab locks. */
   const BROADCAST_CHANNEL_NAME = 'booking_lock_sync';
+  /** Same-tab BroadcastChannel echoes would re-apply lock state and call `openBookingModal({ step: 'payment' })` → `resetPaymentPathStep()`, clearing payment radios after every change. */
+  const BOOKING_TAB_BROADCAST_ID =
+    typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
+      ? crypto.randomUUID()
+      : `${Date.now()}-${Math.random()}`;
   let bookingCrossTabChannel = null;
   /** While > 0, `storeLock` is a no-op (avoid echo when applying another tab's snapshot). */
   let suppressCrossTabApply = 0;
@@ -381,7 +386,7 @@
   function broadcastBookingLockToOtherTabs() {
     if (!bookingCrossTabChannel) return;
     try {
-      bookingCrossTabChannel.postMessage({ type: 'booking_lock' });
+      bookingCrossTabChannel.postMessage({ type: 'booking_lock', tabId: BOOKING_TAB_BROADCAST_ID });
     } catch (e) {
       logStorageError('broadcastBookingLockToOtherTabs', e);
     }
@@ -1299,7 +1304,8 @@
     if (typeof BroadcastChannel === 'undefined') return;
     try {
       bookingCrossTabChannel = new BroadcastChannel(BROADCAST_CHANNEL_NAME);
-      bookingCrossTabChannel.onmessage = () => {
+      bookingCrossTabChannel.onmessage = (e) => {
+        if (e.data && e.data.tabId === BOOKING_TAB_BROADCAST_ID) return;
         dbg('cross-tab BroadcastChannel message');
         applyBookingStateFromOtherTabs();
       };
@@ -1941,7 +1947,7 @@
         const alreadyOnPayment =
           isEmailModalOpen() &&
           isBookingPaymentStepVisible() &&
-          modalUiStep === 'payment';
+          (modalUiStep === 'payment' || lockPhase === 'payment');
         if (!alreadyOnPayment) {
           openBookingModal({ step: 'payment' });
           applyPaymentFormStateToDom(pendingPaymentFormRestore);
