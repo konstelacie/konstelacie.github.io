@@ -356,6 +356,46 @@ a:hover {
   pointer-events: none !important;
 }
 
+/* Stripe Checkout return — block funnel until webhook confirms payment, then redirect to /success */
+.booking-payment-complete-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 10100;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--spacing-md);
+  background: rgba(15, 23, 42, 0.55);
+  backdrop-filter: blur(2px);
+}
+
+.booking-payment-complete-overlay[hidden] {
+  display: none !important;
+}
+
+.booking-payment-complete-overlay__inner {
+  width: 100%;
+  max-width: var(--max-width-narrow);
+  padding: var(--spacing-section);
+  background: var(--color-bg);
+  border-radius: var(--radius-booking-slot);
+  border: 1px solid var(--color-booking-border);
+  box-shadow: 0 20px 40px rgba(15, 23, 42, 0.2);
+  text-align: center;
+}
+
+.booking-payment-complete-overlay__title {
+  margin: 0 0 var(--spacing-sm);
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: var(--color-text);
+}
+
+.booking-payment-complete-overlay__hint {
+  margin: 0;
+  font-size: 0.95rem;
+}
+
 .booking-modal__backdrop,
 .booking-modal__dialog {
   pointer-events: auto;

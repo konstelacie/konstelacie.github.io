@@ -61,7 +61,7 @@ Details: `docs/API.md`.
 
 **Redirects:**
 
-- `success_url`: `{BASE_URL or request origin}/{returnPath}/success?session_id={CHECKOUT_SESSION_ID}`
+- `success_url`: `{BASE_URL or request origin}/{returnPath}?payment_pending=1&session_id={CHECKOUT_SESSION_ID}` — the funnel page shows a blocking overlay and polls `GET /api/payments/status` until `payment.status === 'completed'` (webhook), then redirects to `/{returnPath}/success?session_id=…`.
 - `cancel_url`: `{BASE_URL or request origin}/{returnPath}/cancel`
 - `returnPath` is optional; normalized to a funnel name in `FUNNEL_INSTANCES` (default `pilot`).
 

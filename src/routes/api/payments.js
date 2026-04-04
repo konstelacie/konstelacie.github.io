@@ -290,7 +290,7 @@ router.post(
 
     const funnelName = validateReturnPath(body.returnPath);
     const baseUrl = process.env.BASE_URL || (req.protocol + '://' + req.get('host'));
-    const successUrl = `${baseUrl}/${funnelName}/success?session_id={CHECKOUT_SESSION_ID}`;
+    const successUrl = `${baseUrl}/${funnelName}?payment_pending=1&session_id={CHECKOUT_SESSION_ID}`;
     const cancelReturnPath = validateCancelReturn(body.cancelReturn, funnelName);
     const cancelUrl = `${baseUrl}${cancelReturnPath}`;
 

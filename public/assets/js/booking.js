@@ -140,6 +140,115 @@
     } catch (_) {}
   }
 
+  /** Same timing as `success-page.js` — poll until DB shows `completed` (webhook). */
+  const PAYMENT_RETURN_POLL_MS = 2000;
+  const PAYMENT_RETURN_MAX_ATTEMPTS = 30;
+
+  /** Stripe `success_url` lands on `/{funnel}?payment_pending=1&session_id=…` */
+  function parseStripePaymentReturnUrl() {
+    const params = new URLSearchParams(location.search);
+    if (params.get('payment_pending') !== '1') return null;
+    const sid = params.get('session_id') || '';
+    if (!sid.startsWith('cs_')) return null;
+    return { sessionId: sid };
+  }
+
+  function stripPaymentReturnQueryParams() {
+    const params = new URLSearchParams(location.search);
+    if (!params.has('payment_pending') && !params.has('session_id')) return;
+    params.delete('payment_pending');
+    params.delete('session_id');
+    const q = params.toString();
+    history.replaceState(null, '', location.pathname + (q ? '?' + q : '') + location.hash);
+  }
+
+  function showPaymentCompleteOverlay() {
+    const el = $('booking-payment-complete-overlay');
+    if (el) {
+      el.hidden = false;
+      el.setAttribute('aria-hidden', 'false');
+    }
+    try {
+      document.body.style.overflow = 'hidden';
+    } catch (_) {}
+  }
+
+  function hidePaymentCompleteOverlay() {
+    const el = $('booking-payment-complete-overlay');
+    if (el) {
+      el.hidden = true;
+      el.setAttribute('aria-hidden', 'true');
+    }
+    try {
+      document.body.style.overflow = '';
+    } catch (_) {}
+  }
+
+  function fetchPaymentStatusForReturn(sessionId) {
+    return fetch('/api/payments/status?session_id=' + encodeURIComponent(sessionId)).then((res) => {
+      if (!res.ok) {
+        return res.json().then((body) => {
+          throw new Error(body.error || 'Failed to load status');
+        });
+      }
+      return res.json();
+    });
+  }
+
+  /**
+   * Poll until payment is `completed` (webhook), then redirect to `/{funnel}/success`.
+   * Resolves when the user should continue normal init (fetch error); never resolves if redirecting away.
+   */
+  function completeStripePaymentReturnOnFunnelPage(sessionId) {
+    return new Promise((resolve) => {
+      const ctx = readFunnelContext();
+      const funnelName =
+        ctx.funnelName && String(ctx.funnelName).trim() !== '' ? String(ctx.funnelName).trim() : null;
+      if (!funnelName) {
+        stripPaymentReturnQueryParams();
+        resolve();
+        return;
+      }
+
+      try {
+        sessionStorage.removeItem(STRIPE_REDIRECT_FLAG);
+      } catch (_) {}
+
+      showPaymentCompleteOverlay();
+
+      let attempts = 0;
+      function goToSuccessPage() {
+        window.location.replace(
+          '/' + encodeURIComponent(funnelName) + '/success?session_id=' + encodeURIComponent(sessionId)
+        );
+      }
+
+      function poll() {
+        attempts += 1;
+        fetchPaymentStatusForReturn(sessionId)
+          .then((data) => {
+            if (data.payment && data.payment.status === 'completed') {
+              goToSuccessPage();
+              return;
+            }
+            if (attempts >= PAYMENT_RETURN_MAX_ATTEMPTS) {
+              goToSuccessPage();
+              return;
+            }
+            setTimeout(poll, PAYMENT_RETURN_POLL_MS);
+          })
+          .catch((e) => {
+            console.error('[booking] payment return poll', e);
+            hidePaymentCompleteOverlay();
+            stripPaymentReturnQueryParams();
+            resolve();
+          });
+      }
+
+      poll();
+    });
+  }
+
   function readFunnelContext() {
     const section = document.getElementById('booking');
     const fromUrl = new URLSearchParams(location.search).get('campaign');
@@ -1934,7 +2043,12 @@
         });
       }
 
-      await abandonCheckoutIfStripeReturn();
+      const paymentReturn = parseStripePaymentReturnUrl();
+      if (paymentReturn) {
+        await completeStripePaymentReturnOnFunnelPage(paymentReturn.sessionId);
+      } else {
+        await abandonCheckoutIfStripeReturn();
+      }
 
       await loadSlots();
       dbg('loadSlots done', { slots: slotsRaw.length, lockToken: !!lockToken });
