@@ -55,6 +55,8 @@ async function sendReservationConfirmation(
   const amountFormatted = formatAmount(amountCents, currency);
   const isFullPayment = bookingPaymentType === 'full';
 
+  const meetingUrl = (process.env.SESSION_MEETING_URL || '').trim() || null;
+
   const html = await ejs.renderFile(
     path.join(EMAIL_TEMPLATES_DIR, 'reservation-confirmation.ejs'),
     {
@@ -63,6 +65,7 @@ async function sendReservationConfirmation(
       timezone: tz,
       amountFormatted,
       isFullPayment,
+      meetingUrl,
     }
   );
 
