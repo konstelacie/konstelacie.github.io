@@ -54,7 +54,7 @@
 
   <section class="admin-detail" aria-label="Interná poznámka / účtovná poznámka">
     <h2 class="admin-detail__subtitle">Interná poznámka</h2>
-    <p class="admin-bulk__hint" style="margin-top: 0;">Krátky text pre účtovníka alebo opravy — nie je na PDF pre zákazníka.</p>
+    <p class="admin-bulk__hint admin-bulk__hint--subtitle-follow">Krátky text pre účtovníka alebo opravy — nie je na PDF pre zákazníka.</p>
     <form method="post" action="/admin/billing/<%= detail.id %>/note" class="admin-detail__form">
       <textarea name="note" class="admin-detail__textarea" rows="5" cols="60"><%= detail.notes != null ? detail.notes : '' %></textarea>
       <div class="admin-detail__actions">
@@ -65,7 +65,7 @@
 
   <section class="admin-detail" aria-label="Akcie">
     <h2 class="admin-detail__subtitle">Akcie</h2>
-    <div class="admin-detail__actions admin-detail__actions--split" style="flex-wrap: wrap; gap: 0.75rem;">
+    <div class="admin-detail__actions admin-detail__actions--split admin-detail__actions--gap-sm">
       <form method="post" action="/admin/billing/<%= detail.id %>/regenerate-pdf" onsubmit="return confirm('Znovu vygenerovať PDF? Prepíše súbor pri rovnakom čísle dokladu.');">
         <button type="submit" class="admin-btn admin-btn--ghost" <%= !detail.document_number ? 'disabled' : '' %>>Znovu vygenerovať PDF</button>
       </form>

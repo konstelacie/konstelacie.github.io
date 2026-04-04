@@ -74,7 +74,7 @@
     <% } %>
 
     <% if (stats.expired > 0) { %>
-    <form method="post" action="/admin/maintenance/delete-expired-slot-locks" class="admin-detail__form" style="margin-top: 1.25rem;">
+    <form method="post" action="/admin/maintenance/delete-expired-slot-locks" class="admin-detail__form admin-detail__form--spaced-top">
       <p class="admin-bulk__hint">
         Jedným spustením sa zmaže najviac <strong><%= purgeBatchMax %></strong> expirovaných riadkov.
         Ak ich ostane viac, akciu zopakujte.
@@ -94,7 +94,7 @@
   <% } %>
 
   <% if (typeof dbConfigured !== 'undefined' && dbConfigured && typeof slotStats !== 'undefined' && slotStats) { %>
-  <section class="admin-detail" aria-labelledby="maintenance-slots-heading" style="margin-top: 2rem;">
+  <section class="admin-detail admin-detail--section-gap" aria-labelledby="maintenance-slots-heading">
     <h2 id="maintenance-slots-heading" class="admin-create__title">Nepoužité minulé termíny</h2>
     <p class="admin-bulk__hint">
       Mazané sú len riadky, kde koniec termínu už prebehol (<code>end_at_utc</code> v minulosti)
@@ -147,7 +147,7 @@
     <% } %>
 
     <% if (slotStats.deletable > 0) { %>
-    <form method="post" action="/admin/maintenance/delete-old-unused-slots" class="admin-detail__form" style="margin-top: 1.25rem;">
+    <form method="post" action="/admin/maintenance/delete-old-unused-slots" class="admin-detail__form admin-detail__form--spaced-top">
       <p class="admin-bulk__hint">
         Jedným spustením sa zmaže najviac <strong><%= slotPurgeBatchMax %></strong> takýchto termínov.
         Ak ich ostane viac, akciu zopakujte.

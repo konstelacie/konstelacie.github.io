@@ -74,8 +74,8 @@ export const PseudoChatWidget = {
         <button class="pseudochat-reset" aria-label="Resetovať">↺</button>
       </div>
       <div class="pseudochat-messages"></div>
-      <div class="pseudochat-options"></div>
-      <div class="pseudochat-input-area" style="display:none">
+      <div class="pseudochat-options pseudochat-options--hidden"></div>
+      <div class="pseudochat-input-area pseudochat-input-area--hidden">
         <input type="text" class="pseudochat-input" placeholder="">
         <button type="button" class="pseudochat-submit">Odoslať</button>
       </div>
@@ -129,7 +129,7 @@ export const PseudoChatWidget = {
         btn.onclick = () => handleOptionClick(opt, currentNodeId);
         optionsEl.appendChild(btn);
       });
-      optionsEl.style.display = 'block';
+      optionsEl.classList.remove('pseudochat-options--hidden');
     }
 
     function handleOptionClick(opt, nodeId) {
@@ -156,7 +156,7 @@ export const PseudoChatWidget = {
     function renderInput(node, currentNodeId) {
       const inp = node.input;
       if (!inp) return;
-      inputArea.style.display = 'flex';
+      inputArea.classList.remove('pseudochat-input-area--hidden');
       inputEl.placeholder = inp.placeholder || 'Napíšte…';
       submitBtn.textContent = inp.submitLabel || 'Odoslať';
       inputEl.value = '';
@@ -171,7 +171,7 @@ export const PseudoChatWidget = {
         if (inp.storeKey) storage.set(inp.storeKey, val);
         appendMessage('user', val);
         emit('pseudochat:message_sent', { nodeId: currentNodeId, payload: { text: val } });
-        inputArea.style.display = 'none';
+        inputArea.classList.add('pseudochat-input-area--hidden');
         state.nodeId = inp.onSubmitNext;
         saveState();
         renderNode(inp.onSubmitNext);
@@ -184,8 +184,8 @@ export const PseudoChatWidget = {
       const target = node || engine.getNode(fallbackId);
       const targetId = node ? nodeId : fallbackId;
 
-      optionsEl.style.display = 'none';
-      inputArea.style.display = 'none';
+      optionsEl.classList.add('pseudochat-options--hidden');
+      inputArea.classList.add('pseudochat-input-area--hidden');
 
       if (!target) return;
 
@@ -213,7 +213,7 @@ export const PseudoChatWidget = {
       saveState();
       messagesEl.innerHTML = '';
       optionsEl.innerHTML = '';
-      inputArea.style.display = 'none';
+      inputArea.classList.add('pseudochat-input-area--hidden');
       renderNode(state.nodeId);
     }
 

@@ -1,7 +1,7 @@
 <div class="admin-wrap admin-wrap--wide">
   <header class="admin-header admin-header--bar">
     <h1 class="admin-title">Platobné doklady</h1>
-    <div class="admin-header__actions" style="display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap;">
+    <div class="admin-header__actions">
       <a class="admin-btn admin-btn--ghost admin-btn--small" href="/admin/billing/export.csv<%= typeof searchQ !== 'undefined' && searchQ ? `?q=${encodeURIComponent(searchQ)}` : '' %>">Export CSV</a>
       <form method="post" action="/admin/logout">
         <button type="submit" class="admin-btn admin-btn--ghost">Odhlásiť sa</button>
@@ -22,13 +22,13 @@
   <% } %>
 
   <% if (typeof dbConfigured !== 'undefined' && dbConfigured) { %>
-  <form method="get" action="/admin/billing" class="admin-create__form" style="margin-bottom: 1.25rem;">
+  <form method="get" action="/admin/billing" class="admin-create__form admin-create__form--filter">
     <div class="admin-create__row">
-      <div class="admin-field" style="flex: 1;">
+      <div class="admin-field admin-field--grow">
         <label for="billing-search">Hľadať (e-mail, ID, ID rezervácie/platby, číslo CT-…, Stripe cs_…)</label>
         <input type="search" id="billing-search" name="q" value="<%= typeof searchQ !== 'undefined' ? searchQ : '' %>" placeholder="napr. meno@domena.sk alebo cs_…" autocomplete="off">
       </div>
-      <div class="admin-field admin-field--checkbox" style="align-self: flex-end;">
+      <div class="admin-field admin-field--checkbox admin-field--row-actions">
         <button type="submit" class="admin-btn admin-btn--primary">Hľadať</button>
       </div>
     </div>

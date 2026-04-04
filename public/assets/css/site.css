@@ -136,6 +136,19 @@ a:hover {
   font-size: 0.9rem;
 }
 
+.home-prelaunch {
+  margin-top: var(--spacing-section);
+}
+
+.home-prelaunch__campaign-list {
+  margin: 1rem 0 0;
+  padding-left: 1.25rem;
+}
+
+.home-prelaunch__campaign-list li {
+  margin-bottom: 0.35rem;
+}
+
 .site-footer {
   border-top: 1px solid var(--color-border);
   margin-top: var(--spacing-footer);
@@ -800,6 +813,13 @@ a:hover {
   gap: var(--spacing-sm);
 }
 
+.admin-header__actions {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
 .admin-title {
   margin: 0;
   font-size: 1.25rem;
@@ -906,6 +926,18 @@ a:hover {
   margin: 0;
 }
 
+.admin-create__form--filter {
+  margin-bottom: 1.25rem;
+}
+
+.admin-field--grow {
+  flex: 1;
+}
+
+.admin-field--row-actions {
+  align-self: flex-end;
+}
+
 .admin-create__row {
   display: flex;
   flex-wrap: wrap;
@@ -951,6 +983,10 @@ a:hover {
   margin: 0 0 var(--spacing-md);
   font-size: 0.9rem;
   color: var(--color-text-secondary);
+}
+
+.admin-bulk__hint--subtitle-follow {
+  margin-top: 0;
 }
 
 .admin-bulk__row {
@@ -1108,6 +1144,14 @@ a:hover {
   margin-bottom: var(--spacing-md);
 }
 
+.admin-detail__form--spaced-top {
+  margin-top: 1.25rem;
+}
+
+.admin-detail--section-gap {
+  margin-top: 2rem;
+}
+
 .admin-detail__actions {
   margin-top: var(--spacing-md);
 }
@@ -1117,6 +1161,10 @@ a:hover {
   flex-wrap: wrap;
   gap: var(--spacing-md);
   align-items: center;
+}
+
+.admin-detail__actions--gap-sm {
+  gap: 0.75rem;
 }
 
 .admin-detail__external {
