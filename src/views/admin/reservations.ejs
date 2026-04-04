@@ -36,6 +36,7 @@
           <th scope="col">Vytvorené</th>
           <th scope="col">Termín</th>
           <th scope="col">E-mail</th>
+          <th scope="col">Funnel / kampaň</th>
           <th scope="col">Stav rezervácie</th>
           <th scope="col">Platba</th>
           <th scope="col">Suma</th>
@@ -47,6 +48,7 @@
             <td><%= row.createdAtLabel %></td>
             <td><a href="/admin/reservations/<%= row.id %>"><%= row.sessionLabel %></a></td>
             <td class="admin-table__email"><%= row.email %></td>
+            <td class="admin-table__funnel-path"><%= row.funnelPathLabel %></td>
             <td><span class="admin-status admin-status--<%= row.reservationStatus %>"><%= row.reservationStatusLabel %></span></td>
             <td><span class="admin-pay-status admin-pay-status--<%= row.paymentStatusKey %>"><%= row.paymentStatusLabel %></span></td>
             <td><%= row.amountLabel %></td>

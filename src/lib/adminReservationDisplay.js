@@ -48,6 +48,26 @@ function formatAmountCents(cents) {
   return new Intl.NumberFormat('sk-SK', { style: 'currency', currency: 'EUR' }).format(n);
 }
 
+/** @param {string|null|undefined} v */
+function funnelFieldLabel(v) {
+  if (v == null) return '—';
+  const s = String(v).trim();
+  return s !== '' ? s : '—';
+}
+
+/**
+ * Compact label for admin list: `pilot / zavist` or `—` when no funnel data.
+ * @param {string|null|undefined} funnelName
+ * @param {string|null|undefined} funnelCampaign
+ */
+function formatFunnelPathShort(funnelName, funnelCampaign) {
+  const n = funnelName != null && String(funnelName).trim() !== '' ? String(funnelName).trim() : '';
+  const c = funnelCampaign != null && String(funnelCampaign).trim() !== '' ? String(funnelCampaign).trim() : '';
+  if (!n && !c) return '—';
+  if (n && c) return `${n} / ${c}`;
+  return n || c;
+}
+
 function mapReservationListRow(row) {
   const timeKey = timeKeyForGridIndex(Number(row.grid_index));
   const localDate = mysqlLocalDateToYmd(row.local_date);
@@ -67,6 +87,7 @@ function mapReservationListRow(row) {
       .setZone(SLOT_TIMEZONE)
       .toLocaleString(DateTime.DATETIME_SHORT),
     sessionLabel: `${localDate} ${timeKey}`,
+    funnelPathLabel: formatFunnelPathShort(row.funnel_name, row.funnel_campaign),
   };
 }
 
@@ -198,6 +219,9 @@ function mapAdminDetail(detail) {
     cancelledAtLabel: reservation.cancelled_at ? formatTs(reservation.cancelled_at) : '—',
     adminNote: reservation.admin_note || '',
     slotStatusLabel: slotStatusLabel(slot.slot_status),
+    funnelNameLabel: funnelFieldLabel(reservation.funnel_name),
+    funnelCampaignLabel: funnelFieldLabel(reservation.funnel_campaign),
+    funnelVideoIdLabel: funnelFieldLabel(reservation.funnel_video_id),
     paymentsForTable,
     actions: computeDetailActions(reservation.status),
   };

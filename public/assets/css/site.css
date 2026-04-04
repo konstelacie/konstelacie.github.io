@@ -1224,6 +1224,11 @@ a:hover {
   word-break: break-word;
 }
 
+.admin-table__funnel-path {
+  word-break: break-word;
+  max-width: 14rem;
+}
+
 .admin-table__actions {
   vertical-align: top;
   min-width: 8rem;

@@ -30,6 +30,9 @@
   <section class="admin-detail" aria-label="Údaje rezervácie">
     <dl class="admin-dl">
       <div class="admin-dl__row"><dt>E-mail</dt><dd><%= detail.email %></dd></div>
+      <div class="admin-dl__row"><dt>Funnel</dt><dd><%= detail.funnelNameLabel %></dd></div>
+      <div class="admin-dl__row"><dt>Kampaň</dt><dd><%= detail.funnelCampaignLabel %></dd></div>
+      <div class="admin-dl__row"><dt>Video ID</dt><dd><%= detail.funnelVideoIdLabel %></dd></div>
       <div class="admin-dl__row"><dt>Termín</dt><dd><%= detail.sessionLabel %> (<%= detail.slotStatusLabel %>)</dd></div>
       <div class="admin-dl__row"><dt>Stav rezervácie</dt><dd><span class="admin-status admin-status--<%= detail.reservationStatus %>"><%= detail.reservationStatusLabel %></span></dd></div>
       <div class="admin-dl__row"><dt>Platba pri rezervácii</dt><dd><%= detail.bookingPaymentLabel %></dd></div>
