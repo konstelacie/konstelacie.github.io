@@ -34,6 +34,45 @@ function formatAmount(amountCents, currency = 'eur') {
   return `${amount} ${symbol}`;
 }
 
+function escapeHtml(s) {
+  return String(s ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+}
+
+function escapeHtmlAttribute(s) {
+  return escapeHtml(s).replace(/\r?\n/g, ' ');
+}
+
+/** Plain text → safe HTML paragraphs for transactional mail. */
+function formatBalancePayCustomMessageHtml(plain) {
+  const t = typeof plain === 'string' ? plain.trim() : '';
+  if (!t) {
+    return (
+      '<p style="margin:0 0 16px;">Ahoj,</p>' +
+      '<p style="margin:0 0 16px;">posielame ti odkaz, kde môžeš <strong>dobrovoľne</strong> doplniť platbu za sedenie (minimálna úhrada už je splnená).</p>'
+    );
+  }
+  const blocks = t.split(/\n{2,}/);
+  const parts = [];
+  for (const block of blocks) {
+    const b = block.trim();
+    if (!b) continue;
+    const withBr = escapeHtml(b).replace(/\n/g, '<br>');
+    parts.push(`<p style="margin:0 0 16px;">${withBr}</p>`);
+  }
+  if (parts.length === 0) {
+    return formatBalancePayCustomMessageHtml('');
+  }
+  return parts.join('');
+}
+
+const DEFAULT_BALANCE_PAY_INVITE_SUBJECT = 'Voliteľný doplatok za sedenie — citimtedasom.sk';
+const MAX_BALANCE_PAY_INVITE_SUBJECT_LEN = 200;
+const MAX_BALANCE_PAY_INVITE_MESSAGE_LEN = 8000;
+
 /**
  * Send reservation confirmation email.
  * @param {object} params
@@ -176,8 +215,63 @@ async function sendBillingInvoiceEmail(
   return result;
 }
 
+/**
+ * Operator-triggered e-mail with optional personal message + balance payment link.
+ * @param {object} params
+ * @param {string} params.to
+ * @param {string} [params.subject] - optional; default Slovak subject
+ * @param {string} [params.customMessagePlain] - optional plain text (paragraphs); HTML escaped
+ * @param {string} params.balanceUrl - signed app URL (trusted)
+ * @param {object} params.slot - { start_at_utc, timezone }
+ * @param {object} [metadata]
+ * @returns {Promise<{ok: boolean, skipped?: boolean, messageId?: string}>}
+ */
+async function sendBalancePayInviteEmail(
+  { to, subject, customMessagePlain, balanceUrl, slot },
+  metadata = {}
+) {
+  const tz = slot.timezone || 'Europe/Bratislava';
+  const slotDateFormatted = formatSlotDate(slot.start_at_utc, tz);
+  const slotTimeFormatted = formatSlotTime(slot.start_at_utc, tz);
+  const customMessageHtml = formatBalancePayCustomMessageHtml(customMessagePlain);
+  const balanceUrlAttr = escapeHtmlAttribute(balanceUrl);
+  const balanceUrlText = escapeHtml(balanceUrl);
+
+  let finalSubject = DEFAULT_BALANCE_PAY_INVITE_SUBJECT;
+  if (typeof subject === 'string' && subject.trim()) {
+    finalSubject = subject.trim().slice(0, MAX_BALANCE_PAY_INVITE_SUBJECT_LEN);
+  }
+
+  const html = await ejs.renderFile(path.join(EMAIL_TEMPLATES_DIR, 'balance-pay-invite.ejs'), {
+    slotDateFormatted,
+    slotTimeFormatted,
+    timezone: tz,
+    customMessageHtml,
+    balanceUrlAttr,
+    balanceUrlText,
+  });
+
+  const result = await emailProvider.sendEmail(to, finalSubject, html, metadata);
+
+  if (result.ok && result.messageId) {
+    await emailSentLogRepo.log({
+      recipientEmail: to,
+      templateId: 'balance-pay-invite',
+      entityType: metadata.entity_type,
+      entityId: metadata.entity_id,
+      providerMessageId: result.messageId,
+      actorType: metadata.actorType || 'admin',
+    });
+  }
+
+  return result;
+}
+
 module.exports = {
   sendReservationConfirmation,
   sendPreSessionReminder,
   sendBillingInvoiceEmail,
+  sendBalancePayInviteEmail,
+  DEFAULT_BALANCE_PAY_INVITE_SUBJECT,
+  MAX_BALANCE_PAY_INVITE_MESSAGE_LEN,
 };

@@ -129,6 +129,21 @@
         });
       })();
     </script>
+    <form method="post" action="/admin/reservations/<%= detail.id %>/send-balance-email" class="admin-balance-pay-email">
+      <h3 class="admin-detail__subtitle admin-detail__subtitle--inline">Odoslať e-mailom klientovi</h3>
+      <p class="admin-bulk__hint">Predmet je voliteľný. Správa je v čistom texte (odstavce oddel prázdny riadok). Ak správu necháš prázdna, použije sa stručný predvolený úvod.</p>
+      <div class="admin-field admin-field--full">
+        <label for="balance-email-subject">Predmet</label>
+        <input type="text" id="balance-email-subject" name="emailSubject" maxlength="200" placeholder="<%= typeof defaultBalancePayEmailSubject !== 'undefined' ? defaultBalancePayEmailSubject : 'Voliteľný doplatok za sedenie — citimtedasom.sk' %>">
+      </div>
+      <div class="admin-field admin-field--full">
+        <label for="balance-email-message">Tvoja správa (voliteľné)</label>
+        <textarea id="balance-email-message" name="emailMessage" class="admin-detail__textarea" rows="6" maxlength="<%= typeof maxBalancePayEmailMessage !== 'undefined' ? maxBalancePayEmailMessage : 8000 %>" placeholder="Napríklad poďakovanie alebo stručný kontext…"></textarea>
+      </div>
+      <div class="admin-detail__actions">
+        <button type="submit" class="admin-btn admin-btn--primary">Odoslať e-mail</button>
+      </div>
+    </form>
     <% } else if (balancePay.message) { %>
     <p class="admin-placeholder"><%= balancePay.message %></p>
     <% } %>

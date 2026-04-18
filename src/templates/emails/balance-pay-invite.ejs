@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html lang="sk">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Doplatok za sedenie</title>
+</head>
+<body style="margin: 0; padding: 0; font-family: system-ui, -apple-system, 'Segoe UI', sans-serif; font-size: 16px; line-height: 1.6; color: #0f172a; background-color: #f8fafc;">
+  <div style="max-width: 600px; margin: 0 auto; padding: 24px;">
+    <h1 style="margin: 0 0 24px; font-size: 1.35rem; font-weight: 600;">Sedenie — voliteľný doplatok</h1>
+
+    <div style="margin: 0 0 24px;">
+      <%- customMessageHtml %>
+    </div>
+
+    <div style="background: #ffffff; border: 1px solid #e2e8f0; border-radius: 8px; padding: 20px; margin-bottom: 24px;">
+      <p style="margin: 0 0 8px; font-weight: 600;">Termín</p>
+      <p style="margin: 0 0 20px; color: #334155;"><%= slotDateFormatted %> o <%= slotTimeFormatted %> (<%= timezone %>)</p>
+      <p style="margin: 0 0 12px; color: #334155;">Platba je <strong>dobrovoľná</strong> — minimálna úhrada 45 € za sedenie už bola splnená.</p>
+      <a href="<%= balanceUrlAttr %>" style="display: inline-block; padding: 12px 20px; background: #0f172a; color: #ffffff; text-decoration: none; border-radius: 6px; font-weight: 600;">Otvoriť stránku platby</a>
+      <p style="margin: 16px 0 0; color: #64748b; font-size: 0.875rem;">Ak tlačidlo nefunguje, skopíruj tento odkaz do prehliadača:<br><span style="word-break: break-all;"><%= balanceUrlText %></span></p>
+    </div>
+
+    <p style="margin: 0 0 16px; color: #64748b; font-size: 0.9rem;">Pri otázke odpovedz na tento e-mail.</p>
+    <p style="margin: 0; color: #64748b; font-size: 0.875rem;">S pozdravom,<br>Michal Mihálik</p>
+  </div>
+</body>
+</html>

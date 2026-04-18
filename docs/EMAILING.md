@@ -180,7 +180,9 @@ Ak by Meet u vás nefungoval, môžeme použiť aj inú platformu.
 
 **Content:** Polite, non-pressuring invite to contribute optionally; link to payment page; clear display of already paid vs. optional supplement. Product expectation: **one** supplementary checkout per session.
 
-**Open:** Automated (triggered by session completion + optional invite) vs. manual (operator sends when appropriate); tone and timing.
+**Implemented (operator-triggered):** On **`GET /admin/reservations/:id`**, when a balance link is eligible, the operator can **Odoslať e-mail** — optional **subject**, optional **plain-text message** (HTML escaped; empty message uses a short default intro), plus the signed **`/platba-doplatok`** link and slot summary in template **`balance-pay-invite`**. Logged as **`balance-pay-invite`** in `email_sent_log` with `actor_type` **admin**. Not sent automatically by cron.
+
+**Open:** Fully automated reminder after session (cron) vs. keeping doplatok invite manual only; tone and timing for any future automation.
 
 ---
 

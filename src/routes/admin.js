@@ -25,6 +25,7 @@ const billingDeliveryService = require('../services/billingDeliveryService');
 const { mapBillingListRow, mapBillingDetailRow, csvEscape } = require('../lib/adminBillingDisplay');
 const { mysqlLocalDateToYmd } = require('../lib/slotApiMap');
 const { resolveBalancePayAdminLink } = require('../lib/balancePayAdminLink');
+const emailService = require('../services/emailService');
 
 const router = express.Router();
 
@@ -838,6 +839,89 @@ router.post('/reservations/:id/note', requireAdmin, async (req, res) => {
   }
 });
 
+router.post('/reservations/:id/send-balance-email', requireAdmin, async (req, res) => {
+  const id = parseReservationIdParam(req.params.id);
+  const redirect = id ? `/admin/reservations/${id}` : '/admin/reservations';
+  if (!id) {
+    req.session.adminFlash = { level: 'error', message: 'Neplatná rezervácia.' };
+    return res.redirect('/admin/reservations');
+  }
+
+  const emailSubject =
+    typeof req.body.emailSubject === 'string' ? req.body.emailSubject.trim().slice(0, 200) : '';
+  const emailMessageRaw = typeof req.body.emailMessage === 'string' ? req.body.emailMessage : '';
+  if (emailMessageRaw.length > emailService.MAX_BALANCE_PAY_INVITE_MESSAGE_LEN) {
+    req.session.adminFlash = {
+      level: 'error',
+      message: `Správa je príliš dlhá (max. ${emailService.MAX_BALANCE_PAY_INVITE_MESSAGE_LEN} znakov).`,
+    };
+    return res.redirect(redirect);
+  }
+
+  try {
+    const pool = getPool();
+    if (!pool) {
+      req.session.adminFlash = { level: 'error', message: 'Databáza nie je dostupná.' };
+      return res.redirect(redirect);
+    }
+
+    const raw = await reservationsRepo.getAdminDetailById(id);
+    if (!raw) {
+      req.session.adminFlash = { level: 'error', message: 'Rezervácia sa nenašla.' };
+      return res.redirect(redirect);
+    }
+
+    const balancePay = await resolveBalancePayAdminLink(pool, id);
+    if (balancePay.state !== 'ready' || !balancePay.url) {
+      req.session.adminFlash = {
+        level: 'error',
+        message: 'E-mail s doplatkom nie je v tomto stave možný (skontroluj stav rezervácie a platby).',
+      };
+      return res.redirect(redirect);
+    }
+
+    const to = typeof raw.reservation.email === 'string' ? raw.reservation.email.trim() : '';
+    if (!to) {
+      req.session.adminFlash = { level: 'error', message: 'Rezervácia nemá e-mail príjemcu.' };
+      return res.redirect(redirect);
+    }
+
+    const result = await emailService.sendBalancePayInviteEmail(
+      {
+        to,
+        subject: emailSubject || undefined,
+        customMessagePlain: emailMessageRaw,
+        balanceUrl: balancePay.url,
+        slot: raw.slot,
+      },
+      { entity_type: 'reservation', entity_id: id, actorType: 'admin' }
+    );
+
+    if (result.skipped) {
+      req.session.adminFlash = {
+        level: 'error',
+        message: 'E-mail sa neodoslal — skontrolujte konfiguráciu Resend (API kľúč a odosielateľa).',
+      };
+    } else if (!result.ok) {
+      req.session.adminFlash = { level: 'error', message: 'Odoslanie e-mailu zlyhalo. Skúste znova.' };
+    } else {
+      await auditRepo.log(
+        'balance_pay_invite_email_sent',
+        'reservation',
+        id,
+        { to, subjectPreview: (emailSubject || emailService.DEFAULT_BALANCE_PAY_INVITE_SUBJECT).slice(0, 120) },
+        'admin'
+      );
+      req.session.adminFlash = { level: 'success', message: `E-mail bol odoslaný na ${to}.` };
+    }
+    return res.redirect(redirect);
+  } catch (err) {
+    console.error('[admin/reservations/send-balance-email]', err);
+    req.session.adminFlash = { level: 'error', message: 'Neznáma chyba pri odosielaní.' };
+    return res.redirect(redirect);
+  }
+});
+
 router.get('/reservations/:id', requireAdmin, async (req, res) => {
   const id = parseReservationIdParam(req.params.id);
   if (!id) {
@@ -894,6 +978,8 @@ router.get('/reservations/:id', requireAdmin, async (req, res) => {
       detail,
       reservationId: id,
       balancePay,
+      defaultBalancePayEmailSubject: emailService.DEFAULT_BALANCE_PAY_INVITE_SUBJECT,
+      maxBalancePayEmailMessage: emailService.MAX_BALANCE_PAY_INVITE_MESSAGE_LEN,
     });
   } catch (err) {
     console.error('[admin/reservations/:id]', err);

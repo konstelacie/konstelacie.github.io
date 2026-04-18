@@ -256,6 +256,7 @@ Filters must be:
 
 * On **reservation detail**, when the reservation is **confirmed**, cumulative completed payments are **≥ 45 €**, there is **no** completed `topup` yet, and there is **no** pending Stripe checkout for a `topup`, the UI shows a **signed URL** to **`/platba-doplatok`** (default validity **30 days**).
 * **Copy** button copies the URL for pasting into e-mail or chat.
+* **Send e-mail** (`POST /admin/reservations/:id/send-balance-email`): optional subject, optional plain-text message (default intro if empty), sends to the reservation e-mail via Resend (`emailService.sendBalancePayInviteEmail`). Not automatic.
 * If **`BALANCE_PAY_TOKEN_SECRET`** is missing in production, a short error explains that signing is not configured.
 * If **`BASE_URL`** is unset, the URL may be root-relative; a hint suggests setting `BASE_URL` for absolute links in e-mails.
 
