@@ -326,13 +326,74 @@ While the webhook has not completed, `payment.status` may be `"pending"` and `pa
 
 ---
 
+## Balance / doplatok (optional supplementary payment)
+
+Public page: **`GET /platba-doplatok?token=…`** (see `docs/SESSION-PRICING.md`, *Supplementary payment*). Product rules: cumulative completed payments for the reservation must be **≥ 45 €**; at most **one** completed `topup` per reservation; no maximum total.
+
+**Env:** `BALANCE_PAY_TOKEN_SECRET` (required in production — HMAC secret for signed links; see `src/lib/balancePayToken.js`). `STRIPE_SECRET_KEY`, `BASE_URL` for Checkout.
+
+### GET /api/payments/balance/context
+
+**Query:** `token` (required) — signed token from `signBalancePayToken` / `scripts/sign-balance-pay-token.js`.
+
+**Response 200** (`state: "ready"`):
+
+```json
+{
+  "ok": true,
+  "state": "ready",
+  "paidCents": 1000,
+  "paidEuros": 10,
+  "minSupplementEur": 1,
+  "defaultCustomSupplementEur": 115,
+  "suggestedSupplements": [
+    { "targetTotalEur": 45, "supplementEur": 35, "supplementCents": 3500 }
+  ],
+  "slot": {
+    "localDate": "2026-04-20",
+    "gridIndex": 2,
+    "timeKey": "12:30",
+    "timezone": "Europe/Bratislava",
+    "startAt": "2026-04-20T10:30:00.000Z",
+    "endAt": "2026-04-20T12:00:00.000Z"
+  }
+}
+```
+
+Other `state` values: `not_available`, `already_completed`, `checkout_pending` — include a Slovak `message` for display.
+
+**Errors:** **404** `INVALID_BALANCE_LINK` — invalid or expired token. **503** — database not configured.
+
+### POST /api/payments/balance/start
+
+**Body:**
+
+| Field | Required | Description |
+|-------|----------|-------------|
+| `token` | yes | Same signed token as context |
+| `supplementEur` | yes | Integer euros: either one of the suggested supplements for this reservation, or any integer **1 … 50 000** (custom) |
+
+**Response 200:**
+
+```json
+{
+  "ok": true,
+  "url": "https://checkout.stripe.com/c/pay/cs_...",
+  "checkoutSessionId": "cs_..."
+}
+```
+
+**Errors:** **404** invalid token; **400** `VALIDATION_ERROR`; **409** `BALANCE_NOT_ALLOWED`, `BALANCE_ALREADY_PAID`, `BALANCE_CHECKOUT_PENDING`; **502** `STRIPE_ERROR`; **503** — Stripe or DB missing.
+
+---
+
 ## POST /api/stripe/webhook
 
 **Not** under `src/routes/api/index.js`. **Method:** `POST` only. **Body:** raw JSON (Stripe signature). **Headers:** `Stripe-Signature` required.
 
 **Env:** `STRIPE_WEBHOOK_SECRET`
 
-**Handled events:** `checkout.session.completed`, `checkout.session.expired` (see `src/routes/api/stripe.js`). Others are acknowledged but not persisted.
+**Handled events:** `checkout.session.completed`, `checkout.session.expired` (see `src/routes/api/stripe.js`). Initial booking checkouts create the reservation; **balance** checkouts (`payment_type` `topup`, metadata `checkoutPurpose: balance_topup`) only mark the payment completed. Others are acknowledged but not persisted.
 
 **Response:** `200` with `{ "received": true }` on success.
 

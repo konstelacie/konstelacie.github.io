@@ -195,7 +195,21 @@ router.post(
             break;
           }
 
-          reservationIdForEmail = await ensureReservationForCheckoutPayment(conn, payment, session);
+          const md = session.metadata || {};
+          const isBalanceTopup =
+            payment.payment_type === 'topup' &&
+            payment.reservation_id != null &&
+            String(md.checkoutPurpose || '') === 'balance_topup';
+
+          if (isBalanceTopup) {
+            const rid = parseInt(md.reservationId, 10);
+            if (!Number.isInteger(rid) || rid <= 0 || rid !== Number(payment.reservation_id)) {
+              throw new Error('checkout.topup_reservation_mismatch');
+            }
+            reservationIdForEmail = null;
+          } else {
+            reservationIdForEmail = await ensureReservationForCheckoutPayment(conn, payment, session);
+          }
 
           await conn.execute(
             'UPDATE payments SET status = ?, paid_at = NOW(3) WHERE id = ?',
@@ -230,26 +244,28 @@ router.post(
             tag: 'stripe_webhook_checkout_completed',
             requestId: req.id,
             eventId: event.id,
-            reservationId: reservationIdForEmail,
+            reservationId: reservationIdForEmail ?? payment.reservation_id,
             paymentId: payment.id,
             sessionId: session.id,
           });
 
-          await auditRepo.log(
-            'reservation_created',
-            'reservation',
-            reservationIdForEmail,
-            {
-              slotId: payment.slot_id,
-              stripeSessionId: session.id,
-              fromPaymentId: payment.id,
-            },
-            'system'
-          );
+          if (reservationIdForEmail) {
+            await auditRepo.log(
+              'reservation_created',
+              'reservation',
+              reservationIdForEmail,
+              {
+                slotId: payment.slot_id,
+                stripeSessionId: session.id,
+                fromPaymentId: payment.id,
+              },
+              'system'
+            );
+          }
 
           await auditRepo.log('payment_confirmed', 'payment', payment.id, {
             stripeSessionId: session.id,
-            reservationId: reservationIdForEmail,
+            reservationId: reservationIdForEmail ?? payment.reservation_id,
           });
 
           await auditRepo.log(

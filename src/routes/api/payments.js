@@ -40,7 +40,11 @@ const {
   paymentStartEmailLimiter,
 } = require('../../middleware/rateLimits');
 
+const paymentBalanceRouter = require('./paymentBalance');
+
 const router = express.Router();
+
+router.use('/balance', paymentBalanceRouter);
 
 const DEPOSIT_CENTS_FIRST = 1000; // 10 €
 const MIN_FULL_CENTS = 4500; // 45 €

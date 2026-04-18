@@ -8,6 +8,7 @@ const securityHeaders = require('./middleware/securityHeaders');
 const apiAccessLog = require('./middleware/apiAccessLog');
 const indexRouter = require('./routes/index');
 const legalRouter = require('./routes/legal');
+const payBalancePageRouter = require('./routes/payBalance');
 const funnelsRouter = require('./routes/funnels');
 const staticRouter = require('./routes/static');
 const healthRouter = require('./routes/health');
@@ -85,6 +86,7 @@ app.use((req, res, next) => {
 // Routes (more specific first)
 app.use('/api', apiRouter);
 app.use('/admin', adminRouter);
+app.use('/', payBalancePageRouter);
 app.use('/', legalRouter);
 app.use('/', funnelsRouter);
 app.use('/', indexRouter);

@@ -78,6 +78,18 @@ const cronLimiter = rateLimit({
   max: 30,
 });
 
+/** GET /api/payments/balance/context — signed token in query; cap per IP. */
+const balancePayContextLimiter = rateLimit({
+  ...limiterOptions,
+  max: 60,
+});
+
+/** POST /api/payments/balance/start — supplementary checkout. */
+const balancePayStartLimiter = rateLimit({
+  ...limiterOptions,
+  max: 15,
+});
+
 /** GET /api/slots/:slotId/lock-challenge — cooldown-style cap per IP+slot. */
 const lockChallengeGetLimiter = rateLimit({
   ...limiterOptions,
@@ -100,4 +112,6 @@ module.exports = {
   paymentStartEmailLimiter,
   reservationStatusLimiter,
   cronLimiter,
+  balancePayContextLimiter,
+  balancePayStartLimiter,
 };

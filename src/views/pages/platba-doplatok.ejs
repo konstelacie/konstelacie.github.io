@@ -1,0 +1,12 @@
+<article class="legal-page container prose">
+  <h1>Voliteľný doplatok</h1>
+  <p class="muted">Platba je dobrovoľná — minimálna úhrada 45 € za sedenie už bola splnená.</p>
+  <div
+    id="pay-balance-root"
+    class="pay-balance"
+    data-token="<%= typeof token === 'string' ? token.replace(/&/g, '&amp;').replace(/"/g, '&quot;') : '' %>"
+  >
+    <p class="muted" id="pay-balance-loading">Načítavam…</p>
+  </div>
+</article>
+<script src="/assets/js/pay-balance.js" defer></script>
