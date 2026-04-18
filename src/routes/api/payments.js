@@ -5,6 +5,10 @@ const { getPool } = require('../../db');
 const auditRepo = require('../../db/repositories/auditRepo');
 const locksRepo = require('../../db/repositories/locksRepo');
 const { FUNNEL_INSTANCES, parseFunnelAttribution } = require('../funnels');
+const {
+  FULL_PAYMENT_CHECKOUT_EUR,
+  reservationDepositCentsForFunnel,
+} = require('../../lib/bookingCheckoutAmounts');
 
 const MAX_CANCEL_RETURN_LEN = 2048;
 
@@ -46,9 +50,6 @@ const router = express.Router();
 
 router.use('/balance', paymentBalanceRouter);
 
-const DEPOSIT_CENTS_FIRST = 1000; // 10 €
-const MIN_FULL_CENTS = 4500; // 45 €
-
 function validatePaymentType(raw) {
   if (raw === 'deposit' || raw === 'full') return raw;
   throw new ApiError('VALIDATION_ERROR', 'paymentType must be deposit or full', 400);
@@ -57,8 +58,12 @@ function validatePaymentType(raw) {
 function validateAmount(raw, paymentType) {
   if (paymentType === 'deposit') return null;
   const amount = parseInt(raw, 10);
-  if (!Number.isInteger(amount) || amount < 45) {
-    throw new ApiError('VALIDATION_ERROR', 'amount must be at least 45 when paymentType is full', 400);
+  if (!Number.isInteger(amount) || amount !== FULL_PAYMENT_CHECKOUT_EUR) {
+    throw new ApiError(
+      'VALIDATION_ERROR',
+      `amount must be ${FULL_PAYMENT_CHECKOUT_EUR} when paymentType is full`,
+      400
+    );
   }
   return amount * 100; // euros → cents
 }
@@ -281,6 +286,7 @@ router.post(
     const paymentType = validatePaymentType(body.paymentType);
     const amountCents = validateAmount(body.amount, paymentType);
     const funnel = parseFunnelAttribution(body);
+    const funnelName = validateReturnPath(body.returnPath);
 
     const stripeSecret = process.env.STRIPE_SECRET_KEY;
     if (!stripeSecret) {
@@ -293,14 +299,13 @@ router.post(
     let cents;
     let paymentTypeForDb;
     if (paymentType === 'deposit') {
-      cents = DEPOSIT_CENTS_FIRST;
+      cents = reservationDepositCentsForFunnel(funnelName);
       paymentTypeForDb = 'deposit';
     } else {
       cents = amountCents;
       paymentTypeForDb = 'session';
     }
 
-    const funnelName = validateReturnPath(body.returnPath);
     const baseUrl = process.env.BASE_URL || (req.protocol + '://' + req.get('host'));
     const successUrl = `${baseUrl}/${funnelName}?payment_pending=1&session_id={CHECKOUT_SESSION_ID}`;
     const cancelReturnPath = validateCancelReturn(body.cancelReturn, funnelName);

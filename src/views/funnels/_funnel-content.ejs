@@ -2,7 +2,10 @@
 <section id="booking" class="funnel-cta booking-section prose"
   <% if (typeof funnelName !== 'undefined' && funnelName) { %>data-funnel-name="<%= funnelName %>"<% } %>
   <% if (typeof funnelName !== 'undefined' && funnelName && typeof funnelCampaignId !== 'undefined') { %>data-funnel-campaign="<%= funnelCampaignId %>"<% } %>
-  <% if (typeof funnelVideoId !== 'undefined' && funnelVideoId) { %>data-funnel-video-id="<%= funnelVideoId %>"<% } %>>
+  <% if (typeof funnelVideoId !== 'undefined' && funnelVideoId) { %>data-funnel-video-id="<%= funnelVideoId %>"<% } %>
+  data-reservation-deposit-eur="<%= typeof reservationDepositEur !== 'undefined' ? reservationDepositEur : 45 %>"
+  data-full-payment-checkout-eur="<%= typeof fullPaymentCheckoutEur !== 'undefined' ? fullPaymentCheckoutEur : 85 %>"
+>
   <div id="booking-main" class="booking-main">
   <div class="container">
     <h2 class="visually-hidden">Vyber si termín</h2>
@@ -74,30 +77,20 @@
               <span class="booking-payment-option-content">
                 <strong>Rezervovať sedenie</strong>
                 <span class="booking-payment-desc booking-payment-desc--stack">
-                  <span class="booking-payment-desc-line">Zaplatíš teraz 10 € za rezerváciu</span>
-                  <span class="booking-payment-desc-line">Zvyšok až po sedení</span>
+                  <span class="booking-payment-desc-line">Zaplatíš teraz <%= typeof reservationDepositEur !== 'undefined' ? reservationDepositEur : 45 %> € za rezerváciu</span>
+                  <span class="booking-payment-desc-line">Doplatok podľa dohody po sedení (spolu min. 45 €)</span>
                 </span>
-                <span class="booking-payment-amount">Rezervovať za 10 €</span>
+                <span class="booking-payment-amount">Rezervovať za <%= typeof reservationDepositEur !== 'undefined' ? reservationDepositEur : 45 %> €</span>
               </span>
             </label>
             <label class="booking-payment-option booking-payment-option--full">
               <input type="radio" name="paymentPath" value="full" id="payment-full">
               <span class="booking-payment-option-content">
-                <strong>Zaplatiť plnú sumu teraz</strong>
+                <strong>Zaplatiť celú sumu teraz</strong>
                 <span class="booking-payment-desc booking-payment-desc--stack">
-                  <span class="booking-payment-desc-line">Minimálne: 45 €</span>
-                  <span class="booking-payment-desc-line">Odporúčané: <span class="booking-payment-desc-em">85 €</span></span>
+                  <span class="booking-payment-desc-line">Jedna platba <span class="booking-payment-desc-em"><%= typeof fullPaymentCheckoutEur !== 'undefined' ? fullPaymentCheckoutEur : 85 %> €</span> pred sedením</span>
                 </span>
-                <div class="booking-payment-amounts">
-                  <label class="booking-amount-opt"><input type="radio" name="fullAmount" value="45"> 45 € <span class="muted">(znížená suma)</span></label>
-                  <label class="booking-amount-opt"><input type="radio" name="fullAmount" value="65"> 65 €</label>
-                  <label class="booking-amount-opt"><input type="radio" name="fullAmount" value="85" checked> 85 €</label>
-                  <label class="booking-amount-opt"><input type="radio" name="fullAmount" value="105"> 105 € <span class="muted">(podporujúca suma)</span></label>
-                  <label class="booking-amount-opt">
-                    <input type="radio" name="fullAmount" value="custom" id="full-amount-custom"> Vlastná suma:
-                    <input type="number" id="booking-custom-amount" min="45" step="10" value="125" class="booking-custom-amount-input" aria-label="Vlastná suma v eurách"> €
-                  </label>
-                </div>
+                <span class="booking-payment-amount">Zaplatiť <%= typeof fullPaymentCheckoutEur !== 'undefined' ? fullPaymentCheckoutEur : 85 %> €</span>
               </span>
             </label>
           </fieldset>

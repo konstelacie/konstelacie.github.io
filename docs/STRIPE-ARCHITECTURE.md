@@ -52,20 +52,20 @@ Details: `docs/API.md`.
 
 ## 3. Checkout Session creation (`POST /api/payments/start`)
 
-**Prerequisites:** Reservation exists, `status === 'pending_payment'`, `payment_type` matches body (`deposit` or `full`), no other **pending** payment row for that reservation.
+**Prerequisites:** Valid slot lock (`slotId` + `lockToken`), slot open for booking, email passes availability checks; no conflicting pending Stripe payment on the slot. Inserts a **pending** `payments` row (`reservation_id` null); reservation is created and linked in **`checkout.session.completed`** (`src/routes/api/stripe.js`).
 
-**Amounts (server-side):**
+**Amounts (server-side):** See `src/lib/bookingCheckoutAmounts.js`.
 
-- **Deposit:** Fixed **1000** cents (10 €) — `DEPOSIT_CENTS_FIRST` in code.
-- **Full:** Client sends `amount` in **euros** (integer); minimum **45** €; stored as cents in DB with `payments.payment_type` = `session` (full session payment).
+- **Deposit:** Cents from **`returnPath`** funnel (`site` → 45 €; `pilot` → 10 € while `BOOKING_FUNNEL_LOW_DEPOSIT_PROMO` is on, else 45 €).
+- **Full:** Client sends **`amount`** = **85** € (only accepted value); stored as cents with `payments.payment_type` = `session`.
 
 **Redirects:**
 
 - `success_url`: `{BASE_URL or request origin}/{returnPath}?payment_pending=1&session_id={CHECKOUT_SESSION_ID}` — the funnel page shows a blocking overlay and polls `GET /api/payments/status` until `payment.status === 'completed'` (webhook), then redirects to `/{returnPath}/success?session_id=…`.
 - `cancel_url`: `{BASE_URL or request origin}/{returnPath}/cancel`
-- `returnPath` is optional; normalized to a funnel name in `FUNNEL_INSTANCES` (default `pilot`).
+- `returnPath` is optional; normalized to a funnel name in `FUNNEL_INSTANCES` (empty/invalid → `site`, unknown segment → `pilot` — see `validateReturnPath`).
 
-**Stripe Session fields:** `mode: payment`, `payment_method_types: ['card']`, `customer_email` from reservation, `line_items` with `price_data` (EUR), `metadata` (see below).
+**Stripe Session fields:** `mode: payment`, `payment_method_types: ['card']`, `customer_email` from request body, `line_items` with `price_data` (EUR), `metadata` (see below).
 
 ---
 
@@ -120,7 +120,7 @@ Do not duplicate full column lists here; keep them in `DB-SCHEMA.md` / `001_init
 
 | Topic | Implementation |
 |-------|------------------|
-| Amount tampering | Deposit amount is fixed server-side. Full payment requires integer euros ≥ 45, converted to cents server-side. |
+| Amount tampering | Deposit and full amounts are fixed server-side from `returnPath` / validation rules; full must be exactly 85 €. |
 | Spoofed success | Success/cancel pages must not assume payment succeeded; webhook updates state. |
 | Webhook forgery | Signature verification required. |
 | Duplicate processing | `webhook_events` + unique `provider_ref` on payments + unique `billing_documents.payment_id`. |

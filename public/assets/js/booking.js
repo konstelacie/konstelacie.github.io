@@ -320,12 +320,21 @@
     }
   }
 
+  function readCheckoutAmountsFromBookingSection() {
+    const host = document.getElementById('booking');
+    const depRaw = host && host.getAttribute('data-reservation-deposit-eur');
+    const fullRaw = host && host.getAttribute('data-full-payment-checkout-eur');
+    const dep = parseInt(depRaw, 10);
+    const full = parseInt(fullRaw, 10);
+    return {
+      reservationDepositEur: Number.isFinite(dep) && dep > 0 ? dep : 45,
+      fullPaymentCheckoutEur: Number.isFinite(full) && full > 0 ? full : 85,
+    };
+  }
+
   function readPaymentFormStateFromDom() {
     const path = document.querySelector('input[name="paymentPath"]:checked')?.value;
-    const fullAmt = document.querySelector('input[name="fullAmount"]:checked')?.value;
-    const customEl = $('booking-custom-amount');
-    const customAmount = customEl ? String(customEl.value || '').trim() : '';
-    return { path: path || null, fullAmount: fullAmt || null, customAmount };
+    return { path: path || null };
   }
 
   function applyPaymentFormStateToDom(state) {
@@ -333,14 +342,6 @@
     if (state.path) {
       const el = document.querySelector(`input[name="paymentPath"][value="${state.path}"]`);
       if (el) el.checked = true;
-    }
-    if (state.fullAmount) {
-      const el = document.querySelector(`input[name="fullAmount"][value="${state.fullAmount}"]`);
-      if (el) el.checked = true;
-    }
-    const customEl = $('booking-custom-amount');
-    if (customEl && state.customAmount != null) {
-      customEl.value = state.customAmount;
     }
     updatePaymentSubmitButtonLabel();
   }
@@ -1534,33 +1535,26 @@
     const path = document.querySelector('input[name="paymentPath"]:checked')?.value;
     if (!path) return null;
     if (path === 'deposit') return { paymentType: 'deposit', amount: null };
-    const fullAmount = document.querySelector('input[name="fullAmount"]:checked')?.value;
-    let amount = 45;
-    if (fullAmount === 'custom') {
-      const custom = parseInt($('booking-custom-amount').value, 10);
-      amount = isNaN(custom) ? 45 : Math.max(45, custom);
-    } else if (fullAmount) {
-      amount = parseInt(fullAmount, 10) || 45;
-    }
-    return { paymentType: 'full', amount };
+    const { fullPaymentCheckoutEur } = readCheckoutAmountsFromBookingSection();
+    return { paymentType: 'full', amount: fullPaymentCheckoutEur };
   }
 
   const PAYMENT_SUBMIT_PREFIX = 'Pokračovať k platbe';
-  const PAYMENT_DEPOSIT_EUR = 10;
 
   function updatePaymentSubmitButtonLabel() {
     const submitBtn = $('booking-payment-submit');
     if (!submitBtn) return;
     const choice = getPaymentChoice();
+    const { reservationDepositEur, fullPaymentCheckoutEur } = readCheckoutAmountsFromBookingSection();
     if (!choice) {
       submitBtn.textContent = PAYMENT_SUBMIT_PREFIX;
       return;
     }
     if (choice.paymentType === 'deposit') {
-      submitBtn.textContent = `${PAYMENT_SUBMIT_PREFIX} ${PAYMENT_DEPOSIT_EUR} €`;
+      submitBtn.textContent = `${PAYMENT_SUBMIT_PREFIX} ${reservationDepositEur} €`;
       return;
     }
-    submitBtn.textContent = `${PAYMENT_SUBMIT_PREFIX} ${choice.amount} €`;
+    submitBtn.textContent = `${PAYMENT_SUBMIT_PREFIX} ${fullPaymentCheckoutEur} €`;
   }
 
   /**
@@ -1819,12 +1813,13 @@
           return;
         }
         const { paymentType, amount } = choice;
-        if (paymentType === 'full' && amount < 45) {
+        const { fullPaymentCheckoutEur } = readCheckoutAmountsFromBookingSection();
+        if (paymentType === 'full' && amount !== fullPaymentCheckoutEur) {
           const pathVal = $('booking-payment-path-validation');
           if (pathVal) pathVal.hidden = true;
           const err = $('booking-payment-error');
           if (err) {
-            err.textContent = 'Minimálna suma pri plnej platbe je 45 €.';
+            err.textContent = `Plná platba pri rezervácii je ${fullPaymentCheckoutEur} €. Skús znova.`;
             err.hidden = false;
           }
           return;
@@ -1841,29 +1836,9 @@
         if (lockToken) storeLock();
       });
     });
-    document.querySelectorAll('input[name="fullAmount"]').forEach((el) => {
-      el.addEventListener('change', () => {
-        updatePaymentSubmitButtonLabel();
-        if (lockToken) storeLock();
-      });
-    });
     if (paymentBackBtn) {
       paymentBackBtn.addEventListener('click', () => {
         void showEmailForm();
-      });
-    }
-
-    const customAmountInput = $('booking-custom-amount');
-    if (customAmountInput) {
-      customAmountInput.addEventListener('change', () => {
-        const customRadio = document.getElementById('full-amount-custom');
-        if (customRadio) customRadio.checked = true;
-        updatePaymentSubmitButtonLabel();
-        if (lockToken) storeLock();
-      });
-      customAmountInput.addEventListener('input', () => {
-        updatePaymentSubmitButtonLabel();
-        if (lockToken) storeLock();
       });
     }
 

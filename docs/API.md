@@ -258,18 +258,22 @@ Reservation snapshot for polling: reservation fields, slot times, latest payment
 
 ## POST /api/payments/start
 
-Create a Stripe Checkout Session for a reservation in `pending_payment`. Returns the Stripe-hosted URL to redirect the browser.
+Create a Stripe Checkout Session for the slot lock (before or after reservation row exists per booking flow). Returns the Stripe-hosted URL to redirect the browser.
 
 **Body:**
 
 | Field | Required | Description |
 |-------|----------|-------------|
-| `reservationId` | yes | Positive integer |
-| `paymentType` | yes | `"deposit"` or `"full"` — must match the reservation’s `payment_type` |
-| `amount` | if `full` | Integer euros, minimum **45** (converted to cents server-side) |
-| `returnPath` | no | Funnel segment used for success/cancel URLs (e.g. `pilot`). If invalid or omitted, defaults to `pilot`. Must be in `FUNNEL_INSTANCES`. |
+| `slotId` | yes | Positive integer |
+| `lockToken` | yes | UUID from slot lock |
+| `email` | yes | Customer email |
+| `paymentType` | yes | `"deposit"` or `"full"` |
+| `amount` | if `full` | Integer euros, must be exactly **85** (`FULL_PAYMENT_CHECKOUT_EUR` in `src/lib/bookingCheckoutAmounts.js`) |
+| `returnPath` | no | Funnel segment for success/cancel URLs (e.g. `/pilot`, `/site`). Normalized to a name in `FUNNEL_INSTANCES`; invalid/empty → `site` or `pilot` per `validateReturnPath` in code. |
+| `cancelReturn` | no | Root-relative path for Stripe `cancel_url` (must stay under the same funnel path) |
+| `funnelName` / `funnel`, `funnelCampaign` / `campaign`, `funnelVideoId` | no | Attribution for analytics/metadata (validated against funnel config) |
 
-**Deposit amount:** Fixed in code at **1000** cents (10 €). **Full** payment stores `payment_type` `session` in `payments` with the given amount.
+**Deposit amount (server):** Derived from **`returnPath`** funnel name via `src/lib/bookingCheckoutAmounts.js`: **`site` → 45 €**; **`pilot` → 10 €** while `BOOKING_FUNNEL_LOW_DEPOSIT_PROMO` is unset or truthy, otherwise **45 €**. **Full** checkout is always **85 €** at this step; optional extra amounts use the balance/doplatok flow after the session minimum is met.
 
 **Response 200:**
 

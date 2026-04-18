@@ -1,6 +1,7 @@
 const express = require('express');
 const appConfig = require('../config');
 const { resolveCampaignVideo } = require('../config/funnelVideo');
+const { reservationDepositEurForFunnel, FULL_PAYMENT_CHECKOUT_EUR } = require('../lib/bookingCheckoutAmounts');
 const { ApiError } = require('../middleware/apiError');
 
 const router = express.Router();
@@ -131,6 +132,8 @@ function buildFunnelViewLocals(funnelName, queryCampaign) {
     funnelName,
     funnelCampaignId: campaignId,
     funnelVideoId: campaign.videoId != null ? String(campaign.videoId) : null,
+    reservationDepositEur: reservationDepositEurForFunnel(funnelName),
+    fullPaymentCheckoutEur: FULL_PAYMENT_CHECKOUT_EUR,
   };
 }
 
