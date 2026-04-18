@@ -60,8 +60,16 @@ function validateAmount(raw, paymentType) {
 }
 
 function validateReturnPath(raw) {
-  const path = typeof raw === 'string' ? raw.replace(/\/$/, '').replace(/^\//, '') : '';
-  const name = path || 'pilot';
+  if (typeof raw !== 'string' || !String(raw).trim()) {
+    return 'site';
+  }
+  let s = String(raw).trim().replace(/\/+$/, '');
+  if (s === '/') {
+    return 'site';
+  }
+  const path = s.startsWith('/') ? s.slice(1) : s;
+  const seg = path.split('/').filter(Boolean)[0];
+  const name = seg || 'site';
   if (!FUNNEL_INSTANCES.includes(name)) {
     return 'pilot';
   }

@@ -1567,14 +1567,20 @@
    * @param {{ slotId: number, lockToken: string, email: string, paymentType: string, amount: number|null }} params
    */
   async function startPayment({ slotId, lockToken, email, paymentType, amount }) {
-    const returnPath = (window.location.pathname || '').replace(/\/$/, '') || '/pilot';
+    const funnelCtx = readFunnelContext();
+    let returnPath = (window.location.pathname || '').replace(/\/$/, '');
+    if (returnPath === '') returnPath = '/';
+    if (funnelCtx.funnelName === 'site') {
+      returnPath = '/site';
+    } else if (returnPath === '/') {
+      returnPath = '/pilot';
+    }
     const cancelReturn =
       (window.location.pathname || '/') +
       (window.location.search || '') +
       (window.location.hash || '');
     const payBody = { slotId, lockToken, email, paymentType, returnPath, cancelReturn };
     if (paymentType === 'full') payBody.amount = amount;
-    const funnelCtx = readFunnelContext();
     if (funnelCtx.funnelName) {
       payBody.funnelName = funnelCtx.funnelName;
       payBody.funnelCampaign = funnelCtx.funnelCampaign || 'default';

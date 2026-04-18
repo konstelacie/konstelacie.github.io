@@ -1,16 +1,8 @@
 const express = require('express');
-const { getFunnelCampaignLinks } = require('./funnels');
+const { renderSiteHome } = require('./funnels');
 
 const router = express.Router();
 
-router.get('/', (req, res) => {
-  res.render('index', {
-    layout: 'layouts/default',
-    title: 'citimtedasom.sk',
-    description: 'Stránka sa pripravuje.',
-    home: true,
-    funnelCampaignLinks: getFunnelCampaignLinks(),
-  });
-});
+router.get('/', renderSiteHome);
 
 module.exports = router;

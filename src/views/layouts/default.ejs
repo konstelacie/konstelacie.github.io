@@ -4,6 +4,9 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="description" content="<%= typeof description !== 'undefined' ? description : 'citimtedasom.sk' %>">
+  <% if (typeof robotsNoindex !== 'undefined' && robotsNoindex) { %>
+  <meta name="robots" content="noindex, nofollow">
+  <% } %>
   <title><%= typeof title !== 'undefined' ? title : 'citimtedasom.sk' %></title>
   <link rel="stylesheet" href="/assets/css/site.css">
   <%- typeof extraStyles !== 'undefined' && extraStyles ? extraStyles : '' %>

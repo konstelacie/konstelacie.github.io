@@ -5,8 +5,11 @@ const { ApiError } = require('../middleware/apiError');
 
 const router = express.Router();
 
-/** Known funnel instances. Add new instances here; routes and payment redirects use this. */
-const FUNNEL_INSTANCES = ['pilot'];
+/**
+ * Known funnel instances. Add new instances here; routes and payment redirects use this.
+ * `site` — public home + booking; `/site` exists for Stripe return URLs (noindex), `/` is canonical.
+ */
+const FUNNEL_INSTANCES = ['site', 'pilot'];
 
 /**
  * Campaign data per funnel instance. Override via ?campaign=id.
@@ -69,6 +72,13 @@ const pilotPoslanie = {
 };
 
 const INSTANCE_CAMPAIGNS = {
+  site: {
+    default: {
+      headline: 'citimtedasom.sk',
+      subhead: 'Úvodný text a video doplníme. Nižšie si môžeš vybrať termín online sedenia.',
+      lowerContentReveal: { enabled: false },
+    },
+  },
   pilot: {
     default: { ...pilotPoslanie },
     poslanie: { ...pilotPoslanie },
@@ -85,28 +95,14 @@ const INSTANCE_CAMPAIGNS = {
   },
 };
 
-/**
- * Flat list of funnel + campaign for dev/testing links (e.g. home page).
- * @returns {{ funnelName: string, campaignId: string, href: string }[]}
- */
-function getFunnelCampaignLinks() {
-  const out = [];
-  for (const funnelName of FUNNEL_INSTANCES) {
-    const campaigns = INSTANCE_CAMPAIGNS[funnelName];
-    if (!campaigns) continue;
-    for (const campaignId of Object.keys(campaigns)) {
-      const href =
-        campaignId === 'default'
-          ? `/${funnelName}`
-          : `/${funnelName}?campaign=${encodeURIComponent(campaignId)}`;
-      out.push({ funnelName, campaignId, href });
-    }
-  }
-  return out;
-}
-
 /** Instance-specific meta (title, description). */
 const INSTANCE_META = {
+  site: {
+    title: 'citimtedasom.sk',
+    description: 'Online konštelácie a osobný rozvoj. Rezervácia termínu, príprava obsahu.',
+    successTitle: 'Platba dokončená',
+    cancelTitle: 'Platba zrušená',
+  },
   pilot: {
     title: 'Pilot – V príprave',
     description: 'Pilot funnel – v príprave.',
@@ -117,6 +113,52 @@ const INSTANCE_META = {
 
 function isValidFunnel(name) {
   return typeof name === 'string' && FUNNEL_INSTANCES.includes(name);
+}
+
+function buildFunnelViewLocals(funnelName, queryCampaign) {
+  const campaigns = INSTANCE_CAMPAIGNS[funnelName] || { default: {} };
+  const campaignId = queryCampaign || 'default';
+  const campaign = { ...campaigns.default, ...campaigns[campaignId] };
+  const campaignVideo = resolveCampaignVideo(campaign);
+  const lowerContentReveal = resolveLowerContentReveal(campaign);
+  const meta = INSTANCE_META[funnelName] || { title: funnelName, description: '' };
+  return {
+    title: meta.title,
+    description: meta.description,
+    campaign,
+    campaignVideo,
+    lowerContentReveal,
+    funnelName,
+    funnelCampaignId: campaignId,
+    funnelVideoId: campaign.videoId != null ? String(campaign.videoId) : null,
+  };
+}
+
+function renderFunnelExpressPage(res, funnelName, req, { robotsNoindex }) {
+  const locals = buildFunnelViewLocals(funnelName, req.query && req.query.campaign);
+  const view = funnelName === 'site' ? 'funnels/pilot' : `funnels/${funnelName}`;
+  res.render(view, {
+    layout: 'layouts/default',
+    hideHeader: true,
+    robotsNoindex,
+    ...locals,
+    extraStyles: `
+      <link rel="stylesheet" href="/assets/css/funnel.css">
+    `,
+    extraScripts: `
+      ${
+        appConfig.captcha?.siteKey
+          ? `<script>window.__BOOKING_RECAPTCHA_SITE_KEY=${JSON.stringify(appConfig.captcha.siteKey)}</script>`
+          : ''
+      }
+      <script src="/assets/js/booking.js"></script>
+      <script src="/assets/js/funnel.js"></script>
+    `,
+  });
+}
+
+function renderSiteHome(req, res) {
+  renderFunnelExpressPage(res, 'site', req, { robotsNoindex: false });
 }
 
 /**
@@ -208,43 +250,12 @@ function parseFunnelAttribution(body) {
   return { funnelName, funnelCampaign: campaignId, funnelVideoId };
 }
 
-// Main funnel page: /pilot, /pattern, etc.
+// Main funnel page: /site (noindex), /pilot, etc.
 router.get('/:funnelName', (req, res, next) => {
   const { funnelName } = req.params;
   if (!isValidFunnel(funnelName)) return next('route');
 
-  const campaigns = INSTANCE_CAMPAIGNS[funnelName] || { default: {} };
-  const campaignId = req.query.campaign || 'default';
-  const campaign = { ...campaigns.default, ...campaigns[campaignId] };
-  const campaignVideo = resolveCampaignVideo(campaign);
-  const lowerContentReveal = resolveLowerContentReveal(campaign);
-
-  const meta = INSTANCE_META[funnelName] || { title: funnelName, description: '' };
-
-  res.render(`funnels/${funnelName}`, {
-    layout: 'layouts/default',
-    hideHeader: true,
-    title: meta.title,
-    description: meta.description,
-    campaign,
-    campaignVideo,
-    lowerContentReveal,
-    funnelName,
-    funnelCampaignId: campaignId,
-    funnelVideoId: campaign.videoId != null ? String(campaign.videoId) : null,
-    extraStyles: `
-      <link rel="stylesheet" href="/assets/css/funnel.css">
-    `,
-    extraScripts: `
-      ${
-        appConfig.captcha?.siteKey
-          ? `<script>window.__BOOKING_RECAPTCHA_SITE_KEY=${JSON.stringify(appConfig.captcha.siteKey)}</script>`
-          : ''
-      }
-      <script src="/assets/js/booking.js"></script>
-      <script src="/assets/js/funnel.js"></script>
-    `
-  });
+  renderFunnelExpressPage(res, funnelName, req, { robotsNoindex: true });
 });
 
 // Success: /pilot/success, /pattern/success, etc.
@@ -256,6 +267,7 @@ router.get('/:funnelName/success', (req, res, next) => {
   res.render('funnels/_funnel-success', {
     layout: 'layouts/default',
     hideHeader: true,
+    robotsNoindex: true,
     title: meta.successTitle || 'Platba dokončená',
     description: 'Ďakujeme, platba je dokončená.',
     homeUrl: '/',
@@ -270,12 +282,14 @@ router.get('/:funnelName/cancel', (req, res, next) => {
   if (!isValidFunnel(funnelName)) return next('route');
 
   const meta = INSTANCE_META[funnelName] || {};
+  const backUrl = funnelName === 'site' ? '/site#booking' : `/${funnelName}#booking`;
   res.render('funnels/_funnel-cancel', {
     layout: 'layouts/default',
     hideHeader: true,
+    robotsNoindex: true,
     title: meta.cancelTitle || 'Platba zrušená',
     description: 'Platba bola zrušená.',
-    backUrl: `/${funnelName}#booking`,
+    backUrl,
     extraStyles: '<link rel="stylesheet" href="/assets/css/funnel.css">',
   });
 });
@@ -283,4 +297,4 @@ router.get('/:funnelName/cancel', (req, res, next) => {
 module.exports = router;
 module.exports.FUNNEL_INSTANCES = FUNNEL_INSTANCES;
 module.exports.parseFunnelAttribution = parseFunnelAttribution;
-module.exports.getFunnelCampaignLinks = getFunnelCampaignLinks;
+module.exports.renderSiteHome = renderSiteHome;

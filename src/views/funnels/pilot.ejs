@@ -23,7 +23,11 @@
           <iframe src="<%= campaignVideo.embedUrl %>" title="Video" class="wistia_embed" name="wistia_embed" allow="autoplay" allowtransparency="true"></iframe>
         </div>
       <% } else { %>
-        <p class="muted">[Video ešte nie je nastavené]</p>
+        <% if (typeof funnelName !== 'undefined' && funnelName === 'site') { %>
+          <p class="muted">Video a úvodný obsah pripravujeme.</p>
+        <% } else { %>
+          <p class="muted">[Video ešte nie je nastavené]</p>
+        <% } %>
       <% } %>
       <% var _revealOn = typeof lowerContentReveal !== 'undefined' && lowerContentReveal.enabled; %>
       <div
