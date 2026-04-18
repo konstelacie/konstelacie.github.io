@@ -59,6 +59,7 @@ Users may pay the full session amount immediately.
 
 - **Minimum payment:** 45 €
 - **Suggested amount:** 85 €
+- **No product maximum** — tiers such as 65 €, 85 €, and 105 € are suggestions only; the user may pay more (including custom amounts above 105 €).
 
 Users may select one of several suggested options or enter their own amount.
 
@@ -88,7 +89,7 @@ For all sessions after the first one:
 
 **Reservation amount:** 45 €
 
-Users may optionally contribute more.
+Users may optionally contribute more. There is **no product maximum** on the total paid for the session; suggested amounts below are guidance only.
 
 **Suggested options (exact labels):**
 
@@ -100,6 +101,30 @@ Users may optionally contribute more.
 | 105 € | supportive amount |
 
 **Custom amount:** Allowed. When the user selects custom, the input defaults to 125 €.
+
+---
+
+## Supplementary payment (doplatok, same session)
+
+This section covers an **optional** extra payment for **one** session after the **minimum session total** is already satisfied. Use it when designing the email-linked “pay more” page and related copy (see also `docs/EMAILING.md`, `docs/POST-PAYMENT-CLIENT-JOURNEY.md`).
+
+### Minimum and maximum (totals)
+
+- **Minimum total** paid toward the session (sum of completed payments for that reservation): **45 €**. Until that is reached, the user completes payment through the normal booking checkout, not the supplementary page.
+- **No maximum total** — the product does not cap the session total at 105 € or any other amount. Values like 65 €, 85 €, and 105 € remain **suggested** targets for convenience and tone, not ceilings.
+
+### When the supplementary flow applies
+
+- **Cumulative completed payments ≥ 45 €** for that reservation. The page invites an **optional** additional amount (user may choose not to pay more).
+- **Later booking variant (planned):** The user may pay **only 45 €** at booking to meet the minimum immediately, then **decide later** whether to contribute more. That optional “more” uses the **same** supplementary-payment rules as someone who reached 45 € via a smaller reservation fee plus earlier payments.
+
+### One checkout per session (expectation)
+
+- The product **expects at most one** intended supplementary payment checkout per session (one optional “doplatok” step), not a repeated ladder of follow-up payments. Implementation may still enforce idempotency or business rules as needed.
+
+### Relating suggested totals to “how much to add now”
+
+- For UX, optional radios can show **additional** amounts such that **paid so far + supplement** equals familiar totals (45 €, 65 €, 85 €, 105 €, or custom ≥ minimum). Because there is **no maximum**, **custom** should allow any **supplement** that keeps transparency (and any legal/accounting constraints) without treating 105 € as a required or maximum total.
 
 ---
 
@@ -143,7 +168,8 @@ Pricing text should emphasize:
 
 ## Quick Reference
 
-| Context | Reservation | Minimum | Recommended |
-|---------|-------------|---------|-------------|
-| First session | 10 € | 45 € (full payment) | 85 € |
+| Context | Reservation | Minimum total | Recommended (suggestion, not cap) |
+|---------|-------------|---------------|-------------------------------------|
+| First session | 10 € | 45 € (full payment or cumulative) | 85 € |
 | Future sessions | 45 € | 45 € | 85 € |
+| Supplementary (same session) | — | 45 € cumulative before page applies | Optional; no max total |

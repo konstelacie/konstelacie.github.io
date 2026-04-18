@@ -187,9 +187,9 @@ Current model: `draft`, `pending_payment`, `confirmed`, `cancelled`, `expired`. 
 
 ### Possible additional payment / doplatok flow?
 
-- Reservation path: user paid 10 € (first) or 45 € (future); may pay more after the session.
-- Need: clear communication about when and how to pay; link to payment page.
-- Open: automated email vs. manual follow-up; timing.
+- **Product rules** (authoritative detail: `docs/SESSION-PRICING.md`, *Supplementary payment*): minimum **total** for the session is **45 €**; **no maximum** total. The supplementary page applies when **cumulative completed payments ≥ 45 €** and offers **optional** extra payment; **one** such checkout per session is expected. A **future** booking path: pay **45 €** only at booking, then optionally more later via the same supplementary rules.
+- **Need:** clear communication (optional contribution, not a mandatory “remainder to 105 €”); link to payment page.
+- **Open:** automated email vs. manual follow-up; timing.
 
 ### Ongoing client journey?
 

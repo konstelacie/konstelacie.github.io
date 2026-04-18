@@ -176,11 +176,11 @@ Ak by Meet u vás nefungoval, môžeme použiť aj inú platformu.
 
 ### 4.4 Optional Payment Follow-Up / Doplatok Request
 
-**When:** User paid reservation fee (10 € first session, 45 € future); remainder may be paid after session. See `docs/SESSION-PRICING.md`.
+**When:** Cumulative completed payments for the session are **≥ 45 €** (minimum already met). That can be after a reservation fee plus earlier payments, after **45 €** paid upfront when we offer “minimum now, optionally more later,” or similar. There is **no product maximum** total; any doplatok message is about **optional** contribution, not filling a gap to a fixed ceiling (e.g. 105 €). See **`docs/SESSION-PRICING.md`** (section *Supplementary payment*).
 
-**Content:** Polite request to complete payment; link to payment page; amount due.
+**Content:** Polite, non-pressuring invite to contribute optionally; link to payment page; clear display of already paid vs. optional supplement. Product expectation: **one** supplementary checkout per session.
 
-**Open:** Automated (triggered by session completion + unpaid remainder) vs. manual (operator sends when appropriate); tone and timing.
+**Open:** Automated (triggered by session completion + optional invite) vs. manual (operator sends when appropriate); tone and timing.
 
 ---
 
