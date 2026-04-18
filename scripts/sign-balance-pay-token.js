@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 /**
- * Print a signed balance-pay token and example URL (dev / ops).
+ * Print a signed balance-pay token and example URL (dev / ops / CI).
+ * For day-to-day use, prefer **Admin → Rezervácia → detail** (30-day link + copy) when the UI is available.
  *
  * Usage:
  *   node scripts/sign-balance-pay-token.js <reservationId> [ttl]

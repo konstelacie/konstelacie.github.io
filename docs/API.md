@@ -328,7 +328,7 @@ While the webhook has not completed, `payment.status` may be `"pending"` and `pa
 
 ## Balance / doplatok (optional supplementary payment)
 
-Public page: **`GET /platba-doplatok?token=…`** (see `docs/SESSION-PRICING.md`, *Supplementary payment*). Product rules: cumulative completed payments for the reservation must be **≥ 45 €**; at most **one** completed `topup` per reservation; no maximum total.
+Public page: **`GET /platba-doplatok?token=…`** (see `docs/SESSION-PRICING.md`, *Supplementary payment*). Product rules: cumulative completed payments for the reservation must be **≥ 45 €**; at most **one** completed `topup` per reservation; no maximum total. Eligible signed URLs are also offered on **`GET /admin/reservations/:id`** (copy for e-mail) when the admin session is logged in.
 
 **Env:** `BALANCE_PAY_TOKEN_SECRET` (required in production — HMAC secret for signed links; see `src/lib/balancePayToken.js`). `STRIPE_SECRET_KEY`, `BASE_URL` for Checkout.
 

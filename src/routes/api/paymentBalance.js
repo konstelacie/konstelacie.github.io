@@ -7,6 +7,7 @@ const { mysqlLocalDateToYmd } = require('../../lib/slotApiMap');
 const { timeKeyForGridIndex } = require('../../config/slotGrid');
 const { verifyBalancePayToken } = require('../../lib/balancePayToken');
 const sessionPricing = require('../../lib/sessionPricing');
+const { loadBalanceReservationState } = require('../../lib/balancePayReservationState');
 const auditRepo = require('../../db/repositories/auditRepo');
 const {
   paymentsMutationLimiter,
@@ -21,59 +22,6 @@ const MAX_SUPPLEMENT_EUR = 50_000;
 
 function invalidLinkError() {
   return new ApiError('INVALID_BALANCE_LINK', 'This link is invalid or has expired.', 404);
-}
-
-/**
- * @param {import('mysql2/promise').Pool} pool
- * @param {number} reservationId
- */
-async function loadBalanceEligibility(pool, reservationId) {
-  const [resRows] = await pool.execute(
-    `SELECT r.id, r.status, r.email, r.user_id, r.slot_id,
-            s.local_date, s.grid_index, s.start_at_utc, s.end_at_utc, s.timezone
-     FROM reservations r
-     INNER JOIN slots s ON s.id = r.slot_id
-     WHERE r.id = ?
-     LIMIT 1`,
-    [reservationId]
-  );
-  const resv = resRows[0];
-  if (!resv) {
-    return { kind: 'missing' };
-  }
-
-  const [sumRows] = await pool.execute(
-    `SELECT COALESCE(SUM(amount_cents), 0) AS paid_cents
-     FROM payments
-     WHERE reservation_id = ? AND status = 'completed'`,
-    [reservationId]
-  );
-  const paidCents = Number(sumRows[0]?.paid_cents ?? 0) || 0;
-
-  const [topDone] = await pool.execute(
-    `SELECT id FROM payments
-     WHERE reservation_id = ? AND payment_type = 'topup' AND status = 'completed'
-     LIMIT 1`,
-    [reservationId]
-  );
-  const topupAlreadyCompleted = topDone.length > 0;
-
-  const [topPending] = await pool.execute(
-    `SELECT id FROM payments
-     WHERE reservation_id = ? AND payment_type = 'topup' AND status = 'pending'
-       AND checkout_expires_at > NOW(3)
-     LIMIT 1`,
-    [reservationId]
-  );
-  const topupPending = topPending.length > 0;
-
-  return {
-    kind: 'ok',
-    resv,
-    paidCents,
-    topupAlreadyCompleted,
-    topupPending,
-  };
 }
 
 function mapSlotForClient(resv) {
@@ -101,7 +49,7 @@ router.get(
     const pool = getPool();
     if (!pool) throw new ApiError('INTERNAL_ERROR', 'Database not configured', 503);
 
-    const data = await loadBalanceEligibility(pool, decoded.reservationId);
+    const data = await loadBalanceReservationState(pool, decoded.reservationId);
     if (data.kind === 'missing') {
       throw invalidLinkError();
     }
@@ -195,7 +143,7 @@ router.post(
     const pool = getPool();
     if (!pool) throw new ApiError('INTERNAL_ERROR', 'Database not configured', 503);
 
-    const data = await loadBalanceEligibility(pool, decoded.reservationId);
+    const data = await loadBalanceReservationState(pool, decoded.reservationId);
     if (data.kind === 'missing') {
       throw invalidLinkError();
     }

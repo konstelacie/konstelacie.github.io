@@ -1421,3 +1421,34 @@ a:hover {
   border: 1px solid var(--color-border);
   border-radius: 4px;
 }
+
+.admin-balance-pay {
+  margin-top: var(--spacing-sm);
+}
+
+.admin-balance-pay__row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--spacing-sm);
+  align-items: stretch;
+  margin-top: var(--spacing-xs);
+}
+
+.admin-balance-pay__input {
+  flex: 1 1 12rem;
+  min-width: 0;
+  font-family: ui-monospace, monospace;
+  font-size: 0.8125rem;
+  padding: 0.45rem 0.55rem;
+  border: 1px solid var(--color-border);
+  border-radius: 4px;
+  background: var(--color-bg, #fff);
+}
+
+.admin-balance-pay__msg {
+  margin-top: var(--spacing-xs);
+}
+
+.admin-balance-pay__tip {
+  margin-top: var(--spacing-sm);
+}

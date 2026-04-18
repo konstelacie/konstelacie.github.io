@@ -24,6 +24,7 @@ const locksRepo = require('../db/repositories/locksRepo');
 const billingDeliveryService = require('../services/billingDeliveryService');
 const { mapBillingListRow, mapBillingDetailRow, csvEscape } = require('../lib/adminBillingDisplay');
 const { mysqlLocalDateToYmd } = require('../lib/slotApiMap');
+const { resolveBalancePayAdminLink } = require('../lib/balancePayAdminLink');
 
 const router = express.Router();
 
@@ -860,6 +861,7 @@ router.get('/reservations/:id', requireAdmin, async (req, res) => {
         flash,
         detail: null,
         reservationId: id,
+        balancePay: null,
       });
     }
 
@@ -875,10 +877,12 @@ router.get('/reservations/:id', requireAdmin, async (req, res) => {
         flash,
         detail: null,
         reservationId: id,
+        balancePay: null,
       });
     }
 
     const detail = mapAdminDetail(raw);
+    const balancePay = await resolveBalancePayAdminLink(pool, id);
     return res.render('admin/reservation-detail', {
       layout: 'layouts/admin',
       title: `Rezervácia #${id}`,
@@ -889,6 +893,7 @@ router.get('/reservations/:id', requireAdmin, async (req, res) => {
       flash,
       detail,
       reservationId: id,
+      balancePay,
     });
   } catch (err) {
     console.error('[admin/reservations/:id]', err);
@@ -902,6 +907,7 @@ router.get('/reservations/:id', requireAdmin, async (req, res) => {
       flash,
       detail: null,
       reservationId: id,
+      balancePay: null,
     });
   }
 });

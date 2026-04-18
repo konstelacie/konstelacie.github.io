@@ -252,6 +252,13 @@ Filters must be:
 
 * Admin note field
 
+### Balance pay link (doplatok)
+
+* On **reservation detail**, when the reservation is **confirmed**, cumulative completed payments are **≥ 45 €**, there is **no** completed `topup` yet, and there is **no** pending Stripe checkout for a `topup`, the UI shows a **signed URL** to **`/platba-doplatok`** (default validity **30 days**).
+* **Copy** button copies the URL for pasting into e-mail or chat.
+* If **`BALANCE_PAY_TOKEN_SECRET`** is missing in production, a short error explains that signing is not configured.
+* If **`BASE_URL`** is unset, the URL may be root-relative; a hint suggests setting `BASE_URL` for absolute links in e-mails.
+
 ---
 
 ## 6. Billing documents (`/admin/billing`)

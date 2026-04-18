@@ -77,6 +77,64 @@
   </section>
   <% } %>
 
+  <% if (typeof balancePay !== 'undefined' && balancePay) { %>
+  <section class="admin-detail" aria-label="Odkaz na voliteľný doplatok">
+    <h2 class="admin-detail__subtitle">Odkaz na doplatok (voliteľné)</h2>
+    <p class="admin-bulk__hint">
+      Klient už musí mať uhradených aspoň 45 € za sedenie. Odkaz je platný približne <%= balancePay.linkTtlDays %> dní; jeden dokončený doplatok na rezerváciu.
+    </p>
+    <% if (balancePay.state === 'ready' && balancePay.url) { %>
+    <div class="admin-balance-pay">
+      <label class="admin-field" for="balance-pay-url">URL pre e-mail / správu</label>
+      <div class="admin-balance-pay__row">
+        <input type="text" id="balance-pay-url" class="admin-balance-pay__input" readonly value="<%= balancePay.url %>">
+        <button type="button" class="admin-btn admin-btn--primary" id="balance-pay-copy">Kopírovať</button>
+      </div>
+      <p id="balance-pay-copy-msg" class="admin-balance-pay__msg muted" hidden>Skopírované.</p>
+      <% if (balancePay.message) { %>
+      <p class="admin-bulk__hint admin-balance-pay__tip"><%= balancePay.message %></p>
+      <% } %>
+    </div>
+    <script>
+      (function () {
+        var btn = document.getElementById('balance-pay-copy');
+        var input = document.getElementById('balance-pay-url');
+        var msg = document.getElementById('balance-pay-copy-msg');
+        if (!btn || !input) return;
+        btn.addEventListener('click', function () {
+          input.select();
+          input.setSelectionRange(0, 99999);
+          var text = input.value;
+          function showOk() {
+            if (msg) {
+              msg.hidden = false;
+              setTimeout(function () {
+                msg.hidden = true;
+              }, 2000);
+            }
+          }
+          if (navigator.clipboard && navigator.clipboard.writeText) {
+            navigator.clipboard.writeText(text).then(showOk).catch(function () {
+              try {
+                document.execCommand('copy');
+                showOk();
+              } catch (e) {}
+            });
+          } else {
+            try {
+              document.execCommand('copy');
+              showOk();
+            } catch (e) {}
+          }
+        });
+      })();
+    </script>
+    <% } else if (balancePay.message) { %>
+    <p class="admin-placeholder"><%= balancePay.message %></p>
+    <% } %>
+  </section>
+  <% } %>
+
   <section class="admin-detail" aria-label="Poznámka operátora">
     <h2 class="admin-detail__subtitle">Poznámka</h2>
     <form method="post" action="/admin/reservations/<%= detail.id %>/note" class="admin-detail__form">
