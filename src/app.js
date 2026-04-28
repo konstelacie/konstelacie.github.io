@@ -14,6 +14,7 @@ const staticRouter = require('./routes/static');
 const healthRouter = require('./routes/health');
 const apiRouter = require('./routes/api');
 const adminRouter = require('./routes/admin');
+const { router: krosRouter } = require('./routes/api/kros');
 const { apiErrorHandler } = require('./middleware/apiError');
 
 const app = express();
@@ -48,6 +49,20 @@ app.use(
   apiAccessLog,
   express.raw({ type: 'application/json' }),
   stripeWebhookRouter
+);
+
+// KROS webhook: request id + access log + raw body + UTF-16LE HMAC signature verification (see src/routes/api/kros.js).
+function krosWebhookRequestId(req, res, next) {
+  req.id = req.get('X-Request-Id') || crypto.randomBytes(8).toString('hex');
+  res.setHeader('X-Request-Id', req.id);
+  next();
+}
+app.use(
+  '/api/kros',
+  krosWebhookRequestId,
+  apiAccessLog,
+  express.raw({ type: 'application/json' }),
+  krosRouter
 );
 
 // Middleware

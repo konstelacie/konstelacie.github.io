@@ -8,6 +8,7 @@ const auditRepo = require('../../db/repositories/auditRepo');
 const emailService = require('../../services/emailService');
 const billingDocumentService = require('../../services/billingDocumentService');
 const billingDeliveryService = require('../../services/billingDeliveryService');
+const { syncToKros } = require('../../services/krosInvoiceService');
 
 const router = express.Router();
 
@@ -314,6 +315,15 @@ router.post(
 
           billingDeliveryService.processBillingDocumentDelivery(billingDocumentId).catch((err) => {
             console.error('[billing] Invoice PDF/email pipeline failed:', err);
+          });
+
+          syncToKros(billingDocumentId).catch((err) => {
+            logLine({
+              level: 'error',
+              tag: 'kros_sync',
+              billingDocumentId,
+              err: err?.message || String(err),
+            });
           });
 
           if (reservationIdForEmail) {

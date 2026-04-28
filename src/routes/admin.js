@@ -22,6 +22,7 @@ const { requireAdmin } = require('../middleware/requireAdmin');
 const billingDocumentsRepo = require('../db/repositories/billingDocumentsRepo');
 const locksRepo = require('../db/repositories/locksRepo');
 const billingDeliveryService = require('../services/billingDeliveryService');
+const { syncToKros } = require('../services/krosInvoiceService');
 const { mapBillingListRow, mapBillingDetailRow, csvEscape } = require('../lib/adminBillingDisplay');
 const { mysqlLocalDateToYmd } = require('../lib/slotApiMap');
 const { resolveBalancePayAdminLink } = require('../lib/balancePayAdminLink');
@@ -1141,6 +1142,33 @@ router.post('/billing/:id/resend-email', requireAdmin, async (req, res) => {
   } catch (err) {
     console.error('[admin/billing/resend-email]', err);
     req.session.adminFlash = { level: 'error', message: 'Neznáma chyba.' };
+    return res.redirect(redirect);
+  }
+});
+
+router.post('/billing/:id/sync-kros', requireAdmin, async (req, res) => {
+  const id = parseBillingIdParam(req.params.id);
+  const redirect = id ? `/admin/billing/${id}` : '/admin/billing';
+  if (!id) {
+    req.session.adminFlash = { level: 'error', message: 'Neplatný doklad.' };
+    return res.redirect('/admin/billing');
+  }
+  try {
+    const pool = getPool();
+    if (!pool) {
+      req.session.adminFlash = { level: 'error', message: 'Databáza nie je dostupná.' };
+      return res.redirect(redirect);
+    }
+    await syncToKros(id);
+    await auditRepo.log('billing_kros_sync_manual', 'billing_document', id, null, 'admin');
+    req.session.adminFlash = { level: 'success', message: 'Synchronizácia do KROS bola spustená.' };
+    return res.redirect(redirect);
+  } catch (err) {
+    console.error('[admin/billing/sync-kros]', err);
+    req.session.adminFlash = {
+      level: 'error',
+      message: `KROS sync zlyhal: ${err?.message || 'Neznáma chyba.'}`,
+    };
     return res.redirect(redirect);
   }
 });

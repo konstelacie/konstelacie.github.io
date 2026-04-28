@@ -12,7 +12,8 @@
 | **Insert on `checkout.session.completed`** | **Shipped** — `src/services/billingDocumentService.js` inside transaction in `src/routes/api/stripe.js`. |
 | **PDF + document number + optional Resend** | **Shipped** — `src/services/billingDeliveryService.js`, `billingInvoicePdfService.js`; env in `src/config/index.js` (`billing`). |
 | **Admin** | **Shipped** — `/admin/billing`, export CSV, detail, regenerate PDF, resend email, notes (`src/routes/admin.js`, `views/admin/billing-*.ejs`). |
-| **KROS API migration preparation** | **In progress (Phase 0)** — env secrets `KROS_API_TOKEN`, `KROS_WEBHOOK_SECRET` added; KROS issuance/webhook processing not wired yet. |
+| **KROS API migration preparation** | **Phase 0 complete** — env secrets prepared. |
+| **KROS API sync + webhook** | **In progress (Phase 2)** — live KROS sync is behind `KROS_ENABLED`; webhook signature verification + response persistence is wired. |
 | **`billing_document_lines`, refund/correction automation** | **Not implemented** — single header row + PDF; no `charge.refunded` pipeline yet (`docs/STRIPE-ARCHITECTURE.md` §11). |
 | **Accountant gate** | Wording, numbering format on PDF, and VAT lines still need sign-off before treating customer PDFs as production-final — same as §14 **Gate**. |
 
@@ -296,11 +297,19 @@ Historical phasing below describes how the work was **planned**; **in the curren
 ### Migration update — KROS rollout
 
 - **Phase 0 (completed):** keep internal `billing_documents` + PDF flow as source for issued documents; KROS credentials are prepared in environment (`KROS_API_TOKEN`, `KROS_WEBHOOK_SECRET`).
-- **Phase 1 (in progress):** add immutable customer/supplier snapshots, KROS lifecycle columns, booking-time billing input capture, and document typing (`advance`, `settlement`, `standard`).
+- **Phase 1 (completed):** immutable customer/supplier snapshots, KROS lifecycle columns, booking-time billing inputs, and document typing (`advance`, `settlement`, `standard`) are in place.
 - **Document model in this phase:** deposit payment creates **zálohová faktúra** (`advance`); later top-up/session can create **vyúčtovacia faktúra** (`settlement`) linked to the prior advance.
-- **Deferred to Phase 2:** `krosClient` implementation and `advancePaymentDeduction` mapping in outgoing KROS payload.
+- **Phase 2 (in progress):** `krosClient`, payload mapping, and `POST /api/kros/webhook` handling are implemented behind `KROS_ENABLED`.
+- **Phase 2 detail:** `advancePaymentDeduction` is sent only for `document_type = settlement`, derived from linked `advance_document_id` gross amount.
 - **Next phases (planned):** introduce KROS API issuance for new documents, verify incoming KROS webhooks, then gradually switch operator workflows and reconciliation to KROS-backed documents.
 - **Safety rule during migration:** never block successful Stripe webhook payment processing on KROS integration readiness; payment confirmation remains first-class and invoice issuance migration is layered on top.
+
+### Phase 2 implementation notes
+
+- **Feature flag:** `KROS_ENABLED=true` is required for outbound sync; when false, KROS calls are skipped with an info log.
+- **Outbound behavior:** Stripe webhook still confirms payment first; KROS sync is fire-and-forget and never blocks Stripe response.
+- **Webhook signature:** KROS verification uses HMAC-SHA256 with UTF-16LE conversion for both payload and secret before digesting; header is `X-Kros-Signature-256` (Base64).
+- **Webhook status mapping:** status `200` -> `kros_status = webhook_received`; status `207` -> `kros_status = failed` + `kros_last_error`.
 
 ### Phase 1 — Model + webhook mapping (no customer PDF email)
 

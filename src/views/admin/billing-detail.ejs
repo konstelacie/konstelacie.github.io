@@ -49,6 +49,12 @@
       <div class="admin-dl__row"><dt>PDF</dt><dd><%= detail.pdf_storage_ref || '—' %> <% if (detail.pdf_generated_at) { %>(<%= detail.pdfGeneratedAtLabel %>)<% } %></dd></div>
       <div class="admin-dl__row"><dt>E-mail odoslaný</dt><dd><%= detail.email_sent_at ? detail.emailSentAtLabel : '—' %></dd></div>
       <div class="admin-dl__row"><dt>Stav platby (DB)</dt><dd><%= detail.payment_status || '—' %></dd></div>
+      <div class="admin-dl__row"><dt>KROS stav</dt><dd><%= detail.kros_status || '—' %></dd></div>
+      <div class="admin-dl__row"><dt>KROS externalId</dt><dd class="admin-table__email"><%= detail.kros_external_id || '—' %></dd></div>
+      <div class="admin-dl__row"><dt>KROS documentId</dt><dd><%= detail.kros_document_id || '—' %></dd></div>
+      <div class="admin-dl__row"><dt>KROS webhook prijatý</dt><dd><%= detail.kros_webhook_received_at ? detail.kros_webhook_received_at : '—' %></dd></div>
+      <div class="admin-dl__row"><dt>KROS download URL</dt><dd class="admin-table__email"><%= detail.kros_download_url || '—' %></dd></div>
+      <div class="admin-dl__row"><dt>KROS chyba</dt><dd><%= detail.kros_last_error || '—' %></dd></div>
     </dl>
   </section>
 
@@ -66,6 +72,9 @@
   <section class="admin-detail" aria-label="Akcie">
     <h2 class="admin-detail__subtitle">Akcie</h2>
     <div class="admin-detail__actions admin-detail__actions--split admin-detail__actions--gap-sm">
+      <form method="post" action="/admin/billing/<%= detail.id %>/sync-kros" onsubmit="return confirm('Spustiť manuálnu synchronizáciu do KROS?');">
+        <button type="submit" class="admin-btn admin-btn--ghost">Sync do KROS</button>
+      </form>
       <form method="post" action="/admin/billing/<%= detail.id %>/regenerate-pdf" onsubmit="return confirm('Znovu vygenerovať PDF? Prepíše súbor pri rovnakom čísle dokladu.');">
         <button type="submit" class="admin-btn admin-btn--ghost" <%= !detail.document_number ? 'disabled' : '' %>>Znovu vygenerovať PDF</button>
       </form>

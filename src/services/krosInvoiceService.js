@@ -1,0 +1,209 @@
+const crypto = require('crypto');
+const { getPool } = require('../db');
+const { logLine } = require('../lib/structuredLog');
+const { postInvoices } = require('./krosClient');
+
+function asIsoDate(value) {
+  if (!value) return null;
+  if (value instanceof Date) return value.toISOString().slice(0, 10);
+  const d = new Date(value);
+  if (Number.isNaN(d.getTime())) return null;
+  return d.toISOString().slice(0, 10);
+}
+
+function nowMinusMinutes(minutes) {
+  return Date.now() - minutes * 60 * 1000;
+}
+
+function stringifyJson(value) {
+  try {
+    return JSON.stringify(value);
+  } catch {
+    return null;
+  }
+}
+
+function normalizeMoneyFromCents(cents) {
+  return Math.round(Number(cents || 0)) / 100;
+}
+
+async function loadBillingDocumentContext(pool, billingDocumentId) {
+  const [rows] = await pool.execute(
+    `SELECT bd.*,
+            bdl.name AS line_name,
+            bdl.amount AS line_amount,
+            bdl.measure_unit AS line_measure_unit,
+            bdl.vat_rate AS line_vat_rate,
+            bdl.total_price_incl_vat_cents AS line_total_price_incl_vat_cents,
+            ad.amount_gross_cents AS advance_amount_gross_cents
+     FROM billing_documents bd
+     LEFT JOIN billing_document_lines bdl ON bdl.billing_document_id = bd.id
+     LEFT JOIN billing_documents ad ON ad.id = bd.advance_document_id
+     WHERE bd.id = ?
+     ORDER BY bdl.line_no ASC
+     LIMIT 1`,
+    [billingDocumentId]
+  );
+  return rows[0] || null;
+}
+
+function buildKrosPayload(row) {
+  const isCompany = Number(row.customer_is_company) === 1;
+  const country = (row.customer_country || 'SK').toUpperCase().slice(0, 2) || 'SK';
+  const externalId = row.kros_external_id || crypto.randomUUID();
+  const invoiceType = row.document_type === 'advance' ? 1 : 0;
+  const advancePaymentDeduction =
+    row.document_type === 'settlement' && row.advance_amount_gross_cents != null
+      ? normalizeMoneyFromCents(row.advance_amount_gross_cents)
+      : 0;
+
+  return {
+    data: {
+      externalId,
+      partner: {
+        address: {
+          businessName: isCompany ? row.customer_company_name || row.customer_name : row.customer_name,
+          contactName: isCompany ? row.customer_name : null,
+          street: isCompany ? row.customer_street || null : null,
+          city: isCompany ? row.customer_city || null : null,
+          postCode: isCompany ? row.customer_post_code || null : null,
+          country,
+        },
+        registrationId: row.customer_ico || null,
+        taxId: row.customer_dic || null,
+        vatId: row.customer_ic_dph || null,
+        email: row.customer_email_snapshot || null,
+      },
+      items: [
+        {
+          name: row.line_name || 'Online sprevádzanie',
+          amount: Number(row.line_amount || 1),
+          measureUnit: row.line_measure_unit || 'ks',
+          vatRate: Number(row.line_vat_rate || 0),
+          totalPriceInclVat: normalizeMoneyFromCents(row.line_total_price_incl_vat_cents || 0),
+        },
+      ],
+      vatPayerType: Number(row.vat_payer_type || 1),
+      culture: 'sk-SK',
+      currency: 'EUR',
+      exchangeRate: 1,
+      issueDate: asIsoDate(row.issue_date),
+      dueDate: asIsoDate(row.due_date),
+      deliveryDate: asIsoDate(row.delivery_date),
+      paymentType: 'Bankový prevod',
+      bankAccount: {
+        iban: row.supplier_iban || '',
+        swift: row.supplier_swift || '',
+        isForeign: false,
+      },
+      numberingSequence: row.kros_numbering_sequence || 'OF',
+      documentNumber: '',
+      invoiceType,
+      advancePaymentDeduction,
+    },
+  };
+}
+
+async function markFailed(pool, id, errorMessage, rawResponse = null) {
+  await pool.execute(
+    `UPDATE billing_documents
+     SET kros_status = 'failed',
+         kros_last_error = ?,
+         kros_response_json = COALESCE(?, kros_response_json)
+     WHERE id = ?`,
+    [String(errorMessage || 'KROS sync failed').slice(0, 4000), stringifyJson(rawResponse), id]
+  );
+}
+
+async function syncToKros(billingDocumentId) {
+  const enabled = String(process.env.KROS_ENABLED || '').toLowerCase() === 'true';
+  if (!enabled) {
+    logLine({
+      level: 'info',
+      tag: 'kros_sync_skipped',
+      billingDocumentId,
+      reason: 'kros_disabled',
+    });
+    return;
+  }
+
+  const pool = getPool();
+  if (!pool) {
+    logLine({
+      level: 'warn',
+      tag: 'kros_sync_skipped',
+      billingDocumentId,
+      reason: 'db_not_configured',
+    });
+    return;
+  }
+
+  const row = await loadBillingDocumentContext(pool, billingDocumentId);
+  if (!row) {
+    logLine({ level: 'warn', tag: 'kros_sync_skipped', billingDocumentId, reason: 'doc_not_found' });
+    return;
+  }
+  if (row.kros_status === 'webhook_received') {
+    logLine({ level: 'info', tag: 'kros_sync_skipped', billingDocumentId, reason: 'already_webhook_received' });
+    return;
+  }
+  if (
+    row.kros_status === 'accepted' &&
+    row.kros_webhook_received_at &&
+    new Date(row.kros_webhook_received_at).getTime() > nowMinusMinutes(10)
+  ) {
+    logLine({ level: 'info', tag: 'kros_sync_skipped', billingDocumentId, reason: 'accepted_recently' });
+    return;
+  }
+
+  const payload = buildKrosPayload(row);
+  const externalId = payload.data.externalId;
+
+  try {
+    const response = await postInvoices(payload);
+    if (response.status === 202) {
+      await pool.execute(
+        `UPDATE billing_documents
+         SET kros_status = 'accepted',
+             kros_payload_json = ?,
+             kros_external_id = ?,
+             kros_last_error = NULL
+         WHERE id = ?`,
+        [stringifyJson(payload), externalId, billingDocumentId]
+      );
+      logLine({
+        level: 'info',
+        tag: 'kros_sync_accepted',
+        billingDocumentId,
+        status: response.status,
+      });
+      return;
+    }
+
+    await markFailed(
+      pool,
+      billingDocumentId,
+      `KROS returned status ${response.status}`,
+      response.body ?? response
+    );
+    logLine({
+      level: 'warn',
+      tag: 'kros_sync_failed_status',
+      billingDocumentId,
+      status: response.status,
+    });
+  } catch (err) {
+    await markFailed(pool, billingDocumentId, err?.message || String(err));
+    logLine({
+      level: 'error',
+      tag: 'kros_sync_failed_exception',
+      billingDocumentId,
+      error: err?.message || String(err),
+    });
+    throw err;
+  }
+}
+
+module.exports = {
+  syncToKros,
+};

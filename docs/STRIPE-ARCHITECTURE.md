@@ -33,12 +33,14 @@ These variables are now required in environment setup because we are migrating i
 |----------|-------------|
 | `KROS_API_TOKEN` | API token used for authenticated calls to KROS. |
 | `KROS_WEBHOOK_SECRET` | KROS webhook verification secret (**50-char key**). |
+| `KROS_ENABLED` | Feature flag. Only when set to **`true`** the app sends documents to KROS. Default should stay `false` until you intentionally enable live sync. |
 
 Current state:
 - **Phase 0: completed** - KROS credentials are prepared in environment and Stripe remains authoritative for payment completion.
-- **Phase 1: in progress** - schema + booking billing inputs + document typing (`advance`/`settlement`/`standard`) are being wired while issuance still runs through internal `billing_documents`.
+- **Phase 1: completed** - schema + booking billing inputs + document typing (`advance`/`settlement`/`standard`) are wired in `billing_documents`.
+- **Phase 2: in progress** - KROS client + payload mapping + webhook processing are wired behind `KROS_ENABLED`.
 - The two-document model is: **zálohová faktúra** after successful deposit payment, then **vyúčtovacia faktúra** after successful top-up/session payment when an advance exists.
-- `advancePaymentDeduction` payload wiring is deferred to **Phase 2** (`krosClient` integration).
+- `advancePaymentDeduction` is populated only for `document_type = settlement` from the linked advance document amount.
 
 ---
 
@@ -151,9 +153,24 @@ After `checkout.session.completed` **commits**, two **independent** async paths 
 
 Both paths log to **`email_sent_log`** when Resend returns a message id.
 
+KROS sync is a third async path: `syncToKros(billingDocumentId)` is fire-and-forget and never blocks Stripe webhook completion. Failures are persisted in `billing_documents.kros_last_error` and logs.
+
 ---
 
-## 9. Error handling (summary)
+## 9. KROS webhook
+
+- Endpoint: `POST /api/kros/webhook` (raw body, same raw-body mounting pattern as Stripe webhook).
+- Signature header: `X-Kros-Signature-256`.
+- Verification algorithm: **HMAC-SHA256 where both payload and secret are converted to UTF-16LE bytes before hashing**; digest compared as Base64.
+- Invalid signature returns **400** and is ignored.
+- Valid webhook always returns **200** after processing to avoid retries:
+  - `status = 200` -> mark document `kros_status = webhook_received`, store `kros_document_id`, `kros_download_url`, payload snapshot.
+  - `status = 207` -> mark document `kros_status = failed`, store problem details in `kros_last_error`.
+  - unmatched `externalId` -> logged and acknowledged (200).
+
+---
+
+## 10. Error handling (summary)
 
 | Scenario | Behavior |
 |----------|----------|
@@ -164,7 +181,7 @@ Both paths log to **`email_sent_log`** when Resend returns a message id.
 
 ---
 
-## 10. Testing and release
+## 11. Testing and release
 
 | Phase | Notes |
 |-------|--------|
@@ -174,7 +191,7 @@ Both paths log to **`email_sent_log`** when Resend returns a message id.
 
 ---
 
-## 11. Future extensions
+## 12. Future extensions
 
 Examples: **`charge.refunded`** (or equivalent) to drive **correction / refund** billing rows; admin-initiated Checkout; PaymentIntents outside Checkout; more webhook types. **Not implemented** unless added to `src/routes/api/stripe.js` / `payments.js`. Admin **regenerate PDF** / **resend invoice** for existing documents lives under **`/admin/billing`** (not webhook).
 
