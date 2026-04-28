@@ -25,7 +25,8 @@ function safeJsonParse(rawText) {
 function verifyKrosSignature(rawBody, signature, secret) {
   if (!rawBody || !signature || !secret) return false;
   try {
-    const payloadUtf16 = Buffer.from(rawBody.toString('utf8'), 'utf16le');
+    const payloadString = Buffer.isBuffer(rawBody) ? rawBody.toString('utf8') : String(rawBody);
+    const payloadUtf16 = Buffer.from(payloadString, 'utf16le');
     const secretUtf16 = Buffer.from(String(secret), 'utf16le');
     const computed = crypto.createHmac('sha256', secretUtf16).update(payloadUtf16).digest('base64');
     const a = Buffer.from(computed, 'utf8');
