@@ -202,7 +202,7 @@ CREATE TABLE billing_documents (
 
 CREATE TABLE billing_document_lines (
   id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
-  billing_document_id INT UNSIGNED NOT NULL,
+  billing_document_id BIGINT UNSIGNED NOT NULL,
   line_no TINYINT UNSIGNED NOT NULL DEFAULT 1,
   name VARCHAR(255) NOT NULL,
   description VARCHAR(500) NULL,
