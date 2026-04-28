@@ -57,6 +57,10 @@ module.exports = {
       icDph: (process.env.BILLING_INVOICE_IC_DPH || '').trim(),
     },
   },
+  kros: {
+    /** Prefix for KROS numbering sequences. Empty in production, e.g. TEST in non-prod. */
+    sequencePrefix: (process.env.KROS_SEQUENCE_PREFIX || '').trim(),
+  },
   cron: {
     secret: process.env.CRON_SECRET || '',
   },

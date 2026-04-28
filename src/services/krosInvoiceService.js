@@ -1,5 +1,6 @@
 const crypto = require('crypto');
 const { getPool } = require('../db');
+const config = require('../config');
 const { logLine } = require('../lib/structuredLog');
 const { postInvoices } = require('./krosClient');
 
@@ -25,6 +26,11 @@ function stringifyJson(value) {
 
 function normalizeMoneyFromCents(cents) {
   return Math.round(Number(cents || 0)) / 100;
+}
+
+function resolveNumberingSequence(documentType, prefix) {
+  const base = documentType === 'advance' ? 'ZF' : 'OF';
+  return prefix ? `${prefix}-${base}` : base;
 }
 
 async function loadBillingDocumentContext(pool, billingDocumentId) {
@@ -56,6 +62,7 @@ function buildKrosPayload(row) {
     row.document_type === 'settlement' && row.advance_amount_gross_cents != null
       ? normalizeMoneyFromCents(row.advance_amount_gross_cents)
       : 0;
+  const numberingSequence = resolveNumberingSequence(row.document_type, config.kros.sequencePrefix);
 
   return {
     data: {
@@ -96,7 +103,7 @@ function buildKrosPayload(row) {
         swift: row.supplier_swift || '',
         isForeign: false,
       },
-      numberingSequence: row.kros_numbering_sequence || 'OF',
+      numberingSequence,
       documentNumber: '',
       invoiceType,
       advancePaymentDeduction,
