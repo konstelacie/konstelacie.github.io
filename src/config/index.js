@@ -34,6 +34,16 @@ module.exports = {
    * Wording is not legal advice; confirm with accountant before live use.
    */
   billing: {
+    serviceName: (process.env.BILLING_SERVICE_NAME || 'Online sprevádzanie').trim() || 'Online sprevádzanie',
+    iban: (process.env.BILLING_IBAN || '').trim(),
+    swift: (process.env.BILLING_SWIFT || '').trim(),
+    vatRate: (() => {
+      const raw = String(process.env.BILLING_VAT_RATE ?? '').trim();
+      if (!raw) return 23;
+      const n = Number(raw);
+      if (!Number.isFinite(n) || n < 0) return 23;
+      return n <= 1 ? n * 100 : n;
+    })(),
     documentPrefix: (process.env.BILLING_DOCUMENT_PREFIX || 'CT').trim() || 'CT',
     pdfStorageDir: (process.env.BILLING_PDF_STORAGE_DIR || '').trim(),
     sendInvoiceEmail:

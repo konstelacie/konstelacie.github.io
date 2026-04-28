@@ -769,7 +769,7 @@
     lockedEmail = email;
     lockPhase = 'payment';
     storeLock();
-    return { ok: true };
+    return { ok: true, billingPrefill: data.billingPrefill || null };
   }
 
   const FETCH_SLOTS_TIMEOUT_MS = 15000;
@@ -1473,6 +1473,62 @@
     return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email || '');
   }
 
+  function setCompanyFieldsVisible(visible) {
+    const wrap = $('booking-company-fields');
+    if (!wrap) return;
+    wrap.hidden = !visible;
+  }
+
+  function applyBillingPrefill(prefill) {
+    if (!prefill || typeof prefill !== 'object') return;
+    const map = [
+      ['booking-billing-name', prefill.billingName || ''],
+      ['booking-billing-company-name', prefill.billingCompanyName || ''],
+      ['booking-billing-ico', prefill.billingIco || ''],
+      ['booking-billing-dic', prefill.billingDic || ''],
+      ['booking-billing-ic-dph', prefill.billingIcDph || ''],
+      ['booking-billing-street', prefill.billingStreet || ''],
+      ['booking-billing-city', prefill.billingCity || ''],
+      ['booking-billing-post-code', prefill.billingPostCode || ''],
+      ['booking-billing-country', prefill.billingCountry || 'SK'],
+    ];
+    map.forEach(([id, value]) => {
+      const el = $(id);
+      if (el) el.value = value;
+    });
+    const toggle = $('booking-billing-is-company');
+    const company = !!prefill.billingIsCompany;
+    if (toggle) toggle.checked = company;
+    setCompanyFieldsVisible(company);
+  }
+
+  function readBillingForm() {
+    return {
+      billingName: ($('booking-billing-name')?.value || '').trim(),
+      billingIsCompany: !!$('booking-billing-is-company')?.checked,
+      billingCompanyName: ($('booking-billing-company-name')?.value || '').trim(),
+      billingIco: ($('booking-billing-ico')?.value || '').trim(),
+      billingDic: ($('booking-billing-dic')?.value || '').trim(),
+      billingIcDph: ($('booking-billing-ic-dph')?.value || '').trim(),
+      billingStreet: ($('booking-billing-street')?.value || '').trim(),
+      billingCity: ($('booking-billing-city')?.value || '').trim(),
+      billingPostCode: ($('booking-billing-post-code')?.value || '').trim(),
+      billingCountry: (($('booking-billing-country')?.value || 'SK').trim() || 'SK').toUpperCase(),
+    };
+  }
+
+  function validateBillingForm(billing) {
+    if (!billing.billingName) return 'Vyplň prosím meno a priezvisko.';
+    if (!billing.billingIsCompany) return null;
+    if (!billing.billingCompanyName || !billing.billingStreet || !billing.billingCity || !billing.billingPostCode) {
+      return 'Vyplň prosím všetky povinné firemné údaje.';
+    }
+    if (!/^\d{8}$/.test(billing.billingIco || '')) {
+      return 'IČO musí mať presne 8 číslic.';
+    }
+    return null;
+  }
+
   function showPaymentChoice() {
     modalVisible = true;
     modalUiStep = 'payment';
@@ -1560,7 +1616,7 @@
   /**
    * @param {{ slotId: number, lockToken: string, email: string, paymentType: string, amount: number|null }} params
    */
-  async function startPayment({ slotId, lockToken, email, paymentType, amount }) {
+  async function startPayment({ slotId, lockToken, email, paymentType, amount, billing }) {
     const funnelCtx = readFunnelContext();
     let returnPath = (window.location.pathname || '').replace(/\/$/, '');
     if (returnPath === '') returnPath = '/';
@@ -1573,7 +1629,7 @@
       (window.location.pathname || '/') +
       (window.location.search || '') +
       (window.location.hash || '');
-    const payBody = { slotId, lockToken, email, paymentType, returnPath, cancelReturn };
+    const payBody = { slotId, lockToken, email, paymentType, returnPath, cancelReturn, ...billing };
     if (paymentType === 'full') payBody.amount = amount;
     if (funnelCtx.funnelName) {
       payBody.funnelName = funnelCtx.funnelName;
@@ -1638,7 +1694,7 @@
     if (retry) retry.hidden = false;
   }
 
-  async function submitReservation(email, paymentType, amount) {
+  async function submitReservation(email, paymentType, amount, billing) {
     const submitBtn = $('booking-payment-submit');
     if (submitBtn) submitBtn.disabled = true;
     const payErr = $('booking-payment-error');
@@ -1668,6 +1724,7 @@
         email,
         paymentType,
         amount,
+        billing,
       });
 
       if (result.ok) {
@@ -1697,6 +1754,7 @@
         email,
         paymentType,
         amount,
+        billing,
       };
       if (submitBtn) submitBtn.disabled = false;
     } catch (e) {
@@ -1773,10 +1831,20 @@
       emailForm.addEventListener('submit', async (e) => {
         e.preventDefault();
         const email = $('booking-email').value.trim();
+        const billing = readBillingForm();
         if (!validateEmail(email)) {
           const err = $('booking-email-error');
           if (err) {
             err.textContent = 'Zadaj platnú e-mailovú adresu.';
+            err.hidden = false;
+          }
+          return;
+        }
+        const billingError = validateBillingForm(billing);
+        if (billingError) {
+          const err = $('booking-email-error');
+          if (err) {
+            err.textContent = billingError;
             err.hidden = false;
           }
           return;
@@ -1793,6 +1861,9 @@
             errEl.hidden = false;
           }
           return;
+        }
+        if (result.billingPrefill) {
+          applyBillingPrefill(result.billingPrefill);
         }
         showPaymentChoice();
       });
@@ -1813,6 +1884,16 @@
           return;
         }
         const { paymentType, amount } = choice;
+        const billing = readBillingForm();
+        const billingError = validateBillingForm(billing);
+        if (billingError) {
+          const err = $('booking-payment-error');
+          if (err) {
+            err.textContent = billingError;
+            err.hidden = false;
+          }
+          return;
+        }
         const { fullPaymentCheckoutEur } = readCheckoutAmountsFromBookingSection();
         if (paymentType === 'full' && amount !== fullPaymentCheckoutEur) {
           const pathVal = $('booking-payment-path-validation');
@@ -1824,7 +1905,7 @@
           }
           return;
         }
-        submitReservation(email, paymentType, amount);
+        submitReservation(email, paymentType, amount, billing);
       });
     }
 
@@ -1840,6 +1921,14 @@
       paymentBackBtn.addEventListener('click', () => {
         void showEmailForm();
       });
+    }
+
+    const companyToggle = $('booking-billing-is-company');
+    if (companyToggle) {
+      companyToggle.addEventListener('change', () => {
+        setCompanyFieldsVisible(!!companyToggle.checked);
+      });
+      setCompanyFieldsVisible(!!companyToggle.checked);
     }
 
     const paymentRetryBtn = $('booking-payment-retry');
@@ -1861,6 +1950,7 @@
           email: pending.email,
           paymentType: pending.paymentType,
           amount: pending.amount,
+          billing: pending.billing,
         });
         if (result.ok) {
           if (result.checkoutSessionId) {

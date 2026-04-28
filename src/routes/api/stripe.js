@@ -99,15 +99,49 @@ async function ensureReservationForCheckoutPayment(conn, payment, session) {
   const funnelNameRaw = md.funnelName != null ? String(md.funnelName).trim() : '';
   const funnelCampaignRaw = md.funnelCampaign != null ? String(md.funnelCampaign).trim() : '';
   const funnelVideoIdRaw = md.funnelVideoId != null ? String(md.funnelVideoId).trim() : '';
+  const billingName = md.billingName != null ? String(md.billingName).trim().slice(0, 255) : '';
+  if (!billingName) {
+    throw new Error('checkout.billing_name_missing');
+  }
+  const billingIsCompany = String(md.billingIsCompany || '') === '1' ? 1 : 0;
+  const billingCompanyName = md.billingCompanyName ? String(md.billingCompanyName).trim().slice(0, 255) : null;
+  const billingIco = md.billingIco ? String(md.billingIco).trim().slice(0, 20) : null;
+  const billingDic = md.billingDic ? String(md.billingDic).trim().slice(0, 20) : null;
+  const billingIcDph = md.billingIcDph ? String(md.billingIcDph).trim().slice(0, 20) : null;
+  const billingStreet = md.billingStreet ? String(md.billingStreet).trim().slice(0, 255) : null;
+  const billingCity = md.billingCity ? String(md.billingCity).trim().slice(0, 100) : null;
+  const billingPostCode = md.billingPostCode ? String(md.billingPostCode).trim().slice(0, 20) : null;
+  const billingCountryRaw = md.billingCountry ? String(md.billingCountry).trim().toUpperCase() : 'SK';
+  const billingCountry = /^[A-Z]{2}$/.test(billingCountryRaw) ? billingCountryRaw : 'SK';
   const funnelName = funnelNameRaw ? funnelNameRaw.slice(0, 32) : null;
   const funnelCampaign = funnelCampaignRaw ? funnelCampaignRaw.slice(0, 64) : null;
   const funnelVideoId = funnelVideoIdRaw ? funnelVideoIdRaw.slice(0, 128) : null;
 
   const [insRes] = await conn.execute(
-    `INSERT INTO reservations (slot_id, user_id, email, status, payment_type, lock_token,
-      funnel_name, funnel_campaign, funnel_video_id)
-     VALUES (?, ?, ?, 'confirmed', ?, ?, ?, ?, ?)`,
-    [slotId, payment.user_id, customerEmail, reservationPaymentType, lockTokenRaw, funnelName, funnelCampaign, funnelVideoId]
+    `INSERT INTO reservations (slot_id, user_id, email, billing_name, billing_is_company, billing_company_name,
+      billing_ico, billing_dic, billing_ic_dph, billing_street, billing_city, billing_post_code, billing_country,
+      status, payment_type, lock_token, funnel_name, funnel_campaign, funnel_video_id)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'confirmed', ?, ?, ?, ?, ?)`,
+    [
+      slotId,
+      payment.user_id,
+      customerEmail,
+      billingName,
+      billingIsCompany,
+      billingCompanyName,
+      billingIco,
+      billingDic,
+      billingIcDph,
+      billingStreet,
+      billingCity,
+      billingPostCode,
+      billingCountry,
+      reservationPaymentType,
+      lockTokenRaw,
+      funnelName,
+      funnelCampaign,
+      funnelVideoId,
+    ]
   );
   const reservationId = insRes.insertId;
 
@@ -219,6 +253,8 @@ router.post(
           const [billingPaymentRows] = await conn.execute(
             `SELECT p.id, p.reservation_id, p.user_id, p.payment_type, p.amount_cents, p.currency,
                     r.email AS reservation_email, r.funnel_name, r.funnel_campaign, r.funnel_video_id,
+                    r.billing_name, r.billing_is_company, r.billing_company_name, r.billing_ico, r.billing_dic,
+                    r.billing_ic_dph, r.billing_street, r.billing_city, r.billing_post_code, r.billing_country,
                     u.email AS user_email, u.name AS user_name
              FROM payments p
              LEFT JOIN reservations r ON r.id = p.reservation_id

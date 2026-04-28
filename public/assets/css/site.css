@@ -512,6 +512,35 @@ a:hover {
   max-width: 100%;
 }
 
+.booking-company-toggle {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-top: var(--spacing-sm);
+}
+
+.booking-company-toggle input[type="checkbox"] {
+  width: auto;
+  max-width: none;
+}
+
+.booking-company-fields {
+  margin-top: var(--spacing-sm);
+  padding: var(--spacing-sm);
+  border: 1px solid var(--color-border);
+  border-radius: 6px;
+  background: var(--color-booking-accent-softer);
+}
+
+.booking-email-form select {
+  padding: 0.5rem 0.75rem;
+  border: 1px solid var(--color-border);
+  border-radius: 4px;
+  font-size: 1rem;
+  width: 100%;
+  max-width: 320px;
+}
+
 .booking-modal__revoke {
   margin: 0;
   padding: 0.5rem 0;

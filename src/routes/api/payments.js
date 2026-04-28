@@ -85,6 +85,46 @@ function validateReturnPath(raw) {
   return name;
 }
 
+function normalizeOptionalText(raw, maxLen) {
+  if (raw == null) return null;
+  const s = String(raw).trim();
+  if (!s) return null;
+  return s.slice(0, maxLen);
+}
+
+function validateBillingInput(body) {
+  const billingName = String(body.billingName ?? '').trim().slice(0, 255);
+  if (!billingName) {
+    throw new ApiError('VALIDATION_ERROR', 'billingName is required', 400);
+  }
+  const billingIsCompany = body.billingIsCompany === true || body.billingIsCompany === 1 || body.billingIsCompany === '1';
+  const billingCountryRaw = normalizeOptionalText(body.billingCountry, 2);
+  const billingCountry = (billingCountryRaw || 'SK').toUpperCase();
+
+  const out = {
+    billingName,
+    billingIsCompany,
+    billingCompanyName: normalizeOptionalText(body.billingCompanyName, 255),
+    billingIco: normalizeOptionalText(body.billingIco, 20),
+    billingDic: normalizeOptionalText(body.billingDic, 20),
+    billingIcDph: normalizeOptionalText(body.billingIcDph, 20),
+    billingStreet: normalizeOptionalText(body.billingStreet, 255),
+    billingCity: normalizeOptionalText(body.billingCity, 100),
+    billingPostCode: normalizeOptionalText(body.billingPostCode, 20),
+    billingCountry: /^[A-Z]{2}$/.test(billingCountry) ? billingCountry : 'SK',
+  };
+
+  if (billingIsCompany) {
+    if (!out.billingCompanyName || !out.billingStreet || !out.billingCity || !out.billingPostCode) {
+      throw new ApiError('VALIDATION_ERROR', 'Missing required company billing fields', 400);
+    }
+    if (!out.billingIco || !/^\d{8}$/.test(out.billingIco)) {
+      throw new ApiError('VALIDATION_ERROR', 'billingIco must be exactly 8 digits', 400);
+    }
+  }
+  return out;
+}
+
 router.get(
   '/status',
   paymentsStatusLimiter,
@@ -276,6 +316,7 @@ router.post(
     const slotId = validateSlotId(body.slotId);
     const lockToken = validateLockToken(body.lockToken);
     const email = validateEmail(body.email, true);
+    const billing = validateBillingInput(body);
 
     const captchaGate = await handleCaptchaGate(req, res, { route: ROUTE_PAYMENT_START, slotId });
     if (!captchaGate.proceed) {
@@ -451,6 +492,16 @@ router.post(
           funnelName: funnel.funnelName ? String(funnel.funnelName) : '',
           funnelCampaign: funnel.funnelCampaign ? String(funnel.funnelCampaign) : '',
           funnelVideoId: funnel.funnelVideoId ? String(funnel.funnelVideoId) : '',
+          billingName: billing.billingName,
+          billingIsCompany: billing.billingIsCompany ? '1' : '0',
+          billingCompanyName: billing.billingCompanyName || '',
+          billingIco: billing.billingIco || '',
+          billingDic: billing.billingDic || '',
+          billingIcDph: billing.billingIcDph || '',
+          billingStreet: billing.billingStreet || '',
+          billingCity: billing.billingCity || '',
+          billingPostCode: billing.billingPostCode || '',
+          billingCountry: billing.billingCountry || 'SK',
         },
         success_url: successUrl,
         cancel_url: cancelUrl,

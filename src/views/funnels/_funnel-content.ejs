@@ -63,6 +63,44 @@
         <form id="booking-email-form" class="booking-email-form booking-modal__form">
           <label for="booking-email">E-mail</label>
           <input type="email" id="booking-email" name="email" required placeholder="vas@email.sk" autocomplete="email">
+          <label for="booking-billing-name">Meno a priezvisko *</label>
+          <input
+            type="text"
+            id="booking-billing-name"
+            name="billingName"
+            required
+            placeholder="Meno a priezvisko"
+            autocomplete="name"
+          >
+          <label class="booking-company-toggle">
+            <input type="checkbox" id="booking-billing-is-company" name="billingIsCompany">
+            <span>Potrebujem doklad pre firmu</span>
+          </label>
+          <div id="booking-company-fields" class="booking-company-fields" hidden>
+            <label for="booking-billing-company-name">Názov firmy *</label>
+            <input type="text" id="booking-billing-company-name" name="billingCompanyName" autocomplete="organization">
+            <label for="booking-billing-ico">IČO *</label>
+            <input type="text" id="booking-billing-ico" name="billingIco" inputmode="numeric" pattern="[0-9]{8}" maxlength="8">
+            <label for="booking-billing-dic">DIČ</label>
+            <input type="text" id="booking-billing-dic" name="billingDic">
+            <label for="booking-billing-ic-dph">IČ DPH</label>
+            <input type="text" id="booking-billing-ic-dph" name="billingIcDph">
+            <label for="booking-billing-street">Ulica a číslo *</label>
+            <input type="text" id="booking-billing-street" name="billingStreet" autocomplete="address-line1">
+            <label for="booking-billing-city">Mesto *</label>
+            <input type="text" id="booking-billing-city" name="billingCity" autocomplete="address-level2">
+            <label for="booking-billing-post-code">PSČ *</label>
+            <input type="text" id="booking-billing-post-code" name="billingPostCode" autocomplete="postal-code">
+            <label for="booking-billing-country">Krajina</label>
+            <select id="booking-billing-country" name="billingCountry">
+              <option value="SK" selected>Slovensko</option>
+              <option value="CZ">Česko</option>
+              <option value="AT">Rakúsko</option>
+              <option value="DE">Nemecko</option>
+              <option value="PL">Poľsko</option>
+              <option value="HU">Maďarsko</option>
+            </select>
+          </div>
           <p id="booking-email-error" class="booking-error" hidden></p>
           <button type="submit" id="booking-submit-btn" class="cta">Pokračovať k výberu platby</button>
         </form>

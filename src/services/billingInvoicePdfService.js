@@ -34,7 +34,8 @@ function formatDateSk(value) {
 function vatRatePercent(row) {
   const r = Number(row.vat_rate);
   if (!Number.isFinite(r)) return '—';
-  return `${Math.round(r * 100)} %`;
+  const percent = r <= 1 ? r * 100 : r;
+  return `${Math.round(percent)} %`;
 }
 
 function supplierBlock() {

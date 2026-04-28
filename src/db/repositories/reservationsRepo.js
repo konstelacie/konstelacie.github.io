@@ -44,6 +44,24 @@ async function hasActiveReservationForEmail(email) {
   return rows.length > 0;
 }
 
+async function getLatestBillingProfileByEmail(email) {
+  const pool = getPool();
+  if (!pool) throw new Error('Database not configured');
+  const norm =
+    typeof email === 'string' ? email.trim().toLowerCase() : String(email || '').trim().toLowerCase();
+  if (!norm) return null;
+  const [rows] = await pool.execute(
+    `SELECT billing_name, billing_is_company, billing_company_name, billing_ico, billing_dic,
+            billing_ic_dph, billing_street, billing_city, billing_post_code, billing_country
+     FROM reservations
+     WHERE LOWER(TRIM(email)) = ?
+     ORDER BY created_at DESC
+     LIMIT 1`,
+    [norm]
+  );
+  return rows[0] ?? null;
+}
+
 async function getById(reservationId) {
   const pool = getPool();
   if (!pool) throw new Error('Database not configured');
@@ -253,6 +271,7 @@ async function listForAdmin(opts) {
 module.exports = {
   hasActiveReservationForSlot,
   hasActiveReservationForEmail,
+  getLatestBillingProfileByEmail,
   getById,
   findDueForPreSessionReminder,
   listForAdmin,

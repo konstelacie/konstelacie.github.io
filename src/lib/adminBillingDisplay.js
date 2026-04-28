@@ -35,6 +35,8 @@ function mapBillingListRow(row) {
 
 function mapBillingDetailRow(row) {
   if (!row) return null;
+  const vatRaw = Number(row.vat_rate);
+  const vatPercent = Number.isFinite(vatRaw) ? (vatRaw <= 1 ? vatRaw * 100 : vatRaw) : null;
   return {
     ...row,
     amountLabel: formatAmount(row.amount_gross_cents, row.currency),
@@ -46,7 +48,7 @@ function mapBillingDetailRow(row) {
     pdfGeneratedAtLabel: formatDateTimeSk(row.pdf_generated_at),
     emailSentAtLabel: formatDateTimeSk(row.email_sent_at),
     internalTypeLabel: INTERNAL_TYPE_LABELS[row.internal_type] || row.internal_type,
-    vatPercentLabel: `${Math.round(Number(row.vat_rate) * 100)} %`,
+    vatPercentLabel: vatPercent == null ? '—' : `${Math.round(vatPercent)} %`,
   };
 }
 

@@ -295,7 +295,10 @@ Historical phasing below describes how the work was **planned**; **in the curren
 
 ### Migration update — KROS rollout
 
-- **Phase 0 (current):** keep internal `billing_documents` + PDF flow as source for issued documents; add KROS credentials in environment (`KROS_API_TOKEN`, `KROS_WEBHOOK_SECRET`).
+- **Phase 0 (completed):** keep internal `billing_documents` + PDF flow as source for issued documents; KROS credentials are prepared in environment (`KROS_API_TOKEN`, `KROS_WEBHOOK_SECRET`).
+- **Phase 1 (in progress):** add immutable customer/supplier snapshots, KROS lifecycle columns, booking-time billing input capture, and document typing (`advance`, `settlement`, `standard`).
+- **Document model in this phase:** deposit payment creates **zálohová faktúra** (`advance`); later top-up/session can create **vyúčtovacia faktúra** (`settlement`) linked to the prior advance.
+- **Deferred to Phase 2:** `krosClient` implementation and `advancePaymentDeduction` mapping in outgoing KROS payload.
 - **Next phases (planned):** introduce KROS API issuance for new documents, verify incoming KROS webhooks, then gradually switch operator workflows and reconciliation to KROS-backed documents.
 - **Safety rule during migration:** never block successful Stripe webhook payment processing on KROS integration readiness; payment confirmation remains first-class and invoice issuance migration is layered on top.
 
