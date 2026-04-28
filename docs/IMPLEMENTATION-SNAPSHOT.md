@@ -125,6 +125,7 @@ All JSON APIs use `requestId` middleware. Base: `src/routes/api/index.js`.
 | `RESEND_API_KEY`, `RESEND_FROM_EMAIL`, `RESEND_FROM_NAME` | Resend email (`src/email/provider.js`, `src/config/index.js`). |
 | `BILLING_VAT_RATE` | Optional; VAT decimal for net/VAT split on billing rows (`src/services/billingDocumentService.js`; default 0.23). |
 | `BILLING_DOCUMENT_PREFIX`, `BILLING_PDF_STORAGE_DIR`, `BILLING_SEND_INVOICE_EMAIL`, `BILLING_INVOICE_*` | Invoice numbering, PDF dir, suppress email, supplier block on PDF (`src/config/index.js`, `billingDeliveryService`). |
+| `KROS_API_TOKEN`, `KROS_WEBHOOK_SECRET` | KROS migration preparation secrets (Phase 0). Current issuance path still uses internal billing PDF pipeline; KROS wiring is planned, not implemented in code paths yet. |
 | `CRON_SECRET` | Cron auth (`Authorization: Bearer`, `X-Cron-Secret`, or `?secret=`); dev localhost bypass. |
 | `ADMIN_USERNAME`, `ADMIN_PASSWORD` | Internal admin login (`src/config/index.js`). |
 | `SESSION_SECRET` | Signs admin session cookie; required in production (`src/app.js`). |

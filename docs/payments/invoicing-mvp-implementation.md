@@ -12,6 +12,7 @@
 | **Insert on `checkout.session.completed`** | **Shipped** — `src/services/billingDocumentService.js` inside transaction in `src/routes/api/stripe.js`. |
 | **PDF + document number + optional Resend** | **Shipped** — `src/services/billingDeliveryService.js`, `billingInvoicePdfService.js`; env in `src/config/index.js` (`billing`). |
 | **Admin** | **Shipped** — `/admin/billing`, export CSV, detail, regenerate PDF, resend email, notes (`src/routes/admin.js`, `views/admin/billing-*.ejs`). |
+| **KROS API migration preparation** | **In progress (Phase 0)** — env secrets `KROS_API_TOKEN`, `KROS_WEBHOOK_SECRET` added; KROS issuance/webhook processing not wired yet. |
 | **`billing_document_lines`, refund/correction automation** | **Not implemented** — single header row + PDF; no `charge.refunded` pipeline yet (`docs/STRIPE-ARCHITECTURE.md` §11). |
 | **Accountant gate** | Wording, numbering format on PDF, and VAT lines still need sign-off before treating customer PDFs as production-final — same as §14 **Gate**. |
 
@@ -291,6 +292,12 @@ Lightweight one-page (or short) PDF, **subject to accountant template review**:
 ## 14. Rollout plan
 
 Historical phasing below describes how the work was **planned**; **in the current codebase**, Phases 1–3 **core** items are implemented (tables, webhook insert, PDF + optional email, admin list/detail/export/regenerate/resend). Remaining work: refund/correction automation, optional line-item tables, hardened retries/queues, accountant-approved PDF copy.
+
+### Migration update — KROS rollout
+
+- **Phase 0 (current):** keep internal `billing_documents` + PDF flow as source for issued documents; add KROS credentials in environment (`KROS_API_TOKEN`, `KROS_WEBHOOK_SECRET`).
+- **Next phases (planned):** introduce KROS API issuance for new documents, verify incoming KROS webhooks, then gradually switch operator workflows and reconciliation to KROS-backed documents.
+- **Safety rule during migration:** never block successful Stripe webhook payment processing on KROS integration readiness; payment confirmation remains first-class and invoice issuance migration is layered on top.
 
 ### Phase 1 — Model + webhook mapping (no customer PDF email)
 
