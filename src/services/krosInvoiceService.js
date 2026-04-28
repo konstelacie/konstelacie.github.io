@@ -29,7 +29,7 @@ function normalizeMoneyFromCents(cents) {
 }
 
 function resolveNumberingSequence(documentType, prefix) {
-  const base = documentType === 'advance' ? 'ZF' : 'OF';
+  const base = documentType === 'advance' ? 'OPF' : 'OF';
   return prefix ? `${prefix}-${base}` : base;
 }
 
