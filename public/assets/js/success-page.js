@@ -36,6 +36,11 @@
     if (el) el.textContent = text;
   }
 
+  function setErrorMessage(text) {
+    const msgEl = document.getElementById('success-error-message');
+    if (msgEl) msgEl.textContent = text;
+  }
+
   function showState(state, data) {
     const titleEl = document.getElementById('success-main-title');
     const loadingEl = document.getElementById('success-loading');
@@ -102,21 +107,57 @@
     const sessionId = getSessionId();
     if (!sessionId || !sessionId.startsWith('cs_')) {
       showState('error');
+      setErrorMessage('Neplatný údaj o platbe. Skúste to prosím znova.');
+      return;
+    }
+
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('payment_pending_timeout') === '1') {
+      showState('error');
+      setErrorMessage('Nepodarilo sa potvrdiť platbu. Chvíľu sme to čakali na webhook, no nepotvrdilo sa to. Skúste to prosím znova.');
       return;
     }
 
     let attempts = 0;
+    let lastStatus = null;
 
     function poll() {
       attempts += 1;
       fetchStatus(sessionId)
         .then(function (data) {
-          if (data.payment && data.payment.status === 'completed') {
+          const status = data?.payment?.status || null;
+          lastStatus = status;
+
+          if (status === 'completed') {
             showState('confirmed', data);
             return;
           }
+
+          if (status === 'failed') {
+            showState('error');
+            setErrorMessage('Platba sa nepodarila. Skúste prosím znovu alebo kontaktujte podporu.');
+            return;
+          }
+
+          if (status === 'expired') {
+            showState('error');
+            setErrorMessage('Platnosť platby vypršala. Skúste prosím znovu.');
+            return;
+          }
+
+          if (status === 'refunded') {
+            showState('error');
+            setErrorMessage('Platba bola vrátená. Ak máte otázky, kontaktujte podporu.');
+            return;
+          }
+
           if (attempts >= MAX_POLL_ATTEMPTS) {
-            showState('processing');
+            showState('error');
+            if (lastStatus && lastStatus !== 'pending') {
+              setErrorMessage('Nepodarilo sa potvrdiť platbu. Stav: ' + lastStatus + '. Skúste to prosím znova.');
+            } else {
+              setErrorMessage('Nepodarilo sa potvrdiť platbu. Chvíľu sme to čakali na webhook, no nepotvrdilo sa to. Skúste to prosím znova.');
+            }
             return;
           }
           showState('loading');
@@ -124,8 +165,7 @@
         })
         .catch(function (err) {
           showState('error');
-          const msgEl = document.getElementById('success-error-message');
-          if (msgEl) msgEl.textContent = err.message;
+          setErrorMessage(err.message);
         });
     }
 

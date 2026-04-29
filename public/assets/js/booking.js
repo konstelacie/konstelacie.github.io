@@ -226,22 +226,32 @@
       showPaymentCompleteOverlay();
 
       let attempts = 0;
-      function goToSuccessPage() {
-        window.location.replace(
-          '/' + encodeURIComponent(funnelName) + '/success?session_id=' + encodeURIComponent(sessionId)
-        );
+      function goToSuccessPage({ paymentPendingTimeout } = {}) {
+        let url = '/' + encodeURIComponent(funnelName) + '/success?session_id=' + encodeURIComponent(sessionId);
+        if (paymentPendingTimeout) url += '&payment_pending_timeout=1';
+        window.location.replace(url);
       }
 
       function poll() {
         attempts += 1;
         fetchPaymentStatusForReturn(sessionId)
           .then((data) => {
-            if (data.payment && data.payment.status === 'completed') {
+            const status = data?.payment?.status || null;
+
+            if (status === 'completed') {
               goToSuccessPage();
               return;
             }
-            if (attempts >= PAYMENT_RETURN_MAX_ATTEMPTS) {
+
+            // Webhook-side failures keep the payment from becoming `completed`.
+            // Redirect immediately so the success page can show an error state.
+            if (status === 'failed' || status === 'expired' || status === 'refunded') {
               goToSuccessPage();
+              return;
+            }
+
+            if (attempts >= PAYMENT_RETURN_MAX_ATTEMPTS) {
+              goToSuccessPage({ paymentPendingTimeout: true });
               return;
             }
             setTimeout(poll, PAYMENT_RETURN_POLL_MS);

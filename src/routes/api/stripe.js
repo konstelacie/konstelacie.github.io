@@ -333,6 +333,13 @@ router.post(
           }
         } catch (err) {
           await conn.rollback();
+          // If billing-document insertion fails, the transaction rolls back and the payment stays `pending`.
+          // Mark the payment as `failed` so the frontend stops waiting and shows an error state.
+          try {
+            await pool.execute('UPDATE payments SET status = ? WHERE provider_ref = ?', ['failed', session.id]);
+          } catch (markErr) {
+            console.error('[Stripe webhook] failed to mark payment as failed:', markErr);
+          }
           console.error('[Stripe webhook] checkout.session.completed failed:', session.id, err);
           throw err;
         } finally {

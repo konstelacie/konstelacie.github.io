@@ -1,0 +1,13 @@
+@echo off
+cd /d "%~dp0"
+
+node scripts/build-local.js
+set ERR=%ERRORLEVEL%
+if %ERR% NEQ 0 exit /b %ERR%
+
+REM Start dev server after local prep.
+npm run dev
+set ERR=%ERRORLEVEL%
+pause
+exit /b %ERR%
+
