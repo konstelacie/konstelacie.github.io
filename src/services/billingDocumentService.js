@@ -17,6 +17,13 @@ function splitGrossToNetVat(grossCents, vatRatePercent) {
   return { amountNetCents: net, amountVatCents: vat, amountGrossCents: g };
 }
 
+function vatRatePercentToDocumentDecimal(vatRatePercent) {
+  // billing_documents.vat_rate is DECIMAL(6,5), so store fraction form (e.g. 0.23000)
+  const n = Number(vatRatePercent);
+  if (!Number.isFinite(n) || n < 0) return 0;
+  return Number((n / 100).toFixed(5));
+}
+
 function paymentDbTypeToInternalType(paymentType) {
   if (paymentType === 'deposit') return 'deposit';
   if (paymentType === 'session') return 'full';
@@ -65,6 +72,7 @@ async function findAdvanceDocumentForReservation(conn, reservationId) {
  */
 async function insertBillingDocumentForCompletedPayment(conn, { paymentRow, session, stripeEventId }) {
   const vatRate = parseVatRatePercent();
+  const vatRateForDocument = vatRatePercentToDocumentDecimal(vatRate);
   const { amountNetCents, amountVatCents, amountGrossCents } = splitGrossToNetVat(
     paymentRow.amount_cents,
     vatRate
@@ -143,7 +151,7 @@ async function insertBillingDocumentForCompletedPayment(conn, { paymentRow, sess
       kros_external_id,
       paid_at,
       metadata
-    ) VALUES (?, 'recorded', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    ) VALUES (?, 'recorded', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     [
       internalType,
       documentType,
@@ -172,7 +180,7 @@ async function insertBillingDocumentForCompletedPayment(conn, { paymentRow, sess
       amountNetCents,
       amountVatCents,
       amountGrossCents,
-      vatRate,
+      vatRateForDocument,
       today,
       today,
       today,
@@ -203,6 +211,7 @@ async function insertBillingDocumentForCompletedPayment(conn, { paymentRow, sess
 module.exports = {
   insertBillingDocumentForCompletedPayment,
   splitGrossToNetVat,
+  vatRatePercentToDocumentDecimal,
   paymentDbTypeToInternalType,
   parseVatRatePercent,
 };
