@@ -114,7 +114,9 @@
     const params = new URLSearchParams(window.location.search);
     if (params.get('payment_pending_timeout') === '1') {
       showState('error');
-      setErrorMessage('Nepodarilo sa potvrdiť platbu. Chvíľu sme to čakali na webhook, no nepotvrdilo sa to. Skúste to prosím znova.');
+      setErrorMessage(
+        'Platba prebehla cez Stripe, ale pri našom spracovaní nastala technická chyba. Potvrdenie pošleme e-mailom. Ak ho nedostanete do niekoľkých minút, kontaktujte podporu.'
+      );
       return;
     }
 
@@ -135,7 +137,9 @@
 
           if (status === 'failed') {
             showState('error');
-            setErrorMessage('Platba sa nepodarila. Skúste prosím znovu alebo kontaktujte podporu.');
+            setErrorMessage(
+              'Platba prebehla cez Stripe, ale pri našom spracovaní nastala technická chyba. Potvrdenie pošleme e-mailom. Ak ho nedostanete do niekoľkých minút, kontaktujte podporu.'
+            );
             return;
           }
 
