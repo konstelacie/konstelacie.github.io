@@ -314,7 +314,12 @@ router.post(
           );
 
           billingDeliveryService.processBillingDocumentDelivery(billingDocumentId).catch((err) => {
-            console.error('[billing] Invoice PDF/email pipeline failed:', err);
+            logLine({
+              level: 'error',
+              tag: 'billing_delivery',
+              billingDocumentId,
+              err: err?.message || String(err),
+            });
           });
 
           syncToKros(billingDocumentId).catch((err) => {

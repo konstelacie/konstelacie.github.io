@@ -194,6 +194,13 @@ async function syncToKros(billingDocumentId) {
       response.body ?? response
     );
     logLine({
+      level: 'error',
+      tag: 'kros_sync_failed',
+      billingDocumentId,
+      status: response.status,
+      responseBody: response.body ?? null,
+    });
+    logLine({
       level: 'warn',
       tag: 'kros_sync_failed_status',
       billingDocumentId,
