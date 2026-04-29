@@ -83,6 +83,10 @@
   let modalEmailEdit = false;
   /** Payment radios/custom amount restored from storage after `openBookingModal({ step: 'payment' })`. */
   let pendingPaymentFormRestore = null;
+  /** Billing inputs restored from storage after page reload. */
+  let pendingBillingRestore = null;
+  /** Debounced billing edits → snapshot update in localStorage. */
+  let billingPersistTimer = null;
   let countdownInterval = null;
   let pendingSlotId = null;
   let lastFocusBeforeModal = null;
@@ -408,9 +412,12 @@
         }
       }
       let paymentForm = null;
-      if (lockToken && lockPhase === 'payment' && modalUiStep === 'payment') {
-        paymentForm = readPaymentFormStateFromDom();
-      }
+      // Persist payment choice even when the UI is in "edit email" mode (payment step hidden),
+      // because the radios still exist in the DOM.
+      if (lockToken && lockPhase === 'payment') paymentForm = readPaymentFormStateFromDom();
+
+      // Persist billing inputs so reload doesn't wipe partially-entered details.
+      const billing = lockToken ? readBillingForm() : null;
       // Always include expiresAt key (null if missing) — JSON.stringify drops `undefined`, and
       // getStoredLock used to reject when the key was absent.
       persistLockBlob(
@@ -425,6 +432,7 @@
           modalUiStep,
           modalEmailEdit,
           paymentForm,
+          billing: billing || undefined,
         })
       );
       broadcastBookingLockToOtherTabs();
@@ -478,12 +486,14 @@
       }
       const paymentFormParsed =
         data.paymentForm && typeof data.paymentForm === 'object' ? data.paymentForm : null;
+      const billingParsed = data.billing && typeof data.billing === 'object' ? data.billing : null;
       return {
         ...data,
         modalVisible: modalVisibleParsed,
         modalUiStep: modalUiStepParsed,
         modalEmailEdit: modalEmailEditParsed,
         paymentForm: paymentFormParsed,
+        billing: billingParsed,
       };
     } catch (e) {
       logStorageError('getStoredLock', e);
@@ -506,6 +516,7 @@
       modalEmailEdit = false;
     }
     pendingPaymentFormRestore = stored.paymentForm || null;
+    pendingBillingRestore = stored.billing || null;
   }
 
   function getTodayLocal() {
@@ -1259,6 +1270,11 @@
     modalUiStep = 'email';
     modalEmailEdit = false;
     pendingPaymentFormRestore = null;
+    pendingBillingRestore = null;
+    if (billingPersistTimer) {
+      clearTimeout(billingPersistTimer);
+      billingPersistTimer = null;
+    }
     clearStoredLock();
     clearCheckoutSessionStorage();
     closeEmailModal();
@@ -1923,13 +1939,50 @@
       });
     }
 
+    function scheduleBillingSnapshotSave() {
+      if (suppressCrossTabApply > 0) return;
+      if (!lockToken) return;
+      if (billingPersistTimer) clearTimeout(billingPersistTimer);
+      billingPersistTimer = setTimeout(() => {
+        billingPersistTimer = null;
+        storeLock();
+      }, 150);
+    }
+
     const companyToggle = $('booking-billing-is-company');
     if (companyToggle) {
       companyToggle.addEventListener('change', () => {
         setCompanyFieldsVisible(!!companyToggle.checked);
+        scheduleBillingSnapshotSave();
       });
       setCompanyFieldsVisible(!!companyToggle.checked);
     }
+
+    // Persist all billing fields (except the company toggle which is handled above).
+    document
+      .querySelectorAll('[id^="booking-billing-"]:not(#booking-billing-is-company)')
+      .forEach((el) => {
+        if (!el || !(el instanceof HTMLElement)) return;
+        const onEdit = () => scheduleBillingSnapshotSave();
+        const tag = el.tagName;
+        if (tag === 'SELECT') {
+          el.addEventListener('change', onEdit);
+          return;
+        }
+        if (tag === 'INPUT' || tag === 'TEXTAREA') {
+          el.addEventListener('input', onEdit);
+          el.addEventListener('change', onEdit);
+          el.addEventListener('blur', () => {
+            if (billingPersistTimer) {
+              clearTimeout(billingPersistTimer);
+              billingPersistTimer = null;
+            }
+            if (lockToken) storeLock();
+          });
+        } else {
+          el.addEventListener('change', onEdit);
+        }
+      });
 
     const paymentRetryBtn = $('booking-payment-retry');
     if (paymentRetryBtn) {
@@ -1986,6 +2039,11 @@
     if (emailErr) emailErr.hidden = true;
     const hold = $('booking-hold-banner');
 
+    if (pendingBillingRestore) {
+      applyBillingPrefill(pendingBillingRestore);
+      pendingBillingRestore = null;
+    }
+
     if (!modalVisible) {
       if (hold) hold.hidden = false;
       updateCountdown();
@@ -2014,19 +2072,17 @@
           if (emailIn && lockedEmail) emailIn.value = lockedEmail;
           if (emailIn) requestAnimationFrame(() => emailIn.focus());
         }
+        applyPaymentFormStateToDom(pendingPaymentFormRestore);
+        pendingPaymentFormRestore = null;
       } else {
         const alreadyOnPayment =
           isEmailModalOpen() &&
           isBookingPaymentStepVisible() &&
           (modalUiStep === 'payment' || lockPhase === 'payment');
-        if (!alreadyOnPayment) {
-          openBookingModal({ step: 'payment' });
-          applyPaymentFormStateToDom(pendingPaymentFormRestore);
-          pendingPaymentFormRestore = null;
-          if (lockToken) storeLock();
-        } else {
-          pendingPaymentFormRestore = null;
-        }
+        if (!alreadyOnPayment) openBookingModal({ step: 'payment' });
+        applyPaymentFormStateToDom(pendingPaymentFormRestore);
+        pendingPaymentFormRestore = null;
+        if (!alreadyOnPayment && lockToken) storeLock();
       }
       updateCountdown();
       startCountdown();
