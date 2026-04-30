@@ -2,17 +2,15 @@
 setlocal
 cd /d "%~dp0"
 
-echo [prod] Preparing upload build (NODE_ENV=production)...
-set "NODE_ENV=production"
-
-call yarn install --production=true --frozen-lockfile
+echo [prod] Creating alwaysdata deploy artifact...
+call node scripts/deploy-alwaysdata.js --target=prod
 set ERR=%ERRORLEVEL%
 if %ERR% NEQ 0 (
-  echo [prod] Build failed with exit code %ERR%.
+  echo [prod] Deploy packaging failed with exit code %ERR%.
   pause
   exit /b %ERR%
 )
 
-echo [prod] Build ready for alwaysdata upload.
+echo [prod] Deploy artifact is ready in deploy\ folder.
 pause
 exit /b 0

@@ -1,6 +1,8 @@
 /start.bat
 node_modules/
 .env
+deploy/*.zip
+deploy/*-latest.txt
 
 # Generated billing PDFs (see BILLING_PDF_STORAGE_DIR)
 storage/billing-pdfs/
