@@ -52,38 +52,77 @@ function zipOutputPath(target) {
   return path.join(DEPLOY_DIR, fileName);
 }
 
-function createZip(target, zipPath) {
-  const relZipPath = path.relative(ROOT_DIR, zipPath).replace(/\\/g, '/');
-  const excludes = [
-    '--exclude=.git',
-    '--exclude=.git/*',
-    '--exclude=node_modules',
-    '--exclude=node_modules/*',
-    '--exclude=.env',
-    '--exclude=deploy',
-    '--exclude=deploy/*',
-    '--exclude=storage/billing-pdfs',
-    '--exclude=storage/billing-pdfs/*',
-    '--exclude=.cursor',
-    '--exclude=.cursor/*',
-    '--exclude=creative/funnel/*.mp4',
-    '--exclude=creative/facebook-ads/*.mp4',
-  ].join(' ');
+function latestFolderPath(target) {
+  return path.join(DEPLOY_DIR, `latest-${target}`);
+}
 
-  run(`tar -a -c -f "${relZipPath}" ${excludes} .`, { cwd: ROOT_DIR });
+function toPosix(relPath) {
+  return relPath.split(path.sep).join('/');
+}
+
+function shouldSkip(relPath, isDir) {
+  const p = toPosix(relPath);
+  if (!p) return false;
+  if (p === '.git' || p.startsWith('.git/')) return true;
+  if (p === 'node_modules' || p.startsWith('node_modules/')) return true;
+  if (p === 'deploy' || p.startsWith('deploy/')) return true;
+  if (p === '.cursor' || p.startsWith('.cursor/')) return true;
+  if (p === '.env') return true;
+  if (p === 'storage/billing-pdfs' || p.startsWith('storage/billing-pdfs/')) return true;
+  if (!isDir && p.startsWith('creative/funnel/') && p.endsWith('.mp4')) return true;
+  if (!isDir && p.startsWith('creative/facebook-ads/') && p.endsWith('.mp4')) return true;
+  return false;
+}
+
+function copyTree(sourceDir, targetDir, relBase = '') {
+  const entries = fs.readdirSync(sourceDir, { withFileTypes: true });
+  for (const entry of entries) {
+    const sourcePath = path.join(sourceDir, entry.name);
+    const relPath = relBase ? path.join(relBase, entry.name) : entry.name;
+    const targetPath = path.join(targetDir, relPath);
+
+    if (shouldSkip(relPath, entry.isDirectory())) continue;
+
+    if (entry.isDirectory()) {
+      fs.mkdirSync(targetPath, { recursive: true });
+      copyTree(sourcePath, targetDir, relPath);
+      continue;
+    }
+
+    fs.mkdirSync(path.dirname(targetPath), { recursive: true });
+    fs.copyFileSync(sourcePath, targetPath);
+  }
+}
+
+function prepareLatestFolder(target) {
+  const latestDir = latestFolderPath(target);
+  fs.rmSync(latestDir, { recursive: true, force: true });
+  fs.mkdirSync(latestDir, { recursive: true });
+  copyTree(ROOT_DIR, latestDir);
+  console.log(`[${target}] Prepared latest deploy folder: ${latestDir}`);
+  return latestDir;
+}
+
+function createZip(target, zipPath, sourceDir) {
+  const psSourcePath = sourceDir.replace(/'/g, "''");
+  const psZipPath = zipPath.replace(/'/g, "''");
+  const psCmd = `Compress-Archive -Path '${psSourcePath}\\*' -DestinationPath '${psZipPath}' -Force`;
+  run(`powershell -NoProfile -Command "${psCmd}"`, { cwd: ROOT_DIR });
   console.log(`[${target}] Created upload artifact: ${zipPath}`);
 }
 
-function writeInfo(target, zipPath) {
+function writeInfo(target, zipPath, latestDir) {
   const infoPath = path.join(DEPLOY_DIR, `alwaysdata-${target}-latest.txt`);
   const relZipPath = path.relative(ROOT_DIR, zipPath).replace(/\\/g, '/');
+  const relLatestDir = path.relative(ROOT_DIR, latestDir).replace(/\\/g, '/');
   const body = [
     `target=${target}`,
     `created_at=${new Date().toISOString()}`,
     `artifact=${relZipPath}`,
+    `folder=${relLatestDir}`,
     '',
     'Upload flow:',
-    '1) Upload ZIP content into alwaysdata app directory',
+    '1) Upload ZIP content or latest folder content into alwaysdata app directory',
     '2) Set env vars in alwaysdata admin',
     '3) Run npm ci --omit=dev on server',
     '4) Run npm run db:migrate on server',
@@ -99,8 +138,9 @@ function main() {
   ensureDeployDir();
 
   const zipPath = zipOutputPath(target);
-  createZip(target, zipPath);
-  writeInfo(target, zipPath);
+  const latestDir = prepareLatestFolder(target);
+  createZip(target, zipPath, latestDir);
+  writeInfo(target, zipPath, latestDir);
 }
 
 try {

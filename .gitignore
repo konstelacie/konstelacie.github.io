@@ -3,6 +3,8 @@ node_modules/
 .env
 deploy/*.zip
 deploy/*-latest.txt
+deploy/latest-prod/
+deploy/latest-preprod/
 
 # Generated billing PDFs (see BILLING_PDF_STORAGE_DIR)
 storage/billing-pdfs/
