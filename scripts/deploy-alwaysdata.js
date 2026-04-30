@@ -68,6 +68,7 @@ function shouldSkip(relPath, isDir) {
   if (p === 'deploy' || p.startsWith('deploy/')) return true;
   if (p === '.cursor' || p.startsWith('.cursor/')) return true;
   if (p === '.env') return true;
+  if (!isDir && p.toLowerCase().endsWith('.bat')) return true;
   if (p === 'storage/billing-pdfs' || p.startsWith('storage/billing-pdfs/')) return true;
   if (!isDir && p.startsWith('creative/funnel/') && p.endsWith('.mp4')) return true;
   if (!isDir && p.startsWith('creative/facebook-ads/') && p.endsWith('.mp4')) return true;
