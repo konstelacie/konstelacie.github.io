@@ -103,6 +103,7 @@ app.use('/assets', express.static(path.join(projectRoot, 'public', 'assets')));
 
 app.use((req, res, next) => {
   res.locals.metaPixelId = config.metaPixelId || '';
+  res.locals.showTestingBanner = Boolean(config.site && config.site.showTestingBanner);
   next();
 });
 

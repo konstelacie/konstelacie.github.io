@@ -12,6 +12,11 @@
   <%- typeof extraStyles !== 'undefined' && extraStyles ? extraStyles : '' %>
 </head>
 <body>
+  <% if (typeof showTestingBanner !== 'undefined' && showTestingBanner) { %>
+  <div class="site-testing-banner" role="status" aria-live="polite">
+    Pozor: Stránka je momentálne v testovacej prevádzke. Prosíme, nepoužívajte ju ako bežný návštevník.
+  </div>
+  <% } %>
   <% if (typeof hideHeader === 'undefined' || !hideHeader) { %>
   <%- include('../partials/header') %>
   <% } %>

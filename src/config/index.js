@@ -14,6 +14,15 @@ module.exports = {
       process.env.RESEND_FROM_EMAIL ||
       ''
     ).trim(),
+    /**
+     * Temporary warning banner for public pages during production tests.
+     * Default: on in production, off elsewhere. Set SITE_TESTING_BANNER=0 to hide.
+     */
+    showTestingBanner:
+      process.env.SITE_TESTING_BANNER === '1' ||
+      (process.env.NODE_ENV === 'production' &&
+        process.env.SITE_TESTING_BANNER !== '0' &&
+        String(process.env.SITE_TESTING_BANNER || '').toLowerCase() !== 'false'),
   },
   db: {
     host: process.env.DB_HOST || 'localhost',
