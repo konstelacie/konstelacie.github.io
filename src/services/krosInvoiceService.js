@@ -57,7 +57,7 @@ function buildKrosPayload(row) {
   const isCompany = Number(row.customer_is_company) === 1;
   const country = (row.customer_country || 'SK').toUpperCase().slice(0, 2) || 'SK';
   const externalId = row.kros_external_id || crypto.randomUUID();
-  const invoiceType = row.document_type === 'advance' ? 2 : 0;
+  const invoiceType = /*row.document_type === 'advance' ? 2 :*/ 0;
   const advancePaymentDeduction =
     row.document_type === 'settlement' && row.advance_amount_gross_cents != null
       ? normalizeMoneyFromCents(row.advance_amount_gross_cents)

@@ -75,12 +75,27 @@ async function fetchJson(url, options) {
 
 async function postInvoices(payload) {
   try {
+    const url = `${KROS_BASE_URL}/invoices`;
+    const headers = {
+      Authorization: authHeader(),
+      'Content-Type': 'application/json',
+    };
+    logLine({
+      level: 'info',
+      tag: 'kros_client_request',
+      request: {
+        method: 'POST',
+        url,
+        headers: {
+          ...headers,
+          Authorization: 'Bearer ***',
+        },
+        body: payload,
+      },
+    });
     return await fetchJson(`${KROS_BASE_URL}/invoices`, {
       method: 'POST',
-      headers: {
-        Authorization: authHeader(),
-        'Content-Type': 'application/json',
-      },
+      headers,
       body: JSON.stringify(payload),
     });
   } catch (err) {

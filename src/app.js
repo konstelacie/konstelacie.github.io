@@ -25,6 +25,14 @@ if (config.env === 'production') {
 
 app.use(securityHeaders);
 
+app.use((req, res, next) => {
+  const host = (req.get('host') || '').trim();
+  if (!host.toLowerCase().startsWith('www.')) return next();
+
+  const canonicalHost = host.slice(4);
+  return res.redirect(308, `${req.protocol}://${canonicalHost}${req.originalUrl}`);
+});
+
 function resolveSessionSecret() {
   if (config.admin.sessionSecret) return config.admin.sessionSecret;
   if (config.env !== 'production') return 'dev-session-secret-change-in-prod';
