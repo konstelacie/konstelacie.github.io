@@ -18,7 +18,7 @@
 
 1. Create the database and user in alwaysdata (MySQL host is typically `mysql-{account}.alwaysdata.net`).
 2. Set `DB_HOST`, `DB_PORT`, `DB_USER`, `DB_PASSWORD`, `DB_NAME`.
-3. Run migrations: `npm run db:migrate` over SSH from the app directory, or apply SQL manually—see `docs/DB-MIGRATIONS.md` (**alwaysdata workflow**).
+3. Run migrations: `yarn db:migrate` over SSH from the app directory, or apply SQL manually—see `docs/DB-MIGRATIONS.md` (**alwaysdata workflow**).
 
 **Before first prod migration:** back up (alwaysdata backup or `mysqldump`).
 

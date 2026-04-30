@@ -10,7 +10,7 @@ Set in `.env` (or environment). Copy from `.env.example` at the repo root.
 |----------|-------------|
 | `DB_HOST` | MySQL host (default: localhost) |
 | `DB_PORT` | MySQL port (default: 3306) |
-| `DB_USER` | MySQL user (**required** for `npm run db:migrate` and for the app pool) |
+| `DB_USER` | MySQL user (**required** for `yarn db:migrate` and for the app pool) |
 | `DB_PASSWORD` | MySQL password (may be empty) |
 | `DB_NAME` | Database name (default: `citim_teda_som`) |
 
@@ -22,7 +22,7 @@ For Stripe vars (`STRIPE_PUBLIC_KEY`, `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRE
 
 ## How it works
 
-The migration runner (`scripts/db-migrate.js`) uses a **schema_migrations** table to track which migration files have already been applied. This makes runs idempotent: you can run `npm run db:migrate` multiple times safely—already-applied files are skipped.
+The migration runner (`scripts/db-migrate.js`) uses a **schema_migrations** table to track which migration files have already been applied. This makes runs idempotent: you can run `yarn db:migrate` multiple times safely—already-applied files are skipped.
 
 | Component | Purpose |
 |-----------|---------|
@@ -36,21 +36,21 @@ The migration runner (`scripts/db-migrate.js`) uses a **schema_migrations** tabl
 
 ```bash
 # Apply all pending migrations
-npm run db:migrate
+yarn db:migrate
 
 # Show which migrations are applied vs pending
-npm run db:status
+yarn db:status
 ```
 
 ## Local development
 
 1. Ensure MySQL is running and the database exists.
 2. Copy `.env.example` to `.env` and fill in DB credentials.
-3. Run `npm run db:migrate`.
+3. Run `yarn db:migrate`.
 
 ## alwaysdata workflow
 
-1. **SSH:** Deploy code, then run `npm run db:migrate` in the app directory.
+1. **SSH:** Deploy code, then run `yarn db:migrate` in the app directory.
 2. **Admin SQL console:** If you prefer, run migration SQL manually from `src/db/migrations/` in order.
 
 Broader production setup (security env, cron, Stripe, verification checklist) is in **`docs/DEPLOY-ALWAYSDATA.md`** (for go-live; we are not on prod yet).

@@ -447,7 +447,7 @@ See `docs/SCHEDULED-EMAILS-CRON.md`.
 
 Public listing requires each slot to start **≥ 24 hours** from now (and weekdays in the funnel). Do not seed slots for **today** only—they will not appear.
 
-Prefer `npm run db:seed-slots` / `node scripts/seed-slots.js`, which picks the first **weekday from tomorrow onward** where all seeded times meet the 24h rule.
+Prefer `yarn db:seed-slots` / `node scripts/seed-slots.js`, which picks the first **weekday from tomorrow onward** where all seeded times meet the 24h rule.
 
 Manual SQL example (replace with real UTC instants for your `local_date` + `grid_index`):
 

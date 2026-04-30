@@ -6,9 +6,9 @@
  *
  * What it does:
  *  - Ensures `.env` exists (copies from `.env.example` if missing)
- *  - Runs `npm install` if `node_modules` is missing
- *  - Runs `npm run db:migrate` if DB_* creds are present in `.env`
- *  - Optional: `--seed-slots` to run `npm run db:seed-slots` (inserts new rows)
+ *  - Runs `yarn install` if `node_modules` is missing
+ *  - Runs `yarn db:migrate` if DB_* creds are present in `.env`
+ *  - Optional: `--seed-slots` to run `yarn db:seed-slots` (inserts new rows)
  *
  * Usage:
  *   node scripts/build-local.js [--skip-install] [--skip-db] [--seed-slots]
@@ -58,11 +58,11 @@ function main() {
   loadEnv();
 
   if (!skipInstall && !fs.existsSync(NODE_MODULES_DIR)) {
-    run('npm install');
+    run('yarn install');
   } else if (skipInstall) {
-    console.log('Skipping npm install (--skip-install).');
+    console.log('Skipping yarn install (--skip-install).');
   } else {
-    console.log('node_modules present; skipping npm install.');
+    console.log('node_modules present; skipping yarn install.');
   }
 
   if (!skipDb) {
@@ -70,11 +70,11 @@ function main() {
     if (!hasDbCreds) {
       console.warn('Skipping db:migrate: set DB_USER and DB_NAME in .env to enable DB tasks.');
     } else {
-      run('npm run db:migrate');
+      run('yarn db:migrate');
 
       if (seedSlots) {
         // Inserts new rows; use only if you want fresh slot availability.
-        run('npm run db:seed-slots');
+        run('yarn db:seed-slots');
       }
     }
   } else {

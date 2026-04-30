@@ -3,7 +3,7 @@
  * Seed test slots: weekdays × five session times (see src/config/slotGrid.js).
  * Uses Luxon for Europe/Bratislava wall time → UTC instants.
  * Skips "today" and only starts on a weekday where every slot is >= now + 24h.
- * Run: node scripts/seed-slots.js  |  npm run db:seed-slots
+ * Run: node scripts/seed-slots.js  |  yarn db:seed-slots
  */
 require('dotenv').config();
 const mysql = require('mysql2/promise');

@@ -1,6 +1,7 @@
 {
   "name": "citimtedasom",
   "version": "1.0.0",
+  "packageManager": "yarn@1.22.22",
   "scripts": {
     "start": "node server.js",
     "dev": "node --watch server.js",

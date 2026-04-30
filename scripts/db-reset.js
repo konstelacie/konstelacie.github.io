@@ -3,7 +3,7 @@
  * Full DB reset: drop database, run migrations.
  * Slots are created via the admin UI (no automatic seed).
  * Uses same DB config as db-migrate.js.
- * Run: npm run db:reset
+ * Run: yarn db:reset
  */
 require('dotenv').config();
 const mysql = require('mysql2/promise');
@@ -46,7 +46,7 @@ async function run() {
   }
 
   console.log('Running migrations...');
-  execSync('npm run db:migrate', { stdio: 'inherit', cwd: __dirname + '/..' });
+  execSync('yarn db:migrate', { stdio: 'inherit', cwd: __dirname + '/..' });
 
   console.log('DB reset complete.');
 }

@@ -2,7 +2,7 @@
 /**
  * DB migration runner for citimtedasom.sk
  * Uses mysql2/promise and env vars: DB_HOST, DB_PORT, DB_USER, DB_PASSWORD, DB_NAME
- * Run: npm run db:migrate | npm run db:status
+ * Run: yarn db:migrate | yarn db:status
  */
 require('dotenv').config();
 const mysql = require('mysql2/promise');
