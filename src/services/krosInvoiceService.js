@@ -2,7 +2,7 @@ const crypto = require('crypto');
 const { getPool } = require('../db');
 const config = require('../config');
 const { logLine } = require('../lib/structuredLog');
-const { postProformaInvoices } = require('./krosClient');
+const { postInvoices } = require('./krosClient');
 
 function asIsoDate(value) {
   if (!value) return null;
@@ -28,12 +28,11 @@ function normalizeMoneyFromCents(cents) {
   return Math.round(Number(cents || 0)) / 100;
 }
 
-/** KROS proforma API: numberingSequence maxLength 5. */
-function resolveProformaNumberingSequence(prefix) {
-  const base = 'OPF';
-  if (!prefix) return base;
-  const combined = `${prefix}-${base}`;
-  return combined.length <= 5 ? combined : base;
+/** Číselný rad faktúr: OF (prod), or e.g. T-OF when KROS_SEQUENCE_PREFIX=T. */
+function resolveNumberingSequence(prefix) {
+  const base = 'OF';
+  const p = String(prefix || '').trim();
+  return p ? `${p}-${base}` : base;
 }
 
 async function loadBillingDocumentContext(pool, billingDocumentId) {
@@ -56,21 +55,16 @@ async function loadBillingDocumentContext(pool, billingDocumentId) {
   return rows[0] || null;
 }
 
-/** Proforma (preddavková) payload for POST /api/proforma-invoices — advance documents only at sync time. */
-function buildKrosProformaPayload(row) {
+function buildKrosPayload(row) {
   const isCompany = Number(row.customer_is_company) === 1;
   const country = (row.customer_country || 'SK').toUpperCase().slice(0, 2) || 'SK';
   const externalId = row.kros_external_id || crypto.randomUUID();
-  const prefix = config.kros.sequencePrefix;
-  const numberingSequence = resolveProformaNumberingSequence(prefix);
-  if (prefix && `${prefix}-OPF`.length > 5) {
-    logLine({
-      level: 'warn',
-      tag: 'kros_proforma_sequence_truncated',
-      message: 'KROS proforma numberingSequence max 5 chars; using OPF',
-      prefix,
-    });
-  }
+  const invoiceType = row.document_type === 'advance' ? 2 : 0;
+  const advancePaymentDeduction =
+    row.document_type === 'settlement' && row.advance_amount_gross_cents != null
+      ? normalizeMoneyFromCents(row.advance_amount_gross_cents)
+      : 0;
+  const numberingSequence = resolveNumberingSequence(config.kros.sequencePrefix);
 
   return {
     data: {
@@ -104,6 +98,7 @@ function buildKrosProformaPayload(row) {
       exchangeRate: 1,
       issueDate: asIsoDate(row.issue_date),
       dueDate: asIsoDate(row.due_date),
+      deliveryDate: asIsoDate(row.delivery_date),
       paymentType: 'Bankový prevod',
       bankAccount: {
         iban: row.supplier_iban || '',
@@ -112,6 +107,8 @@ function buildKrosProformaPayload(row) {
       },
       numberingSequence,
       documentNumber: '',
+      invoiceType,
+      advancePaymentDeduction,
     },
   };
 }
@@ -168,22 +165,11 @@ async function syncToKros(billingDocumentId) {
     return;
   }
 
-  if (row.document_type !== 'advance') {
-    logLine({
-      level: 'info',
-      tag: 'kros_sync_skipped',
-      billingDocumentId,
-      reason: 'proforma_only_skip_non_advance',
-      documentType: row.document_type,
-    });
-    return;
-  }
-
-  const payload = buildKrosProformaPayload(row);
+  const payload = buildKrosPayload(row);
   const externalId = payload.data.externalId;
 
   try {
-    const response = await postProformaInvoices(payload);
+    const response = await postInvoices(payload);
     if (response.status === 202) {
       await pool.execute(
         `UPDATE billing_documents

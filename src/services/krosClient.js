@@ -73,7 +73,7 @@ async function fetchJson(url, options) {
   };
 }
 
-/** Standard invoices — reserved for future settlement/final documents (not used while sync is proforma-only). */
+/** Standard invoices — POST /api/invoices (primary KROS sync). */
 async function postInvoices(payload) {
   try {
     const url = `${KROS_BASE_URL}/invoices`;
@@ -109,41 +109,6 @@ async function postInvoices(payload) {
   }
 }
 
-async function postProformaInvoices(payload) {
-  try {
-    const url = `${KROS_BASE_URL}/proforma-invoices`;
-    const headers = {
-      Authorization: authHeader(),
-      'Content-Type': 'application/json',
-    };
-    logLine({
-      level: 'info',
-      tag: 'kros_client_proforma_request',
-      request: {
-        method: 'POST',
-        url,
-        headers: {
-          ...headers,
-          Authorization: 'Bearer ***',
-        },
-        body: payload,
-      },
-    });
-    return await fetchJson(url, {
-      method: 'POST',
-      headers,
-      body: JSON.stringify(payload),
-    });
-  } catch (err) {
-    logLine({
-      level: 'error',
-      tag: 'kros_client_post_proforma_error',
-      error: err?.message || String(err),
-    });
-    throw err;
-  }
-}
-
 async function getInvoice(documentId) {
   try {
     return await fetchJson(`${KROS_BASE_URL}/invoices/${encodeURIComponent(String(documentId))}`, {
@@ -165,6 +130,5 @@ async function getInvoice(documentId) {
 
 module.exports = {
   postInvoices,
-  postProformaInvoices,
   getInvoice,
 };
