@@ -3,6 +3,7 @@ const { getPool } = require('../db');
 const config = require('../config');
 const { logLine } = require('../lib/structuredLog');
 const { postInvoices } = require('./krosClient');
+const { lineItemNameForDocumentType } = require('./billingDocumentService');
 
 function asIsoDate(value) {
   if (!value) return null;
@@ -85,7 +86,7 @@ function buildKrosPayload(row) {
       },
       items: [
         {
-          name: row.line_name || 'Online sprevádzanie',
+          name: lineItemNameForDocumentType(row.document_type),
           amount: Number(row.line_amount || 1),
           measureUnit: row.line_measure_unit || 'ks',
           vatRate: Number(row.line_vat_rate || 0),

@@ -4,6 +4,17 @@ const { billing } = require('../config');
 
 const DEFAULT_VAT_RATE_PERCENT = 23;
 
+/** Single line label on billing_documents / KROS by accounting document kind. */
+const LINE_ITEM_NAME_BY_DOCUMENT_TYPE = {
+  advance: 'Rezervačný poplatok za online konzultáciu',
+  settlement: 'Online konzultácia – doplatok',
+  standard: 'Online konzultácia',
+};
+
+function lineItemNameForDocumentType(documentType) {
+  return LINE_ITEM_NAME_BY_DOCUMENT_TYPE[documentType] || LINE_ITEM_NAME_BY_DOCUMENT_TYPE.standard;
+}
+
 function parseVatRatePercent() {
   const n = Number(billing.vatRate);
   if (!Number.isFinite(n) || n < 0) return DEFAULT_VAT_RATE_PERCENT;
@@ -202,7 +213,7 @@ async function insertBillingDocumentForCompletedPayment(conn, { paymentRow, sess
       unit_price_excl_vat_cents,
       total_price_incl_vat_cents
     ) VALUES (?, 1, ?, NULL, 1, 'ks', ?, ?, ?)`,
-    [result.insertId, billing.serviceName || 'Online sprevádzanie', vatRate, amountNetCents, amountGrossCents]
+    [result.insertId, lineItemNameForDocumentType(documentType), vatRate, amountNetCents, amountGrossCents]
   );
 
   return result.insertId;
@@ -210,6 +221,7 @@ async function insertBillingDocumentForCompletedPayment(conn, { paymentRow, sess
 
 module.exports = {
   insertBillingDocumentForCompletedPayment,
+  lineItemNameForDocumentType,
   splitGrossToNetVat,
   vatRatePercentToDocumentDecimal,
   paymentDbTypeToInternalType,
