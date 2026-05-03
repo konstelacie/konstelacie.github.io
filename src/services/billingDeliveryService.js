@@ -76,9 +76,12 @@ async function allocateDocumentNumber(conn, billingDocumentId, year, prefix) {
 
 /**
  * @param {number} billingDocumentId
+ * @param {object} [options]
+ * @param {boolean} [options.forceInternal] - Run CT-PDF pipeline even when `KROS_ENABLED` (KROS webhook fallback)
  */
-async function processBillingDocumentDelivery(billingDocumentId) {
-  if (String(process.env.KROS_ENABLED || '').toLowerCase() === 'true') {
+async function processBillingDocumentDelivery(billingDocumentId, options = {}) {
+  const forceInternal = options.forceInternal === true;
+  if (!forceInternal && String(process.env.KROS_ENABLED || '').toLowerCase() === 'true') {
     logLine({
       level: 'info',
       tag: 'billing_delivery_skipped',
@@ -287,8 +290,54 @@ async function resendBillingInvoiceEmailAdmin(billingDocumentId) {
   return { ok: true, messageId: result.messageId };
 }
 
+/**
+ * KROS webhook never arrived: deliver internal CT-PDF + billing-invoice email (idempotent per email_sent_log).
+ * @returns {Promise<{ processed: number, errors: Array<{ billingDocumentId: number, error: string }> }>}
+ */
+async function processStuckKrosAcceptedFallbackBatch() {
+  const errors = [];
+  let processed = 0;
+
+  const pool = getPool();
+  if (!pool) {
+    return { processed: 0, errors };
+  }
+
+  const candidates = await billingDocumentsRepo.findStuckKrosAcceptedForFallback(50);
+
+  for (const row of candidates) {
+    const id = row.id;
+    const [krosEmailed, internalEmailed] = await Promise.all([
+      emailSentLogRepo.wasAlreadySent('billing-invoice-kros', 'billing_document', id),
+      emailSentLogRepo.wasAlreadySent('billing-invoice', 'billing_document', id),
+    ]);
+    if (krosEmailed || internalEmailed) {
+      continue;
+    }
+
+    const createdMs = row.created_at ? new Date(row.created_at).getTime() : NaN;
+    const ageMinutes = Number.isFinite(createdMs) ? Math.floor((Date.now() - createdMs) / 60_000) : 0;
+    logLine({
+      level: 'info',
+      tag: 'kros_fallback_delivery',
+      billingDocumentId: id,
+      ageMinutes,
+    });
+
+    try {
+      await processBillingDocumentDelivery(id, { forceInternal: true });
+      processed += 1;
+    } catch (err) {
+      errors.push({ billingDocumentId: id, error: err?.message || String(err) });
+    }
+  }
+
+  return { processed, errors };
+}
+
 module.exports = {
   processBillingDocumentDelivery,
+  processStuckKrosAcceptedFallbackBatch,
   billingPdfDir,
   regenerateBillingPdfAdmin,
   resendBillingInvoiceEmailAdmin,

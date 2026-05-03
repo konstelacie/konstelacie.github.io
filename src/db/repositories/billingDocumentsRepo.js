@@ -90,9 +90,34 @@ async function updateNotes(id, notes) {
   return r.affectedRows > 0;
 }
 
+const STUCK_KROS_FALLBACK_LIMIT = 50;
+
+/**
+ * Billing rows where KROS accepted the upload but no success webhook arrived (fallback CT-PDF path).
+ * @param {number} [limit]
+ * @returns {Promise<Array<{ id: number, created_at: Date }>>}
+ */
+async function findStuckKrosAcceptedForFallback(limit = STUCK_KROS_FALLBACK_LIMIT) {
+  const pool = getPool();
+  if (!pool) return [];
+  const lim = Math.min(Math.max(Number(limit) || STUCK_KROS_FALLBACK_LIMIT, 1), STUCK_KROS_FALLBACK_LIMIT);
+  const [rows] = await pool.execute(
+    `SELECT id, created_at FROM billing_documents
+     WHERE kros_status = 'accepted'
+       AND kros_webhook_received_at IS NULL
+       AND email_sent_at IS NULL
+       AND created_at < DATE_SUB(NOW(3), INTERVAL 30 MINUTE)
+     ORDER BY id ASC
+     LIMIT ?`,
+    [lim]
+  );
+  return rows;
+}
+
 module.exports = {
   findById,
   findByIdWithPayment,
   searchForAdmin,
   updateNotes,
+  findStuckKrosAcceptedForFallback,
 };

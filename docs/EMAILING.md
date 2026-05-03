@@ -31,6 +31,16 @@
 
 **Idempotency:** Pre-session and initial billing invoice use **`emailSentLogRepo.wasAlreadySent`** (template + entity) so cron/webhook retries do not double-send; reservation confirmation has no duplicate guard beyond business rules (one payment flow per reservation).
 
+### KROS webhook fallback (stuck `accepted` documents)
+
+When **`KROS_ENABLED`** is on, the customer invoice link normally comes from the KROS success webhook (`billing-invoice-kros`). If KROS accepts the document (**`kros_status = accepted`**) but the webhook never arrives, the row can sit with **`kros_webhook_received_at` NULL** and **`email_sent_at` NULL**.
+
+**Stuck criteria (implementation):** `kros_status = 'accepted'`, `kros_webhook_received_at IS NULL`, `email_sent_at IS NULL`, and **`created_at` older than 30 minutes**. The app does not run an internal scheduler; recovery is explicit.
+
+**Endpoint:** **`GET /admin/billing/deliver-stuck`** (requires an **admin session** — same middleware as other `/admin` pages). Response JSON: **`{ processed, errors }`** where **`errors`** is `{ billingDocumentId, error }[]`. For each candidate (up to **50** per run), the handler checks **`email_sent_log`** for **both** **`billing-invoice-kros`** and **`billing-invoice`**; if either was already sent for that **`billing_document`**, the row is skipped. Otherwise it logs **`kros_fallback_delivery`** (with **`ageMinutes`**) and runs **`processBillingDocumentDelivery(id, { forceInternal: true })`**, which issues the internal **CT-PDF** and sends **`billing-invoice`** when **`BILLING_SEND_INVOICE_EMAIL`** allows and the snapshot email is valid.
+
+**Operations:** Call this URL from an **external cron** (e.g. every **10 minutes** via [cron-job.org](https://cron-job.org) or your host’s scheduler) using a request that includes a valid **admin cookie** (or automate login first). There is no separate `/api/admin` mount in this repo; the route lives under **`/admin`**.
+
 ### Required env vars (Resend)
 
 Set in `.env` (or environment); see `src/config/index.js` and `.env.example`.
