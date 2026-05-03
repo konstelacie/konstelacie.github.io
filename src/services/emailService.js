@@ -270,7 +270,10 @@ async function sendBillingInvoiceKrosEmail(billingDocumentId, krosDownloadUrl, o
     return { ok: false, skipped: true };
   }
 
-  const documentNumber = String(documentRow.document_number || '').trim();
+  const displayNumber =
+    (documentRow.document_number && String(documentRow.document_number).trim()) ||
+    (documentRow.kros_document_id && String(documentRow.kros_document_id).trim()) ||
+    '';
   const amountFormatted = formatAmount(documentRow.amount_gross_cents, documentRow.currency);
   const krosDownloadUrlAttr = escapeHtmlAttribute(url);
   const krosDownloadUrlText = escapeHtml(url);
@@ -279,18 +282,18 @@ async function sendBillingInvoiceKrosEmail(billingDocumentId, krosDownloadUrl, o
   const templateId = resend ? BILLING_INVOICE_KROS_RESEND_TEMPLATE_ID : BILLING_INVOICE_KROS_TEMPLATE_ID;
 
   const html = await ejs.renderFile(path.join(EMAIL_TEMPLATES_DIR, templateFile), {
-    documentNumber,
+    displayNumber,
     amountFormatted,
     krosDownloadUrlAttr,
     krosDownloadUrlText,
   });
 
   const subject = resend
-    ? documentNumber
-      ? `Platobný doklad ${documentNumber} (znova) — citimtedasom.sk`
+    ? displayNumber
+      ? `Platobný doklad ${displayNumber} (znova) — citimtedasom.sk`
       : `Platobný doklad (znova) — citimtedasom.sk`
-    : documentNumber
-      ? `Platobný doklad ${documentNumber} — citimtedasom.sk`
+    : displayNumber
+      ? `Platobný doklad ${displayNumber} — citimtedasom.sk`
       : `Platobný doklad — citimtedasom.sk`;
 
   const metadata = {

@@ -1157,6 +1157,14 @@ router.post('/billing/:id/resend-email', requireAdmin, async (req, res) => {
         result = { ok: true, messageId: emailResult.messageId };
       }
     } else {
+      if (krosEnabled && !docRow.kros_download_url) {
+        logLine({
+          level: 'info',
+          tag: 'admin_resend_kros_url_missing',
+          billingDocumentId: id,
+          kros_status: docRow.kros_status ?? null,
+        });
+      }
       logLine({
         level: 'info',
         tag: 'admin_resend_path',
@@ -1170,7 +1178,16 @@ router.post('/billing/:id/resend-email', requireAdmin, async (req, res) => {
       req.session.adminFlash = { level: 'error', message: mapBillingActionError(result.code) };
     } else {
       await auditRepo.log('billing_invoice_resent', 'billing_document', id, null, 'admin');
-      req.session.adminFlash = { level: 'success', message: 'E-mail s dokladom bol odoslaný znova.' };
+      if (krosEnabled && !docRow.kros_download_url) {
+        req.session.adminFlash = {
+          level: 'success',
+          message:
+            `KROS webhook ešte nedobehol (kros_status: ${docRow.kros_status ?? '—'}). ` +
+            `Email bol odoslaný cez interný PDF.`,
+        };
+      } else {
+        req.session.adminFlash = { level: 'success', message: 'E-mail s dokladom bol odoslaný znova.' };
+      }
     }
     return res.redirect(redirect);
   } catch (err) {

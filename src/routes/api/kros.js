@@ -159,6 +159,15 @@ router.post(
       const krosEnabled = String(process.env.KROS_ENABLED || '').toLowerCase() === 'true';
       const sendInvoiceEmail = config.billing?.sendInvoiceEmail !== false;
       if (krosEnabled && sendInvoiceEmail && krosDownloadUrl) {
+        if (!row.id) {
+          logLine({
+            level: 'error',
+            tag: 'kros_webhook_missing_row_id',
+            externalId,
+            requestId: req.id,
+          });
+          return res.status(200).json({ received: true });
+        }
         try {
           await emailService.sendBillingInvoiceKrosEmail(row.id, krosDownloadUrl);
         } catch (err) {
