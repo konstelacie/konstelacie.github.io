@@ -27,6 +27,7 @@ const { mapBillingListRow, mapBillingDetailRow, csvEscape } = require('../lib/ad
 const { mysqlLocalDateToYmd } = require('../lib/slotApiMap');
 const { resolveBalancePayAdminLink } = require('../lib/balancePayAdminLink');
 const emailService = require('../services/emailService');
+const { logLine } = require('../lib/structuredLog');
 
 const router = express.Router();
 
@@ -1131,7 +1132,40 @@ router.post('/billing/:id/resend-email', requireAdmin, async (req, res) => {
       req.session.adminFlash = { level: 'error', message: 'Databáza nie je dostupná.' };
       return res.redirect(redirect);
     }
-    const result = await billingDeliveryService.resendBillingInvoiceEmailAdmin(id);
+
+    const krosEnabled = String(process.env.KROS_ENABLED || '').toLowerCase() === 'true';
+    const docRow = await billingDocumentsRepo.findById(id);
+    if (!docRow) {
+      req.session.adminFlash = { level: 'error', message: mapBillingActionError('NOT_FOUND') };
+      return res.redirect(redirect);
+    }
+
+    let result;
+    if (krosEnabled && docRow.kros_download_url) {
+      logLine({
+        level: 'info',
+        tag: 'admin_resend_path',
+        billingDocumentId: id,
+        path: 'kros_link',
+      });
+      const emailResult = await emailService.sendBillingInvoiceKrosEmail(id, docRow.kros_download_url, {
+        resend: true,
+      });
+      if (!emailResult.ok || emailResult.skipped) {
+        result = { ok: false, code: emailResult.skipped ? 'EMAIL_SKIPPED' : 'SEND_FAILED' };
+      } else {
+        result = { ok: true, messageId: emailResult.messageId };
+      }
+    } else {
+      logLine({
+        level: 'info',
+        tag: 'admin_resend_path',
+        billingDocumentId: id,
+        path: 'internal_pdf',
+      });
+      result = await billingDeliveryService.resendBillingInvoiceEmailAdmin(id);
+    }
+
     if (!result.ok) {
       req.session.adminFlash = { level: 'error', message: mapBillingActionError(result.code) };
     } else {

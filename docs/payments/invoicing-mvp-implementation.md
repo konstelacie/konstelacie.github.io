@@ -93,7 +93,7 @@ All items below require **confirmation with your accountant** (and possibly a ta
 
 - **Webhook handler:** Verify signature, `webhook_events` guard, update `payments` / `reservation`, insert **`billing_documents`** — `src/routes/api/stripe.js`.
 - **Document service (implemented):** **`billingDocumentService.insertBillingDocumentForCompletedPayment`** — payment row + Stripe session → insert `billing_documents` (`status = recorded`, VAT split via `BILLING_VAT_RATE`).
-- **Delivery (implemented):** **`billingDeliveryService.processBillingDocumentDelivery`** — after HTTP 200 to Stripe, async: allocate **`document_number`** (`billing_document_counters`), write PDF under `storage/billing-pdfs` (or `BILLING_PDF_STORAGE_DIR`), optional **`sendBillingInvoiceEmail`** unless disabled / invalid recipient. Failures logged; no separate queue worker yet.
+- **Delivery (implemented):** After Stripe webhook commit, async **`billingDeliveryService.processBillingDocumentDelivery`** **only when `KROS_ENABLED` is not `true`**: allocate **`document_number`** (`billing_document_counters`), write PDF under `storage/billing-pdfs` (or `BILLING_PDF_STORAGE_DIR`), optional **`sendBillingInvoiceEmail`** (`billing-invoice`) unless `BILLING_SEND_INVOICE_EMAIL` is disabled / invalid recipient. When **`KROS_ENABLED=true`**, that pipeline is skipped (log `billing_delivery_skipped` / `kros_mode`); **`syncToKros`** runs from the same webhook; customer invoice email with link is sent from the **KROS webhook** (`billing-invoice-kros`) when `BILLING_SEND_INVOICE_EMAIL` is enabled. Failures logged; no separate queue worker yet.
 - **Storage:** Filesystem path; DB holds `pdf_storage_ref` (relative under project or absolute if configured).
 
 ### Dependencies on existing tables
@@ -301,6 +301,7 @@ Historical phasing below describes how the work was **planned**; **in the curren
 - **Document model in this phase:** deposit payment creates **zálohová faktúra** (`advance`); later top-up/session can create **vyúčtovacia faktúra** (`settlement`) linked to the prior advance.
 - **Phase 2 (in progress):** `krosClient`, payload mapping, and `POST /api/kros/webhook` handling are implemented behind `KROS_ENABLED`.
 - **Phase 2 detail:** `advancePaymentDeduction` is sent only for `document_type = settlement`, derived from linked `advance_document_id` gross amount.
+- **Delivery fork:** **`KROS_ENABLED=false`** — Stripe webhook runs internal CT-PDF + optional `billing-invoice` email (`processBillingDocumentDelivery`). **`KROS_ENABLED=true`** — that pipeline is skipped (`billing_delivery_skipped` / `kros_mode`); `syncToKros` runs; KROS webhook sends `billing-invoice-kros` when `BILLING_SEND_INVOICE_EMAIL` is on. Internal PDF helpers and admin regenerate remain for fallback/history. Admin resend logs `admin_resend_path`: `kros_link` vs `internal_pdf`.
 - **Next phases (planned):** introduce KROS API issuance for new documents, verify incoming KROS webhooks, then gradually switch operator workflows and reconciliation to KROS-backed documents.
 - **Safety rule during migration:** never block successful Stripe webhook payment processing on KROS integration readiness; payment confirmation remains first-class and invoice issuance migration is layered on top.
 

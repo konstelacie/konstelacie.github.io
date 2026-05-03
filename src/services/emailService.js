@@ -218,6 +218,7 @@ async function sendBillingInvoiceEmail(
 }
 
 const BILLING_INVOICE_KROS_TEMPLATE_ID = 'billing-invoice-kros';
+const BILLING_INVOICE_KROS_RESEND_TEMPLATE_ID = 'billing-invoice-kros-resend';
 
 function isValidBillingInvoiceRecipientEmail(email) {
   if (!email || typeof email !== 'string') return false;
@@ -226,12 +227,15 @@ function isValidBillingInvoiceRecipientEmail(email) {
 }
 
 /**
- * Send billing invoice email with KROS download link (no PDF attachment). Used from KROS webhook.
+ * Send billing invoice email with KROS download link (no PDF attachment).
  * @param {number} billingDocumentId
  * @param {string} krosDownloadUrl - URL from KROS webhook (trusted for href)
+ * @param {object} [options]
+ * @param {boolean} [options.resend] - Admin resend: skip initial-template idempotency, use `billing-invoice-kros-resend` + actor `admin`
  * @returns {Promise<{ok: boolean, skipped?: boolean, messageId?: string}>}
  */
-async function sendBillingInvoiceKrosEmail(billingDocumentId, krosDownloadUrl) {
+async function sendBillingInvoiceKrosEmail(billingDocumentId, krosDownloadUrl, options = {}) {
+  const resend = options.resend === true;
   const pool = getPool();
   if (!pool) {
     return { ok: false, skipped: true };
@@ -242,16 +246,18 @@ async function sendBillingInvoiceKrosEmail(billingDocumentId, krosDownloadUrl) {
     return { ok: false, skipped: true };
   }
 
-  const alreadySent = await emailSentLogRepo.wasAlreadySent(
-    BILLING_INVOICE_KROS_TEMPLATE_ID,
-    'billing_document',
-    billingDocumentId
-  );
-  if (alreadySent) {
-    await pool.execute('UPDATE billing_documents SET email_sent_at = NOW(3) WHERE id = ?', [
-      billingDocumentId,
-    ]);
-    return { ok: true, skipped: true };
+  if (!resend) {
+    const alreadySent = await emailSentLogRepo.wasAlreadySent(
+      BILLING_INVOICE_KROS_TEMPLATE_ID,
+      'billing_document',
+      billingDocumentId
+    );
+    if (alreadySent) {
+      await pool.execute('UPDATE billing_documents SET email_sent_at = NOW(3) WHERE id = ?', [
+        billingDocumentId,
+      ]);
+      return { ok: true, skipped: true };
+    }
   }
 
   const documentRow = await billingDocumentsRepo.findById(billingDocumentId);
@@ -269,32 +275,42 @@ async function sendBillingInvoiceKrosEmail(billingDocumentId, krosDownloadUrl) {
   const krosDownloadUrlAttr = escapeHtmlAttribute(url);
   const krosDownloadUrlText = escapeHtml(url);
 
-  const html = await ejs.renderFile(path.join(EMAIL_TEMPLATES_DIR, 'billing-invoice-kros.ejs'), {
+  const templateFile = resend ? 'billing-invoice-kros-resend.ejs' : 'billing-invoice-kros.ejs';
+  const templateId = resend ? BILLING_INVOICE_KROS_RESEND_TEMPLATE_ID : BILLING_INVOICE_KROS_TEMPLATE_ID;
+
+  const html = await ejs.renderFile(path.join(EMAIL_TEMPLATES_DIR, templateFile), {
     documentNumber,
     amountFormatted,
     krosDownloadUrlAttr,
     krosDownloadUrlText,
   });
 
-  const subject = documentNumber
-    ? `Platobný doklad ${documentNumber} — citimtedasom.sk`
-    : `Platobný doklad — citimtedasom.sk`;
+  const subject = resend
+    ? documentNumber
+      ? `Platobný doklad ${documentNumber} (znova) — citimtedasom.sk`
+      : `Platobný doklad (znova) — citimtedasom.sk`
+    : documentNumber
+      ? `Platobný doklad ${documentNumber} — citimtedasom.sk`
+      : `Platobný doklad — citimtedasom.sk`;
 
-  const result = await emailProvider.sendEmail(
-    to.trim(),
-    subject,
-    html,
-    { entity_type: 'billing_document', entity_id: billingDocumentId }
-  );
+  const metadata = {
+    entity_type: 'billing_document',
+    entity_id: billingDocumentId,
+  };
+  if (resend) {
+    metadata.actorType = 'admin';
+  }
+
+  const result = await emailProvider.sendEmail(to.trim(), subject, html, metadata);
 
   if (result.ok && result.messageId) {
     await emailSentLogRepo.log({
       recipientEmail: to.trim(),
-      templateId: BILLING_INVOICE_KROS_TEMPLATE_ID,
+      templateId,
       entityType: 'billing_document',
       entityId: billingDocumentId,
       providerMessageId: result.messageId,
-      actorType: 'system',
+      actorType: resend ? 'admin' : 'system',
     });
     await pool.execute(
       'UPDATE billing_documents SET email_sent_at = NOW(3), email_message_id = ? WHERE id = ?',

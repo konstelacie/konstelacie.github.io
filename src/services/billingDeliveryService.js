@@ -10,6 +10,7 @@ const billingDocumentsRepo = require('../db/repositories/billingDocumentsRepo');
 const emailSentLogRepo = require('../db/repositories/emailSentLogRepo');
 const emailService = require('./emailService');
 const { renderBillingPdf } = require('./billingInvoicePdfService');
+const { logLine } = require('../lib/structuredLog');
 
 function billingPdfDir() {
   const custom = config.billing?.pdfStorageDir;
@@ -77,6 +78,16 @@ async function allocateDocumentNumber(conn, billingDocumentId, year, prefix) {
  * @param {number} billingDocumentId
  */
 async function processBillingDocumentDelivery(billingDocumentId) {
+  if (String(process.env.KROS_ENABLED || '').toLowerCase() === 'true') {
+    logLine({
+      level: 'info',
+      tag: 'billing_delivery_skipped',
+      reason: 'kros_mode',
+      billingDocumentId,
+    });
+    return;
+  }
+
   const pool = getPool();
   if (!pool) {
     console.warn('[billing] processBillingDocumentDelivery: no DB pool');

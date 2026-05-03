@@ -22,7 +22,7 @@ Used when issuing internal documents after `checkout.session.completed` (`src/se
 | `BILLING_VAT_RATE` | Decimal 0–1 for VAT split on document rows; default **0.23** if unset or invalid. |
 | `BILLING_DOCUMENT_PREFIX` | Prefix for `document_number` (e.g. `CT-2026-00001`); default **`CT`**. |
 | `BILLING_PDF_STORAGE_DIR` | Absolute directory for generated PDFs; default **`{cwd}/storage/billing-pdfs`**. |
-| `BILLING_SEND_INVOICE_EMAIL` | If **`0`** or **`false`**, PDF issuance still runs but **invoice email is skipped**. Otherwise (default) send via Resend when recipient is valid. |
+| `BILLING_SEND_INVOICE_EMAIL` | If **`0`** or **`false`**, customer invoice mail is skipped. **Internal PDF path** (`KROS_ENABLED` false): PDF issuance still runs from the Stripe webhook, but Resend is not used for the invoice. **KROS path** (`KROS_ENABLED` true): the internal PDF+email pipeline does not run; the KROS webhook sends the invoice link email instead (also skipped when this flag is off). |
 | `BILLING_INVOICE_COMPANY_NAME`, `BILLING_INVOICE_COMPANY_ADDRESS`, `BILLING_INVOICE_ICO`, `BILLING_INVOICE_DIC`, `BILLING_INVOICE_IC_DPH` | Supplier block on PDF (optional strings). |
 
 ### KROS migration (status)
@@ -48,7 +48,7 @@ Current state:
 
 - Integration uses **Stripe Checkout Sessions** (hosted checkout), not Payment Links.
 - **Payment creation:** Single endpoint `POST /api/payments/start` (not separate `/deposit`, `/session`, `/topup` routes).
-- **Confirmation of payment:** **Stripe webhooks** update `payments` and `reservations`, insert a **`billing_documents`** row for the settled payment (when applicable), and kick off **PDF + optional invoice email** in the background. The success page may poll `GET /api/payments/status`, but **authoritative state** is written by the webhook.
+- **Confirmation of payment:** **Stripe webhooks** update `payments` and `reservations`, insert a **`billing_documents`** row for the settled payment (when applicable), then kick off document delivery in the background **depending on `KROS_ENABLED`**: with **`KROS_ENABLED=false`** (default), **`processBillingDocumentDelivery`** assigns **`document_number`**, writes the **internal CT-PDF**, and optionally sends **`billing-invoice`** email; with **`KROS_ENABLED=true`**, that internal pipeline is **skipped** (log tag `billing_delivery_skipped`, reason `kros_mode`) and **`syncToKros`** runs instead; the customer invoice link is emailed from the **KROS webhook** when **`BILLING_SEND_INVOICE_EMAIL`** is enabled (`billing-invoice-kros`). The success page may poll `GET /api/payments/status`, but **authoritative state** is written by the webhook.
 - Booking is **email-based** (no JWT on payment routes): the server checks an existing **reservation** in `pending_payment` with a matching `payment_type`.
 
 **Critical rule:** Treat payment as succeeded for business logic only after the webhook has updated the DB (or after reading DB state that the webhook updated). Redirect to success URL alone is not proof of capture.
@@ -98,7 +98,7 @@ Details: `docs/API.md`.
 
 | Event | Behavior |
 |-------|----------|
-| `checkout.session.completed` | In a **DB transaction:** find **pending** `payments` row by `provider_ref = session.id`. Update payment to **`completed`** and `paid_at`. If `reservation_id` is set, set reservation to **`confirmed`**. Call **`billingDocumentService.insertBillingDocumentForCompletedPayment`** — inserts **`billing_documents`** with `status = recorded`, snapshots email/name, VAT split from gross (`BILLING_VAT_RATE`), Stripe ids from session. Insert **`webhook_events`** for `event.id`, **commit**. After commit: audit (`payment_confirmed`, `billing_document_recorded`); **`billingDeliveryService.processBillingDocumentDelivery(billingDocumentId)`** in the background (assigns **`document_number`** via **`billing_document_counters`**, writes PDF, optionally sends **invoice email** — errors logged, HTTP response not blocked). If there is a reservation, **`sendReservationConfirmation`** also runs **asynchronously** (separate from invoice pipeline). |
+| `checkout.session.completed` | In a **DB transaction:** find **pending** `payments` row by `provider_ref = session.id`. Update payment to **`completed`** and `paid_at`. If `reservation_id` is set, set reservation to **`confirmed`**. Call **`billingDocumentService.insertBillingDocumentForCompletedPayment`** — inserts **`billing_documents`** with `status = recorded`, snapshots email/name, VAT split from gross (`BILLING_VAT_RATE`), Stripe ids from session. Insert **`webhook_events`** for `event.id`, **commit**. After commit: audit (`payment_confirmed`, `billing_document_recorded`); **`billingDeliveryService.processBillingDocumentDelivery(billingDocumentId)`** unless **`KROS_ENABLED=true`** (then skipped — see §8); **`syncToKros(billingDocumentId)`** when **`KROS_ENABLED=true`**. If there is a reservation, **`sendReservationConfirmation`** also runs **asynchronously** (separate from invoice pipeline). |
 | `checkout.session.expired` | If pending payment exists for `session.id`, set payment `status` to **`expired`**. Insert `webhook_events` for `event.id`. |
 | Other types | Logged only; still returns **200** `{ received: true }` at end of handler. |
 
@@ -149,11 +149,13 @@ Do not duplicate full column lists here; keep them in `DB-SCHEMA.md` / `001_init
 After `checkout.session.completed` **commits**, two **independent** async paths run (each `.catch` logs errors; **200** is returned to Stripe regardless):
 
 1. **Reservation confirmation** — `emailService.sendReservationConfirmation` when `reservation_id` was present on the payment. Logged template id: **`reservation-confirmation`**. EJS: `src/templates/emails/reservation-confirmation.ejs`.
-2. **Billing invoice** — `billingDeliveryService.processBillingDocumentDelivery` allocates **`document_number`**, renders PDF, then optionally **`emailService.sendBillingInvoiceEmail`** (templates **`billing-invoice`** / **`billing-invoice-resend`** for admin resend). Skipped when `BILLING_SEND_INVOICE_EMAIL` is disabled; recipient must be a valid email (not e.g. `(unknown)` placeholder). See `docs/EMAILING.md`.
+2. **Billing invoice (fork on `KROS_ENABLED`):**
+   - **`KROS_ENABLED=false` (default):** `billingDeliveryService.processBillingDocumentDelivery` allocates **`document_number`**, renders the **internal CT-PDF**, then optionally **`emailService.sendBillingInvoiceEmail`** (templates **`billing-invoice`** / **`billing-invoice-resend`** for admin resend). Skipped when `BILLING_SEND_INVOICE_EMAIL` is disabled; recipient must be a valid email (not e.g. `(unknown)` placeholder).
+   - **`KROS_ENABLED=true`:** `processBillingDocumentDelivery` returns immediately (no automatic CT-PDF/email from this path). **`syncToKros`** submits the document; when KROS calls **`POST /api/kros/webhook`** with success, **`sendBillingInvoiceKrosEmail`** may run (template **`billing-invoice-kros`**, id **`billing-invoice-kros`** in **`email_sent_log`**) if `BILLING_SEND_INVOICE_EMAIL` is enabled. Admin **resend** chooses **KROS link** vs **internal PDF** via `admin_resend_path` (`kros_link` when `kros_download_url` is set, else `internal_pdf`); KROS resend uses **`billing-invoice-kros-resend`**.
 
-Both paths log to **`email_sent_log`** when Resend returns a message id.
+Both confirmation and invoice paths log to **`email_sent_log`** when Resend returns a message id (distinct template ids for internal vs KROS so idempotency does not collide).
 
-KROS sync is a third async path: `syncToKros(billingDocumentId)` is fire-and-forget and never blocks Stripe webhook completion. Failures are persisted in `billing_documents.kros_last_error` and logs.
+**KROS sync** runs in parallel when enabled: `syncToKros(billingDocumentId)` is fire-and-forget and never blocks Stripe webhook completion. Failures are persisted in `billing_documents.kros_last_error` and logs.
 
 ---
 
@@ -164,7 +166,7 @@ KROS sync is a third async path: `syncToKros(billingDocumentId)` is fire-and-for
 - Verification algorithm: **HMAC-SHA256 where both payload and secret are converted to UTF-16LE bytes before hashing**; digest compared as Base64.
 - Invalid signature returns **400** and is ignored.
 - Valid webhook always returns **200** after processing to avoid retries:
-  - `status = 200` -> mark document `kros_status = webhook_received`, store `kros_document_id`, `kros_download_url`, payload snapshot.
+  - `status = 200` -> mark document `kros_status = webhook_received`, store `kros_document_id`, `kros_download_url`, payload snapshot; if **`KROS_ENABLED`** and **`BILLING_SEND_INVOICE_EMAIL`** are on and a download URL exists, **`sendBillingInvoiceKrosEmail`** runs (errors logged; response still **200**).
   - `status = 207` -> mark document `kros_status = failed`, store problem details in `kros_last_error`.
   - unmatched `externalId` -> logged and acknowledged (200).
 
