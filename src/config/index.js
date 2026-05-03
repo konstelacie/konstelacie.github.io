@@ -1,5 +1,13 @@
 require('dotenv').config();
 
+/** Shared secret for cron HTTP endpoints; undefined if env unset or blank (see middleware/cronAuth.js). */
+const cronSecret = (() => {
+  const raw = process.env.CRON_SECRET;
+  if (raw === undefined || raw === null) return undefined;
+  const s = String(raw).trim();
+  return s === '' ? undefined : s;
+})();
+
 module.exports = {
   port: parseInt(process.env.PORT, 10) || 3000,
   env: process.env.NODE_ENV || 'development',
@@ -70,8 +78,10 @@ module.exports = {
     /** Prefix for KROS numbering sequences. Empty in production, e.g. TEST in non-prod. */
     sequencePrefix: (process.env.KROS_SEQUENCE_PREFIX || '').trim(),
   },
+  cronSecret,
   cron: {
-    secret: process.env.CRON_SECRET || '',
+    /** Same as `cronSecret` when set; empty string when unset (legacy `/api/cron/run` checks). */
+    secret: cronSecret ?? '',
   },
   /**
    * Phase 3 security headers. Set ENABLE_SECURITY_CSP=0 to disable CSP in production if needed.

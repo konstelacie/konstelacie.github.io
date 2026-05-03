@@ -1091,19 +1091,6 @@ router.get('/billing', requireAdmin, async (req, res) => {
   }
 });
 
-router.get('/billing/deliver-stuck', requireAdmin, async (req, res) => {
-  try {
-    const result = await billingDeliveryService.processStuckKrosAcceptedFallbackBatch();
-    res.json(result);
-  } catch (err) {
-    console.error('[admin/billing/deliver-stuck]', err);
-    res.status(500).json({
-      processed: 0,
-      errors: [{ billingDocumentId: null, error: err?.message || String(err) }],
-    });
-  }
-});
-
 router.post('/billing/:id/regenerate-pdf', requireAdmin, async (req, res) => {
   const id = parseBillingIdParam(req.params.id);
   const redirect = id ? `/admin/billing/${id}` : '/admin/billing';
