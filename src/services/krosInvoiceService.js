@@ -25,6 +25,18 @@ function stringifyJson(value) {
   }
 }
 
+function bodyForKrosErrorMessage(body) {
+  if (body == null) return '';
+  if (typeof body === 'string') return body;
+  return stringifyJson(body) || String(body);
+}
+
+function krosHttpFailureMessage(status, body) {
+  const detail = bodyForKrosErrorMessage(body);
+  const msg = detail ? `KROS HTTP ${status}: ${detail}` : `KROS HTTP ${status}`;
+  return msg.slice(0, 4000);
+}
+
 function normalizeMoneyFromCents(cents) {
   return Math.round(Number(cents || 0)) / 100;
 }
@@ -153,21 +165,24 @@ async function syncToKros(billingDocumentId) {
     logLine({ level: 'warn', tag: 'kros_sync_skipped', billingDocumentId, reason: 'doc_not_found' });
     return;
   }
-  if (row.kros_status === 'webhook_received') {
-    logLine({ level: 'info', tag: 'kros_sync_skipped', billingDocumentId, reason: 'already_webhook_received' });
-    return;
-  }
   if (
-    row.kros_status === 'accepted' &&
+    row.kros_status === 'webhook_received' &&
     row.kros_webhook_received_at &&
     new Date(row.kros_webhook_received_at).getTime() > nowMinusMinutes(10)
   ) {
-    logLine({ level: 'info', tag: 'kros_sync_skipped', billingDocumentId, reason: 'accepted_recently' });
+    logLine({ level: 'info', tag: 'kros_sync_skipped', billingDocumentId, reason: 'webhook_received_recently' });
     return;
   }
 
   const payload = buildKrosPayload(row);
   const externalId = payload.data.externalId;
+
+  logLine({
+    level: 'debug',
+    tag: 'kros_payload_preview',
+    billingDocumentId,
+    payload,
+  });
 
   try {
     const response = await postInvoices(payload);
@@ -190,11 +205,12 @@ async function syncToKros(billingDocumentId) {
       return;
     }
 
+    const failurePayload = { status: response.status, body: response.body };
     await markFailed(
       pool,
       billingDocumentId,
-      `KROS returned status ${response.status}`,
-      response.body ?? response
+      krosHttpFailureMessage(response.status, response.body),
+      failurePayload
     );
     logLine({
       level: 'error',
