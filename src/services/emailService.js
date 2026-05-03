@@ -1,7 +1,9 @@
 const path = require('path');
 const ejs = require('ejs');
 const emailProvider = require('../email/provider');
+const { getPool } = require('../db');
 const emailSentLogRepo = require('../db/repositories/emailSentLogRepo');
+const billingDocumentsRepo = require('../db/repositories/billingDocumentsRepo');
 
 const EMAIL_TEMPLATES_DIR = path.join(__dirname, '..', 'templates', 'emails');
 
@@ -215,6 +217,94 @@ async function sendBillingInvoiceEmail(
   return result;
 }
 
+const BILLING_INVOICE_KROS_TEMPLATE_ID = 'billing-invoice-kros';
+
+function isValidBillingInvoiceRecipientEmail(email) {
+  if (!email || typeof email !== 'string') return false;
+  if (email === '(unknown)') return false;
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim());
+}
+
+/**
+ * Send billing invoice email with KROS download link (no PDF attachment). Used from KROS webhook.
+ * @param {number} billingDocumentId
+ * @param {string} krosDownloadUrl - URL from KROS webhook (trusted for href)
+ * @returns {Promise<{ok: boolean, skipped?: boolean, messageId?: string}>}
+ */
+async function sendBillingInvoiceKrosEmail(billingDocumentId, krosDownloadUrl) {
+  const pool = getPool();
+  if (!pool) {
+    return { ok: false, skipped: true };
+  }
+
+  const url = typeof krosDownloadUrl === 'string' ? krosDownloadUrl.trim() : '';
+  if (!url) {
+    return { ok: false, skipped: true };
+  }
+
+  const alreadySent = await emailSentLogRepo.wasAlreadySent(
+    BILLING_INVOICE_KROS_TEMPLATE_ID,
+    'billing_document',
+    billingDocumentId
+  );
+  if (alreadySent) {
+    await pool.execute('UPDATE billing_documents SET email_sent_at = NOW(3) WHERE id = ?', [
+      billingDocumentId,
+    ]);
+    return { ok: true, skipped: true };
+  }
+
+  const documentRow = await billingDocumentsRepo.findById(billingDocumentId);
+  if (!documentRow) {
+    return { ok: false, skipped: true };
+  }
+
+  const to = documentRow.customer_email_snapshot;
+  if (!isValidBillingInvoiceRecipientEmail(to)) {
+    return { ok: false, skipped: true };
+  }
+
+  const documentNumber = String(documentRow.document_number || '').trim();
+  const amountFormatted = formatAmount(documentRow.amount_gross_cents, documentRow.currency);
+  const krosDownloadUrlAttr = escapeHtmlAttribute(url);
+  const krosDownloadUrlText = escapeHtml(url);
+
+  const html = await ejs.renderFile(path.join(EMAIL_TEMPLATES_DIR, 'billing-invoice-kros.ejs'), {
+    documentNumber,
+    amountFormatted,
+    krosDownloadUrlAttr,
+    krosDownloadUrlText,
+  });
+
+  const subject = documentNumber
+    ? `Platobný doklad ${documentNumber} — citimtedasom.sk`
+    : `Platobný doklad — citimtedasom.sk`;
+
+  const result = await emailProvider.sendEmail(
+    to.trim(),
+    subject,
+    html,
+    { entity_type: 'billing_document', entity_id: billingDocumentId }
+  );
+
+  if (result.ok && result.messageId) {
+    await emailSentLogRepo.log({
+      recipientEmail: to.trim(),
+      templateId: BILLING_INVOICE_KROS_TEMPLATE_ID,
+      entityType: 'billing_document',
+      entityId: billingDocumentId,
+      providerMessageId: result.messageId,
+      actorType: 'system',
+    });
+    await pool.execute(
+      'UPDATE billing_documents SET email_sent_at = NOW(3), email_message_id = ? WHERE id = ?',
+      [result.messageId, billingDocumentId]
+    );
+  }
+
+  return result;
+}
+
 /**
  * Operator-triggered e-mail with optional personal message + balance payment link.
  * @param {object} params
@@ -271,6 +361,7 @@ module.exports = {
   sendReservationConfirmation,
   sendPreSessionReminder,
   sendBillingInvoiceEmail,
+  sendBillingInvoiceKrosEmail,
   sendBalancePayInviteEmail,
   DEFAULT_BALANCE_PAY_INVITE_SUBJECT,
   MAX_BALANCE_PAY_INVITE_MESSAGE_LEN,

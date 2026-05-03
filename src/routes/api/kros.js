@@ -2,8 +2,10 @@ const crypto = require('crypto');
 const express = require('express');
 const { rateLimit } = require('express-rate-limit');
 const { asyncHandler } = require('../../middleware/apiError');
+const config = require('../../config');
 const { getPool } = require('../../db');
 const { logLine } = require('../../lib/structuredLog');
+const emailService = require('../../services/emailService');
 
 const router = express.Router();
 
@@ -139,6 +141,9 @@ router.post(
     const payloadJson = JSON.stringify(payload);
 
     if (status === 200) {
+      const krosDocumentId = pickDocumentId(payload) ? String(pickDocumentId(payload)).slice(0, 50) : null;
+      const krosDownloadUrl = pickDownloadUrl(payload) ? String(pickDownloadUrl(payload)).slice(0, 500) : null;
+
       await pool.execute(
         `UPDATE billing_documents
          SET kros_status = 'webhook_received',
@@ -148,13 +153,25 @@ router.post(
              kros_response_json = ?,
              kros_last_error = NULL
          WHERE kros_external_id = ?`,
-        [
-          pickDocumentId(payload) ? String(pickDocumentId(payload)).slice(0, 50) : null,
-          pickDownloadUrl(payload) ? String(pickDownloadUrl(payload)).slice(0, 500) : null,
-          payloadJson,
-          externalId,
-        ]
+        [krosDocumentId, krosDownloadUrl, payloadJson, externalId]
       );
+
+      const krosEnabled = String(process.env.KROS_ENABLED || '').toLowerCase() === 'true';
+      const sendInvoiceEmail = config.billing?.sendInvoiceEmail !== false;
+      if (krosEnabled && sendInvoiceEmail && krosDownloadUrl) {
+        try {
+          await emailService.sendBillingInvoiceKrosEmail(row.id, krosDownloadUrl);
+        } catch (err) {
+          logLine({
+            level: 'error',
+            tag: 'kros_webhook_invoice_email_failed',
+            requestId: req.id,
+            billingDocumentId: row.id,
+            error: err?.message || String(err),
+          });
+        }
+      }
+
       return res.status(200).json({ received: true });
     }
 
