@@ -31,7 +31,7 @@ function hasValidSecret(req) {
   /** Query secret only outside production (Phase 1: no secret in URL in prod). */
   const fromQuery = config.env === 'production' ? '' : (req.query?.secret != null ? String(req.query.secret) : '');
   const secret = fromHeaders || fromQuery;
-  return config.cron.secret && secret === config.cron.secret;
+  return config.cronSecret && secret === config.cronSecret;
 }
 
 function isAuthorized(req) {

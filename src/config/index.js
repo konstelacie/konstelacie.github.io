@@ -79,10 +79,6 @@ module.exports = {
     sequencePrefix: (process.env.KROS_SEQUENCE_PREFIX || '').trim(),
   },
   cronSecret,
-  cron: {
-    /** Same as `cronSecret` when set; empty string when unset (legacy `/api/cron/run` checks). */
-    secret: cronSecret ?? '',
-  },
   /**
    * Phase 3 security headers. Set ENABLE_SECURITY_CSP=0 to disable CSP in production if needed.
    */
