@@ -128,7 +128,36 @@ async function getInvoice(documentId) {
   }
 }
 
+async function downloadInvoicePdf(documentId) {
+  await reserveRateSlot();
+  const url = `${KROS_BASE_URL}/invoices/${encodeURIComponent(String(documentId))}`;
+  const response = await fetch(url, {
+    method: 'GET',
+    headers: { Authorization: authHeader() },
+  });
+  const contentType = response.headers.get('content-type') || '';
+  logLine({
+    level: 'debug',
+    tag: 'kros_download_invoice_response',
+    documentId: String(documentId),
+    status: response.status,
+    contentType,
+  });
+  if (!response.ok) {
+    const text = await response.text();
+    throw new Error(`KROS download failed: ${response.status} ${text.slice(0, 200)}`);
+  }
+  if (contentType.includes('application/pdf')) {
+    const buffer = await response.arrayBuffer();
+    return { type: 'pdf', buffer: Buffer.from(buffer) };
+  }
+  // Unexpected: JSON or other — return as text for diagnostics
+  const text = await response.text();
+  return { type: 'other', contentType, text: text.slice(0, 1000) };
+}
+
 module.exports = {
   postInvoices,
   getInvoice,
+  downloadInvoicePdf,
 };

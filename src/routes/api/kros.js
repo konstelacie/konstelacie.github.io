@@ -6,6 +6,7 @@ const config = require('../../config');
 const { getPool } = require('../../db');
 const { logLine, logDebug } = require('../../lib/structuredLog');
 const emailService = require('../../services/emailService');
+const krosInvoiceService = require('../../services/krosInvoiceService');
 
 const router = express.Router();
 
@@ -151,8 +152,27 @@ router.post(
           });
           return res.status(200).json({ received: true });
         }
+        let pdfBuffer = null;
+        let pdfDownloadError = null;
         try {
-          await emailService.sendBillingInvoiceKrosEmail(row.id, krosDownloadUrl);
+          pdfBuffer = await krosInvoiceService.downloadAndCacheKrosInvoicePdf(row.id);
+        } catch (err) {
+          pdfDownloadError = err?.message || String(err);
+        }
+        if (!pdfBuffer) {
+          logLine({
+            level: 'warn',
+            tag: 'kros_pdf_download_failed',
+            requestId: req.id,
+            billingDocumentId: row.id,
+            ...(pdfDownloadError ? { error: pdfDownloadError } : { reason: 'unexpected_or_skipped' }),
+          });
+        }
+
+        try {
+          await emailService.sendBillingInvoiceKrosEmail(row.id, krosDownloadUrl, {
+            pdfBuffer: pdfBuffer || undefined,
+          });
         } catch (err) {
           logLine({
             level: 'error',

@@ -1,9 +1,11 @@
 const crypto = require('crypto');
+const fs = require('fs').promises;
+const path = require('path');
 const { DateTime } = require('luxon');
 const { getPool } = require('../db');
 const config = require('../config');
 const { logLine, logDebug } = require('../lib/structuredLog');
-const { postInvoices } = require('./krosClient');
+const { postInvoices, downloadInvoicePdf } = require('./krosClient');
 const { lineItemNameForDocumentType } = require('./billingDocumentService');
 
 /** MySQL DATE → YYYY-MM-DD for KROS; same idea as mysqlLocalDateToYmd (avoid UTC day from toISOString). */
@@ -42,6 +44,12 @@ function krosHttpFailureMessage(status, body) {
 
 function normalizeMoneyFromCents(cents) {
   return Math.round(Number(cents || 0)) / 100;
+}
+
+function billingPdfDir() {
+  const custom = config.billing?.pdfStorageDir;
+  if (custom) return path.resolve(custom);
+  return path.join(process.cwd(), 'storage', 'billing-pdfs');
 }
 
 /** Číselný rad faktúr: OF (prod), or e.g. T-OF when KROS_SEQUENCE_PREFIX=T. */
@@ -239,6 +247,67 @@ async function syncToKros(billingDocumentId) {
   }
 }
 
+/**
+ * Download invoice PDF from KROS and persist under storage/billing-pdfs.
+ * Skips when an internal PDF already exists (`pdf_storage_ref` set).
+ * @param {number} billingDocumentId
+ * @returns {Promise<Buffer|null>}
+ */
+async function downloadAndCacheKrosInvoicePdf(billingDocumentId) {
+  const pool = getPool();
+  if (!pool) {
+    return null;
+  }
+
+  const [rows] = await pool.execute(
+    `SELECT id, kros_document_id, pdf_storage_ref, pdf_generated_at
+     FROM billing_documents
+     WHERE id = ?
+     LIMIT 1`,
+    [billingDocumentId]
+  );
+  const row = rows[0];
+  if (!row) {
+    return null;
+  }
+  if (row.pdf_storage_ref) {
+    return null;
+  }
+  const krosId = row.kros_document_id != null ? String(row.kros_document_id).trim() : '';
+  if (!krosId) {
+    return null;
+  }
+
+  const result = await downloadInvoicePdf(krosId);
+  if (result.type !== 'pdf') {
+    logLine({
+      level: 'error',
+      tag: 'kros_pdf_unexpected_response',
+      billingDocumentId,
+      contentType: result.contentType ?? null,
+      text: result.text ?? null,
+    });
+    return null;
+  }
+
+  const fileName = `kros-${billingDocumentId}-${krosId}.pdf`;
+  const dir = billingPdfDir();
+  await fs.mkdir(dir, { recursive: true });
+  const absPath = path.join(dir, fileName);
+  await fs.writeFile(absPath, result.buffer);
+
+  const relRef = path.posix.join('storage', 'billing-pdfs', fileName);
+  await pool.execute(
+    `UPDATE billing_documents
+     SET pdf_storage_ref = ?, pdf_generated_at = NOW(3)
+     WHERE id = ?`,
+    [relRef, billingDocumentId]
+  );
+
+  return result.buffer;
+}
+
 module.exports = {
   syncToKros,
+  downloadAndCacheKrosInvoicePdf,
 };

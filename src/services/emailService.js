@@ -227,15 +227,18 @@ function isValidBillingInvoiceRecipientEmail(email) {
 }
 
 /**
- * Send billing invoice email with KROS download link (no PDF attachment).
+ * Send billing invoice email with KROS download link and optional PDF attachment.
  * @param {number} billingDocumentId
  * @param {string} krosDownloadUrl - URL from KROS webhook (trusted for href)
  * @param {object} [options]
  * @param {boolean} [options.resend] - Admin resend: skip initial-template idempotency, use `billing-invoice-kros-resend` + actor `admin`
+ * @param {Buffer} [options.pdfBuffer] - When set, attach KROS PDF (same pattern as internal invoice mail)
  * @returns {Promise<{ok: boolean, skipped?: boolean, messageId?: string}>}
  */
 async function sendBillingInvoiceKrosEmail(billingDocumentId, krosDownloadUrl, options = {}) {
   const resend = options.resend === true;
+  const pdfBuffer =
+    options.pdfBuffer != null && Buffer.isBuffer(options.pdfBuffer) ? options.pdfBuffer : null;
   const pool = getPool();
   if (!pool) {
     return { ok: false, skipped: true };
@@ -281,11 +284,20 @@ async function sendBillingInvoiceKrosEmail(billingDocumentId, krosDownloadUrl, o
   const templateFile = resend ? 'billing-invoice-kros-resend.ejs' : 'billing-invoice-kros.ejs';
   const templateId = resend ? BILLING_INVOICE_KROS_RESEND_TEMPLATE_ID : BILLING_INVOICE_KROS_TEMPLATE_ID;
 
+  const hasPdfAttachment = !!pdfBuffer;
+  const baseAttachmentName =
+    (documentRow.document_number && String(documentRow.document_number).replace(/[^\w.-]/g, '_')) ||
+    (documentRow.kros_document_id &&
+      `kros-${String(documentRow.kros_document_id).replace(/[^\w.-]/g, '_')}`) ||
+    `billing-${billingDocumentId}`;
+  const safeFilename = `${baseAttachmentName}.pdf`;
+
   const html = await ejs.renderFile(path.join(EMAIL_TEMPLATES_DIR, templateFile), {
     displayNumber,
     amountFormatted,
     krosDownloadUrlAttr,
     krosDownloadUrlText,
+    hasPdfAttachment,
   });
 
   const subject = resend
@@ -304,7 +316,12 @@ async function sendBillingInvoiceKrosEmail(billingDocumentId, krosDownloadUrl, o
     metadata.actorType = 'admin';
   }
 
-  const result = await emailProvider.sendEmail(to.trim(), subject, html, metadata);
+  const sendOptions = {};
+  if (pdfBuffer) {
+    sendOptions.attachments = [{ filename: safeFilename, content: pdfBuffer }];
+  }
+
+  const result = await emailProvider.sendEmail(to.trim(), subject, html, metadata, sendOptions);
 
   if (result.ok && result.messageId) {
     await emailSentLogRepo.log({
