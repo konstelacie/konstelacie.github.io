@@ -123,7 +123,7 @@ function buildKrosPayload(row) {
       issueDate: asIsoDate(row.issue_date),
       dueDate: asIsoDate(row.due_date),
       deliveryDate: asIsoDate(row.delivery_date),
-      paymentType: 'Bankový prevod',
+      paymentType: 'Online platba',
       bankAccount: {
         iban: row.supplier_iban || '',
         swift: row.supplier_swift || '',
