@@ -128,6 +128,44 @@ async function getInvoice(documentId) {
   }
 }
 
+/**
+ * GET /api/invoices/{id} — returns trimmed variableSymbol or null (logs warn, no throw on HTTP/body issues).
+ * @param {string|number} documentId - KROS invoice id (`kros_document_id`)
+ * @returns {Promise<string|null>}
+ */
+async function getInvoiceVariableSymbol(documentId) {
+  const id = documentId != null ? String(documentId).trim() : '';
+  if (!id) return null;
+  try {
+    const res = await getInvoice(id);
+    if (!res.ok) {
+      logLine({
+        level: 'warn',
+        tag: 'kros_invoice_variable_symbol_http',
+        documentId: id,
+        status: res.status,
+      });
+      return null;
+    }
+    const body = res.body;
+    const raw =
+      body &&
+      typeof body === 'object' &&
+      body.data &&
+      body.data.variableSymbol != null &&
+      String(body.data.variableSymbol).trim();
+    return raw || null;
+  } catch (err) {
+    logLine({
+      level: 'warn',
+      tag: 'kros_invoice_variable_symbol_failed',
+      documentId: id,
+      error: err?.message || String(err),
+    });
+    return null;
+  }
+}
+
 async function downloadInvoicePdf(documentId) {
   await reserveRateSlot();
   const url = `${KROS_BASE_URL}/invoices/${encodeURIComponent(String(documentId))}/reports/19`;
@@ -159,5 +197,6 @@ async function downloadInvoicePdf(documentId) {
 module.exports = {
   postInvoices,
   getInvoice,
+  getInvoiceVariableSymbol,
   downloadInvoicePdf,
 };

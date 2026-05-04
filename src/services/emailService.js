@@ -4,6 +4,7 @@ const emailProvider = require('../email/provider');
 const { getPool } = require('../db');
 const emailSentLogRepo = require('../db/repositories/emailSentLogRepo');
 const billingDocumentsRepo = require('../db/repositories/billingDocumentsRepo');
+const { getInvoiceVariableSymbol } = require('./krosClient');
 
 const EMAIL_TEMPLATES_DIR = path.join(__dirname, '..', 'templates', 'emails');
 
@@ -279,13 +280,27 @@ async function sendBillingInvoiceKrosEmail(billingDocumentId, krosDownloadUrl, o
     '';
   const amountFormatted = formatAmount(documentRow.amount_gross_cents, documentRow.currency);
 
+  let variableSymbol = null;
+  if (documentRow.kros_document_id) {
+    variableSymbol = await getInvoiceVariableSymbol(documentRow.kros_document_id);
+  }
+
   const templateFile = resend ? 'billing-invoice-kros-resend.ejs' : 'billing-invoice-kros.ejs';
   const templateId = resend ? BILLING_INVOICE_KROS_RESEND_TEMPLATE_ID : BILLING_INVOICE_KROS_TEMPLATE_ID;
 
+  const vsSafe =
+    variableSymbol && String(variableSymbol).replace(/[^\w.-]/g, '_');
+  const docNumberSafe =
+    documentRow.document_number &&
+    String(documentRow.document_number).replace(/[^\w.-]/g, '_');
+  const krosIdSafe =
+    documentRow.kros_document_id &&
+    String(documentRow.kros_document_id).replace(/[^\w.-]/g, '_');
+
   const baseAttachmentName =
-    (documentRow.document_number && String(documentRow.document_number).replace(/[^\w.-]/g, '_')) ||
-    (documentRow.kros_document_id &&
-      `faktura-${String(documentRow.document_number).replace(/[^\w.-]/g, '_')}`) ||
+    vsSafe ||
+    docNumberSafe ||
+    (documentRow.kros_document_id && `faktura-${docNumberSafe || krosIdSafe}`) ||
     `billing-${billingDocumentId}`;
   const safeFilename = `${baseAttachmentName}.pdf`;
 
