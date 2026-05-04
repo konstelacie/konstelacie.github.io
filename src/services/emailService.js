@@ -298,10 +298,10 @@ async function sendBillingInvoiceKrosEmail(billingDocumentId, krosDownloadUrl, o
     String(documentRow.kros_document_id).replace(/[^\w.-]/g, '_');
 
   const baseAttachmentName =
-    vsSafe ||
-    docNumberSafe ||
-    (documentRow.kros_document_id && `faktura-${docNumberSafe || krosIdSafe}`) ||
-    `billing-${billingDocumentId}`;
+    (vsSafe && `Faktura-${vsSafe}`) ||
+    (docNumberSafe && `Faktura-${docNumberSafe}`) ||
+    (documentRow.kros_document_id && `Faktura-${docNumberSafe || krosIdSafe}`) ||
+    `Faktura-${billingDocumentId}`;
   const safeFilename = `${baseAttachmentName}.pdf`;
 
   const html = await ejs.renderFile(path.join(EMAIL_TEMPLATES_DIR, templateFile), {
