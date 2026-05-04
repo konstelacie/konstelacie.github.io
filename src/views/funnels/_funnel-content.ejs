@@ -61,8 +61,6 @@
       <p id="booking-modal-countdown" class="booking-modal__countdown" aria-live="polite">Termín držíme ešte: 05:00</p>
       <div id="booking-modal-step-email">
         <form id="booking-email-form" class="booking-email-form booking-modal__form">
-          <label for="booking-email">E-mail</label>
-          <input type="email" id="booking-email" name="email" required placeholder="vas@email.sk" autocomplete="email">
           <label for="booking-billing-name">Meno a priezvisko *</label>
           <input
             type="text"
@@ -72,6 +70,8 @@
             placeholder="Meno a priezvisko"
             autocomplete="name"
           >
+          <label for="booking-email">E-mail *</label>
+          <input type="email" id="booking-email" name="email" required placeholder="vas@email.sk" autocomplete="email">
           <label class="booking-company-toggle">
             <input type="checkbox" id="booking-billing-is-company" name="billingIsCompany">
             <span>Potrebujem doklad pre firmu</span>
