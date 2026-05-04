@@ -1,6 +1,7 @@
 const crypto = require('crypto');
 const fs = require('fs').promises;
 const path = require('path');
+const { PDFDocument } = require('pdf-lib');
 const { DateTime } = require('luxon');
 const { getPool } = require('../db');
 const config = require('../config');
@@ -50,6 +51,42 @@ function billingPdfDir() {
   const custom = config.billing?.pdfStorageDir;
   if (custom) return path.resolve(custom);
   return path.join(process.cwd(), 'storage', 'billing-pdfs');
+}
+
+async function stampPdfWithLogo(pdfBuffer) {
+  const logoPath = path.join(process.cwd(), 'src', 'assets', 'img', 'paid.png');
+  let logoBytes;
+  try {
+    logoBytes = await fs.readFile(logoPath);
+  } catch (err) {
+    logLine({
+      level: 'warn',
+      tag: 'kros_pdf_stamp_logo_missing',
+      logoPath,
+      error: err?.message || String(err),
+    });
+    return pdfBuffer;
+  }
+
+  const pdfDoc = await PDFDocument.load(pdfBuffer);
+  const pngImage = await pdfDoc.embedPng(logoBytes);
+
+  const pages = pdfDoc.getPages();
+  const firstPage = pages[0];
+  const { height } = firstPage.getSize();
+
+  const logoWidth = 80;
+  const logoHeight = (pngImage.height / pngImage.width) * logoWidth;
+  firstPage.drawImage(pngImage, {
+    x: 20,
+    y: height - logoHeight - 20,
+    width: logoWidth,
+    height: logoHeight,
+    opacity: 1,
+  });
+
+  const stampedBytes = await pdfDoc.save();
+  return Buffer.from(stampedBytes);
 }
 
 /** Číselný rad faktúr: OF (prod), or e.g. T-OF when KROS_SEQUENCE_PREFIX=T. */
@@ -294,7 +331,21 @@ async function downloadAndCacheKrosInvoicePdf(billingDocumentId) {
   const dir = billingPdfDir();
   await fs.mkdir(dir, { recursive: true });
   const absPath = path.join(dir, fileName);
-  await fs.writeFile(absPath, result.buffer);
+
+  let bufferToPersist = result.buffer;
+  try {
+    bufferToPersist = await stampPdfWithLogo(result.buffer);
+  } catch (err) {
+    logLine({
+      level: 'warn',
+      tag: 'kros_pdf_stamp_failed',
+      billingDocumentId,
+      error: err?.message || String(err),
+    });
+    bufferToPersist = result.buffer;
+  }
+
+  await fs.writeFile(absPath, bufferToPersist);
 
   const relRef = path.posix.join('storage', 'billing-pdfs', fileName);
   await pool.execute(
@@ -304,7 +355,7 @@ async function downloadAndCacheKrosInvoicePdf(billingDocumentId) {
     [relRef, billingDocumentId]
   );
 
-  return result.buffer;
+  return bufferToPersist;
 }
 
 module.exports = {
