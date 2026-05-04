@@ -7,4 +7,9 @@ function logLine(payload) {
   console.log(JSON.stringify(line));
 }
 
-module.exports = { logLine };
+function logDebug(fields) {
+  if (String(process.env.DEBUG_LOGS || '').toLowerCase() !== '1') return;
+  logLine({ level: 'debug', ...fields });
+}
+
+module.exports = { logLine, logDebug };

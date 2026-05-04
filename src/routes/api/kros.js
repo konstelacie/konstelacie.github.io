@@ -4,7 +4,7 @@ const { rateLimit } = require('express-rate-limit');
 const { asyncHandler } = require('../../middleware/apiError');
 const config = require('../../config');
 const { getPool } = require('../../db');
-const { logLine } = require('../../lib/structuredLog');
+const { logLine, logDebug } = require('../../lib/structuredLog');
 const emailService = require('../../services/emailService');
 
 const router = express.Router();
@@ -40,38 +40,6 @@ function verifyKrosSignature(rawBody, signature, secret) {
   }
 }
 
-function pickPayloadStatus(payload) {
-  const s = payload?.status ?? payload?.data?.status;
-  const n = Number(s);
-  return Number.isFinite(n) ? n : null;
-}
-
-function pickExternalId(payload) {
-  return (
-    payload?.externalId ||
-    payload?.data?.externalId ||
-    payload?.request?.externalId ||
-    payload?.data?.request?.externalId ||
-    null
-  );
-}
-
-function pickDocumentId(payload) {
-  return payload?.documentId || payload?.data?.documentId || payload?.id || payload?.data?.id || null;
-}
-
-function pickDownloadUrl(payload) {
-  return payload?.apiUrl || payload?.data?.apiUrl || payload?.downloadUrl || payload?.data?.downloadUrl || null;
-}
-
-function pickProblems(payload) {
-  const p = payload?.problems ?? payload?.data?.problems ?? payload?.errors ?? payload?.data?.errors;
-  if (p == null) return null;
-  if (Array.isArray(p)) return p.map((x) => (typeof x === 'string' ? x : JSON.stringify(x))).join(' | ');
-  if (typeof p === 'string') return p;
-  return JSON.stringify(p);
-}
-
 router.post(
   '/webhook',
   webhookLimiter,
@@ -89,6 +57,12 @@ router.post(
       return res.status(400).json({ ok: false, error: 'Invalid signature' });
     }
 
+    logDebug({
+      tag: 'kros_webhook_raw_body',
+      requestId: req.id,
+      rawBody: req.body.toString('utf8').slice(0, 2000),
+    });
+
     const payload = safeJsonParse(rawBody.toString('utf8'));
     if (!payload) {
       logLine({
@@ -99,7 +73,13 @@ router.post(
       return res.status(400).json({ ok: false, error: 'Invalid payload' });
     }
 
-    const externalId = pickExternalId(payload);
+    const topStatus = payload?.status;
+    const entity = payload?.results?.entities?.[0];
+    const entityData = entity?.data ?? null;
+    const externalId = entityData?.externalId
+      ? String(entityData.externalId).trim()
+      : null;
+
     if (!externalId) {
       logLine({
         level: 'warn',
@@ -137,12 +117,15 @@ router.post(
       return res.status(200).json({ received: true });
     }
 
-    const status = pickPayloadStatus(payload);
     const payloadJson = JSON.stringify(payload);
 
-    if (status === 200) {
-      const krosDocumentId = pickDocumentId(payload) ? String(pickDocumentId(payload)).slice(0, 50) : null;
-      const krosDownloadUrl = pickDownloadUrl(payload) ? String(pickDownloadUrl(payload)).slice(0, 500) : null;
+    if (topStatus === 200) {
+      const krosDocumentId =
+        entityData?.id != null ? String(entityData.id).slice(0, 50) : null;
+      const krosDownloadUrl =
+        payload.apiUrl && entityData?.id != null
+          ? String(payload.apiUrl).replace('{id}', String(entityData.id)).slice(0, 500)
+          : null;
 
       await pool.execute(
         `UPDATE billing_documents
@@ -184,14 +167,22 @@ router.post(
       return res.status(200).json({ received: true });
     }
 
-    if (status === 207) {
+    if (topStatus === 207) {
+      const problemsJson = JSON.stringify(entity?.problems ?? null);
+      logLine({
+        level: 'warn',
+        tag: 'kros_webhook_partial_error',
+        requestId: req.id,
+        externalId,
+        problems: entity?.problems,
+      });
       await pool.execute(
         `UPDATE billing_documents
          SET kros_status = 'failed',
              kros_last_error = ?,
              kros_response_json = ?
          WHERE kros_external_id = ?`,
-        [String(pickProblems(payload) || 'KROS partial error').slice(0, 4000), payloadJson, externalId]
+        [problemsJson.slice(0, 4000), payloadJson, externalId]
       );
       return res.status(200).json({ received: true });
     }

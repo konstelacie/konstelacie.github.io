@@ -2,7 +2,7 @@ const crypto = require('crypto');
 const { DateTime } = require('luxon');
 const { getPool } = require('../db');
 const config = require('../config');
-const { logLine } = require('../lib/structuredLog');
+const { logLine, logDebug } = require('../lib/structuredLog');
 const { postInvoices } = require('./krosClient');
 const { lineItemNameForDocumentType } = require('./billingDocumentService');
 
@@ -180,8 +180,7 @@ async function syncToKros(billingDocumentId) {
   const payload = buildKrosPayload(row);
   const externalId = payload.data.externalId;
 
-  logLine({
-    level: 'debug',
+  logDebug({
     tag: 'kros_payload_preview',
     billingDocumentId,
     payload,
