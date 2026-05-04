@@ -1,16 +1,19 @@
 const crypto = require('crypto');
+const { DateTime } = require('luxon');
 const { getPool } = require('../db');
 const config = require('../config');
 const { logLine } = require('../lib/structuredLog');
 const { postInvoices } = require('./krosClient');
 const { lineItemNameForDocumentType } = require('./billingDocumentService');
 
+/** MySQL DATE → YYYY-MM-DD for KROS; same idea as mysqlLocalDateToYmd (avoid UTC day from toISOString). */
 function asIsoDate(value) {
-  if (!value) return null;
-  if (value instanceof Date) return value.toISOString().slice(0, 10);
-  const d = new Date(value);
-  if (Number.isNaN(d.getTime())) return null;
-  return d.toISOString().slice(0, 10);
+  if (value == null || value === '') return null;
+  if (typeof value === 'string') return value.slice(0, 10);
+  if (value instanceof Date) {
+    return DateTime.fromJSDate(value).setZone('Europe/Bratislava').toISODate();
+  }
+  return null;
 }
 
 function nowMinusMinutes(minutes) {
