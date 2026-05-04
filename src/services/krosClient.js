@@ -147,7 +147,7 @@ async function downloadInvoicePdf(documentId) {
     const text = await response.text();
     throw new Error(`KROS download failed: ${response.status} ${text.slice(0, 200)}`);
   }
-  if (contentType.includes('application/pdf')) {
+  if (contentType.includes('application/pdf') || contentType.includes('application/octet-stream')) {
     const buffer = await response.arrayBuffer();
     return { type: 'pdf', buffer: Buffer.from(buffer) };
   }

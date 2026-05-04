@@ -278,13 +278,10 @@ async function sendBillingInvoiceKrosEmail(billingDocumentId, krosDownloadUrl, o
     (documentRow.kros_document_id && String(documentRow.kros_document_id).trim()) ||
     '';
   const amountFormatted = formatAmount(documentRow.amount_gross_cents, documentRow.currency);
-  const krosDownloadUrlAttr = escapeHtmlAttribute(url);
-  const krosDownloadUrlText = escapeHtml(url);
 
   const templateFile = resend ? 'billing-invoice-kros-resend.ejs' : 'billing-invoice-kros.ejs';
   const templateId = resend ? BILLING_INVOICE_KROS_RESEND_TEMPLATE_ID : BILLING_INVOICE_KROS_TEMPLATE_ID;
 
-  const hasPdfAttachment = !!pdfBuffer;
   const baseAttachmentName =
     (documentRow.document_number && String(documentRow.document_number).replace(/[^\w.-]/g, '_')) ||
     (documentRow.kros_document_id &&
@@ -295,9 +292,6 @@ async function sendBillingInvoiceKrosEmail(billingDocumentId, krosDownloadUrl, o
   const html = await ejs.renderFile(path.join(EMAIL_TEMPLATES_DIR, templateFile), {
     displayNumber,
     amountFormatted,
-    krosDownloadUrlAttr,
-    krosDownloadUrlText,
-    hasPdfAttachment,
   });
 
   const subject = resend

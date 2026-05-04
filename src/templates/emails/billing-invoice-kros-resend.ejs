@@ -10,24 +10,9 @@
     <h1 style="margin: 0 0 24px; font-size: 1.5rem; font-weight: 600;">Platobný doklad (znova)</h1>
 
     <p style="margin: 0 0 16px;">Ahoj,</p>
-    <% if (typeof hasPdfAttachment !== 'undefined' && hasPdfAttachment) { %>
     <p style="margin: 0 0 24px;">
       Faktúru nájdeš v prílohe<% if (displayNumber) { %> — predbežný platobný doklad <strong><%= displayNumber %></strong><% } %> (znova odoslané na žiadosť administrátora alebo opätovné doručenie).
     </p>
-    <p style="margin: 0 0 24px; color: #64748b; font-size: 0.8125rem; line-height: 1.5;">
-      Môžeš si ju stiahnuť aj online: <a href="<%= krosDownloadUrlAttr %>" style="color: #2563eb; word-break: break-all;"><%= krosDownloadUrlText %></a>
-    </p>
-    <% } else { %>
-    <p style="margin: 0 0 24px;">
-      Posielame znova odkaz na faktúru<% if (displayNumber) { %> — predbežný platobný doklad <strong><%= displayNumber %></strong><% } %> (žiadosť administrátora alebo opätovné doručenie):
-    </p>
-    <p style="margin: 0 0 20px;">
-      <a href="<%= krosDownloadUrlAttr %>" style="display: inline-block; padding: 12px 20px; background: #0f172a; color: #ffffff; text-decoration: none; border-radius: 8px; font-weight: 600;">Stiahnuť faktúru</a>
-    </p>
-    <p style="margin: 0 0 24px; word-break: break-all; font-size: 0.9rem;">
-      <a href="<%= krosDownloadUrlAttr %>" style="color: #2563eb;"><%= krosDownloadUrlText %></a>
-    </p>
-    <% } %>
 
     <div style="background: #ffffff; border: 1px solid #e2e8f0; border-radius: 8px; padding: 20px; margin-bottom: 24px;">
       <p style="margin: 0 0 8px; font-weight: 600;">Suma</p>
