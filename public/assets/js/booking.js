@@ -736,8 +736,8 @@
     document.addEventListener('keydown', onModalEscape, true);
     updateBookingModalSelectedSlotDisplay();
     if (step === 'email') {
-      const emailInput = $('booking-email');
-      if (emailInput) requestAnimationFrame(() => emailInput.focus());
+      const nameInput = $('booking-billing-name');
+      if (nameInput) requestAnimationFrame(() => nameInput.focus());
     } else {
       const firstPay = $('payment-deposit');
       if (firstPay) requestAnimationFrame(() => firstPay.focus());
@@ -1606,7 +1606,8 @@
     } else {
       setBookingModalStep('email');
       configureBookingModal('email-edit');
-      if (emailInput) requestAnimationFrame(() => emailInput.focus());
+      const nameInput = $('booking-billing-name');
+      if (nameInput) requestAnimationFrame(() => nameInput.focus());
     }
     if (lockToken) storeLock();
     broadcastBookingLockToOtherTabs();
@@ -2080,7 +2081,8 @@
           configureBookingModal('email-edit');
           const emailIn = $('booking-email');
           if (emailIn && lockedEmail) emailIn.value = lockedEmail;
-          if (emailIn) requestAnimationFrame(() => emailIn.focus());
+          const nameIn = $('booking-billing-name');
+          if (nameIn) requestAnimationFrame(() => nameIn.focus());
         }
         applyPaymentFormStateToDom(pendingPaymentFormRestore);
         pendingPaymentFormRestore = null;
