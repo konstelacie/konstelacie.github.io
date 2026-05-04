@@ -28,7 +28,7 @@ function formatMoney(cents, currency = 'eur') {
 function formatDateSk(value) {
   if (!value) return '—';
   const d = value instanceof Date ? value : new Date(value);
-  return new Intl.DateTimeFormat('sk-SK', { dateStyle: 'medium', timeZone: 'UTC' }).format(d);
+  return new Intl.DateTimeFormat('sk-SK', { dateStyle: 'medium', timeZone: 'Europe/Bratislava' }).format(d);
 }
 
 function vatRatePercent(row) {

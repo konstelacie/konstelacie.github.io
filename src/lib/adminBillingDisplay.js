@@ -10,7 +10,7 @@ function formatDateTimeSk(value) {
   return new Intl.DateTimeFormat('sk-SK', {
     dateStyle: 'short',
     timeStyle: 'short',
-    timeZone: 'UTC',
+    timeZone: 'Europe/Bratislava',
   }).format(d);
 }
 
