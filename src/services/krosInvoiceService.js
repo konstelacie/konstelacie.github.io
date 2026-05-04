@@ -89,6 +89,9 @@ async function stampPdfWithLogo(pdfBuffer) {
   return Buffer.from(stampedBytes);
 }
 
+/** Printed on KROS invoice before / after line items (úvodný / záverečný text). */
+const KROS_INVOICE_OPENING_CLOSING_TEXT = '[UHRADENÉ]';
+
 /** Číselný rad faktúr: OF (prod), or e.g. T-OF when KROS_SEQUENCE_PREFIX=T. */
 function resolveNumberingSequence(prefix) {
   const base = 'OF';
@@ -170,6 +173,8 @@ function buildKrosPayload(row) {
       documentNumber: '',
       invoiceType,
       advancePaymentDeduction,
+      openingText: KROS_INVOICE_OPENING_CLOSING_TEXT,
+      closingText: KROS_INVOICE_OPENING_CLOSING_TEXT,
     },
   };
 }
