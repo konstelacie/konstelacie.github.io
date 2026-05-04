@@ -75,7 +75,7 @@ async function stampPdfWithLogo(pdfBuffer) {
   const firstPage = pages[0];
   const { height } = firstPage.getSize();
 
-  const logoWidth = 80;
+  const logoWidth = 120;
   const logoHeight = (pngImage.height / pngImage.width) * logoWidth;
   firstPage.drawImage(pngImage, {
     x: 20,

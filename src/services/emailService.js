@@ -285,7 +285,7 @@ async function sendBillingInvoiceKrosEmail(billingDocumentId, krosDownloadUrl, o
   const baseAttachmentName =
     (documentRow.document_number && String(documentRow.document_number).replace(/[^\w.-]/g, '_')) ||
     (documentRow.kros_document_id &&
-      `kros-${String(documentRow.kros_document_id).replace(/[^\w.-]/g, '_')}`) ||
+      `faktura-${String(documentRow.document_number).replace(/[^\w.-]/g, '_')}`) ||
     `billing-${billingDocumentId}`;
   const safeFilename = `${baseAttachmentName}.pdf`;
 
