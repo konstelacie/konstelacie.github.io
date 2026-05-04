@@ -130,7 +130,7 @@ async function getInvoice(documentId) {
 
 async function downloadInvoicePdf(documentId) {
   await reserveRateSlot();
-  const url = `${KROS_BASE_URL}/invoices/${encodeURIComponent(String(documentId))}`;
+  const url = `${KROS_BASE_URL}/invoices/${encodeURIComponent(String(documentId))}/reports/19`;
   const response = await fetch(url, {
     method: 'GET',
     headers: { Authorization: authHeader() },
