@@ -1,5 +1,6 @@
 <!-- Shared booking and long-form content block used by home/funnel pages. -->
 <% var _useLegacyFunnelClasses = typeof useLegacyFunnelClasses === 'undefined' ? true : !!useLegacyFunnelClasses; %>
+<% var _renderSecondaryContent = typeof renderSecondaryContent === 'undefined' ? true : !!renderSecondaryContent; %>
 <section id="booking" class="content-cta<% if (_useLegacyFunnelClasses) { %> funnel-cta<% } %> booking-section prose"
   <% if (typeof funnelName !== 'undefined' && funnelName) { %>data-funnel-name="<%= funnelName %>"<% } %>
   <% if (typeof funnelName !== 'undefined' && funnelName && typeof funnelCampaignId !== 'undefined') { %>data-funnel-campaign="<%= funnelCampaignId %>"<% } %>
@@ -153,6 +154,7 @@
   </div>
 </section>
 
+<% if (_renderSecondaryContent) { %>
 <details class="content-secondary<% if (_useLegacyFunnelClasses) { %> funnel-secondary<% } %>">
   <summary class="content-secondary-trigger<% if (_useLegacyFunnelClasses) { %> funnel-secondary-trigger<% } %> container">Ešte nie som rozhodnutý</summary>
   <div class="content-secondary-inner<% if (_useLegacyFunnelClasses) { %> funnel-secondary-inner<% } %>">
@@ -258,3 +260,4 @@
     </section>
   </div>
 </details>
+<% } %>

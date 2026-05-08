@@ -1,8 +1,19 @@
 <main>
-  <section class="funnel-hero">
+  <nav class="home-anchor-nav" aria-label="Navigácia po stránke">
+    <div class="container">
+      <a href="#uvod">Úvod</a>
+      <a href="#ako-pracujem">Ako pracujem</a>
+      <a href="#s-cim-prichadzaju-ludia">S čím prichádzajú ľudia</a>
+      <a href="#ako-prebieha-sedenie">Ako prebieha sedenie</a>
+      <a href="#caste-otazky">Časté otázky</a>
+      <a href="#terminy">Termíny</a>
+    </div>
+  </nav>
+
+  <section id="uvod" class="funnel-hero prose">
     <div class="container">
       <h1><%= campaign.headline || 'citimtedasom.sk' %></h1>
-      <p class="muted"><%= campaign.subhead || 'Úvodný text a video doplníme. Nižšie si môžeš vybrať termín online sedenia.' %></p>
+      <p><%= campaign.subhead || 'Úvodný text a video pripravujeme. Táto stránka bude slúžiť ako pokojný vstup k online sedeniu.' %></p>
     </div>
   </section>
 
@@ -26,5 +37,105 @@
     </div>
   </section>
 
-  <%- include('../partials/booking-content', { useLegacyFunnelClasses: false }) %>
+  <section id="ako-pracujem" class="prose">
+    <div class="container">
+      <h2>Ako pracujem</h2>
+      <p>
+        Po úvodnom zvítaní sa Ťa spýtam, s čím prichádzaš. Môžeš hovoriť úplne voľne,
+        nie je potrebné sa na nič pripravovať.
+      </p>
+      <p>
+        Jemne Ťa budem smerovať viac do hĺbky a počas celého sedenia vnímam Tvoje
+        prežívanie, reakcie aj tempo. Nikdy nepredurčujem smer, hľadáme ho spolu.
+      </p>
+      <p>
+        Kľúčové pre mňa je vytvoriť bezpečný priestor, v ktorom sa dá pomenovať aj to,
+        čo bolo doteraz skryté alebo ťažko uchopiteľné.
+      </p>
+    </div>
+  </section>
+
+  <section id="s-cim-prichadzaju-ludia" class="prose">
+    <div class="container">
+      <h2>S čím prichádzajú ľudia</h2>
+      <p>
+        Ľudia ku mne často prichádzajú, keď sa opakujú podobné situácie vo vzťahoch
+        alebo v rodine, keď cítia dlhodobé napätie, únavu či vnútorné zaseknutie.
+      </p>
+      <p>
+        Niekedy je prítomný tlak, ktorý sa nedá presne pomenovať. V sedení hľadáme
+        porozumenie tomu, čo sa deje vo vnútri, bez nálepkovania a bez tlaku na výkon.
+      </p>
+    </div>
+  </section>
+
+  <section id="ako-prebieha-sedenie" class="prose">
+    <div class="container">
+      <h2>Ako prebieha sedenie</h2>
+      <p>
+        Na sedení nerobíme životnú zmenu priamo. Skôr uvoľníme to, čo je zaseknuté,
+        a ďalší pohyb potom často prichádza prirodzene v najbližších dňoch alebo týždňoch.
+      </p>
+      <p>
+        Ak to dáva zmysel, môžeme ísť aj hlbšie, napríklad cez prácu s rodinnými a
+        vzťahovými vzorcami (metóda konštelácií), vždy len po spoločnej dohode.
+      </p>
+      <p>
+        Sedenie trvá približne okolo <strong>jednej hodiny</strong> a prebieha
+        <strong>online cez Google Meet</strong>. Stačí kliknúť na link, ktorý pošlem
+        pred začiatkom, nič netreba inštalovať.
+      </p>
+    </div>
+  </section>
+
+  <section id="caste-otazky" class="prose">
+    <div class="container">
+      <h2>Časté otázky</h2>
+      <dl class="content-faq-list">
+        <dt>Pre koho je sedenie vhodné?</dt>
+        <dd>Pre ľudí, ktorí cítia napätie vo vzťahoch alebo v rodine, opakujúce sa situácie, alebo potrebujú priestor na vypočutie a uvoľnenie.</dd>
+        <dt>Pre koho sedenie vhodné nie je?</dt>
+        <dd>Nie je nahradením psychiatrickej alebo akútnej krízovej starostlivosti. Ak potrebuješ okamžitú pomoc, obráť sa prosím na špecializované služby.</dd>
+        <dt>Ako sedenie prebieha?</dt>
+        <dd>Dôraz je na vypočutie klienta, uznanie jeho prežívania a empatiu. Štruktúra sa prispôsobuje individuálnym potrebám, nie je rigidná.</dd>
+        <dt>Čo sú rodinné konštelácie?</dt>
+        <dd>Je to spôsob práce so vzťahovými a rodinnými systémami. Na online sedení môžeme ísť týmto smerom v menšom, bezpečnom formáte podľa Tvojej situácie.</dd>
+      </dl>
+    </div>
+  </section>
+
+  <section id="terminy" class="prose">
+    <div class="container">
+      <h2>Termíny</h2>
+      <p class="muted">Keď Ti tento spôsob práce dáva zmysel, vyber si pokojne voľný termín nižšie.</p>
+    </div>
+    <%- include('../partials/booking-content', { useLegacyFunnelClasses: false, renderSecondaryContent: false }) %>
+  </section>
+
+  <!-- START: Na neskoršie rozhodnutie (dočasne zachovaný obsah, ktorý teraz nie je v hlavnom toku) -->
+  <section class="prose">
+    <div class="container">
+      <h2>Na neskoršie rozhodnutie</h2>
+      <h3>Pre koho to je / nie je</h3>
+      <p><strong>Hodí sa to najmä Tebe, ak:</strong></p>
+      <ul>
+        <li>máš opakujúce sa vzorce vo vzťahoch alebo v rodine a chceš im lepšie rozumieť;</li>
+        <li>cítiš zaseknutie, úzkosť alebo ťarchu bez jasnej príčiny a chceš priestor, kde Ťa vypočujú bez hodnotenia;</li>
+        <li>zaujíma Ťa hlbšia práca a prípadne aj prístup cez konštelácie, bez tlaku, že „sa musí“ stať hneď všetko.</li>
+      </ul>
+      <p><strong>Nie je to vhodná voľba, ak:</strong></p>
+      <ul>
+        <li>si v akútnej kríze (ohrozenie života, seba alebo iných), v takom prípade prosím kontaktuj tiesňové služby alebo odborníka, ktorý s krízou pracuje denne;</li>
+        <li>očakávaš garantovanú zmenu za jedenkrát alebo jednoduché recepty bez Tvojho zapojenia v procese;</li>
+        <li>online formát pre Teba nie je bezpečný alebo ho nechceš, potom je lepšie hľadať iný typ podpory.</li>
+      </ul>
+      <h3>Cena a platba</h3>
+      <p>
+        <strong>Plná cena:</strong> minimálne 45 €, <strong>odporúčaná suma 85 €</strong>.
+        Ak ešte nie si istý/á, môžeš zaplatiť len 10 € za rezerváciu a o doplatku sa rozhodnúť neskôr.
+      </p>
+      <p><a href="#terminy" class="cta">Vyber si termín</a></p>
+    </div>
+  </section>
+  <!-- END: Na neskoršie rozhodnutie -->
 </main>
