@@ -1,5 +1,6 @@
-<!-- Generic funnel content: CTA, how, audience, pricing, FAQ, references, CTA again -->
-<section id="booking" class="funnel-cta booking-section prose"
+<!-- Shared booking and long-form content block used by home/funnel pages. -->
+<% var _useLegacyFunnelClasses = typeof useLegacyFunnelClasses === 'undefined' ? true : !!useLegacyFunnelClasses; %>
+<section id="booking" class="content-cta<% if (_useLegacyFunnelClasses) { %> funnel-cta<% } %> booking-section prose"
   <% if (typeof funnelName !== 'undefined' && funnelName) { %>data-funnel-name="<%= funnelName %>"<% } %>
   <% if (typeof funnelName !== 'undefined' && funnelName && typeof funnelCampaignId !== 'undefined') { %>data-funnel-campaign="<%= funnelCampaignId %>"<% } %>
   <% if (typeof funnelVideoId !== 'undefined' && funnelVideoId) { %>data-funnel-video-id="<%= funnelVideoId %>"<% } %>
@@ -152,10 +153,10 @@
   </div>
 </section>
 
-<details class="funnel-secondary">
-  <summary class="funnel-secondary-trigger container">Ešte nie som rozhodnutý</summary>
-  <div class="funnel-secondary-inner">
-    <section class="funnel-how prose">
+<details class="content-secondary<% if (_useLegacyFunnelClasses) { %> funnel-secondary<% } %>">
+  <summary class="content-secondary-trigger<% if (_useLegacyFunnelClasses) { %> funnel-secondary-trigger<% } %> container">Ešte nie som rozhodnutý</summary>
+  <div class="content-secondary-inner<% if (_useLegacyFunnelClasses) { %> funnel-secondary-inner<% } %>">
+    <section class="content-how<% if (_useLegacyFunnelClasses) { %> funnel-how<% } %> prose">
       <div class="container">
         <h2>Ako prebieha sedenie</h2>
     
@@ -192,7 +193,7 @@
       </div>
     </section>
 
-    <section class="funnel-practical prose">
+    <section class="content-practical<% if (_useLegacyFunnelClasses) { %> funnel-practical<% } %> prose">
       <div class="container">
         <h2>Formát a technické detaily</h2>
         <p>
@@ -203,7 +204,7 @@
       </div>
     </section>
 
-    <section class="funnel-audience prose">
+    <section class="content-audience<% if (_useLegacyFunnelClasses) { %> funnel-audience<% } %> prose">
       <div class="container">
         <h2>Pre koho to je / nie je</h2>
         <p><strong>Hodí sa to najmä Tebe, ak:</strong></p>
@@ -221,7 +222,7 @@
       </div>
     </section>
 
-    <section class="funnel-pricing prose">
+    <section class="content-pricing<% if (_useLegacyFunnelClasses) { %> funnel-pricing<% } %> prose">
       <div class="container">
         <h2>Cena a platba</h2>
         <p>
@@ -230,10 +231,10 @@
       </div>
     </section>
 
-    <section class="funnel-faq prose">
+    <section class="content-faq<% if (_useLegacyFunnelClasses) { %> funnel-faq<% } %> prose">
       <div class="container">
         <h2>Časté otázky</h2>
-        <dl class="funnel-faq-list">
+        <dl class="content-faq-list<% if (_useLegacyFunnelClasses) { %> funnel-faq-list<% } %>">
           <dt>Pre koho je sedenie vhodné?</dt>
           <dd>Pre ľudí, ktorí cítia napätie vo vzťahoch alebo v rodine, opakujúce sa situácie, alebo potrebujú priestor na vypočutie a uvoľnenie – vrátane tých, ktorí sú otvorení hlbšej práci (napr. cez konštelácie), ale nechcú nič „nasilu“.</dd>
           <dt>Pre koho sedenie vhodné nie je?</dt>
@@ -250,7 +251,7 @@
       </div>
     </section>
 
-    <section class="funnel-cta-repeat prose">
+    <section class="content-cta-repeat<% if (_useLegacyFunnelClasses) { %> funnel-cta-repeat<% } %> prose">
       <div class="container">
         <p><a href="#booking" class="cta">Vyber si termín</a></p>
       </div>

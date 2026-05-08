@@ -17,7 +17,8 @@
 .funnel-hero .container,
 .funnel-video .container,
 .funnel-bridge-section .container,
-.funnel-cta.booking-section .container {
+.funnel-cta.booking-section .container,
+.content-cta.booking-section .container {
   max-width: var(--max-width-narrow);
 }
 
@@ -132,24 +133,32 @@ a.funnel-scroll-hint__arrow:focus-visible {
 }
 
 .funnel-cta,
+.content-cta,
 .funnel-how,
+.content-how,
 .funnel-audience,
+.content-audience,
 .funnel-pricing,
+.content-pricing,
 .funnel-faq,
+.content-faq,
 .funnel-references {
   padding: var(--spacing-section) 0;
 }
 
-.funnel-cta {
+.funnel-cta,
+.content-cta {
   padding-top: var(--spacing-md);
 }
 
-.funnel-cta-repeat {
+.funnel-cta-repeat,
+.content-cta-repeat {
   padding: var(--spacing-section-lg) 0;
 }
 
 /* Optional “undecided” block: collapsed by default */
-.funnel-secondary {
+.funnel-secondary,
+.content-secondary {
   margin-top: var(--spacing-section);
   padding: 0 0 var(--spacing-section);
   border-top: 1px solid var(--color-border);
@@ -180,7 +189,8 @@ a.funnel-scroll-hint__arrow:focus-visible {
   }
 }
 
-.funnel-secondary-trigger {
+.funnel-secondary-trigger,
+.content-secondary-trigger {
   cursor: pointer;
   list-style: none;
   display: block;
@@ -195,33 +205,40 @@ a.funnel-scroll-hint__arrow:focus-visible {
   overflow: hidden;
 }
 
-.funnel-secondary[open] > .funnel-secondary-trigger {
+.funnel-secondary[open] > .funnel-secondary-trigger,
+.content-secondary[open] > .content-secondary-trigger {
   animation: funnel-secondary-trigger-hide 0.28s ease forwards;
   pointer-events: none;
 }
 
-.funnel-secondary-inner {
+.funnel-secondary-inner,
+.content-secondary-inner {
   opacity: 0;
 }
 
-.funnel-secondary[open] > .funnel-secondary-inner {
+.funnel-secondary[open] > .funnel-secondary-inner,
+.content-secondary[open] > .content-secondary-inner {
   animation: funnel-secondary-inner-in 0.35s ease 0.12s forwards;
 }
 
-.funnel-secondary-trigger::-webkit-details-marker {
+.funnel-secondary-trigger::-webkit-details-marker,
+.content-secondary-trigger::-webkit-details-marker {
   display: none;
 }
 
-.funnel-secondary .funnel-how {
+.funnel-secondary .funnel-how,
+.content-secondary .content-how {
   padding-top: 0;
 }
 
-.funnel-secondary-inner .container {
+.funnel-secondary-inner .container,
+.content-secondary-inner .container {
   max-width: var(--max-width-content);
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .funnel-secondary[open] > .funnel-secondary-trigger {
+  .funnel-secondary[open] > .funnel-secondary-trigger,
+  .content-secondary[open] > .content-secondary-trigger {
     animation: none;
     opacity: 0;
     max-height: 0;
@@ -231,7 +248,8 @@ a.funnel-scroll-hint__arrow:focus-visible {
     overflow: hidden;
   }
 
-  .funnel-secondary[open] > .funnel-secondary-inner {
+  .funnel-secondary[open] > .funnel-secondary-inner,
+  .content-secondary[open] > .content-secondary-inner {
     animation: none;
     opacity: 1;
   }
@@ -262,16 +280,19 @@ a.funnel-scroll-hint__arrow:focus-visible {
   background: var(--color-bg);
 }
 
-.funnel-faq-list dt {
+.funnel-faq-list dt,
+.content-faq-list dt {
   font-weight: 600;
   margin-top: var(--spacing-md);
 }
 
-.funnel-faq-list dt:first-child {
+.funnel-faq-list dt:first-child,
+.content-faq-list dt:first-child {
   margin-top: 0;
 }
 
-.funnel-faq-list dd {
+.funnel-faq-list dd,
+.content-faq-list dd {
   margin: var(--spacing-xs) 0 0;
   padding-left: 0;
 }

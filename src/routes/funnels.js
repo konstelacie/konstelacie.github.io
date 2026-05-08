@@ -7,10 +7,12 @@ const { ApiError } = require('../middleware/apiError');
 const router = express.Router();
 
 /**
- * Known funnel instances. Add new instances here; routes and payment redirects use this.
- * `site` — public home + booking; `/site` exists for Stripe return URLs (noindex), `/` is canonical.
+ * Known attribution / payment-return instances.
+ * Includes `site` for home-page booking attribution and Stripe return compatibility.
  */
 const FUNNEL_INSTANCES = ['site', 'pilot'];
+/** Instances that are served as funnel pages under /:funnelName. */
+const FUNNEL_PAGE_INSTANCES = ['pilot'];
 
 /**
  * Campaign data per funnel instance. Override via ?campaign=id.
@@ -113,7 +115,7 @@ const INSTANCE_META = {
 };
 
 function isValidFunnel(name) {
-  return typeof name === 'string' && FUNNEL_INSTANCES.includes(name);
+  return typeof name === 'string' && FUNNEL_PAGE_INSTANCES.includes(name);
 }
 
 function buildFunnelViewLocals(funnelName, queryCampaign) {
@@ -139,7 +141,7 @@ function buildFunnelViewLocals(funnelName, queryCampaign) {
 
 function renderFunnelExpressPage(res, funnelName, req, { robotsNoindex }) {
   const locals = buildFunnelViewLocals(funnelName, req.query && req.query.campaign);
-  const view = funnelName === 'site' ? 'funnels/pilot' : `funnels/${funnelName}`;
+  const view = `funnels/${funnelName}`;
   res.render(view, {
     layout: 'layouts/default',
     hideHeader: true,
@@ -158,10 +160,6 @@ function renderFunnelExpressPage(res, funnelName, req, { robotsNoindex }) {
       <script src="/assets/js/funnel.js"></script>
     `,
   });
-}
-
-function renderSiteHome(req, res) {
-  renderFunnelExpressPage(res, 'site', req, { robotsNoindex: false });
 }
 
 /**
@@ -267,7 +265,7 @@ router.get('/:funnelName/success', (req, res, next) => {
   if (!isValidFunnel(funnelName)) return next('route');
 
   const meta = INSTANCE_META[funnelName] || {};
-  res.render('funnels/_funnel-success', {
+  res.render('pages/booking-success', {
     layout: 'layouts/default',
     hideHeader: true,
     robotsNoindex: true,
@@ -286,7 +284,7 @@ router.get('/:funnelName/cancel', (req, res, next) => {
 
   const meta = INSTANCE_META[funnelName] || {};
   const backUrl = funnelName === 'site' ? '/site#booking' : `/${funnelName}#booking`;
-  res.render('funnels/_funnel-cancel', {
+  res.render('pages/booking-cancel', {
     layout: 'layouts/default',
     hideHeader: true,
     robotsNoindex: true,
@@ -300,4 +298,3 @@ router.get('/:funnelName/cancel', (req, res, next) => {
 module.exports = router;
 module.exports.FUNNEL_INSTANCES = FUNNEL_INSTANCES;
 module.exports.parseFunnelAttribution = parseFunnelAttribution;
-module.exports.renderSiteHome = renderSiteHome;

@@ -1,0 +1,30 @@
+<main>
+  <section class="funnel-hero">
+    <div class="container">
+      <h1><%= campaign.headline || 'citimtedasom.sk' %></h1>
+      <p class="muted"><%= campaign.subhead || 'Úvodný text a video doplníme. Nižšie si môžeš vybrať termín online sedenia.' %></p>
+    </div>
+  </section>
+
+  <section class="funnel-video">
+    <div class="container">
+      <% if (campaignVideo.kind === 'self') { %>
+        <div class="funnel-video-embed"<% if (campaignVideo.videoId) { %> data-video-id="<%= campaignVideo.videoId %>"<% } %>>
+          <video controls playsinline preload="metadata" controlsList="nofullscreen" title="Video">
+            <% campaignVideo.sources.forEach(function (s) { %>
+              <source src="<%= s.src %>"<% if (s.type) { %> type="<%= s.type %>"<% } %>>
+            <% }) %>
+          </video>
+        </div>
+      <% } else if (campaignVideo.kind === 'wistia' || campaignVideo.kind === 'iframe') { %>
+        <div class="funnel-video-embed"<% if (campaignVideo.videoId) { %> data-video-id="<%= campaignVideo.videoId %>"<% } %>>
+          <iframe src="<%= campaignVideo.embedUrl %>" title="Video" class="wistia_embed" name="wistia_embed" allow="autoplay" allowtransparency="true"></iframe>
+        </div>
+      <% } else { %>
+        <p class="muted">Video a úvodný obsah pripravujeme.</p>
+      <% } %>
+    </div>
+  </section>
+
+  <%- include('../partials/booking-content', { useLegacyFunnelClasses: false }) %>
+</main>
