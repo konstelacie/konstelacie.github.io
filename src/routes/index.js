@@ -6,8 +6,8 @@ const { reservationDepositEurForFunnel, FULL_PAYMENT_CHECKOUT_EUR } = require('.
 const router = express.Router();
 
 const SITE_CAMPAIGN = {
-  headline: 'citimtedasom.sk',
-  subhead: 'Úvodný text a video doplníme. Nižšie si môžeš vybrať termín online sedenia.',
+  headline: '„Cítim, teda som.“',
+  subhead: 'Ten pocit, keď dáš priestor svojmu cíteniu a necháš myslenie oddýchnuť.',
   lowerContentReveal: { enabled: false },
 };
 
