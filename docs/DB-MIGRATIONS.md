@@ -18,7 +18,7 @@ Set in `.env` (or environment). Copy from `.env.example` at the repo root.
 
 **Application pool (`src/config/database.js`):** The pool is **not** created unless `DB_HOST`, `DB_USER`, and `DB_NAME` are all set (non-empty). If the pool is missing, API routes that need the DB return **503** where applicable.
 
-For Stripe vars (`STRIPE_PUBLIC_KEY`, `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`), see `docs/STRIPE-ARCHITECTURE.md`. For Resend (`RESEND_API_KEY`, `RESEND_FROM_EMAIL`, `RESEND_FROM_NAME`), see `docs/EMAILING.md`. For **billing / invoicing** env (`BILLING_PDF_STORAGE_DIR`, `BILLING_SEND_INVOICE_EMAIL`, supplier fields, etc.), see `docs/STRIPE-ARCHITECTURE.md` (Billing / invoice env) and `src/config/index.js` (`billing`).
+For Stripe vars (`STRIPE_*_TEST`, `STRIPE_*_PROD`), see `docs/STRIPE-ARCHITECTURE.md` and `docs/PAGE-VISIBILITY.md`. For Resend (`RESEND_API_KEY`, `RESEND_FROM_EMAIL`, `RESEND_FROM_NAME`), see `docs/EMAILING.md`. For **billing / invoicing** env (`BILLING_PDF_STORAGE_DIR`, `BILLING_SEND_INVOICE_EMAIL`, supplier fields, etc.), see `docs/STRIPE-ARCHITECTURE.md` (Billing / invoice env) and `src/config/index.js` (`billing`).
 
 ## How it works
 

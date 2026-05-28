@@ -269,7 +269,7 @@ Create a Stripe Checkout Session for the slot lock (before or after reservation 
 | `email` | yes | Customer email |
 | `paymentType` | yes | `"deposit"` or `"full"` |
 | `amount` | if `full` | Integer euros, must be exactly **85** (`FULL_PAYMENT_CHECKOUT_EUR` in `src/lib/bookingCheckoutAmounts.js`) |
-| `returnPath` | no | Funnel segment for success/cancel URLs (e.g. `/pilot`, `/site`). Normalized to a name in `FUNNEL_INSTANCES`; invalid/empty → `site` or `pilot` per `validateReturnPath` in code. |
+| `returnPath` | no | Booking page path for success/cancel URLs (e.g. `/`, `/pilot`, `/pilot-test`). Normalized to internal funnel name (`/` → `site`, `/pilot-test` → `pilot`). Invalid/empty → `site`. |
 | `cancelReturn` | no | Root-relative path for Stripe `cancel_url` (must stay under the same funnel path) |
 | `funnelName` / `funnel`, `funnelCampaign` / `campaign`, `funnelVideoId` | no | Attribution for analytics/metadata (validated against funnel config) |
 
@@ -286,7 +286,7 @@ Create a Stripe Checkout Session for the slot lock (before or after reservation 
 
 **Errors:** 400 `VALIDATION_ERROR`, 404 `NOT_FOUND`, 409 `CONFLICT`, 503 `INTERNAL_ERROR` (Stripe or DB missing).
 
-**Env:** `STRIPE_SECRET_KEY`, `BASE_URL` optional (defaults to request origin). See `docs/STRIPE-ARCHITECTURE.md` and `docs/SESSION-PRICING.md`.
+**Env:** `STRIPE_SECRET_KEY_TEST` / `STRIPE_SECRET_KEY_PROD` (selected by page mode), `BASE_URL` optional. See `docs/PAGE-VISIBILITY.md`, `docs/STRIPE-ARCHITECTURE.md`, `docs/SESSION-PRICING.md`.
 
 ---
 
@@ -334,7 +334,7 @@ While the webhook has not completed, `payment.status` may be `"pending"` and `pa
 
 Public page: **`GET /platba-doplatok?token=…`** (see `docs/SESSION-PRICING.md`, *Supplementary payment*). Product rules: cumulative completed payments for the reservation must be **≥ 45 €**; at most **one** completed `topup` per reservation; no maximum total. Eligible signed URLs are on **`GET /admin/reservations/:id`** (copy). Operators may send **`POST /admin/reservations/:id/send-balance-email`** (session + optional subject/message) to deliver template **`balance-pay-invite`** via Resend — not part of the public JSON API.
 
-**Env:** `BALANCE_PAY_TOKEN_SECRET` (required in production — HMAC secret for signed links; see `src/lib/balancePayToken.js`). `STRIPE_SECRET_KEY`, `BASE_URL` for Checkout.
+**Env:** `BALANCE_PAY_TOKEN_SECRET` (required in production — HMAC secret for signed links; see `src/lib/balancePayToken.js`). Stripe keys per `docs/PAGE-VISIBILITY.md`, `BASE_URL` for Checkout.
 
 ### GET /api/payments/balance/context
 
@@ -395,7 +395,7 @@ Other `state` values: `not_available`, `already_completed`, `checkout_pending` �
 
 **Not** under `src/routes/api/index.js`. **Method:** `POST` only. **Body:** raw JSON (Stripe signature). **Headers:** `Stripe-Signature` required.
 
-**Env:** `STRIPE_WEBHOOK_SECRET`
+**Env:** `STRIPE_WEBHOOK_SECRET_TEST`, `STRIPE_WEBHOOK_SECRET_PROD`
 
 **Handled events:** `checkout.session.completed`, `checkout.session.expired` (see `src/routes/api/stripe.js`). Initial booking checkouts create the reservation; **balance** checkouts (`payment_type` `topup`, metadata `checkoutPurpose: balance_topup`) only mark the payment completed. Others are acknowledged but not persisted.
 
@@ -469,7 +469,7 @@ INSERT INTO slots (local_date, grid_index, timezone, start_at_utc, end_at_utc, s
 | GET | `/ochrana-udajov` | Privacy / cookies — `src/routes/legal.js` |
 | GET | `/obchodne-podmienky` | Terms — `src/routes/legal.js` |
 | GET | `/health` | JSON DB health |
-| GET | `/robots.txt`, `/sitemap.xml` | Static files |
+| GET | `/robots.txt`, `/sitemap.xml` | Generated from page visibility config (`src/routes/static.js`) |
 
 ---
 

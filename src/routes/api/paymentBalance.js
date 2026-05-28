@@ -7,6 +7,7 @@ const { mysqlLocalDateToYmd } = require('../../lib/slotApiMap');
 const { timeKeyForGridIndex } = require('../../config/slotGrid');
 const { verifyBalancePayToken } = require('../../lib/balancePayToken');
 const sessionPricing = require('../../lib/sessionPricing');
+const paymentBackend = require('../../config/paymentBackend');
 const { loadBalanceReservationState } = require('../../lib/balancePayReservationState');
 const auditRepo = require('../../db/repositories/auditRepo');
 const {
@@ -135,8 +136,11 @@ router.post(
     }
     const supplementCents = supplementEur * 100;
 
-    const stripeSecret = process.env.STRIPE_SECRET_KEY;
-    if (!stripeSecret) {
+    const backend = paymentBackend.backendForFunnelName(resv.funnel_name || 'site');
+    let stripeSecret;
+    try {
+      stripeSecret = paymentBackend.requireStripeSecret(backend);
+    } catch {
       throw new ApiError('INTERNAL_ERROR', 'Stripe not configured', 503);
     }
 

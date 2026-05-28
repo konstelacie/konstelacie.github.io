@@ -13,6 +13,8 @@ module.exports = {
   env: process.env.NODE_ENV || 'development',
   /** Meta / Facebook Pixel — loaded only after marketing cookie consent (see cookie-consent.js). */
   metaPixelId: (process.env.META_PIXEL_ID || '').trim(),
+  pageVisibility: require('./pageVisibility'),
+  paymentBackend: require('./paymentBackend'),
   site: {
     /** Optional imprint line, e.g. "Ján Novák, Žilina, IČO …" */
     legalEntity: (process.env.SITE_LEGAL_ENTITY || '').trim(),
@@ -23,14 +25,11 @@ module.exports = {
       ''
     ).trim(),
     /**
-     * Temporary warning banner for public pages during production tests.
-     * Default: on in production, off elsewhere. Set SITE_TESTING_BANNER=0 to hide.
+     * Warning banner on test-mode surfaces. Set SITE_TESTING_BANNER=0 to hide globally.
      */
-    showTestingBanner:
-      process.env.SITE_TESTING_BANNER === '1' ||
-      (process.env.NODE_ENV === 'production' &&
-        process.env.SITE_TESTING_BANNER !== '0' &&
-        String(process.env.SITE_TESTING_BANNER || '').toLowerCase() !== 'false'),
+    testingBannerGloballyDisabled:
+      process.env.SITE_TESTING_BANNER === '0' ||
+      String(process.env.SITE_TESTING_BANNER || '').toLowerCase() === 'false',
   },
   db: {
     host: process.env.DB_HOST || 'localhost',
@@ -75,8 +74,9 @@ module.exports = {
     },
   },
   kros: {
-    /** Prefix for KROS numbering sequences. Empty in production, e.g. TEST in non-prod. */
-    sequencePrefix: (process.env.KROS_SEQUENCE_PREFIX || '').trim(),
+    apiToken: (process.env.KROS_API_TOKEN || '').trim(),
+    webhookSecret: (process.env.KROS_WEBHOOK_SECRET || '').trim(),
+    enabled: String(process.env.KROS_ENABLED || '').toLowerCase() === 'true',
   },
   cronSecret,
   /**

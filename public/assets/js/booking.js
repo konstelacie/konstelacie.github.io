@@ -204,8 +204,13 @@
     });
   }
 
+  function bookingPagePath() {
+    const p = (window.location.pathname || '').replace(/\/$/, '');
+    return p === '' ? '/' : p;
+  }
+
   /**
-   * Poll until payment is `completed` (webhook), then redirect to `/{funnel}/success`.
+   * Poll until payment is `completed` (webhook), then redirect to success page.
    * Resolves when the user should continue normal init (fetch error); never resolves if redirecting away.
    */
   function completeStripePaymentReturnOnFunnelPage(sessionId) {
@@ -227,7 +232,9 @@
 
       let attempts = 0;
       function goToSuccessPage({ paymentPendingTimeout } = {}) {
-        let url = '/' + encodeURIComponent(funnelName) + '/success?session_id=' + encodeURIComponent(sessionId);
+        const pagePath = bookingPagePath();
+        const successPath = pagePath === '/' ? '/success' : `${pagePath}/success`;
+        let url = `${successPath}?session_id=${encodeURIComponent(sessionId)}`;
         if (paymentPendingTimeout) url += '&payment_pending_timeout=1';
         window.location.replace(url);
       }
@@ -1645,13 +1652,7 @@
    */
   async function startPayment({ slotId, lockToken, email, paymentType, amount, billing }) {
     const funnelCtx = readFunnelContext();
-    let returnPath = (window.location.pathname || '').replace(/\/$/, '');
-    if (returnPath === '') returnPath = '/';
-    if (funnelCtx.funnelName === 'site') {
-      returnPath = '/site';
-    } else if (returnPath === '/') {
-      returnPath = '/pilot';
-    }
+    const returnPath = bookingPagePath();
     const cancelReturn =
       (window.location.pathname || '/') +
       (window.location.search || '') +

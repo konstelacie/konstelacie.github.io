@@ -6,12 +6,24 @@
 
 ## Required env vars
 
+Configure **both** test and prod Stripe keys. Runtime picks the set from page visibility mode (see `docs/PAGE-VISIBILITY.md`).
+
 | Variable | Description |
 |----------|-------------|
-| `STRIPE_SECRET_KEY` | Secret key (`sk_test_...` / `sk_live_...`). Used only on the server to create Checkout Sessions (`POST /api/payments/start`). |
-| `STRIPE_PUBLIC_KEY` | Publishable key (`pk_test_...` / `pk_live_...`). Optional for future client-side use (e.g. Elements). Listed in `.env.example`. |
-| `STRIPE_WEBHOOK_SECRET` | Signing secret (`whsec_...`) for `POST /api/stripe/webhook`. |
+| `STRIPE_SECRET_KEY_TEST` | Test secret key (`sk_test_...`). Checkout on test-mode surfaces. |
+| `STRIPE_PUBLIC_KEY_TEST` | Test publishable key (`pk_test_...`). Optional for future client-side use. |
+| `STRIPE_WEBHOOK_SECRET_TEST` | Test webhook signing secret (`whsec_...`). |
+| `STRIPE_SECRET_KEY_PROD` | Live secret key (`sk_live_...`). Checkout on prod-mode surfaces. |
+| `STRIPE_PUBLIC_KEY_PROD` | Live publishable key (`pk_live_...`). |
+| `STRIPE_WEBHOOK_SECRET_PROD` | Live webhook signing secret. |
 | `BASE_URL` | Optional. Used when building Stripe `success_url` / `cancel_url`. If unset, derived from the incoming request (`protocol` + `Host`). |
+
+KROS invoice sequence prefix (no KROS sandbox — prefix separates test vs prod):
+
+| Variable | Description |
+|----------|-------------|
+| `KROS_SEQUENCE_PREFIX_TEST` | e.g. `T` → numbering sequence `T-OF` |
+| `KROS_SEQUENCE_PREFIX_PROD` | Empty → `OF` |
 
 ### Billing / invoice (optional)
 
@@ -73,14 +85,14 @@ Details: `docs/API.md`.
 
 **Amounts (server-side):** See `src/lib/bookingCheckoutAmounts.js`.
 
-- **Deposit:** Cents from **`returnPath`** funnel (`site` → 45 €; `pilot` → 10 € while `BOOKING_FUNNEL_LOW_DEPOSIT_PROMO` is on, else 45 €).
+- **Deposit:** Cents from **`returnPath`** funnel (`site` / home → 45 €; `pilot` → 10 € while `BOOKING_FUNNEL_LOW_DEPOSIT_PROMO` is on, else 45 €).
 - **Full:** Client sends **`amount`** = **85** € (only accepted value); stored as cents with `payments.payment_type` = `session`.
 
 **Redirects:**
 
-- `success_url`: `{BASE_URL or request origin}/{returnPath}?payment_pending=1&session_id={CHECKOUT_SESSION_ID}` — the funnel page shows a blocking overlay and polls `GET /api/payments/status` until `payment.status === 'completed'` (webhook), then redirects to `/{returnPath}/success?session_id=…`.
-- `cancel_url`: `{BASE_URL or request origin}/{returnPath}/cancel`
-- `returnPath` is optional; normalized to a funnel name in `FUNNEL_INSTANCES` (empty/invalid → `site`, unknown segment → `pilot` — see `validateReturnPath`).
+- `success_url`: `{BASE_URL or origin}{publicPath}?payment_pending=1&session_id={CHECKOUT_SESSION_ID}` — home uses `/?…`; funnel uses `/pilot` or `/pilot-test` per `FUNNEL_*_MODE`. Page polls `GET /api/payments/status`, then redirects to `/success` (home) or `/{segment}/success` (funnel).
+- `cancel_url`: `{BASE_URL or origin}{cancelReturn}` — client sends current booking page path + hash.
+- `returnPath` is optional; normalized via `pathToFunnelName` (`/` → `site`, `/pilot-test` → `pilot`). Invalid/empty → `site`.
 
 **Stripe Session fields:** `mode: payment`, `payment_method_types: ['card']`, `customer_email` from request body, `line_items` with `price_data` (EUR), `metadata` (see below).
 
@@ -88,7 +100,7 @@ Details: `docs/API.md`.
 
 ## 4. Webhook (`POST /api/stripe/webhook`)
 
-**Verification:** `Stripe-Signature` + `STRIPE_WEBHOOK_SECRET`; body must remain **raw** for `constructEvent`.
+**Verification:** `Stripe-Signature` + both `STRIPE_WEBHOOK_SECRET_TEST` and `STRIPE_WEBHOOK_SECRET_PROD` (whichever matches); body must remain **raw** for `constructEvent`.
 
 **Database:** If the MySQL pool is not configured, responds **503**.
 
@@ -187,7 +199,7 @@ Both confirmation and invoice paths log to **`email_sent_log`** when Resend retu
 
 | Phase | Notes |
 |-------|--------|
-| Local | Test keys; `stripe listen --forward-to localhost:PORT/api/stripe/webhook`; put CLI `whsec_...` in `STRIPE_WEBHOOK_SECRET`. |
+| Local | Test keys in `STRIPE_*_TEST`; `stripe listen --forward-to localhost:PORT/api/stripe/webhook`; put CLI `whsec_...` in `STRIPE_WEBHOOK_SECRET_TEST`. Configure live webhook separately when testing prod mode. |
 | Staging / alwaysdata | HTTPS endpoint `https://.../api/stripe/webhook` in Dashboard (test mode). |
 | Live | Live keys + separate live webhook endpoint. |
 

@@ -4,31 +4,15 @@ const { asyncHandler, ApiError } = require('../../middleware/apiError');
 const { getPool } = require('../../db');
 const auditRepo = require('../../db/repositories/auditRepo');
 const locksRepo = require('../../db/repositories/locksRepo');
-const { FUNNEL_INSTANCES, parseFunnelAttribution } = require('../funnels');
+const { FUNNEL_INSTANCES } = require('../../config/funnelInstances');
+const pageVisibility = require('../../config/pageVisibility');
+const paymentBackend = require('../../config/paymentBackend');
+const { expireStripeCheckoutSession } = require('../../lib/stripeCheckout');
 const {
   FULL_PAYMENT_CHECKOUT_EUR,
   reservationDepositCentsForFunnel,
 } = require('../../lib/bookingCheckoutAmounts');
-
-const MAX_CANCEL_RETURN_LEN = 2048;
-
-/** Root-relative path (+ optional ?query #hash) for Stripe cancel_url; must stay under /:funnelName. */
-function validateCancelReturn(raw, funnelName) {
-  const fallback = `/${funnelName}`;
-  if (typeof raw !== 'string' || !raw.trim()) return fallback;
-  const s = raw.trim();
-  if (s.length > MAX_CANCEL_RETURN_LEN) return fallback;
-  if (!s.startsWith('/') || s.startsWith('//')) return fallback;
-  if (s.includes('..')) return fallback;
-
-  const hashIdx = s.indexOf('#');
-  const beforeHash = hashIdx === -1 ? s : s.slice(0, hashIdx);
-  const qIdx = beforeHash.indexOf('?');
-  const pathOnly = (qIdx === -1 ? beforeHash : beforeHash.slice(0, qIdx)).replace(/\/+$/, '') || '/';
-
-  if (pathOnly !== `/${funnelName}`) return fallback;
-  return s;
-}
+const { parseFunnelAttribution } = require('../funnels');
 const { timeKeyForGridIndex } = require('../../config/slotGrid');
 const { mysqlLocalDateToYmd } = require('../../lib/slotApiMap');
 const { validateSlotId, validateEmail, validateLockToken } = require('../../middleware/validators');
@@ -48,7 +32,30 @@ const paymentBalanceRouter = require('./paymentBalance');
 
 const router = express.Router();
 
+const MAX_CANCEL_RETURN_LEN = 2048;
+
 router.use('/balance', paymentBalanceRouter);
+
+function bookingHashFallback(funnelName) {
+  const publicPath = pageVisibility.buildPublicPath(funnelName);
+  if (!publicPath) return '/#booking';
+  return publicPath === '/' ? '/#booking' : `${publicPath}#booking`;
+}
+
+/** Root-relative path (+ optional ?query #hash) for Stripe cancel_url; must match the booking page path. */
+function validateCancelReturn(raw, funnelName) {
+  const expectedPath = pageVisibility.buildPublicPath(funnelName) || '/';
+  const fallback = bookingHashFallback(funnelName);
+  if (typeof raw !== 'string' || !raw.trim()) return fallback;
+  const s = raw.trim();
+  if (s.length > MAX_CANCEL_RETURN_LEN) return fallback;
+  if (!s.startsWith('/') || s.startsWith('//')) return fallback;
+  if (s.includes('..')) return fallback;
+
+  const pathOnly = pageVisibility.normalizePathOnly(s);
+  if (pathOnly !== expectedPath) return fallback;
+  return s;
+}
 
 function validatePaymentType(raw) {
   if (raw === 'deposit' || raw === 'full') return raw;
@@ -69,20 +76,21 @@ function validateAmount(raw, paymentType) {
 }
 
 function validateReturnPath(raw) {
-  if (typeof raw !== 'string' || !String(raw).trim()) {
-    return 'site';
+  const pathOnly = pageVisibility.normalizePathOnly(typeof raw === 'string' ? raw : '/');
+  const funnelName = pageVisibility.pathToFunnelName(pathOnly);
+  if (funnelName && FUNNEL_INSTANCES.includes(funnelName)) {
+    return funnelName;
   }
-  let s = String(raw).trim().replace(/\/+$/, '');
-  if (s === '/') {
-    return 'site';
+  return 'site';
+}
+
+function buildStripeSuccessUrl(baseUrl, funnelName) {
+  const publicPath = pageVisibility.buildPublicPath(funnelName) || '/';
+  const qs = 'payment_pending=1&session_id={CHECKOUT_SESSION_ID}';
+  if (publicPath === '/') {
+    return `${baseUrl}/?${qs}`;
   }
-  const path = s.startsWith('/') ? s.slice(1) : s;
-  const seg = path.split('/').filter(Boolean)[0];
-  const name = seg || 'site';
-  if (!FUNNEL_INSTANCES.includes(name)) {
-    return 'pilot';
-  }
-  return name;
+  return `${baseUrl}${publicPath}?${qs}`;
 }
 
 function normalizeOptionalText(raw, maxLen) {
@@ -212,15 +220,8 @@ router.post(
       throw new ApiError('VALIDATION_ERROR', 'checkoutSessionId must be a Stripe Checkout Session id', 400);
     }
 
-    const stripeSecret = process.env.STRIPE_SECRET_KEY;
-    if (!stripeSecret) {
-      throw new ApiError('INTERNAL_ERROR', 'Stripe not configured', 503);
-    }
-
     const pool = getPool();
     if (!pool) throw new ApiError('INTERNAL_ERROR', 'Database not configured', 503);
-
-    const stripe = new Stripe(stripeSecret);
 
     const conn = await pool.getConnection();
     let lockExpiresAt;
@@ -274,24 +275,10 @@ router.post(
       conn.release();
     }
 
-    for (let attempt = 0; attempt < 3; attempt++) {
-      try {
-        await stripe.checkout.sessions.expire(checkoutSessionId);
-        break;
-      } catch (e) {
-        const code = e && e.code ? String(e.code) : '';
-        const msg = e && e.message ? String(e.message) : '';
-        const benign =
-          code === 'resource_missing' ||
-          /already been completed|already expired|expired/i.test(msg);
-        if (benign || attempt === 2) {
-          if (!benign) {
-            console.error('[payments/abandon-checkout] Stripe expire failed', checkoutSessionId, e);
-          }
-          break;
-        }
-        await new Promise((r) => setTimeout(r, 400 * (attempt + 1)));
-      }
+    try {
+      await expireStripeCheckoutSession(checkoutSessionId);
+    } catch (e) {
+      console.error('[payments/abandon-checkout] Stripe expire failed', checkoutSessionId, e);
     }
 
     try {
@@ -328,9 +315,11 @@ router.post(
     const amountCents = validateAmount(body.amount, paymentType);
     const funnel = parseFunnelAttribution(body);
     const funnelName = validateReturnPath(body.returnPath);
-
-    const stripeSecret = process.env.STRIPE_SECRET_KEY;
-    if (!stripeSecret) {
+    const paymentBackendName = paymentBackend.backendForFunnelName(funnelName);
+    let stripeSecret;
+    try {
+      stripeSecret = paymentBackend.requireStripeSecret(paymentBackendName);
+    } catch {
       throw new ApiError('INTERNAL_ERROR', 'Stripe not configured', 503);
     }
 
@@ -348,7 +337,7 @@ router.post(
     }
 
     const baseUrl = process.env.BASE_URL || (req.protocol + '://' + req.get('host'));
-    const successUrl = `${baseUrl}/${funnelName}?payment_pending=1&session_id={CHECKOUT_SESSION_ID}`;
+    const successUrl = buildStripeSuccessUrl(baseUrl, funnelName);
     const cancelReturnPath = validateCancelReturn(body.cancelReturn, funnelName);
     const cancelUrl = `${baseUrl}${cancelReturnPath}`;
 

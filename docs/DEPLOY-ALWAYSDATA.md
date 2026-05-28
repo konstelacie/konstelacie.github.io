@@ -35,8 +35,10 @@ Set these in **Admin → Sites → your site → Environment variables** (or equ
 | `ADMIN_USERNAME` | If using `/admin` | Internal admin login. |
 | `ADMIN_PASSWORD` | If using `/admin` | Internal admin login. |
 | `CRON_SECRET` | **Yes** if scheduled jobs run | Protects `POST/GET /api/cron/run`. Without it, cron returns 401 in production. See `docs/SCHEDULED-EMAILS-CRON.md` §4.4. |
-| `STRIPE_SECRET_KEY` | If payments | Stripe Checkout Session creation. |
-| `STRIPE_WEBHOOK_SECRET` | If payments | Verifies `POST /api/stripe/webhook`. |
+| `STRIPE_SECRET_KEY_TEST`, `STRIPE_SECRET_KEY_PROD` | If payments | Checkout Session creation (`POST /api/payments/start`). See `docs/PAGE-VISIBILITY.md`. |
+| `STRIPE_WEBHOOK_SECRET_TEST`, `STRIPE_WEBHOOK_SECRET_PROD` | If payments | Verifies `POST /api/stripe/webhook` (both configured; either may match). |
+| `SITE_HOME_MODE`, `FUNNEL_*_MODE` | Yes | Page visibility and payment backend selection. See `docs/PAGE-VISIBILITY.md`. |
+| `KROS_SEQUENCE_PREFIX_TEST`, `KROS_SEQUENCE_PREFIX_PROD` | If KROS invoicing | Invoice numbering sequences (KROS has no sandbox). |
 | `BASE_URL` | Optional | Stripe success/cancel URLs; defaults to request origin if unset. |
 
 **Optional hardening / features:**

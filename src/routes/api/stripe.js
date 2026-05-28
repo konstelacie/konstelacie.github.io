@@ -9,6 +9,7 @@ const emailService = require('../../services/emailService');
 const billingDocumentService = require('../../services/billingDocumentService');
 const billingDeliveryService = require('../../services/billingDeliveryService');
 const { syncToKros } = require('../../services/krosInvoiceService');
+const { constructStripeEvent } = require('../../lib/stripeWebhook');
 
 const router = express.Router();
 
@@ -157,9 +158,8 @@ router.post(
   '/',
   asyncHandler(async (req, res) => {
     const sig = req.headers['stripe-signature'];
-    const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
 
-    if (!sig || !webhookSecret) {
+    if (!sig) {
       logLine({
         level: 'warn',
         tag: 'stripe_webhook',
@@ -170,8 +170,9 @@ router.post(
     }
 
     let event;
+    let paymentBackendName;
     try {
-      event = Stripe.webhooks.constructEvent(req.body, sig, webhookSecret);
+      ({ event, backend: paymentBackendName } = constructStripeEvent(req.body, sig));
     } catch (err) {
       logLine({
         level: 'warn',
@@ -322,7 +323,7 @@ router.post(
             });
           });
 
-          syncToKros(billingDocumentId).catch((err) => {
+          syncToKros(billingDocumentId, { backend }).catch((err) => {
             logLine({
               level: 'error',
               tag: 'kros_sync',

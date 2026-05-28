@@ -37,7 +37,7 @@
 | GET | `/ochrana-udajov` | Privacy / GDPR page; `src/routes/legal.js` → `ochrana-udajov.ejs`. |
 | GET | `/obchodne-podmienky` | Terms; `src/routes/legal.js` → `obchodne-podmienky.ejs`. |
 | GET | `/robots.txt` | File from repo root `robots.txt`. |
-| GET | `/sitemap.xml` | File from repo root `sitemap.xml`. |
+| GET | `/sitemap.xml` | Generated from `SITE_HOME_MODE` (`src/routes/static.js`). |
 | GET | `/health` | JSON DB health (`src/routes/health.js`). |
 
 ### Admin (HTML, session — not JSON API)
@@ -100,7 +100,7 @@ All JSON APIs use `requestId` middleware. Base: `src/routes/api/index.js`.
 
 | Method | Path | Purpose |
 |--------|------|---------|
-| POST | `/api/stripe/webhook` | Stripe signed webhooks (`src/routes/api/stripe.js`). Uses `STRIPE_WEBHOOK_SECRET`. **Not** under the main `/api` router’s JSON stack; raw body only. |
+| POST | `/api/stripe/webhook` | Stripe signed webhooks (`src/routes/api/stripe.js`). Verifies test and prod webhook secrets. **Not** under the main `/api` router’s JSON stack; raw body only. |
 
 **Handled Stripe event types (in code):**
 
@@ -119,8 +119,8 @@ All JSON APIs use `requestId` middleware. Base: `src/routes/api/index.js`.
 | `DB_HOST`, `DB_PORT`, `DB_USER`, `DB_PASSWORD`, `DB_NAME` | MySQL pool (`getPoolConfig` in `src/config/database.js`). Pool is **disabled** when **`host`**, **`user`**, or **`database`** is falsy after defaults (empty **`DB_USER`** is the usual case until `.env` is set). |
 | `META_PIXEL_ID` | Facebook Pixel id; `res.locals.metaPixelId` (`src/app.js`). |
 | `SITE_LEGAL_ENTITY`, `SITE_LEGAL_EMAIL` | Legal pages + imprint; `SITE_LEGAL_EMAIL` falls back to `RESEND_FROM_EMAIL` (`src/config/index.js` → `views`). |
-| `STRIPE_SECRET_KEY` | Stripe Checkout Session creation (`/api/payments/start`). |
-| `STRIPE_WEBHOOK_SECRET` | Webhook signature verification. |
+| `STRIPE_SECRET_KEY_TEST`, `STRIPE_SECRET_KEY_PROD` | Checkout backend per page mode (`docs/PAGE-VISIBILITY.md`). |
+| `STRIPE_WEBHOOK_SECRET_TEST`, `STRIPE_WEBHOOK_SECRET_PROD` | Webhook signature verification. |
 | `BASE_URL` | Success/cancel URLs for Checkout; fallback `req.protocol` + host. |
 | `RESEND_API_KEY`, `RESEND_FROM_EMAIL`, `RESEND_FROM_NAME` | Resend email (`src/email/provider.js`, `src/config/index.js`). |
 | `BILLING_VAT_RATE` | Optional; VAT decimal for net/VAT split on billing rows (`src/services/billingDocumentService.js`; default 0.23). |
@@ -179,7 +179,7 @@ All JSON APIs use `requestId` middleware. Base: `src/routes/api/index.js`.
 
 **Video resolution:** `src/config/funnelVideo.js` (`resolveCampaignVideo`) — supports `self`, `wistia`, legacy iframe `videoUrl`.
 
-**Sitemap:** `sitemap.xml` lists home, `/pilot`, `/ochrana-udajov`, `/obchodne-podmienky` (no `?campaign=` variants).
+**Sitemap:** dynamic — `/` when `SITE_HOME_MODE=prod`, plus legal pages. Funnel URLs never listed.
 
 ---
 

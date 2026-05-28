@@ -1,5 +1,6 @@
 const express = require('express');
 const appConfig = require('../config');
+const pageVisibility = require('../config/pageVisibility');
 const { resolveCampaignVideo } = require('../config/funnelVideo');
 const { reservationDepositEurForFunnel, FULL_PAYMENT_CHECKOUT_EUR } = require('../lib/bookingCheckoutAmounts');
 
@@ -10,6 +11,11 @@ const SITE_CAMPAIGN = {
   subhead: 'Ten pocit, keď dáš priestor svojmu cíteniu a necháš myslenie oddýchnuť.',
   lowerContentReveal: { enabled: false },
 };
+
+function homeTestingBanner() {
+  if (appConfig.site.testingBannerGloballyDisabled) return false;
+  return pageVisibility.shouldShowTestingBannerForHome();
+}
 
 function buildSiteHomeLocals(queryCampaign) {
   const campaignId = queryCampaign || 'default';
@@ -29,12 +35,13 @@ function buildSiteHomeLocals(queryCampaign) {
   };
 }
 
-function renderSiteHome(req, res, { robotsNoindex }) {
+function renderSiteHome(req, res) {
   const locals = buildSiteHomeLocals(req.query && req.query.campaign);
   res.render('pages/home', {
     layout: 'layouts/default',
     hideHeader: true,
-    robotsNoindex,
+    robotsNoindex: !pageVisibility.homeIsIndexable(),
+    showTestingBanner: homeTestingBanner(),
     ...locals,
     extraStyles: `
       <link rel="stylesheet" href="/assets/css/funnel.css">
@@ -52,19 +59,15 @@ function renderSiteHome(req, res, { robotsNoindex }) {
 }
 
 router.get('/', (req, res) => {
-  renderSiteHome(req, res, { robotsNoindex: false });
+  renderSiteHome(req, res);
 });
 
-// Legacy compatibility path used as Stripe return URL root for home booking.
-router.get('/site', (req, res) => {
-  renderSiteHome(req, res, { robotsNoindex: true });
-});
-
-router.get('/site/success', (_req, res) => {
+router.get('/success', (_req, res) => {
   res.render('pages/booking-success', {
     layout: 'layouts/default',
     hideHeader: true,
     robotsNoindex: true,
+    showTestingBanner: homeTestingBanner(),
     title: 'Platba dokončená',
     description: 'Ďakujeme, platba je dokončená.',
     homeUrl: '/',
@@ -73,14 +76,15 @@ router.get('/site/success', (_req, res) => {
   });
 });
 
-router.get('/site/cancel', (_req, res) => {
+router.get('/cancel', (_req, res) => {
   res.render('pages/booking-cancel', {
     layout: 'layouts/default',
     hideHeader: true,
     robotsNoindex: true,
+    showTestingBanner: homeTestingBanner(),
     title: 'Platba zrušená',
     description: 'Platba bola zrušená.',
-    backUrl: '/site#booking',
+    backUrl: '/#booking',
     extraStyles: '<link rel="stylesheet" href="/assets/css/funnel.css">',
   });
 });

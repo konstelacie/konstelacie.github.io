@@ -1,18 +1,12 @@
 const express = require('express');
 const appConfig = require('../config');
+const { FUNNEL_INSTANCES, FUNNEL_PAGE_INSTANCES } = require('../config/funnelInstances');
+const pageVisibility = require('../config/pageVisibility');
 const { resolveCampaignVideo } = require('../config/funnelVideo');
 const { reservationDepositEurForFunnel, FULL_PAYMENT_CHECKOUT_EUR } = require('../lib/bookingCheckoutAmounts');
 const { ApiError } = require('../middleware/apiError');
 
 const router = express.Router();
-
-/**
- * Known attribution / payment-return instances.
- * Includes `site` for home-page booking attribution and Stripe return compatibility.
- */
-const FUNNEL_INSTANCES = ['site', 'pilot'];
-/** Instances that are served as funnel pages under /:funnelName. */
-const FUNNEL_PAGE_INSTANCES = ['pilot'];
 
 /**
  * Campaign data per funnel instance. Override via ?campaign=id.
@@ -114,10 +108,6 @@ const INSTANCE_META = {
   },
 };
 
-function isValidFunnel(name) {
-  return typeof name === 'string' && FUNNEL_PAGE_INSTANCES.includes(name);
-}
-
 function buildFunnelViewLocals(funnelName, queryCampaign) {
   const campaigns = INSTANCE_CAMPAIGNS[funnelName] || { default: {} };
   const campaignId = queryCampaign || 'default';
@@ -139,13 +129,19 @@ function buildFunnelViewLocals(funnelName, queryCampaign) {
   };
 }
 
-function renderFunnelExpressPage(res, funnelName, req, { robotsNoindex }) {
+function funnelTestingBanner(funnelName) {
+  if (appConfig.site.testingBannerGloballyDisabled) return false;
+  return pageVisibility.shouldShowTestingBannerForFunnel(funnelName);
+}
+
+function renderFunnelExpressPage(res, funnelName, req) {
   const locals = buildFunnelViewLocals(funnelName, req.query && req.query.campaign);
   const view = `funnels/${funnelName}`;
   res.render(view, {
     layout: 'layouts/default',
     hideHeader: true,
-    robotsNoindex,
+    robotsNoindex: true,
+    showTestingBanner: funnelTestingBanner(funnelName),
     ...locals,
     extraStyles: `
       <link rel="stylesheet" href="/assets/css/funnel.css">
@@ -251,24 +247,19 @@ function parseFunnelAttribution(body) {
   return { funnelName, funnelCampaign: campaignId, funnelVideoId };
 }
 
-// Main funnel page: /site (noindex), /pilot, etc.
-router.get('/:funnelName', (req, res, next) => {
-  const { funnelName } = req.params;
-  if (!isValidFunnel(funnelName)) return next('route');
+// Funnel pages: /pilot, /pilot-test, etc. (see docs/PAGE-VISIBILITY.md)
+router.get('/:segment/success', (req, res, next) => {
+  const resolved = pageVisibility.resolveFunnelUrlSegment(req.params.segment);
+  if (!resolved) return next('route');
+  if (resolved.redirectHome) return res.redirect(302, '/');
 
-  renderFunnelExpressPage(res, funnelName, req, { robotsNoindex: true });
-});
-
-// Success: /pilot/success, /pattern/success, etc.
-router.get('/:funnelName/success', (req, res, next) => {
-  const { funnelName } = req.params;
-  if (!isValidFunnel(funnelName)) return next('route');
-
+  const { funnelName } = resolved;
   const meta = INSTANCE_META[funnelName] || {};
   res.render('pages/booking-success', {
     layout: 'layouts/default',
     hideHeader: true,
     robotsNoindex: true,
+    showTestingBanner: funnelTestingBanner(funnelName),
     title: meta.successTitle || 'Platba dokončená',
     description: 'Ďakujeme, platba je dokončená.',
     homeUrl: '/',
@@ -277,24 +268,35 @@ router.get('/:funnelName/success', (req, res, next) => {
   });
 });
 
-// Cancel: /pilot/cancel, /pattern/cancel, etc.
-router.get('/:funnelName/cancel', (req, res, next) => {
-  const { funnelName } = req.params;
-  if (!isValidFunnel(funnelName)) return next('route');
+router.get('/:segment/cancel', (req, res, next) => {
+  const resolved = pageVisibility.resolveFunnelUrlSegment(req.params.segment);
+  if (!resolved) return next('route');
+  if (resolved.redirectHome) return res.redirect(302, '/');
 
+  const { funnelName } = resolved;
   const meta = INSTANCE_META[funnelName] || {};
-  const backUrl = funnelName === 'site' ? '/site#booking' : `/${funnelName}#booking`;
+  const publicPath = pageVisibility.buildPublicPath(funnelName);
   res.render('pages/booking-cancel', {
     layout: 'layouts/default',
     hideHeader: true,
     robotsNoindex: true,
+    showTestingBanner: funnelTestingBanner(funnelName),
     title: meta.cancelTitle || 'Platba zrušená',
     description: 'Platba bola zrušená.',
-    backUrl,
+    backUrl: `${publicPath}#booking`,
     extraStyles: '<link rel="stylesheet" href="/assets/css/funnel.css">',
   });
 });
 
+router.get('/:segment', (req, res, next) => {
+  const resolved = pageVisibility.resolveFunnelUrlSegment(req.params.segment);
+  if (!resolved) return next('route');
+  if (resolved.redirectHome) return res.redirect(302, '/');
+
+  renderFunnelExpressPage(res, resolved.funnelName, req);
+});
+
 module.exports = router;
 module.exports.FUNNEL_INSTANCES = FUNNEL_INSTANCES;
+module.exports.FUNNEL_PAGE_INSTANCES = FUNNEL_PAGE_INSTANCES;
 module.exports.parseFunnelAttribution = parseFunnelAttribution;

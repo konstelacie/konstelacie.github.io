@@ -5,6 +5,7 @@ const { PDFDocument } = require('pdf-lib');
 const { DateTime } = require('luxon');
 const { getPool } = require('../db');
 const config = require('../config');
+const paymentBackend = require('../config/paymentBackend');
 const { logLine, logDebug } = require('../lib/structuredLog');
 const { postInvoices, downloadInvoicePdf } = require('./krosClient');
 const { lineItemNameForDocumentType } = require('./billingDocumentService');
@@ -92,7 +93,7 @@ async function stampPdfWithLogo(pdfBuffer) {
 /** Printed on KROS invoice before / after line items (úvodný / záverečný text). */
 const KROS_INVOICE_OPENING_CLOSING_TEXT = '[UHRADENÉ]';
 
-/** Číselný rad faktúr: OF (prod), or e.g. T-OF when KROS_SEQUENCE_PREFIX=T. */
+/** Číselný rad faktúr: OF (prod), or e.g. T-OF when KROS_SEQUENCE_PREFIX_TEST=T. */
 function resolveNumberingSequence(prefix) {
   const base = 'OF';
   const p = String(prefix || '').trim();
@@ -119,7 +120,7 @@ async function loadBillingDocumentContext(pool, billingDocumentId) {
   return rows[0] || null;
 }
 
-function buildKrosPayload(row) {
+function buildKrosPayload(row, backend) {
   const isCompany = Number(row.customer_is_company) === 1;
   const country = (row.customer_country || 'SK').toUpperCase().slice(0, 2) || 'SK';
   const externalId = row.kros_external_id || crypto.randomUUID();
@@ -128,7 +129,7 @@ function buildKrosPayload(row) {
     row.document_type === 'settlement' && row.advance_amount_gross_cents != null
       ? normalizeMoneyFromCents(row.advance_amount_gross_cents)
       : 0;
-  const numberingSequence = resolveNumberingSequence(config.kros.sequencePrefix);
+  const numberingSequence = resolveNumberingSequence(paymentBackend.krosSequencePrefix(backend));
 
   return {
     data: {
@@ -190,7 +191,7 @@ async function markFailed(pool, id, errorMessage, rawResponse = null) {
   );
 }
 
-async function syncToKros(billingDocumentId) {
+async function syncToKros(billingDocumentId, { backend = 'prod' } = {}) {
   const enabled = String(process.env.KROS_ENABLED || '').toLowerCase() === 'true';
   if (!enabled) {
     logLine({
@@ -227,7 +228,7 @@ async function syncToKros(billingDocumentId) {
     return;
   }
 
-  const payload = buildKrosPayload(row);
+  const payload = buildKrosPayload(row, backend);
   const externalId = payload.data.externalId;
 
   logDebug({

@@ -18,6 +18,7 @@ alwaysApply: true
 - **Emailing:** `docs/EMAILING.md` — transactional, operator-assisted emails; planning, open questions
 - **Scheduled emails & cron:** `docs/SCHEDULED-EMAILS-CRON.md` — timed emails (personal, bulk), cron endpoint, newsletter, special messages
 - **Creative media (FB ads vs funnel video):** `docs/CREATIVE-MEDIA.md` — `creative/`, `public/assets/media/funnel/`, `INSTANCE_CAMPAIGNS` + `src/config/funnelVideo.js`
+- **Page visibility & payment backends:** `docs/PAGE-VISIBILITY.md` — home/funnel modes, Stripe test/prod, KROS prefixes
 
 **Deployment:** alwaysdata (not GitHub Pages).
 
@@ -52,7 +53,13 @@ Never use `../` or `../../` for assets; root-relative paths work from any page d
 - Funnel logic → `public/assets/js/funnel.js`
 - Views → `src/views/` (layouts, partials, pages, funnels)
 - Routes → `src/routes/`
-- New funnels → `src/views/funnels/{name}.ejs` + add to `FUNNEL_INSTANCES` in `src/routes/funnels.js` + add to `sitemap.xml`
+- New funnels → `src/views/funnels/{name}.ejs` + `FUNNEL_PAGE_INSTANCES` in `src/config/funnelInstances.js` + `INSTANCE_*` in `src/routes/funnels.js` + `FUNNEL_{NAME}_MODE` in env. **Never** add funnel URLs to sitemap.
+
+## Page visibility
+
+- **Home:** always `/`. Modes: `SITE_HOME_MODE=test|prod` (indexing). Internal attribution id: `site` (not a URL).
+- **Funnels:** `FUNNEL_{NAME}_MODE=hidden|test|prod`. Test URLs use `-test` suffix (`/pilot-test`). Always noindex; never in sitemap. Hidden → redirect `/`.
+- **Stripe/KROS:** both test and prod env vars configured; backend selected per surface — see `docs/PAGE-VISIBILITY.md`.
 
 ## CSS variables
 

@@ -2,7 +2,7 @@
 
 **For AI assistants (Cursor, Copilot, etc.):** Follow these rules when editing this codebase. Apply them consistently.
 
-**Deployment:** We deploy on alwaysdata (not GitHub Pages). Production checklist (env, cron, Stripe)—for when we go live: `docs/DEPLOY-ALWAYSDATA.md`.
+**Deployment:** We deploy on alwaysdata (not GitHub Pages). Production checklist (env, cron, Stripe)—for when we go live: `docs/DEPLOY-ALWAYSDATA.md`. Page visibility and dual Stripe/KROS backends: `docs/PAGE-VISIBILITY.md`.
 
 **Phase:** We are in **early dev phase**—not live yet. Testing and release flows are in `docs/STRIPE-ARCHITECTURE.md` (Section 10).
 
@@ -109,17 +109,15 @@ project-root/
 │       └── funnel/                     # Funnel page video/audio used on site → `/assets/media/funnel/…`
 ├── scripts/                            # db-migrate.js
 ├── server.js                           # Entry point
-├── sitemap.xml
-└── robots.txt
 ```
 
-- **`/`** – Home page (`views/index.ejs`)
-- **`/assets/`** – Static assets from `public/assets/` (funnel video files: `public/assets/media/funnel/` → `/assets/media/funnel/…`; see `docs/CREATIVE-MEDIA.md`)
-- **`/{name}`** – Funnel pages (`views/funnels/{name}.ejs`), e.g. `/pilot`
-- **`/ochrana-udajov`**, **`/obchodne-podmienky`** – Legal pages (`routes/legal.js`, `ochrana-udajov.ejs`, `obchodne-podmienky.ejs`); listed in `sitemap.xml`
-- **Booking** – Embedded in pilot funnel; CTA "Rezervovať sedenie" reveals form inline (`public/assets/js/booking.js` — not under `src/routes/`). Flow: slot → email → payment choice → payment → confirmation (see `docs/RESERVATION-SYSTEM-ARCHITECTURE.md`).
+- **`/`** – Home page (`views/pages/home.ejs`); booking + Stripe return on `/`, `/success`, `/cancel`
+- **`/assets/`** – Static assets from `public/assets/`
+- **`/{name}`** or **`/{name}-test`** – Funnel pages when `FUNNEL_*_MODE` is `prod` or `test` (see `docs/PAGE-VISIBILITY.md`)
+- **`/ochrana-udajov`**, **`/obchodne-podmienky`** – Legal pages; in sitemap when home is prod
+- **`/robots.txt`**, **`/sitemap.xml`** – Generated dynamically (`src/routes/static.js`)
 
-New funnels: add `views/funnels/{name}.ejs`, add to `FUNNEL_INSTANCES` and `INSTANCE_*` in `routes/funnels.js`, update `sitemap.xml`.
+New funnels: add `views/funnels/{name}.ejs`, add to `FUNNEL_PAGE_INSTANCES` in `src/config/funnelInstances.js`, campaigns in `src/routes/funnels.js`, set `FUNNEL_{NAME}_MODE` in env.
 
 ---
 
