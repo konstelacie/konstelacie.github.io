@@ -6,8 +6,9 @@
 /** Main site and default when funnel is unknown / omitted. */
 const RESERVATION_DEPOSIT_EUR_DEFAULT = 45;
 
-/** Cold-traffic funnel (`pilot`) while low-deposit promo is on. */
+/** Cold-traffic funnels while low-deposit promo is on. */
 const RESERVATION_DEPOSIT_EUR_FUNNEL_PROMO = 10;
+const FUNNEL_LOW_DEPOSIT_INSTANCES = ['pilot', 'manipulacia'];
 
 /** Single “pay in full now” option at booking. */
 const FULL_PAYMENT_CHECKOUT_EUR = 85;
@@ -29,7 +30,7 @@ function isFunnelLowDepositPromoActive() {
  */
 function reservationDepositEurForFunnel(funnelName) {
   const name = funnelName && String(funnelName).trim();
-  if (name === 'pilot' && isFunnelLowDepositPromoActive()) {
+  if (name && FUNNEL_LOW_DEPOSIT_INSTANCES.includes(name) && isFunnelLowDepositPromoActive()) {
     return RESERVATION_DEPOSIT_EUR_FUNNEL_PROMO;
   }
   return RESERVATION_DEPOSIT_EUR_DEFAULT;

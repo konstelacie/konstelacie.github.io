@@ -68,6 +68,18 @@ const pilotPoslanie = {
   lowerContentReveal: { ...DEFAULT_LOWER_CONTENT_REVEAL },
 };
 
+/** Draft: replace hashedId with manipulacia Wistia id after upload. */
+const manipulaciaDefault = {
+  headline: 'Manipulujú ma — alebo si to len myslím?',
+  subhead: 'Dozvieš sa vo videu ↓',
+  videoId: 'manipulacia-hero-r1',
+  video: {
+    provider: 'wistia',
+    hashedId: WISTIA_TEST_HASHED_ID,
+  },
+  lowerContentReveal: { ...DEFAULT_LOWER_CONTENT_REVEAL },
+};
+
 const INSTANCE_CAMPAIGNS = {
   site: {
     default: {
@@ -90,6 +102,9 @@ const INSTANCE_CAMPAIGNS = {
       lowerContentReveal: { ...DEFAULT_LOWER_CONTENT_REVEAL },
     },
   },
+  manipulacia: {
+    default: { ...manipulaciaDefault },
+  },
 };
 
 /** Instance-specific meta (title, description). */
@@ -103,6 +118,12 @@ const INSTANCE_META = {
   pilot: {
     title: 'Pilot – V príprave',
     description: 'Pilot funnel – v príprave.',
+    successTitle: 'Platba dokončená',
+    cancelTitle: 'Platba zrušená',
+  },
+  manipulacia: {
+    title: 'Manipulácia – citimtedasom.sk',
+    description: 'Krátke video o tom, ako rozpoznať manipuláciu vo vzťahoch — a čo s tým.',
     successTitle: 'Platba dokončená',
     cancelTitle: 'Platba zrušená',
   },

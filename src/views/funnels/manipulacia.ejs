@@ -1,0 +1,65 @@
+<main>
+  <!-- Campaign block: varies per ad/campaign -->
+  <section class="funnel-hero">
+    <div class="container">
+      <h1><%= campaign.headline || 'Odmena Ťa čaká vo videu' %></h1>
+      <p class="muted"><%= campaign.subhead || 'Podľa dohody, tajný trik sa dozvieš okamžite, stačí spustiť video ⬇⬇⬇' %></p>
+    </div>
+  </section>
+
+  <section class="funnel-video">
+    <div class="container">
+      <% if (campaignVideo.kind === 'self') { %>
+        <div class="funnel-video-embed"<% if (campaignVideo.videoId) { %> data-video-id="<%= campaignVideo.videoId %>"<% } %>>
+          <video controls playsinline preload="metadata" controlsList="nofullscreen" title="Video">
+            <% campaignVideo.sources.forEach(function (s) { %>
+              <source src="<%= s.src %>"<% if (s.type) { %> type="<%= s.type %>"<% } %>>
+            <% }) %>
+          </video>
+        </div>
+      <% } else if (campaignVideo.kind === 'wistia' || campaignVideo.kind === 'iframe') { %>
+        <div class="funnel-video-embed"<% if (campaignVideo.videoId) { %> data-video-id="<%= campaignVideo.videoId %>"<% } %>>
+          <% /* class/name per Wistia Player API so E-v1.js can attach to iframe embeds */ %>
+          <iframe src="<%= campaignVideo.embedUrl %>" title="Video" class="wistia_embed" name="wistia_embed" allow="autoplay" allowtransparency="true"></iframe>
+        </div>
+      <% } else { %>
+        <% if (typeof funnelName !== 'undefined' && funnelName === 'site') { %>
+          <p class="muted">Video a úvodný obsah pripravujeme.</p>
+        <% } else { %>
+          <p class="muted">[Video ešte nie je nastavené]</p>
+        <% } %>
+      <% } %>
+      <% var _revealOn = typeof lowerContentReveal !== 'undefined' && lowerContentReveal.enabled; %>
+      <div
+        id="funnel-scroll-hint"
+        class="funnel-scroll-hint funnel-scroll-hint--hidden"
+        aria-hidden="true"
+        <% if (!_revealOn) { %>hidden<% } %>
+      >
+        <a
+          class="funnel-scroll-hint__arrow"
+          href="#funnel-bridge"
+          aria-label="Ak Ti to dáva zmysel, vyber si termín online sedenia, ktorý Ti vyhovuje."
+        >↓</a>
+        <span class="funnel-scroll-hint__text" hidden></span>
+      </div>
+    </div>
+  </section>
+  <% if (_revealOn) { %>
+  <script type="application/json" id="funnel-reveal-config"><%- JSON.stringify(lowerContentReveal).replace(/</g, '\\u003c') %></script>
+  <% } %>
+
+  <div id="funnel-lower" class="funnel-lower<% if (_revealOn) { %> funnel-lower--pending<% } %>"
+    <% if (_revealOn) { %>data-funnel-name="<%= funnelName %>" data-funnel-campaign="<%= funnelCampaignId %>" aria-hidden="true"<% } %>>
+    <section class="funnel-bridge-section">
+      <div class="container">
+        <p class="funnel-bridge" id="funnel-bridge">Ak Ti to dáva zmysel, vyber si termín online sedenia, ktorý Ti vyhovuje.</p>
+        <div class="funnel-booking-decision prose">
+          <p>Termín na chvíľu podržíme. Po výbere doplníš e-mail a vyberieš si spôsob platby (rezervácia 10 € alebo plná suma).</p>
+        </div>
+      </div>
+    </section>
+
+    <%- include('../partials/booking-content') %>
+  </div>
+</main>
