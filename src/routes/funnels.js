@@ -68,14 +68,13 @@ const pilotPoslanie = {
   lowerContentReveal: { ...DEFAULT_LOWER_CONTENT_REVEAL },
 };
 
-/** Draft: replace hashedId with manipulacia Wistia id after upload. */
 const manipulaciaDefault = {
   headline: 'Manipulujú ma — alebo si to len myslím?',
   subhead: 'Dozvieš sa vo videu ↓',
   videoId: 'manipulacia-hero-r1',
   video: {
     provider: 'wistia',
-    hashedId: WISTIA_TEST_HASHED_ID,
+    hashedId: '51i0hphhhk',
   },
   lowerContentReveal: { ...DEFAULT_LOWER_CONTENT_REVEAL },
 };
