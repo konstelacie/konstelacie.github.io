@@ -69,7 +69,7 @@ const pilotPoslanie = {
 };
 
 const manipulaciaDefault = {
-  headline: 'Manipulujú ma — alebo si to len myslím?',
+  headline: 'Ako sa ubrániť manipulácii?',
   subhead: 'Dozvieš sa vo videu ↓',
   videoId: 'manipulacia-hero-r1',
   video: {
