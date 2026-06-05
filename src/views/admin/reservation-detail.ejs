@@ -81,7 +81,7 @@
   <section class="admin-detail" aria-label="Odkaz na voliteľný doplatok">
     <h2 class="admin-detail__subtitle">Odkaz na doplatok (voliteľné)</h2>
     <p class="admin-bulk__hint">
-      Klient už musí mať uhradených aspoň 45 € za sedenie. Odkaz je platný približne <%= balancePay.linkTtlDays %> dní; jeden dokončený doplatok na rezerváciu.
+      Klient už musí mať uhradených aspoň <%= minSessionTotalEur %> € za sedenie. Odkaz je platný približne <%= balancePay.linkTtlDays %> dní; jeden dokončený doplatok na rezerváciu.
     </p>
     <% if (balancePay.state === 'ready' && balancePay.url) { %>
     <div class="admin-balance-pay">

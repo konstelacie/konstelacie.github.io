@@ -1,27 +1,39 @@
 /**
- * First-checkout reservation and full-payment amounts (booking modal → Stripe).
- * Change values here, or disable the pilot low deposit via env (see below).
+ * Booking checkout amounts (reservation deposit, full payment, session minimum).
+ * Configure via .env — see .env.example and docs/API.md.
  */
 
-/** Main site and default when funnel is unknown / omitted. */
-const RESERVATION_DEPOSIT_EUR_DEFAULT = 45;
-
-/** Cold-traffic funnels while low-deposit promo is on. */
-const RESERVATION_DEPOSIT_EUR_FUNNEL_PROMO = 10;
-const FUNNEL_LOW_DEPOSIT_INSTANCES = ['pilot', 'manipulacia'];
-
-/** Single “pay in full now” option at booking. */
-const FULL_PAYMENT_CHECKOUT_EUR = 85;
+const DEFAULT_MIN_SESSION_TOTAL_EUR = 45;
+const DEFAULT_SESSION_FULL_EUR = 85;
 
 /**
- * When false, pilot uses the same reservation deposit as the main site (45 €).
- * Set `BOOKING_FUNNEL_LOW_DEPOSIT_PROMO=0` (or `false` / `off`) in the environment.
+ * @param {string|undefined|null} raw
+ * @param {number} fallback
+ * @returns {number} positive integer EUR
  */
-function isFunnelLowDepositPromoActive() {
-  const v = process.env.BOOKING_FUNNEL_LOW_DEPOSIT_PROMO;
-  if (v == null || String(v).trim() === '') return true;
-  const s = String(v).trim().toLowerCase();
-  return s !== '0' && s !== 'false' && s !== 'off';
+function parsePositiveIntEur(raw, fallback) {
+  if (raw == null || String(raw).trim() === '') return fallback;
+  const n = parseInt(String(raw).trim(), 10);
+  if (!Number.isInteger(n) || n < 1) return fallback;
+  return n;
+}
+
+const MIN_SESSION_TOTAL_EUR = parsePositiveIntEur(
+  process.env.BOOKING_SESSION_MIN_EUR,
+  DEFAULT_MIN_SESSION_TOTAL_EUR
+);
+
+const FULL_PAYMENT_CHECKOUT_EUR = parsePositiveIntEur(
+  process.env.BOOKING_SESSION_FULL_EUR,
+  DEFAULT_SESSION_FULL_EUR
+);
+
+/**
+ * @param {string} funnelName
+ * @returns {string}
+ */
+function funnelDepositEnvKey(funnelName) {
+  return `FUNNEL_${String(funnelName).toUpperCase()}_DEPOSIT_EUR`;
 }
 
 /**
@@ -30,10 +42,10 @@ function isFunnelLowDepositPromoActive() {
  */
 function reservationDepositEurForFunnel(funnelName) {
   const name = funnelName && String(funnelName).trim();
-  if (name && FUNNEL_LOW_DEPOSIT_INSTANCES.includes(name) && isFunnelLowDepositPromoActive()) {
-    return RESERVATION_DEPOSIT_EUR_FUNNEL_PROMO;
+  if (!name || name === 'site') {
+    return MIN_SESSION_TOTAL_EUR;
   }
-  return RESERVATION_DEPOSIT_EUR_DEFAULT;
+  return parsePositiveIntEur(process.env[funnelDepositEnvKey(name)], MIN_SESSION_TOTAL_EUR);
 }
 
 /**
@@ -44,11 +56,26 @@ function reservationDepositCentsForFunnel(funnelName) {
   return reservationDepositEurForFunnel(funnelName) * 100;
 }
 
+/**
+ * EJS locals for booking UI on a surface.
+ * @param {string|null|undefined} funnelName
+ */
+function bookingPricingViewLocals(funnelName) {
+  return {
+    reservationDepositEur: reservationDepositEurForFunnel(funnelName),
+    fullPaymentCheckoutEur: FULL_PAYMENT_CHECKOUT_EUR,
+    minSessionTotalEur: MIN_SESSION_TOTAL_EUR,
+  };
+}
+
 module.exports = {
-  RESERVATION_DEPOSIT_EUR_DEFAULT,
-  RESERVATION_DEPOSIT_EUR_FUNNEL_PROMO,
+  DEFAULT_MIN_SESSION_TOTAL_EUR,
+  DEFAULT_SESSION_FULL_EUR,
+  MIN_SESSION_TOTAL_EUR,
+  MIN_SESSION_TOTAL_CENTS: MIN_SESSION_TOTAL_EUR * 100,
   FULL_PAYMENT_CHECKOUT_EUR,
-  isFunnelLowDepositPromoActive,
+  funnelDepositEnvKey,
   reservationDepositEurForFunnel,
   reservationDepositCentsForFunnel,
+  bookingPricingViewLocals,
 };

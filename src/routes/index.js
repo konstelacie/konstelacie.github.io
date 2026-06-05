@@ -2,7 +2,7 @@ const express = require('express');
 const appConfig = require('../config');
 const pageVisibility = require('../config/pageVisibility');
 const { resolveCampaignVideo } = require('../config/funnelVideo');
-const { reservationDepositEurForFunnel, FULL_PAYMENT_CHECKOUT_EUR } = require('../lib/bookingCheckoutAmounts');
+const { bookingPricingViewLocals } = require('../lib/bookingCheckoutAmounts');
 
 const router = express.Router();
 
@@ -30,8 +30,7 @@ function buildSiteHomeLocals(queryCampaign) {
     funnelName: 'site',
     funnelCampaignId: campaignId,
     funnelVideoId: campaign.videoId != null ? String(campaign.videoId) : null,
-    reservationDepositEur: reservationDepositEurForFunnel('site'),
-    fullPaymentCheckoutEur: FULL_PAYMENT_CHECKOUT_EUR,
+    ...bookingPricingViewLocals('site'),
   };
 }
 

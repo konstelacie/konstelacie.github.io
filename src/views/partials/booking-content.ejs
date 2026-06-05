@@ -1,12 +1,15 @@
 <!-- Shared booking and long-form content block used by home/funnel pages. -->
 <% var _useLegacyFunnelClasses = typeof useLegacyFunnelClasses === 'undefined' ? true : !!useLegacyFunnelClasses; %>
 <% var _renderSecondaryContent = typeof renderSecondaryContent === 'undefined' ? true : !!renderSecondaryContent; %>
+<% var _minSessionEur = typeof minSessionTotalEur !== 'undefined' ? minSessionTotalEur : 45; %>
+<% var _fullCheckoutEur = typeof fullPaymentCheckoutEur !== 'undefined' ? fullPaymentCheckoutEur : 85; %>
+<% var _depositEur = typeof reservationDepositEur !== 'undefined' ? reservationDepositEur : _minSessionEur; %>
 <section id="booking" class="content-cta<% if (_useLegacyFunnelClasses) { %> funnel-cta<% } %> booking-section prose"
   <% if (typeof funnelName !== 'undefined' && funnelName) { %>data-funnel-name="<%= funnelName %>"<% } %>
   <% if (typeof funnelName !== 'undefined' && funnelName && typeof funnelCampaignId !== 'undefined') { %>data-funnel-campaign="<%= funnelCampaignId %>"<% } %>
   <% if (typeof funnelVideoId !== 'undefined' && funnelVideoId) { %>data-funnel-video-id="<%= funnelVideoId %>"<% } %>
-  data-reservation-deposit-eur="<%= typeof reservationDepositEur !== 'undefined' ? reservationDepositEur : 45 %>"
-  data-full-payment-checkout-eur="<%= typeof fullPaymentCheckoutEur !== 'undefined' ? fullPaymentCheckoutEur : 85 %>"
+  data-reservation-deposit-eur="<%= _depositEur %>"
+  data-full-payment-checkout-eur="<%= _fullCheckoutEur %>"
 >
   <div id="booking-main" class="booking-main">
   <div class="container">
@@ -117,10 +120,10 @@
               <span class="booking-payment-option-content">
                 <strong>Rezervovať sedenie</strong>
                 <span class="booking-payment-desc booking-payment-desc--stack">
-                  <span class="booking-payment-desc-line">Zaplatíš teraz <%= typeof reservationDepositEur !== 'undefined' ? reservationDepositEur : 45 %> € za rezerváciu</span>
-                  <span class="booking-payment-desc-line">Doplatok podľa dohody po sedení (spolu min. 45 €)</span>
+                  <span class="booking-payment-desc-line">Zaplatíš teraz <%= _depositEur %> € za rezerváciu</span>
+                  <span class="booking-payment-desc-line">Doplatok podľa dohody po sedení (spolu min. <%= _minSessionEur %> €)</span>
                 </span>
-                <span class="booking-payment-amount">Rezervovať za <%= typeof reservationDepositEur !== 'undefined' ? reservationDepositEur : 45 %> €</span>
+                <span class="booking-payment-amount">Rezervovať za <%= _depositEur %> €</span>
               </span>
             </label>
             <label class="booking-payment-option booking-payment-option--full">
@@ -128,9 +131,9 @@
               <span class="booking-payment-option-content">
                 <strong>Zaplatiť celú sumu teraz</strong>
                 <span class="booking-payment-desc booking-payment-desc--stack">
-                  <span class="booking-payment-desc-line">Jedna platba <span class="booking-payment-desc-em"><%= typeof fullPaymentCheckoutEur !== 'undefined' ? fullPaymentCheckoutEur : 85 %> €</span> pred sedením</span>
+                  <span class="booking-payment-desc-line">Jedna platba <span class="booking-payment-desc-em"><%= _fullCheckoutEur %> €</span> pred sedením</span>
                 </span>
-                <span class="booking-payment-amount">Zaplatiť <%= typeof fullPaymentCheckoutEur !== 'undefined' ? fullPaymentCheckoutEur : 85 %> €</span>
+                <span class="booking-payment-amount">Zaplatiť <%= _fullCheckoutEur %> €</span>
               </span>
             </label>
           </fieldset>
@@ -228,7 +231,7 @@
       <div class="container">
         <h2>Cena a platba</h2>
         <p>
-          <strong>Plná cena:</strong> minimálne 45 €, <strong>odporúčaná suma 85 €</strong>. Ak ešte nie si istý/á, môžeš zaplatiť len <strong>10 € za rezerváciu</strong> a o doplatku sa rozhodnúť neskôr.
+          <strong>Plná cena:</strong> minimálne <%= _minSessionEur %> €, <strong>odporúčaná suma <%= _fullCheckoutEur %> €</strong>. Ak ešte nie si istý/á, môžeš zaplatiť len <strong><%= _depositEur %> € za rezerváciu</strong> a o doplatku sa rozhodnúť neskôr.
         </p>
       </div>
     </section>
@@ -244,7 +247,7 @@
           <dt>Ako sedenie prebieha?</dt>
           <dd>Vždy kladiem dôraz na vypočutie klienta, uznanie jeho prežívania a empatiu. Dôležité sú individuálne potreby klienta, nie presná štruktúra. Ak navnímam, že je vhodné prejsť ku konštelácii, navrhnem túto možnosť. Nikdy však ku konštelácii nepristupujem nasilu.</dd>
           <dt>Koľko to stojí?</dt>
-          <dd>Prvá rezervácia stojí 10 €. V prípade nespokojnosti nemusíš nič ďalšie platiť a naše cesty sa môžu v pokoji rozísť. V prípade spokojnosti budeš môcť doplatiť sumu, akú si zvolíš. (Odporúčaná cena za sedenie je 85 €, minimálna 45 €).</dd>
+          <dd>Prvá rezervácia stojí <%= _depositEur %> €. V prípade nespokojnosti nemusíš nič ďalšie platiť a naše cesty sa môžu v pokoji rozísť. V prípade spokojnosti budeš môcť doplatiť sumu, akú si zvolíš. (Odporúčaná cena za sedenie je <%= _fullCheckoutEur %> €, minimálna <%= _minSessionEur %> €).</dd>
           <dt>Čo sú rodinné konštelácie?</dt>
           <dd>Ide o spôsob práce so vzťahovými a rodinnými systémami: pomocou reprezentantov alebo symbolického rozostavenia sa často objavia skryté väzby, sklony a napätia, ktoré ovplyvňujú Tvoj život. Na online sedení môžeme ísť podobným smerom v menšom, bezpečnom formáte podľa Tvojej situácie – vždy len vtedy, keď to dáva spoločný zmysel.</dd>
           <dt>Nenašiel si odpoveď na svoju otázku?</dt>

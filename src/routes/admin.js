@@ -19,6 +19,7 @@ const {
   MAX_BULK_RANGE_DAYS,
 } = require('../lib/bulkSlotCandidates');
 const { requireAdmin } = require('../middleware/requireAdmin');
+const { MIN_SESSION_TOTAL_EUR } = require('../lib/bookingCheckoutAmounts');
 const billingDocumentsRepo = require('../db/repositories/billingDocumentsRepo');
 const locksRepo = require('../db/repositories/locksRepo');
 const billingDeliveryService = require('../services/billingDeliveryService');
@@ -948,6 +949,7 @@ router.get('/reservations/:id', requireAdmin, async (req, res) => {
         detail: null,
         reservationId: id,
         balancePay: null,
+        minSessionTotalEur: MIN_SESSION_TOTAL_EUR,
       });
     }
 
@@ -964,6 +966,7 @@ router.get('/reservations/:id', requireAdmin, async (req, res) => {
         detail: null,
         reservationId: id,
         balancePay: null,
+        minSessionTotalEur: MIN_SESSION_TOTAL_EUR,
       });
     }
 
@@ -982,6 +985,7 @@ router.get('/reservations/:id', requireAdmin, async (req, res) => {
       balancePay,
       defaultBalancePayEmailSubject: emailService.DEFAULT_BALANCE_PAY_INVITE_SUBJECT,
       maxBalancePayEmailMessage: emailService.MAX_BALANCE_PAY_INVITE_MESSAGE_LEN,
+      minSessionTotalEur: MIN_SESSION_TOTAL_EUR,
     });
   } catch (err) {
     console.error('[admin/reservations/:id]', err);
@@ -996,6 +1000,7 @@ router.get('/reservations/:id', requireAdmin, async (req, res) => {
       detail: null,
       reservationId: id,
       balancePay: null,
+      minSessionTotalEur: MIN_SESSION_TOTAL_EUR,
     });
   }
 });

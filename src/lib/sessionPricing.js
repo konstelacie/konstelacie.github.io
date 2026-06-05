@@ -3,11 +3,18 @@
  * Amounts in **euros** for UI; API may convert to cents.
  */
 
-/** Minimum cumulative completed payment for the session (product rule). */
-const MIN_SESSION_TOTAL_EUR = 45;
+const {
+  MIN_SESSION_TOTAL_EUR,
+  FULL_PAYMENT_CHECKOUT_EUR,
+} = require('./bookingCheckoutAmounts');
+
+const MIDDLE_TIER_EUR = 65;
+const SUPPORTIVE_TIER_EUR = 105;
 
 /** Suggested **target totals** (full payment tiers); not a maximum — user may pay more. */
-const SUGGESTED_SESSION_TOTAL_TIERS_EUR = [45, 65, 85, 105];
+const SUGGESTED_SESSION_TOTAL_TIERS_EUR = [
+  ...new Set([MIN_SESSION_TOTAL_EUR, MIDDLE_TIER_EUR, FULL_PAYMENT_CHECKOUT_EUR, SUPPORTIVE_TIER_EUR]),
+].sort((a, b) => a - b);
 
 /** Default custom total when choosing “full now” in booking (euros). */
 const DEFAULT_CUSTOM_FULL_PAYMENT_EUR = 125;

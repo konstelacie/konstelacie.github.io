@@ -1,4 +1,5 @@
 const express = require('express');
+const { MIN_SESSION_TOTAL_EUR } = require('../lib/bookingCheckoutAmounts');
 
 const router = express.Router();
 
@@ -10,6 +11,7 @@ router.get('/platba-doplatok', (req, res) => {
     description: 'Voliteľný doplatok k už uhradenej rezervácii sedenia.',
     robotsNoindex: true,
     token,
+    minSessionTotalEur: MIN_SESSION_TOTAL_EUR,
   });
 });
 

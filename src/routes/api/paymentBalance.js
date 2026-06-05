@@ -70,7 +70,7 @@ router.get(
         ok: true,
         state: 'not_available',
         message:
-          'Doplatok cez tento odkaz bude možný až po dosiahnutí minimálnej úhrady 45 € za sedenie.',
+          `Doplatok cez tento odkaz bude možný až po dosiahnutí minimálnej úhrady ${sessionPricing.MIN_SESSION_TOTAL_EUR} € za sedenie.`,
       });
     }
 

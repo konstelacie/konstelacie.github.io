@@ -268,12 +268,12 @@ Create a Stripe Checkout Session for the slot lock (before or after reservation 
 | `lockToken` | yes | UUID from slot lock |
 | `email` | yes | Customer email |
 | `paymentType` | yes | `"deposit"` or `"full"` |
-| `amount` | if `full` | Integer euros, must be exactly **85** (`FULL_PAYMENT_CHECKOUT_EUR` in `src/lib/bookingCheckoutAmounts.js`) |
+| `amount` | if `full` | Integer euros, must be exactly `BOOKING_SESSION_FULL_EUR` (default **85**; see `src/lib/bookingCheckoutAmounts.js`) |
 | `returnPath` | no | Booking page path for success/cancel URLs (e.g. `/`, `/pilot`, `/pilot-test`). Normalized to internal funnel name (`/` → `site`, `/pilot-test` → `pilot`). Invalid/empty → `site`. |
 | `cancelReturn` | no | Root-relative path for Stripe `cancel_url` (must stay under the same funnel path) |
 | `funnelName` / `funnel`, `funnelCampaign` / `campaign`, `funnelVideoId` | no | Attribution for analytics/metadata (validated against funnel config) |
 
-**Deposit amount (server):** Derived from **`returnPath`** funnel name via `src/lib/bookingCheckoutAmounts.js`: **`site` → 45 €**; **`pilot` → 10 €** while `BOOKING_FUNNEL_LOW_DEPOSIT_PROMO` is unset or truthy, otherwise **45 €**. **Full** checkout is always **85 €** at this step; optional extra amounts use the balance/doplatok flow after the session minimum is met.
+**Deposit amount (server):** From **`returnPath`** funnel via `src/lib/bookingCheckoutAmounts.js`: **`site` (home) → `BOOKING_SESSION_MIN_EUR`** (default 45 €); each funnel → **`FUNNEL_{NAME}_DEPOSIT_EUR`** if set, else `BOOKING_SESSION_MIN_EUR` (e.g. `FUNNEL_PILOT_DEPOSIT_EUR=10`). **Full** checkout uses **`BOOKING_SESSION_FULL_EUR`** (default 85 €). Optional extra amounts use the balance/doplatok flow after the session minimum is met.
 
 **Response 200:**
 

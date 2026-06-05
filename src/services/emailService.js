@@ -7,6 +7,7 @@ const billingDocumentsRepo = require('../db/repositories/billingDocumentsRepo');
 const { getInvoiceVariableSymbol } = require('./krosClient');
 
 const EMAIL_TEMPLATES_DIR = path.join(__dirname, '..', 'templates', 'emails');
+const { MIN_SESSION_TOTAL_EUR } = require('../lib/bookingCheckoutAmounts');
 
 /** Delay before sending automatic billing receipt email (ms), after reservation confirmation. */
 const BILLING_RECEIPT_SCHEDULE_DELAY_MS = 15 * 60 * 1000;
@@ -384,6 +385,7 @@ async function sendBalancePayInviteEmail(
     customMessageHtml,
     balanceUrlAttr,
     balanceUrlText,
+    minSessionTotalEur: MIN_SESSION_TOTAL_EUR,
   });
 
   const result = await emailProvider.sendEmail(to, finalSubject, html, metadata);

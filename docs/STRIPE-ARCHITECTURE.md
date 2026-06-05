@@ -85,8 +85,8 @@ Details: `docs/API.md`.
 
 **Amounts (server-side):** See `src/lib/bookingCheckoutAmounts.js`.
 
-- **Deposit:** Cents from **`returnPath`** funnel (`site` / home → 45 €; `pilot` → 10 € while `BOOKING_FUNNEL_LOW_DEPOSIT_PROMO` is on, else 45 €).
-- **Full:** Client sends **`amount`** = **85** € (only accepted value); stored as cents with `payments.payment_type` = `session`.
+- **Deposit:** Cents from **`returnPath`** funnel — home (`site`) → `BOOKING_SESSION_MIN_EUR`; funnel pages → `FUNNEL_{NAME}_DEPOSIT_EUR` or fallback to min (see `.env.example`).
+- **Full:** Client sends **`amount`** = `BOOKING_SESSION_FULL_EUR` (default 85 €; only accepted value); stored as cents with `payments.payment_type` = `session`.
 
 **Redirects:**
 
