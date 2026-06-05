@@ -183,6 +183,11 @@ a:hover {
   font-size: 0.9rem;
 }
 
+.prose-signature {
+  margin-top: var(--spacing-section);
+  text-align: right;
+}
+
 .home-prelaunch {
   margin-top: var(--spacing-section);
 }
