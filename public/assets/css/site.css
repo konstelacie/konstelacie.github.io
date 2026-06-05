@@ -156,6 +156,10 @@ a:hover {
   margin: 0 0 1rem;
 }
 
+.prose p strong {
+  font-weight: 500;
+}
+
 .prose ul,
 .prose ol {
   padding-left: 1.5rem;
