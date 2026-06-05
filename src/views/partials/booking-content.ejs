@@ -236,25 +236,7 @@
       </div>
     </section>
 
-    <section class="content-faq<% if (_useLegacyFunnelClasses) { %> funnel-faq<% } %> prose">
-      <div class="container">
-        <h2>Časté otázky</h2>
-        <dl class="content-faq-list<% if (_useLegacyFunnelClasses) { %> funnel-faq-list<% } %>">
-          <dt>Pre koho je sedenie vhodné?</dt>
-          <dd>Pre ľudí, ktorí cítia napätie vo vzťahoch alebo v rodine, opakujúce sa situácie, alebo potrebujú priestor na vypočutie a uvoľnenie – vrátane tých, ktorí sú otvorení hlbšej práci (napr. cez konštelácie), ale nechcú nič „nasilu“.</dd>
-          <dt>Pre koho sedenie vhodné nie je?</dt>
-          <dd>Nie je nahradením psychiatrickej alebo akútnej krízovej starostlivosti. Ak potrebuješ okamžitú lekársku alebo krízovú pomoc, obráť sa prosím na špecializované služby. Tiež to nie je dobrá voľba, ak očakávaš jednorazové zázračné riešenie bez Tvojho zapojenia.</dd>
-          <dt>Ako sedenie prebieha?</dt>
-          <dd>Vždy kladiem dôraz na vypočutie klienta, uznanie jeho prežívania a empatiu. Dôležité sú individuálne potreby klienta, nie presná štruktúra. Ak navnímam, že je vhodné prejsť ku konštelácii, navrhnem túto možnosť. Nikdy však ku konštelácii nepristupujem nasilu.</dd>
-          <dt>Koľko to stojí?</dt>
-          <dd>Prvá rezervácia stojí <%= _depositEur %> €. V prípade nespokojnosti nemusíš nič ďalšie platiť a naše cesty sa môžu v pokoji rozísť. V prípade spokojnosti budeš môcť doplatiť sumu, akú si zvolíš. (Odporúčaná cena za sedenie je <%= _fullCheckoutEur %> €, minimálna <%= _minSessionEur %> €).</dd>
-          <dt>Čo sú rodinné konštelácie?</dt>
-          <dd>Ide o spôsob práce so vzťahovými a rodinnými systémami: pomocou reprezentantov alebo symbolického rozostavenia sa často objavia skryté väzby, sklony a napätia, ktoré ovplyvňujú Tvoj život. Na online sedení môžeme ísť podobným smerom v menšom, bezpečnom formáte podľa Tvojej situácie – vždy len vtedy, keď to dáva spoločný zmysel.</dd>
-          <dt>Nenašiel si odpoveď na svoju otázku?</dt>
-          <dd>Ak Ti niečo ešte nie je jasné, je to úplne v poriadku – veľa vecí sa vyjasní priamo na sedení. Stačí si vybrať termín a otázky mi môžeš klásť priamo tam.</dd>
-        </dl>
-      </div>
-    </section>
+    <%- include('content-faq', { useLegacyFunnelClasses: _useLegacyFunnelClasses }) %>
 
     <section class="content-cta-repeat<% if (_useLegacyFunnelClasses) { %> funnel-cta-repeat<% } %> prose">
       <div class="container">
