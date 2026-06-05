@@ -341,15 +341,28 @@
     }
   }
 
+  function readBookingPricingDefaults() {
+    const d = typeof window !== 'undefined' ? window.__BOOKING_PRICING_DEFAULTS__ : null;
+    const min = d && parseInt(d.minSessionTotalEur, 10);
+    const full = d && parseInt(d.fullPaymentCheckoutEur, 10);
+    return {
+      minSessionTotalEur: Number.isFinite(min) && min > 0 ? min : null,
+      fullPaymentCheckoutEur: Number.isFinite(full) && full > 0 ? full : null,
+    };
+  }
+
   function readCheckoutAmountsFromBookingSection() {
     const host = document.getElementById('booking');
     const depRaw = host && host.getAttribute('data-reservation-deposit-eur');
     const fullRaw = host && host.getAttribute('data-full-payment-checkout-eur');
     const dep = parseInt(depRaw, 10);
     const full = parseInt(fullRaw, 10);
+    const defaults = readBookingPricingDefaults();
     return {
-      reservationDepositEur: Number.isFinite(dep) && dep > 0 ? dep : 45,
-      fullPaymentCheckoutEur: Number.isFinite(full) && full > 0 ? full : 85,
+      reservationDepositEur:
+        Number.isFinite(dep) && dep > 0 ? dep : defaults.minSessionTotalEur,
+      fullPaymentCheckoutEur:
+        Number.isFinite(full) && full > 0 ? full : defaults.fullPaymentCheckoutEur,
     };
   }
 

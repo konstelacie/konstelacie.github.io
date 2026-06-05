@@ -4,6 +4,10 @@ const path = require('path');
 const session = require('express-session');
 
 const config = require('./config');
+const {
+  MIN_SESSION_TOTAL_EUR,
+  FULL_PAYMENT_CHECKOUT_EUR,
+} = require('./lib/bookingCheckoutAmounts');
 const securityHeaders = require('./middleware/securityHeaders');
 const apiAccessLog = require('./middleware/apiAccessLog');
 const indexRouter = require('./routes/index');
@@ -106,6 +110,8 @@ app.use((req, res, next) => {
   res.locals.testingBannerGloballyDisabled = Boolean(
     config.site && config.site.testingBannerGloballyDisabled
   );
+  res.locals.minSessionTotalEur = MIN_SESSION_TOTAL_EUR;
+  res.locals.fullPaymentCheckoutEur = FULL_PAYMENT_CHECKOUT_EUR;
   next();
 });
 

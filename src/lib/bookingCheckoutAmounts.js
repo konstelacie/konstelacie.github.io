@@ -68,6 +68,15 @@ function bookingPricingViewLocals(funnelName) {
   };
 }
 
+/** Inline script for booking.js fallbacks (single source of truth with server env). */
+function bookingPricingDefaultsScriptTag() {
+  const payload = {
+    minSessionTotalEur: MIN_SESSION_TOTAL_EUR,
+    fullPaymentCheckoutEur: FULL_PAYMENT_CHECKOUT_EUR,
+  };
+  return `<script>window.__BOOKING_PRICING_DEFAULTS=${JSON.stringify(payload)}</script>`;
+}
+
 module.exports = {
   DEFAULT_MIN_SESSION_TOTAL_EUR,
   DEFAULT_SESSION_FULL_EUR,
@@ -78,4 +87,5 @@ module.exports = {
   reservationDepositEurForFunnel,
   reservationDepositCentsForFunnel,
   bookingPricingViewLocals,
+  bookingPricingDefaultsScriptTag,
 };

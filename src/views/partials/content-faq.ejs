@@ -1,6 +1,6 @@
 <% var _useLegacyFunnelClasses = typeof useLegacyFunnelClasses === 'undefined' ? false : !!useLegacyFunnelClasses; %>
-<% var _minSessionEur = typeof minSessionTotalEur !== 'undefined' ? minSessionTotalEur : 45; %>
-<% var _fullCheckoutEur = typeof fullPaymentCheckoutEur !== 'undefined' ? fullPaymentCheckoutEur : 85; %>
+<% var _minSessionEur = minSessionTotalEur; %>
+<% var _fullCheckoutEur = fullPaymentCheckoutEur; %>
 <% var _depositEur = typeof reservationDepositEur !== 'undefined' ? reservationDepositEur : _minSessionEur; %>
 <section<% if (typeof faqSectionId !== 'undefined' && faqSectionId) { %> id="<%= faqSectionId %>"<% } %> class="content-faq<% if (_useLegacyFunnelClasses) { %> funnel-faq<% } %> prose">
   <div class="container">

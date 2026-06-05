@@ -2,7 +2,10 @@ const express = require('express');
 const appConfig = require('../config');
 const pageVisibility = require('../config/pageVisibility');
 const { resolveCampaignVideo } = require('../config/funnelVideo');
-const { bookingPricingViewLocals } = require('../lib/bookingCheckoutAmounts');
+const {
+  bookingPricingViewLocals,
+  bookingPricingDefaultsScriptTag,
+} = require('../lib/bookingCheckoutAmounts');
 
 const router = express.Router();
 
@@ -46,6 +49,7 @@ function renderSiteHome(req, res) {
       <link rel="stylesheet" href="/assets/css/funnel.css">
     `,
     extraScripts: `
+      ${bookingPricingDefaultsScriptTag()}
       ${
         appConfig.captcha?.siteKey
           ? `<script>window.__BOOKING_RECAPTCHA_SITE_KEY=${JSON.stringify(appConfig.captcha.siteKey)}</script>`
