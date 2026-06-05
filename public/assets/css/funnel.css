@@ -132,6 +132,10 @@ a.funnel-scroll-hint__arrow:focus-visible {
   max-width: var(--max-width-narrow);
 }
 
+.funnel-bridge-emphasis {
+  font-weight: 500;
+}
+
 .funnel-cta,
 .content-cta,
 .funnel-how,
