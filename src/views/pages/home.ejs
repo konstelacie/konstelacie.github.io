@@ -37,44 +37,9 @@
     </div>
   </section>
 
-  <section id="ako-pracujem" class="prose">
-    <div class="container">
-      <h2>Ako pracujem</h2>
-      <p>Vytváram priestor, v ktorom sa klient cíti videný, prijatý a vypočutý.</p>
-      <p>Vôbec nekladiem dôraz na „riešenie problému“.</p>
-      <p>Plne dôverujem klientovi, že má v rukách moc zvládnuť svoju životnú situáciu.</p>
-      <p>
-        Niekedy aktívna snaha pohnúť sa vpred nepomáha. Niekedy jednoducho za prítomnosti láskavého svedka potrebujeme uznať stav, v ktorom sa nachádzame. Práve tým znovu roztočíme pribrzdené koleso života a častokrát zmena prichádza akoby sama.
-      </p>
-    </div>
-  </section>
-
-  <section id="s-cim-prichadzaju-ludia" class="prose">
-    <div class="container">
-      <h2>S čím prichádzajú ľudia</h2>
-      <p>Primárne problémy vo vzťahoch, v rodine, s deťmi.</p>
-      <p>Sekundárne zdravotné symptómy, problém uchopiť životnú tému, napr. peniaze.</p>
-    </div>
-  </section>
-
-  <section id="ako-prebieha-sedenie" class="prose">
-    <div class="container">
-      <h2>Ako prebieha sedenie</h2>
-      <p>
-        Stretneme sa online cez Google Meets. Po úvodnom zvítaní ma bude zaujímať, s čím prichádzaš. Aká je tvoja palčivá téma, ktorú teraz riešiš.
-      </p>
-      <p>Potom počúvam a Ty rozprávaš. Vnímam Ťa a občas zhrniem, čo som od Teba počul, občas Ti položím otázku.</p>
-      <p>
-        Následne, ak súhlasíš, pýtam sa Ťa na Tvoju pôvodnú rodinu. Lebo všetko so všetkým súvisí a mnoho z toho, čo práve prežívame ostro súvisí s našimi koreňmi.
-      </p>
-      <p>
-        Za priaznivých podmienok môžeme pristúpiť aj k hlbšiemu nacíteniu a konštelačnej práci, všetko však závisí od toho, čo je prítomné. Nikdy nič nerobíme nasilu.
-      </p>
-      <p>
-        Sedenie trvá približne okolo <strong>jednej hodiny</strong>.
-      </p>
-    </div>
-  </section>
+  <%- include('../partials/content-ako-pracujem', { sectionId: 'ako-pracujem' }) %>
+  <%- include('../partials/content-s-cim-prichadzaju-ludia', { sectionId: 's-cim-prichadzaju-ludia' }) %>
+  <%- include('../partials/content-ako-prebieha-sedenie', { sectionId: 'ako-prebieha-sedenie' }) %>
 
   <%- include('../partials/content-faq', { faqSectionId: 'caste-otazky', useLegacyFunnelClasses: false }) %>
 

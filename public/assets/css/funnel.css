@@ -138,12 +138,6 @@ a.funnel-scroll-hint__arrow:focus-visible {
 
 .funnel-cta,
 .content-cta,
-.funnel-how,
-.content-how,
-.funnel-audience,
-.content-audience,
-.funnel-pricing,
-.content-pricing,
 .funnel-faq,
 .content-faq,
 .funnel-references {
@@ -228,11 +222,6 @@ a.funnel-scroll-hint__arrow:focus-visible {
 .funnel-secondary-trigger::-webkit-details-marker,
 .content-secondary-trigger::-webkit-details-marker {
   display: none;
-}
-
-.funnel-secondary .funnel-how,
-.content-secondary .content-how {
-  padding-top: 0;
 }
 
 .funnel-secondary-inner .container,
