@@ -19,26 +19,6 @@
 
   <%- include('../partials/content-profile-intro') %>
 
-  <section class="funnel-video">
-    <div class="container">
-      <% if (campaignVideo.kind === 'self') { %>
-        <div class="funnel-video-embed"<% if (campaignVideo.videoId) { %> data-video-id="<%= campaignVideo.videoId %>"<% } %>>
-          <video controls playsinline preload="metadata" controlsList="nofullscreen" title="Video">
-            <% campaignVideo.sources.forEach(function (s) { %>
-              <source src="<%= s.src %>"<% if (s.type) { %> type="<%= s.type %>"<% } %>>
-            <% }) %>
-          </video>
-        </div>
-      <% } else if (campaignVideo.kind === 'wistia' || campaignVideo.kind === 'iframe') { %>
-        <div class="funnel-video-embed"<% if (campaignVideo.videoId) { %> data-video-id="<%= campaignVideo.videoId %>"<% } %>>
-          <iframe src="<%= campaignVideo.embedUrl %>" title="Video" class="wistia_embed" name="wistia_embed" allow="autoplay" allowtransparency="true"></iframe>
-        </div>
-      <% } else { %>
-        <p class="muted">Video a úvodný obsah pripravujeme.</p>
-      <% } %>
-    </div>
-  </section>
-
   <%- include('../partials/content-ako-pracujem', { sectionId: 'ako-pracujem' }) %>
   <%- include('../partials/content-s-cim-prichadzaju-ludia', { sectionId: 's-cim-prichadzaju-ludia' }) %>
   <%- include('../partials/content-ako-prebieha-sedenie', { sectionId: 'ako-prebieha-sedenie' }) %>
