@@ -145,9 +145,11 @@ async function sendPreSessionReminder({ to, slot }, metadata = {}) {
   const slotDateFormatted = formatSlotDate(slot.start_at_utc, tz);
   const slotTimeFormatted = formatSlotTime(slot.start_at_utc, tz);
 
+  const meetingUrl = (process.env.SESSION_MEETING_URL || '').trim() || null;
+
   const html = await ejs.renderFile(
     path.join(EMAIL_TEMPLATES_DIR, 'pre-session-reminder.ejs'),
-    { slotDateFormatted, slotTimeFormatted, timezone: tz }
+    { slotDateFormatted, slotTimeFormatted, timezone: tz, meetingUrl }
   );
 
   const result = await emailProvider.sendEmail(to, 'Pripomienka sedenia zajtra', html, metadata);

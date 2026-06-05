@@ -50,6 +50,7 @@ Set in `.env` (or environment); see `src/config/index.js` and `.env.example`.
 | `RESEND_API_KEY` | API key from [Resend Dashboard → API Keys](https://resend.com/api-keys). |
 | `RESEND_FROM_EMAIL` | Sender address (verified domain in Resend). |
 | `RESEND_FROM_NAME` | Display name (default in config: `citimtedasom.sk`). |
+| `SESSION_MEETING_URL` | Google Meet link in **reservation confirmation** and **pre-session reminder** emails. If unset, templates show placeholder `[SEM DÁŠ LINK]`. |
 
 **Billing invoice email** also respects **`BILLING_SEND_INVOICE_EMAIL`** and supplier/PDF dirs under the **`billing`** config block — see `docs/STRIPE-ARCHITECTURE.md` (Billing / invoice env).
 

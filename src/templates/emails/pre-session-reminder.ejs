@@ -16,7 +16,17 @@
       <p style="margin: 0 0 8px; font-weight: 600;">Termín</p>
       <p style="margin: 0 0 16px; color: #334155;"><%= slotDateFormatted %> o <%= slotTimeFormatted %> (<%= timezone %>)</p>
       <p style="margin: 0 0 8px; font-weight: 600;">Príprava</p>
-      <p style="margin: 0; color: #334155;">Zamysli sa, čo by si chcel/a riešiť. Pripojenie a ďalšie detaily ti pošleme e-mailom pred sedením.</p>
+      <p style="margin: 0; color: #334155;">Zamysli sa, čo by si chcel/a riešiť.</p>
+    </div>
+
+    <div style="background: #ffffff; border: 1px solid #e2e8f0; border-radius: 8px; padding: 20px; margin-bottom: 24px;">
+      <p style="margin: 0 0 8px; font-weight: 600;">Odkaz na stretnutie</p>
+<% if (meetingUrl) { %>
+      <p style="margin: 0 0 12px;"><a href="<%= meetingUrl %>" style="color: #2563eb; word-break: break-all;"><%= meetingUrl %></a></p>
+<% } else { %>
+      <p style="margin: 0 0 12px; color: #334155;">[SEM DÁŠ LINK]</p>
+<% } %>
+      <p style="margin: 0; color: #334155;">Stačí sa pripojiť v dohodnutom čase cez tento odkaz.</p>
     </div>
 
     <p style="margin: 0 0 16px;">Ak potrebuješ zrušiť alebo presunúť termín, odpovedz na tento e-mail.</p>
