@@ -40,6 +40,7 @@
           <th scope="col">Stav rezervácie</th>
           <th scope="col">Platba</th>
           <th scope="col">Suma</th>
+          <th scope="col">Akcie</th>
         </tr>
       </thead>
       <tbody>
@@ -52,6 +53,12 @@
             <td><span class="admin-status admin-status--<%= row.reservationStatus %>"><%= row.reservationStatusLabel %></span></td>
             <td><span class="admin-pay-status admin-pay-status--<%= row.paymentStatusKey %>"><%= row.paymentStatusLabel %></span></td>
             <td><%= row.amountLabel %></td>
+            <td class="admin-table__actions">
+              <form method="post" action="/admin/reservations/<%= row.id %>/delete" class="admin-inline-form" onsubmit="return confirm('Naozaj zmazať túto rezerváciu? Táto akcia je nevratná.');">
+                <input type="hidden" name="returnTo" value="/admin/reservations?filter=<%= f %>">
+                <button type="submit" class="admin-btn admin-btn--ghost admin-btn--small">Zmazať</button>
+              </form>
+            </td>
           </tr>
         <% } %>
       </tbody>

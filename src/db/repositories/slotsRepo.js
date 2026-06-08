@@ -408,6 +408,46 @@ async function listOldUnusedSlotsPreview(limit = 5) {
 /**
  * @returns {number} number of rows deleted
  */
+/**
+ * Hard-delete a slot when it has no reservations (dev/admin cleanup). Locks cascade on slot delete.
+ * @returns {Promise<{ ok: true } | { ok: false, code: string }>}
+ */
+async function adminDeleteSlot(slotId) {
+  const pool = getPool();
+  if (!pool) throw new Error('Database not configured');
+
+  const conn = await pool.getConnection();
+  try {
+    await conn.beginTransaction();
+    const [slotRows] = await conn.execute('SELECT id FROM slots WHERE id = ? FOR UPDATE', [slotId]);
+    if (!slotRows[0]) {
+      await conn.rollback();
+      return { ok: false, code: 'NOT_FOUND' };
+    }
+
+    const [resRows] = await conn.execute('SELECT id FROM reservations WHERE slot_id = ? LIMIT 1', [slotId]);
+    if (resRows.length) {
+      await conn.rollback();
+      return { ok: false, code: 'DELETE_HAS_RESERVATION' };
+    }
+
+    const [payRows] = await conn.execute('SELECT id FROM payments WHERE slot_id = ?', [slotId]);
+    const paymentIds = payRows.map((r) => r.id);
+    if (paymentIds.length) {
+      await paymentsRepo.adminDeletePaymentsWithBilling(conn, paymentIds);
+    }
+
+    await conn.execute('DELETE FROM slots WHERE id = ?', [slotId]);
+    await conn.commit();
+    return { ok: true };
+  } catch (e) {
+    await conn.rollback();
+    throw e;
+  } finally {
+    conn.release();
+  }
+}
+
 async function deleteOldUnusedSlotsBatch(batchSize) {
   const pool = getPool();
   if (!pool) throw new Error('Database not configured');
@@ -431,6 +471,7 @@ module.exports = {
   adminBlockSlot,
   adminUnblockSlot,
   adminCancelSlot,
+  adminDeleteSlot,
   insertOpenSlot,
   listSlotsCellsInRange,
   listLocalDatesWithAnySlot,

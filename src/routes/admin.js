@@ -417,6 +417,13 @@ function mapReservationActionError(code) {
   }
 }
 
+function safeReservationDeleteRedirect(raw) {
+  if (!raw || typeof raw !== 'string') return '/admin/reservations';
+  if (!raw.startsWith('/admin')) return '/admin/reservations';
+  if (raw.startsWith('//')) return '/admin/reservations';
+  return raw;
+}
+
 function mapCreateError(code) {
   switch (code) {
     case 'INVALID_DATE':
@@ -442,6 +449,8 @@ function mapSlotActionError(code) {
       return 'Termín má rozbehnutú platbu Stripe. Počkajte alebo zrušte termín.';
     case 'ALREADY_CANCELLED':
       return 'Termín je už zrušený.';
+    case 'DELETE_HAS_RESERVATION':
+      return 'Termín nie je možné zmazať — má rezerváciu. Najprv zmažte rezervácie.';
     default:
       return 'Akciu sa nepodarilo vykonať.';
   }
@@ -751,6 +760,36 @@ router.post('/reservations/:id/confirm', requireAdmin, async (req, res) => {
     return res.redirect(redirect);
   } catch (err) {
     console.error('[admin/reservations/confirm]', err);
+    req.session.adminFlash = { level: 'error', message: 'Neznáma chyba.' };
+    return res.redirect(redirect);
+  }
+});
+
+router.post('/reservations/:id/delete', requireAdmin, async (req, res) => {
+  const id = parseReservationIdParam(req.params.id);
+  const redirect = safeReservationDeleteRedirect(
+    typeof req.body.returnTo === 'string' ? req.body.returnTo : '/admin/reservations'
+  );
+  if (!id) {
+    req.session.adminFlash = { level: 'error', message: 'Neplatná rezervácia.' };
+    return res.redirect('/admin/reservations');
+  }
+  try {
+    const pool = getPool();
+    if (!pool) {
+      req.session.adminFlash = { level: 'error', message: 'Databáza nie je dostupná.' };
+      return res.redirect(redirect);
+    }
+    const result = await reservationsRepo.adminDeleteReservation(id);
+    if (!result.ok) {
+      req.session.adminFlash = { level: 'error', message: mapReservationActionError(result.code) };
+    } else {
+      await auditRepo.log('reservation_deleted_admin', 'reservation', id, null, 'admin');
+      req.session.adminFlash = { level: 'success', message: 'Rezervácia bola zmazaná.' };
+    }
+    return res.redirect(redirect);
+  } catch (err) {
+    console.error('[admin/reservations/delete]', err);
     req.session.adminFlash = { level: 'error', message: 'Neznáma chyba.' };
     return res.redirect(redirect);
   }
@@ -1341,6 +1380,42 @@ router.post('/slots/:slotId/unblock', requireAdmin, async (req, res) => {
 
 router.post('/slots/:slotId/cancel', requireAdmin, async (req, res) => {
   await handleSlotPost(req, res, slotsRepo.adminCancelSlot, 'Termín bol zrušený.', 'slot_cancelled');
+});
+
+function safeSlotDeleteRedirect(body) {
+  const raw = body && typeof body.returnTo === 'string' ? body.returnTo : '';
+  if (raw.startsWith('/admin/slots') && !raw.startsWith('//')) return raw;
+  return `/admin/slots${parseReturnQuery(body)}`;
+}
+
+router.post('/slots/:slotId/delete', requireAdmin, async (req, res) => {
+  const slotId = parseSlotIdParam(req.params.slotId);
+  const returnTo = safeSlotDeleteRedirect(req.body);
+  if (!slotId) {
+    req.session.adminFlash = { level: 'error', message: 'Neplatný termín.' };
+    return res.redirect(returnTo);
+  }
+  try {
+    const pool = getPool();
+    if (!pool) {
+      req.session.adminFlash = { level: 'error', message: 'Databáza nie je dostupná.' };
+      return res.redirect(returnTo);
+    }
+    const result = await slotsRepo.adminDeleteSlot(slotId);
+    if (!result.ok) {
+      req.session.adminFlash = { level: 'error', message: mapSlotActionError(result.code) };
+      const failRedirect =
+        req.body && req.body.fromDetail === '1' ? `/admin/slots/${slotId}` : returnTo;
+      return res.redirect(failRedirect);
+    }
+    await auditRepo.log('slot_deleted', 'slot', slotId, null, 'admin');
+    req.session.adminFlash = { level: 'success', message: 'Termín bol zmazaný.' };
+    return res.redirect(returnTo);
+  } catch (err) {
+    console.error('[admin/slot_deleted]', err);
+    req.session.adminFlash = { level: 'error', message: 'Neznáma chyba.' };
+    return res.redirect(returnTo);
+  }
 });
 
 router.get('/slots/:slotId', requireAdmin, async (req, res) => {

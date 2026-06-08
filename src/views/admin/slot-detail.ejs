@@ -74,7 +74,7 @@
             <th scope="col">E-mail</th>
             <th scope="col">Stav</th>
             <th scope="col">Vytvorené</th>
-            <th scope="col"></th>
+            <th scope="col">Akcie</th>
           </tr>
         </thead>
         <tbody>
@@ -84,7 +84,15 @@
               <td class="admin-table__email"><%= r.email %></td>
               <td><span class="admin-status admin-status--<%= r.statusKey %>"><%= r.statusLabel %></span></td>
               <td><%= r.createdAtLabel %></td>
-              <td><a class="admin-btn admin-btn--ghost admin-btn--small" href="/admin/reservations/<%= r.id %>">Detail</a></td>
+              <td class="admin-table__actions">
+                <div class="admin-actions">
+                  <a class="admin-btn admin-btn--ghost admin-btn--small" href="/admin/reservations/<%= r.id %>">Detail</a>
+                  <form method="post" action="/admin/reservations/<%= r.id %>/delete" class="admin-inline-form" onsubmit="return confirm('Naozaj zmazať túto rezerváciu? Táto akcia je nevratná.');">
+                    <input type="hidden" name="returnTo" value="/admin/slots/<%= detail.id %>">
+                    <button type="submit" class="admin-btn admin-btn--ghost admin-btn--small">Zmazať</button>
+                  </form>
+                </div>
+              </td>
             </tr>
           <% } %>
         </tbody>
@@ -114,10 +122,12 @@
         <button type="submit" class="admin-btn admin-btn--ghost">Zrušiť termín</button>
       </form>
       <% } %>
+      <form method="post" action="/admin/slots/<%= detail.id %>/delete" class="admin-inline-form" onsubmit="return confirm('Naozaj zmazať tento termín? Táto akcia je nevratná.');">
+        <input type="hidden" name="returnTo" value="<%= typeof backHref !== 'undefined' ? backHref : '/admin/slots' %>">
+        <input type="hidden" name="fromDetail" value="1">
+        <button type="submit" class="admin-btn admin-btn--ghost">Zmazať termín</button>
+      </form>
     </div>
-    <% if (!detail.actions.block && !detail.actions.unblock && !detail.actions.cancel) { %>
-      <p class="admin-bulk__hint">Pre tento termín nie sú k dispozícii žiadne akcie.</p>
-    <% } %>
   </section>
   <% } %>
 </div>

@@ -127,33 +127,34 @@
                     </td>
                     <td class="admin-table__email"><%= slot.email ? slot.email : '—' %></td>
                     <td class="admin-table__actions">
-                      <% if (slot.actions.block || slot.actions.unblock || slot.actions.cancel) { %>
-                        <div class="admin-actions">
-                          <% if (slot.actions.block) { %>
-                            <form method="post" action="/admin/slots/<%= slot.id %>/block" class="admin-inline-form">
-                              <input type="hidden" name="view" value="<%= view %>">
-                              <input type="hidden" name="date" value="<%= anchorDate %>">
-                              <button type="submit" class="admin-btn admin-btn--ghost admin-btn--small">Zablokovať</button>
-                            </form>
-                          <% } %>
-                          <% if (slot.actions.unblock) { %>
-                            <form method="post" action="/admin/slots/<%= slot.id %>/unblock" class="admin-inline-form">
-                              <input type="hidden" name="view" value="<%= view %>">
-                              <input type="hidden" name="date" value="<%= anchorDate %>">
-                              <button type="submit" class="admin-btn admin-btn--ghost admin-btn--small">Odblokovať</button>
-                            </form>
-                          <% } %>
-                          <% if (slot.actions.cancel) { %>
-                            <form method="post" action="/admin/slots/<%= slot.id %>/cancel" class="admin-inline-form" onsubmit="return confirm('Zrušiť tento termín?');">
-                              <input type="hidden" name="view" value="<%= view %>">
-                              <input type="hidden" name="date" value="<%= anchorDate %>">
-                              <button type="submit" class="admin-btn admin-btn--ghost admin-btn--small">Zrušiť</button>
-                            </form>
-                          <% } %>
-                        </div>
-                      <% } else { %>
-                        —
-                      <% } %>
+                      <div class="admin-actions">
+                        <% if (slot.actions.block) { %>
+                          <form method="post" action="/admin/slots/<%= slot.id %>/block" class="admin-inline-form">
+                            <input type="hidden" name="view" value="<%= view %>">
+                            <input type="hidden" name="date" value="<%= anchorDate %>">
+                            <button type="submit" class="admin-btn admin-btn--ghost admin-btn--small">Zablokovať</button>
+                          </form>
+                        <% } %>
+                        <% if (slot.actions.unblock) { %>
+                          <form method="post" action="/admin/slots/<%= slot.id %>/unblock" class="admin-inline-form">
+                            <input type="hidden" name="view" value="<%= view %>">
+                            <input type="hidden" name="date" value="<%= anchorDate %>">
+                            <button type="submit" class="admin-btn admin-btn--ghost admin-btn--small">Odblokovať</button>
+                          </form>
+                        <% } %>
+                        <% if (slot.actions.cancel) { %>
+                          <form method="post" action="/admin/slots/<%= slot.id %>/cancel" class="admin-inline-form" onsubmit="return confirm('Zrušiť tento termín?');">
+                            <input type="hidden" name="view" value="<%= view %>">
+                            <input type="hidden" name="date" value="<%= anchorDate %>">
+                            <button type="submit" class="admin-btn admin-btn--ghost admin-btn--small">Zrušiť</button>
+                          </form>
+                        <% } %>
+                        <form method="post" action="/admin/slots/<%= slot.id %>/delete" class="admin-inline-form" onsubmit="return confirm('Naozaj zmazať tento termín? Táto akcia je nevratná.');">
+                          <input type="hidden" name="view" value="<%= view %>">
+                          <input type="hidden" name="date" value="<%= anchorDate %>">
+                          <button type="submit" class="admin-btn admin-btn--ghost admin-btn--small">Zmazať</button>
+                        </form>
+                      </div>
                     </td>
                   </tr>
                 <% } %>

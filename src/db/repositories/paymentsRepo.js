@@ -46,8 +46,62 @@ async function hasPendingSlotPayment(slotId) {
   return rows.length > 0;
 }
 
+/**
+ * Hard-delete billing rows and payments (dev/admin cleanup). Clears billing_documents self-FKs first.
+ * @param {import('mysql2/promise').PoolConnection} conn
+ * @param {number[]} paymentIds
+ * @param {number[]} [reservationIds]
+ */
+async function adminDeletePaymentsWithBilling(conn, paymentIds, reservationIds = []) {
+  const payIds = [...new Set(paymentIds.filter((id) => Number.isInteger(id) && id > 0))];
+  const resIds = [...new Set(reservationIds.filter((id) => Number.isInteger(id) && id > 0))];
+  if (!payIds.length && !resIds.length) return;
+
+  const docIdSet = new Set();
+  if (payIds.length) {
+    const ph = payIds.map(() => '?').join(',');
+    const [byPay] = await conn.execute(
+      `SELECT id FROM billing_documents WHERE payment_id IN (${ph})`,
+      payIds
+    );
+    for (const row of byPay) docIdSet.add(row.id);
+  }
+  if (resIds.length) {
+    const ph = resIds.map(() => '?').join(',');
+    const [byRes] = await conn.execute(
+      `SELECT id FROM billing_documents WHERE reservation_id IN (${ph})`,
+      resIds
+    );
+    for (const row of byRes) docIdSet.add(row.id);
+  }
+
+  const docIds = [...docIdSet];
+  if (docIds.length) {
+    const dph = docIds.map(() => '?').join(',');
+    await conn.execute(
+      `UPDATE billing_documents SET advance_document_id = NULL WHERE advance_document_id IN (${dph})`,
+      docIds
+    );
+    await conn.execute(
+      `UPDATE billing_documents SET related_document_id = NULL WHERE related_document_id IN (${dph})`,
+      docIds
+    );
+    await conn.execute(
+      `DELETE FROM billing_document_lines WHERE billing_document_id IN (${dph})`,
+      docIds
+    );
+    await conn.execute(`DELETE FROM billing_documents WHERE id IN (${dph})`, docIds);
+  }
+
+  if (payIds.length) {
+    const ph = payIds.map(() => '?').join(',');
+    await conn.execute(`DELETE FROM payments WHERE id IN (${ph})`, payIds);
+  }
+}
+
 module.exports = {
   listByReservationId,
   hasPendingSlotPayment,
   reconcileExpiredStripeCheckouts,
+  adminDeletePaymentsWithBilling,
 };

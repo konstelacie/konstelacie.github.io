@@ -182,6 +182,37 @@ async function adminSetNote(reservationId, note) {
 }
 
 /**
+ * Hard-delete reservation and related payments/billing (dev/admin cleanup).
+ * @returns {Promise<{ ok: true } | { ok: false, code: string }>}
+ */
+async function adminDeleteReservation(reservationId) {
+  const pool = getPool();
+  if (!pool) throw new Error('Database not configured');
+
+  const conn = await pool.getConnection();
+  try {
+    await conn.beginTransaction();
+    const [rows] = await conn.execute('SELECT id FROM reservations WHERE id = ? FOR UPDATE', [reservationId]);
+    if (!rows[0]) {
+      await conn.rollback();
+      return { ok: false, code: 'NOT_FOUND' };
+    }
+
+    const [payRows] = await conn.execute('SELECT id FROM payments WHERE reservation_id = ?', [reservationId]);
+    const paymentIds = payRows.map((r) => r.id);
+    await paymentsRepo.adminDeletePaymentsWithBilling(conn, paymentIds, [reservationId]);
+    await conn.execute('DELETE FROM reservations WHERE id = ?', [reservationId]);
+    await conn.commit();
+    return { ok: true };
+  } catch (e) {
+    await conn.rollback();
+    throw e;
+  } finally {
+    conn.release();
+  }
+}
+
+/**
  * Find confirmed reservations with slot starting in ~24h (23h30m–24h30m window).
  * For pre-session reminder job. See docs/SCHEDULED-EMAILS-CRON.md.
  * @returns {Promise<Array<{id, email, slot_id, start_at_utc, end_at_utc, timezone}>>}
@@ -280,4 +311,5 @@ module.exports = {
   adminCancelReservation,
   adminAppendExternalNote,
   adminSetNote,
+  adminDeleteReservation,
 };
