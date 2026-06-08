@@ -323,7 +323,7 @@ router.post(
             });
           });
 
-          syncToKros(billingDocumentId, { backend }).catch((err) => {
+          syncToKros(billingDocumentId, { backend: paymentBackendName }).catch((err) => {
             logLine({
               level: 'error',
               tag: 'kros_sync',
