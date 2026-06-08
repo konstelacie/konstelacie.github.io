@@ -313,12 +313,8 @@ async function sendBillingInvoiceKrosEmail(billingDocumentId, krosDownloadUrl, o
   });
 
   const subject = resend
-    ? displayNumber
-      ? `Platobný doklad ${displayNumber} (znova) — citimtedasom.sk`
-      : `Platobný doklad (znova) — citimtedasom.sk`
-    : displayNumber
-      ? `Platobný doklad ${displayNumber} — citimtedasom.sk`
-      : `Platobný doklad — citimtedasom.sk`;
+    ? `Uhradená faktúra - platobný doklad (znova) — citimtedasom.sk`
+    : `Uhradená faktúra - platobný doklad — citimtedasom.sk`;
 
   const metadata = {
     entity_type: 'billing_document',
