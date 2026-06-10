@@ -271,25 +271,9 @@ router.post(
       lockToken: lockToken.slice(0, 8) + '...',
     });
 
-    const billingPrefill = await reservationsRepo.getLatestBillingProfileByEmail(email);
-
     res.json({
       ok: true,
       expiresAt: expiresAt.toISOString(),
-      billingPrefill: billingPrefill
-        ? {
-            billingName: billingPrefill.billing_name || '',
-            billingIsCompany: Number(billingPrefill.billing_is_company) === 1,
-            billingCompanyName: billingPrefill.billing_company_name || '',
-            billingIco: billingPrefill.billing_ico || '',
-            billingDic: billingPrefill.billing_dic || '',
-            billingIcDph: billingPrefill.billing_ic_dph || '',
-            billingStreet: billingPrefill.billing_street || '',
-            billingCity: billingPrefill.billing_city || '',
-            billingPostCode: billingPrefill.billing_post_code || '',
-            billingCountry: billingPrefill.billing_country || 'SK',
-          }
-        : null,
     });
   })
 );

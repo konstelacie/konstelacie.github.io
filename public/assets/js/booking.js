@@ -85,6 +85,8 @@
   let pendingPaymentFormRestore = null;
   /** Billing inputs restored from storage after page reload. */
   let pendingBillingRestore = null;
+  /** Email input draft restored from storage after page reload (email step, before extend-lock). */
+  let pendingEmailDraftRestore = '';
   /** Debounced billing edits → snapshot update in localStorage. */
   let billingPersistTimer = null;
   let countdownInterval = null;
@@ -448,6 +450,9 @@
 
       // Persist billing inputs so reload doesn't wipe partially-entered details.
       const billing = lockToken ? readBillingForm() : null;
+      // Persist the email input too — before extend-lock it lives only in the DOM (lockedEmail is
+      // set after a successful submit), so without this a reload loses the typed email.
+      const emailDraft = lockToken ? ($('booking-email')?.value || '').trim() : '';
       // Always include expiresAt key (null if missing) — JSON.stringify drops `undefined`, and
       // getStoredLock used to reject when the key was absent.
       persistLockBlob(
@@ -458,6 +463,7 @@
           lockedSlotDate,
           phase: lockPhase,
           email: lockedEmail || undefined,
+          emailDraft: emailDraft || undefined,
           modalVisible,
           modalUiStep,
           modalEmailEdit,
@@ -547,6 +553,7 @@
     }
     pendingPaymentFormRestore = stored.paymentForm || null;
     pendingBillingRestore = stored.billing || null;
+    pendingEmailDraftRestore = typeof stored.emailDraft === 'string' ? stored.emailDraft.trim() : '';
   }
 
   function getTodayLocal() {
@@ -810,7 +817,7 @@
     lockedEmail = email;
     lockPhase = 'payment';
     storeLock();
-    return { ok: true, billingPrefill: data.billingPrefill || null };
+    return { ok: true };
   }
 
   const FETCH_SLOTS_TIMEOUT_MS = 15000;
@@ -1301,6 +1308,7 @@
     modalEmailEdit = false;
     pendingPaymentFormRestore = null;
     pendingBillingRestore = null;
+    pendingEmailDraftRestore = '';
     if (billingPersistTimer) {
       clearTimeout(billingPersistTimer);
       billingPersistTimer = null;
@@ -1497,12 +1505,14 @@
       lockedEmail = '';
       lockPhase = 'email';
       pendingSlotId = null;
-      storeLock();
 
+      // Clear the email input before storeLock() so the snapshot of this fresh lock
+      // doesn't carry over an email draft from a previous booking attempt.
       const emailInput = $('booking-email');
       const emailErr = $('booking-email-error');
       if (emailInput) emailInput.value = '';
       if (emailErr) emailErr.hidden = true;
+      storeLock();
       const hold = $('booking-hold-banner');
       if (hold) hold.hidden = true;
       openEmailModal(false);
@@ -1525,7 +1535,8 @@
     wrap.hidden = !visible;
   }
 
-  function applyBillingPrefill(prefill) {
+  /** Apply a persisted billing snapshot (from the lock blob) back into the form inputs. */
+  function applyBillingSnapshotToForm(prefill) {
     if (!prefill || typeof prefill !== 'object') return;
     const map = [
       ['booking-billing-name', prefill.billingName || ''],
@@ -1903,9 +1914,6 @@
           }
           return;
         }
-        if (result.billingPrefill) {
-          applyBillingPrefill(result.billingPrefill);
-        }
         showPaymentChoice();
       });
     }
@@ -2009,6 +2017,21 @@
         }
       });
 
+    // Persist the email input draft the same way as billing fields (it has its own id,
+    // so the booking-billing-* selector above does not cover it).
+    const emailDraftInput = $('booking-email');
+    if (emailDraftInput) {
+      emailDraftInput.addEventListener('input', () => scheduleBillingSnapshotSave());
+      emailDraftInput.addEventListener('change', () => scheduleBillingSnapshotSave());
+      emailDraftInput.addEventListener('blur', () => {
+        if (billingPersistTimer) {
+          clearTimeout(billingPersistTimer);
+          billingPersistTimer = null;
+        }
+        if (lockToken) storeLock();
+      });
+    }
+
     const paymentRetryBtn = $('booking-payment-retry');
     if (paymentRetryBtn) {
       paymentRetryBtn.addEventListener('click', async () => {
@@ -2065,7 +2088,7 @@
     const hold = $('booking-hold-banner');
 
     if (pendingBillingRestore) {
-      applyBillingPrefill(pendingBillingRestore);
+      applyBillingSnapshotToForm(pendingBillingRestore);
       pendingBillingRestore = null;
     }
 
@@ -2116,7 +2139,7 @@
     }
     if (!isEmailModalOpen()) {
       const emailInputOpen = $('booking-email');
-      if (emailInputOpen) emailInputOpen.value = '';
+      if (emailInputOpen) emailInputOpen.value = pendingEmailDraftRestore || '';
       openEmailModal(false);
     }
     updateCountdown();
