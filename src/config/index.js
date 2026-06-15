@@ -1,6 +1,6 @@
 require('dotenv').config();
 
-/** Shared secret for cron HTTP endpoints; undefined if env unset or blank (see middleware/cronAuth.js). */
+/** Shared secret for the cron HTTP endpoint; undefined if env unset or blank (see routes/api/cron.js). */
 const cronSecret = (() => {
   const raw = process.env.CRON_SECRET;
   if (raw === undefined || raw === null) return undefined;

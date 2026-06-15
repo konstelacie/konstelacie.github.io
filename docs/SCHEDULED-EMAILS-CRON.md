@@ -8,9 +8,10 @@
 
 ## 1. Purpose
 
-- **Personal timed emails** — One recipient per send; triggered by cron (e.g. pre-session reminder in a ~24h window before slot). **Implemented:** `pre-session-reminder` job only.
+- **Personal timed emails** — One recipient per send; triggered by cron (e.g. pre-session reminder in a ~24h window before slot). **Implemented:** `pre-session-reminder` job.
+- **Recovery jobs** — **Implemented:** `billing-deliver-stuck` (KROS webhook fallback; internal CT-PDF + `billing-invoice` email for stuck `accepted` documents — see `docs/EMAILING.md`).
 - **Bulk timed emails** — Newsletter, special messages, etc. **Planned** — not in `src/jobs/index.js`.
-- **Cron endpoint** — `POST` or `GET` `/api/cron/run` runs registered jobs sequentially via `runAll()`.
+- **Cron endpoint** — `POST` or `GET` `/api/cron/run` runs **all** registered jobs sequentially via `runAll()`. This is the single endpoint for all cron tasks; there are no per-job cron routes.
 
 **Also implemented elsewhere:** Reservation confirmation email after Stripe `checkout.session.completed` (webhook), not via this cron. See `src/routes/api/stripe.js`, `docs/EMAILING.md`.
 
@@ -99,7 +100,7 @@ Otherwise reject with **401** if secret is missing or wrong.
 }
 ```
 
-Only jobs registered in `src/jobs/index.js` appear (currently **one** job). Future jobs would add more entries here.
+Only jobs registered in `src/jobs/index.js` appear (currently `pre-session-reminder` and `billing-deliver-stuck`). Future jobs would add more entries here.
 
 ### 4.4 alwaysdata Setup Guide
 
@@ -154,6 +155,7 @@ module.exports = {
 | Job | Status | Query / source | Idempotency |
 |-----|--------|----------------|-------------|
 | `pre-session-reminder` | **Implemented** (`src/jobs/preSessionReminder.js`) | `reservationsRepo.findDueForPreSessionReminder()` — confirmed reservations, slot `start_at_utc` in [now+23h30m, now+24h30m) | `email_sent_log` via `emailSentLogRepo.wasAlreadySent` |
+| `billing-deliver-stuck` | **Implemented** (`src/jobs/billingDeliverStuck.js`) | `billingDocumentsRepo.findStuckKrosAcceptedForFallback()` — `kros_status='accepted'`, no webhook, no email, older than 30 min (max 50/run) | `email_sent_log` (`billing-invoice-kros` **or** `billing-invoice`) + `email_sent_at` |
 | `post-session-follow-up` | Planned | — | — |
 | `doplatok-reminder` | Planned | — | — |
 | `newsletter-batch` | Planned | — | — |
@@ -199,11 +201,14 @@ module.exports = {
 src/
 ├── jobs/
 │   ├── index.js                   # Registry; runAll()
-│   └── preSessionReminder.js    # pre-session reminder only
-├── routes/api/cron.js             # POST & GET /api/cron/run
+│   ├── preSessionReminder.js    # pre-session reminder
+│   └── billingDeliverStuck.js   # KROS webhook fallback (deliver-stuck batch)
+├── routes/api/cron.js             # POST & GET /api/cron/run (single cron endpoint)
 ├── services/emailService.js       # sendReservationConfirmation, sendPreSessionReminder
+├── services/billingDeliveryService.js # processStuckKrosAcceptedFallbackBatch
 ├── db/repositories/
 │   ├── emailSentLogRepo.js
+│   ├── billingDocumentsRepo.js  # findStuckKrosAcceptedForFallback
 │   └── reservationsRepo.js      # findDueForPreSessionReminder
 ├── templates/emails/
 │   ├── reservation-confirmation.ejs
@@ -294,6 +299,7 @@ If a send fails, no `email_sent_log` row is written for that template + entity (
 |------|--------|
 | Cron route, `CRON_SECRET`, dev localhost bypass | Done (`src/routes/api/cron.js`) |
 | `runAll()`, `pre-session-reminder` job | Done |
+| `billing-deliver-stuck` job (KROS webhook fallback) | Done (`src/jobs/billingDeliverStuck.js`) |
 | `findDueForPreSessionReminder`, template `pre-session-reminder.ejs` | Done |
 | Advisory lock on cron | Not implemented |
 | Per-email Resend retries / pacing | Not implemented |

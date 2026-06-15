@@ -4,9 +4,11 @@
  */
 
 const preSessionReminder = require('./preSessionReminder');
+const billingDeliverStuck = require('./billingDeliverStuck');
 
 const jobs = [
   preSessionReminder,
+  billingDeliverStuck,
 ];
 
 /**

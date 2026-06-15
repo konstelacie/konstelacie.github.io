@@ -407,11 +407,11 @@ Full flow: `docs/STRIPE-ARCHITECTURE.md`.
 
 ## POST /api/cron/run (GET also supported)
 
-Runs registered jobs in `src/jobs/index.js` (currently **pre-session reminder** only).
+Single endpoint for **all** cron tasks. Runs registered jobs in `src/jobs/index.js`: **pre-session-reminder** and **billing-deliver-stuck** (KROS webhook fallback).
 
 **Auth:**
 
-- **Production:** `CRON_SECRET` via `Authorization: Bearer <secret>`, `X-Cron-Secret: <secret>`, or `?secret=`.
+- **Production:** `CRON_SECRET` via `Authorization: Bearer <secret>` or `X-Cron-Secret: <secret>` (`?secret=` works only outside production).
 - **Development:** if `NODE_ENV === 'development'` and the request `Host` is localhost, secret is not required.
 
 **Example:**
@@ -429,6 +429,12 @@ curl -X POST https://your-app.alwaysdata.net/api/cron/run \
   "jobs": [
     {
       "name": "pre-session-reminder",
+      "sent": 0,
+      "skipped": 0,
+      "errors": []
+    },
+    {
+      "name": "billing-deliver-stuck",
       "sent": 0,
       "skipped": 0,
       "errors": []

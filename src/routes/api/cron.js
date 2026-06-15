@@ -11,8 +11,6 @@ const config = require('../../config');
 const { runAll } = require('../../jobs');
 const { asyncHandler } = require('../../middleware/apiError');
 const { cronLimiter } = require('../../middleware/rateLimits');
-const { requireCronSecret } = require('../../middleware/cronAuth');
-const billingDeliveryService = require('../../services/billingDeliveryService');
 
 const router = express.Router();
 
@@ -69,16 +67,6 @@ router.get(
     }
 
     const result = await runAll();
-    res.json(result);
-  })
-);
-
-/** KROS webhook fallback: internal CT-PDF + billing-invoice for stuck accepted documents. */
-router.get(
-  '/billing/deliver-stuck',
-  requireCronSecret,
-  asyncHandler(async (req, res) => {
-    const result = await billingDeliveryService.processStuckKrosAcceptedFallbackBatch();
     res.json(result);
   })
 );
