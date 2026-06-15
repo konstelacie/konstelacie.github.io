@@ -65,11 +65,41 @@ test('system alert types include Phase 5 operational alerts', () => {
     ALERT_TYPES.STRIPE_PAYMENT_NEEDS_RECONCILIATION,
     'stripe_payment_needs_reconciliation'
   );
+  assert.equal(ALERT_TYPES.STRIPE_RECONCILIATION_FAILED, 'stripe_reconciliation_failed');
   assert.match(systemAlertServiceSrc, /createCronNotRunning/);
   assert.match(systemAlertServiceSrc, /createStripePaymentNeedsReconciliation/);
+  assert.match(systemAlertServiceSrc, /createStripeReconciliationFailed/);
+  assert.match(systemAlertServiceSrc, /resolveStripeReconciliationFailed/);
   assert.match(systemAlertServiceSrc, /resolveCronNotRunning/);
   assert.match(systemAlertServiceSrc, /findUnresolvedByType/);
   assert.match(systemAlertsRepoSrc, /findUnresolvedByTypeAndStripeSessionId/);
+});
+
+test('Stripe list failure creates stripe_reconciliation_failed alert', () => {
+  assert.match(stripeReconciliationServiceSrc, /createStripeReconciliationFailed/);
+  assert.match(stripeReconciliationServiceSrc, /detectorFailed: true/);
+  assert.match(stripeReconciliationServiceSrc, /resolveStripeReconciliationFailed/);
+  assert.doesNotMatch(
+    stripeReconciliationServiceSrc.slice(
+      stripeReconciliationServiceSrc.indexOf('} catch (err)'),
+      stripeReconciliationServiceSrc.indexOf('for (const { session } of stripeSessions)')
+    ),
+    /setDateValue\(LAST_RUN_KEY/
+  );
+});
+
+test('cron health docs describe admin-page detection and first-run behavior', () => {
+  const cronDoc = fs.readFileSync(
+    path.join(__dirname, '../docs/SCHEDULED-EMAILS-CRON.md'),
+    'utf8'
+  );
+  const apiDoc = fs.readFileSync(path.join(__dirname, '../docs/API.md'), 'utf8');
+  assert.match(cronDoc, /admin page load/i);
+  assert.match(cronDoc, /first successful cron/i);
+  assert.match(cronDoc, /last_successful_cron_run_at.*unset/i);
+  assert.match(cronDoc, /payments\.payment_type.*session/);
+  assert.match(cronDoc, /stripe_reconciliation_failed/);
+  assert.match(apiDoc, /admin page load/i);
 });
 
 test('Test 1 — Cron healthy: recent run is not stale', () => {

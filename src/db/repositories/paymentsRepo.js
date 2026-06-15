@@ -116,6 +116,7 @@ async function findByProviderRef(providerRef) {
 
 /**
  * Completed booking payments for Stripe reconciliation (Case B).
+ * payments.payment_type uses `session` for full upfront checkout (not `full` — that is reservations.payment_type).
  * @param {Date} since
  */
 async function findCompletedBookingPaymentsSince(since) {

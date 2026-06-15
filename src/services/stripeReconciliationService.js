@@ -50,13 +50,15 @@ async function runStripeReconciliation(now = new Date()) {
       limitPerBackend: config.stripeReconciliation.maxSessionsPerBackend,
     });
   } catch (err) {
-    errors.push(`stripe_list_failed: ${err?.message || String(err)}`);
+    const errorMessage = err?.message || String(err);
+    errors.push(`stripe_list_failed: ${errorMessage}`);
+    await systemAlertService.createStripeReconciliationFailed(errorMessage);
     logLine({
       level: 'error',
       tag: 'stripe_reconciliation_list_failed',
-      err: err?.message || String(err),
+      err: errorMessage,
     });
-    return { skipped: false, caseA: 0, caseB: 0, errors };
+    return { skipped: false, caseA: 0, caseB: 0, errors, detectorFailed: true };
   }
 
   for (const { session } of stripeSessions) {
@@ -101,6 +103,7 @@ async function runStripeReconciliation(now = new Date()) {
   }
 
   await systemSettingsRepo.setDateValue(LAST_RUN_KEY, now);
+  await systemAlertService.resolveStripeReconciliationFailed();
 
   logLine({
     level: 'info',

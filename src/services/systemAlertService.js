@@ -7,6 +7,7 @@ const ALERT_TYPES = {
   KROS_WEBHOOK_MISSING: 'kros_webhook_missing',
   CRON_NOT_RUNNING: 'cron_not_running',
   STRIPE_PAYMENT_NEEDS_RECONCILIATION: 'stripe_payment_needs_reconciliation',
+  STRIPE_RECONCILIATION_FAILED: 'stripe_reconciliation_failed',
 };
 
 /**
@@ -255,6 +256,66 @@ async function createStripePaymentNeedsReconciliation({
 }
 
 /**
+ * Stripe reconciliation job could not run (API/network/config failure).
+ * Not a payment mismatch — the detector itself is broken.
+ * @param {string} errorMessage
+ */
+async function createStripeReconciliationFailed(errorMessage) {
+  const existing = await systemAlertsRepo.findUnresolvedByType(ALERT_TYPES.STRIPE_RECONCILIATION_FAILED);
+  if (existing) {
+    return existing.id;
+  }
+
+  const id = await systemAlertsRepo.createOpen({
+    severity: 'critical',
+    type: ALERT_TYPES.STRIPE_RECONCILIATION_FAILED,
+    entityType: null,
+    entityId: null,
+    title: 'Stripe reconciliácia zlyhala',
+    message:
+      'Scheduled Stripe payment reconciliation could not run. Payment mismatches may go undetected until this is fixed.',
+    metadata: {
+      errorMessage: errorMessage || 'unknown',
+      checkedAt: new Date().toISOString(),
+    },
+  });
+
+  logLine({
+    level: 'error',
+    tag: 'system_alert_created',
+    alertId: id,
+    alertType: ALERT_TYPES.STRIPE_RECONCILIATION_FAILED,
+  });
+
+  return id;
+}
+
+/**
+ * Auto-resolve stripe_reconciliation_failed after a successful reconciliation run.
+ * @returns {Promise<boolean>}
+ */
+async function resolveStripeReconciliationFailed() {
+  const existing = await systemAlertsRepo.findUnresolvedByType(
+    ALERT_TYPES.STRIPE_RECONCILIATION_FAILED
+  );
+  if (!existing) {
+    return false;
+  }
+
+  const result = await systemAlertsRepo.resolveAlert(existing.id);
+  if (result.ok) {
+    logLine({
+      level: 'info',
+      tag: 'system_alert_resolved',
+      alertId: existing.id,
+      alertType: ALERT_TYPES.STRIPE_RECONCILIATION_FAILED,
+      auto: true,
+    });
+  }
+  return result.ok;
+}
+
+/**
  * Auto-resolve cron_not_running after a successful cron run.
  * @returns {Promise<boolean>} true when an alert was resolved
  */
@@ -285,5 +346,7 @@ module.exports = {
   createKrosWebhookMissing,
   createCronNotRunning,
   createStripePaymentNeedsReconciliation,
+  createStripeReconciliationFailed,
   resolveCronNotRunning,
+  resolveStripeReconciliationFailed,
 };

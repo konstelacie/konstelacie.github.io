@@ -100,9 +100,25 @@ Otherwise reject with **401** if secret is missing or wrong.
 }
 ```
 
-Only jobs registered in `src/jobs/index.js` appear (currently `pre-session-reminder` and `billing-deliver-stuck`). Future jobs would add more entries here.
+Only jobs registered in `src/jobs/index.js` appear. Current jobs: `cron-health`, `email-delivery-tasks`, `pre-session-reminder`, `billing-deliver-stuck`, `stripe-reconciliation`.
 
-### 4.4 alwaysdata Setup Guide
+### 4.4 Cron health semantics (Phase 5)
+
+**Storage:** `system_settings.last_successful_cron_run_at` — written at the **end** of each successful `/api/cron/run` (`runAll()` in `src/jobs/index.js`).
+
+**Detection while cron is down:** The primary detector is **admin page load** — `adminAlertBanner` middleware calls `cronHealthService.checkCronHealth()`. If `now − last_successful_cron_run_at` exceeds `CRON_STALE_THRESHOLD_MINUTES` (default **60**), a critical `cron_not_running` alert is created (idempotent).
+
+**During a cron run:**
+
+1. **`cron-health` job (first)** — compares the **previous** successful run timestamp. If stale, creates/keeps `cron_not_running` (useful when cron resumes after an outage).
+2. **Other jobs** run (email retries, reminders, KROS stuck, Stripe reconciliation).
+3. **`runAll()` end** — records `last_successful_cron_run_at` and **auto-resolves** `cron_not_running`.
+
+**First run / setup:** When `last_successful_cron_run_at` is **unset** (before the first successful cron), `checkCronHealth()` returns healthy and **does not** alert. Monitoring starts after the first successful `/api/cron/run`.
+
+**Env:** `CRON_STALE_THRESHOLD_MINUTES` (default `60`).
+
+### 4.5 alwaysdata Setup Guide
 
 When deploying to production on alwaysdata (see also **`docs/DEPLOY-ALWAYSDATA.md`** for the full checklist—we are not on prod yet):
 
@@ -155,16 +171,23 @@ module.exports = {
 | Job | Status | Query / source | Idempotency |
 |-----|--------|----------------|-------------|
 | `pre-session-reminder` | **Implemented** (`src/jobs/preSessionReminder.js`) | `reservationsRepo.findDueForPreSessionReminder()` — confirmed reservations, slot `start_at_utc` in [now+23h30m, now+24h30m) | `email_sent_log` via `emailSentLogRepo.wasAlreadySent` |
-
-**Pre-session reminder limitations (Phase 5):** Delivery failures are logged in the job `errors` array only — there is no `email_delivery_tasks` retry queue for `pre-session-reminder`. Late bookings (session within ~24h) naturally skip the reminder window; confirmation email already carries session details. Migrating reminders to the outbox is deferred.
 | `billing-deliver-stuck` | **Implemented** (`src/jobs/billingDeliverStuck.js`) | `billingDocumentsRepo.findStuckKrosAcceptedWithoutWebhook()` — `kros_status='accepted'`, no webhook, no invoice email, older than threshold (max 50/run) | `system_alerts` (`kros_webhook_missing`); `email_delivery_tasks` + `email_sent_log` (`billing-delayed`); skip if `billing-invoice-kros` **or** `billing-invoice` sent |
-| `cron-health` | **Implemented** (`src/jobs/cronHealth.js`) | `system_settings.last_successful_cron_run_at` older than threshold (`CRON_STALE_THRESHOLD_MINUTES`, default 60) | `system_alerts` (`cron_not_running`); auto-resolved on next successful `/api/cron/run` |
-| `stripe-reconciliation` | **Implemented** (`src/jobs/stripeReconciliation.js`) | Stripe Checkout Sessions (paid, complete) vs local `payments`; completed booking payments vs reservation + confirmation email task (throttled by `STRIPE_RECONCILIATION_INTERVAL_HOURS`) | `system_alerts` (`stripe_payment_needs_reconciliation`); **no auto-repair** |
+| `cron-health` | **Implemented** (`src/jobs/cronHealth.js`) | Stale `system_settings.last_successful_cron_run_at` (see §4.4) | `system_alerts` (`cron_not_running`); auto-resolved on successful `/api/cron/run` |
+| `stripe-reconciliation` | **Implemented** (`src/jobs/stripeReconciliation.js`) | Stripe Checkout Sessions (paid, complete) vs local `payments`; completed booking payments vs reservation + confirmation email task (throttled by `STRIPE_RECONCILIATION_INTERVAL_HOURS`) | `system_alerts` (`stripe_payment_needs_reconciliation` on mismatch; `stripe_reconciliation_failed` when detector cannot call Stripe — **no auto-repair**) |
 | `email-delivery-tasks` | **Implemented** (`src/jobs/emailDeliveryTasks.js`) | Due `email_delivery_tasks` (confirmation retries, billing-delayed) | `email_delivery_tasks` + `email_sent_log` |
 | `post-session-follow-up` | Planned | — | — |
 | `doplatok-reminder` | Planned | — | — |
 | `newsletter-batch` | Planned | — | — |
 | `special-message` | Planned | — | — |
+
+**Pre-session reminder limitations (Phase 5):** Delivery failures are logged in the job `errors` array only — there is no `email_delivery_tasks` retry queue for `pre-session-reminder`. Late bookings (session within ~24h) naturally skip the reminder window; confirmation email already carries session details. Migrating reminders to the outbox is deferred.
+
+**Stripe reconciliation (Phase 5):**
+
+- **Case A:** Stripe Checkout Session `complete` + `paid`, but no local `payments.status = completed` → `stripe_payment_needs_reconciliation`.
+- **Case B:** Local completed booking payment (`payments.payment_type` **`deposit`** or **`session`** — full upfront uses `session`, not `full`; `full` is only on `reservations.payment_type`) with missing/unconfirmed reservation, missing confirmation email task, or permanently failed task → same alert.
+- **Detector failure:** Stripe API/network/config error when listing sessions → `stripe_reconciliation_failed` (auto-resolved on next successful reconciliation run). Not a payment mismatch.
+- **No auto-repair** — alerts only; manual investigation required.
 
 ### 5.3 Orchestrator
 

@@ -27,6 +27,7 @@ async function recordSuccessfulCronRun(at = new Date()) {
 /**
  * Check whether cron has been stale since the last successful run.
  * Creates cron_not_running alert when threshold exceeded.
+ * When last_successful_cron_run_at is unset (before first successful cron), returns healthy — see docs/SCHEDULED-EMAILS-CRON.md.
  * @returns {Promise<{ healthy: boolean, stale: boolean, alerted: boolean, lastRunAt: Date|null }>}
  */
 async function checkCronHealth(now = new Date()) {
