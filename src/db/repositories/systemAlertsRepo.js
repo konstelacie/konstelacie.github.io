@@ -137,6 +137,45 @@ async function acknowledgeAlert(id) {
   return { ok: true };
 }
 
+/**
+ * Open or acknowledged alert for a global type (entity_type and entity_id both null).
+ */
+async function findUnresolvedByType(type) {
+  const pool = getPool();
+  if (!pool) return null;
+
+  const [rows] = await pool.execute(
+    `SELECT id, severity, type, entity_type, entity_id, title, message, status, created_at, metadata_json
+     FROM system_alerts
+     WHERE type = ? AND entity_type IS NULL AND entity_id IS NULL
+       AND status IN ('open', 'acknowledged')
+     ORDER BY created_at DESC
+     LIMIT 1`,
+    [type]
+  );
+  return rows[0] || null;
+}
+
+/**
+ * Idempotent lookup for Stripe session reconciliation alerts.
+ */
+async function findUnresolvedByTypeAndStripeSessionId(type, stripeSessionId) {
+  const pool = getPool();
+  if (!pool) return null;
+
+  const [rows] = await pool.execute(
+    `SELECT id, severity, type, entity_type, entity_id, title, message, status, created_at, metadata_json
+     FROM system_alerts
+     WHERE type = ? AND entity_type = 'stripe_session'
+       AND status IN ('open', 'acknowledged')
+       AND JSON_UNQUOTE(JSON_EXTRACT(metadata_json, '$.stripeSessionId')) = ?
+     ORDER BY created_at DESC
+     LIMIT 1`,
+    [type, stripeSessionId]
+  );
+  return rows[0] || null;
+}
+
 async function resolveAlert(id) {
   const pool = getPool();
   if (!pool) return { ok: false, code: 'NO_DB' };
@@ -158,6 +197,8 @@ async function resolveAlert(id) {
 module.exports = {
   findOpenByTypeAndEntity,
   findUnresolvedByTypeAndEntity,
+  findUnresolvedByType,
+  findUnresolvedByTypeAndStripeSessionId,
   createOpen,
   getOpenCriticalCount,
   getAlerts,

@@ -407,7 +407,7 @@ Full flow: `docs/STRIPE-ARCHITECTURE.md`.
 
 ## POST /api/cron/run (GET also supported)
 
-Single endpoint for **all** cron tasks. Runs registered jobs in `src/jobs/index.js`: **pre-session-reminder** and **billing-deliver-stuck** (KROS webhook missing recovery).
+Single endpoint for **all** cron tasks. Runs registered jobs in `src/jobs/index.js`: **cron-health**, **email-delivery-tasks**, **pre-session-reminder**, **billing-deliver-stuck** (KROS webhook missing recovery), **stripe-reconciliation** (payment mismatch detector — no auto-repair). A successful run records `system_settings.last_successful_cron_run_at` and auto-resolves `cron_not_running` alerts.
 
 **Auth:**
 

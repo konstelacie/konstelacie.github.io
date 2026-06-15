@@ -273,6 +273,13 @@ CREATE TABLE email_delivery_tasks (
   CONSTRAINT fk_email_delivery_tasks_reservation FOREIGN KEY (reservation_id) REFERENCES reservations(id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+-- system_settings: key-value operational state (cron health, reconciliation cursors)
+CREATE TABLE system_settings (
+  setting_key VARCHAR(100) NOT NULL PRIMARY KEY,
+  setting_value TEXT NOT NULL,
+  updated_at DATETIME(3) DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
 -- system_alerts: persistent admin alerts (payment/billing/email safety)
 CREATE TABLE system_alerts (
   id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,

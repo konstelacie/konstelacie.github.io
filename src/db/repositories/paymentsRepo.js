@@ -99,9 +99,51 @@ async function adminDeletePaymentsWithBilling(conn, paymentIds, reservationIds =
   }
 }
 
+async function findByProviderRef(providerRef) {
+  const pool = getPool();
+  if (!pool) return null;
+
+  const [rows] = await pool.execute(
+    `SELECT id, provider, provider_ref, reservation_id, slot_id, payment_type, amount_cents, currency,
+            status, paid_at, created_at
+     FROM payments
+     WHERE provider = 'stripe' AND provider_ref = ?
+     LIMIT 1`,
+    [providerRef]
+  );
+  return rows[0] || null;
+}
+
+/**
+ * Completed booking payments for Stripe reconciliation (Case B).
+ * @param {Date} since
+ */
+async function findCompletedBookingPaymentsSince(since) {
+  const pool = getPool();
+  if (!pool) return [];
+
+  const [rows] = await pool.execute(
+    `SELECT p.id, p.provider_ref, p.reservation_id, p.slot_id, p.payment_type, p.amount_cents,
+            p.currency, p.status, p.paid_at, p.created_at,
+            r.status AS reservation_status, r.email AS reservation_email
+     FROM payments p
+     LEFT JOIN reservations r ON r.id = p.reservation_id
+     WHERE p.status = 'completed'
+       AND p.provider = 'stripe'
+       AND p.slot_id IS NOT NULL
+       AND p.payment_type IN ('deposit', 'session')
+       AND p.paid_at >= ?
+     ORDER BY p.paid_at ASC`,
+    [since]
+  );
+  return rows;
+}
+
 module.exports = {
   listByReservationId,
   hasPendingSlotPayment,
   reconcileExpiredStripeCheckouts,
   adminDeletePaymentsWithBilling,
+  findByProviderRef,
+  findCompletedBookingPaymentsSince,
 };

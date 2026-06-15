@@ -155,7 +155,12 @@ module.exports = {
 | Job | Status | Query / source | Idempotency |
 |-----|--------|----------------|-------------|
 | `pre-session-reminder` | **Implemented** (`src/jobs/preSessionReminder.js`) | `reservationsRepo.findDueForPreSessionReminder()` — confirmed reservations, slot `start_at_utc` in [now+23h30m, now+24h30m) | `email_sent_log` via `emailSentLogRepo.wasAlreadySent` |
+
+**Pre-session reminder limitations (Phase 5):** Delivery failures are logged in the job `errors` array only — there is no `email_delivery_tasks` retry queue for `pre-session-reminder`. Late bookings (session within ~24h) naturally skip the reminder window; confirmation email already carries session details. Migrating reminders to the outbox is deferred.
 | `billing-deliver-stuck` | **Implemented** (`src/jobs/billingDeliverStuck.js`) | `billingDocumentsRepo.findStuckKrosAcceptedWithoutWebhook()` — `kros_status='accepted'`, no webhook, no invoice email, older than threshold (max 50/run) | `system_alerts` (`kros_webhook_missing`); `email_delivery_tasks` + `email_sent_log` (`billing-delayed`); skip if `billing-invoice-kros` **or** `billing-invoice` sent |
+| `cron-health` | **Implemented** (`src/jobs/cronHealth.js`) | `system_settings.last_successful_cron_run_at` older than threshold (`CRON_STALE_THRESHOLD_MINUTES`, default 60) | `system_alerts` (`cron_not_running`); auto-resolved on next successful `/api/cron/run` |
+| `stripe-reconciliation` | **Implemented** (`src/jobs/stripeReconciliation.js`) | Stripe Checkout Sessions (paid, complete) vs local `payments`; completed booking payments vs reservation + confirmation email task (throttled by `STRIPE_RECONCILIATION_INTERVAL_HOURS`) | `system_alerts` (`stripe_payment_needs_reconciliation`); **no auto-repair** |
+| `email-delivery-tasks` | **Implemented** (`src/jobs/emailDeliveryTasks.js`) | Due `email_delivery_tasks` (confirmation retries, billing-delayed) | `email_delivery_tasks` + `email_sent_log` |
 | `post-session-follow-up` | Planned | — | — |
 | `doplatok-reminder` | Planned | — | — |
 | `newsletter-batch` | Planned | — | — |

@@ -89,6 +89,32 @@ module.exports = {
     })(),
   },
   cronSecret,
+  /** Cron health: minutes without successful /api/cron/run before critical alert. */
+  cronHealth: {
+    staleThresholdMinutes: (() => {
+      const n = parseInt(String(process.env.CRON_STALE_THRESHOLD_MINUTES ?? '60').trim(), 10);
+      if (!Number.isInteger(n) || n < 1) return 60;
+      return Math.min(n, 7 * 24 * 60);
+    })(),
+  },
+  /** Stripe payment reconciliation (detector only — no auto-repair). */
+  stripeReconciliation: {
+    intervalHours: (() => {
+      const n = parseInt(String(process.env.STRIPE_RECONCILIATION_INTERVAL_HOURS ?? '4').trim(), 10);
+      if (!Number.isInteger(n) || n < 1) return 4;
+      return Math.min(n, 24 * 7);
+    })(),
+    lookbackHours: (() => {
+      const n = parseInt(String(process.env.STRIPE_RECONCILIATION_LOOKBACK_HOURS ?? '48').trim(), 10);
+      if (!Number.isInteger(n) || n < 1) return 48;
+      return Math.min(n, 24 * 14);
+    })(),
+    maxSessionsPerBackend: (() => {
+      const n = parseInt(String(process.env.STRIPE_RECONCILIATION_MAX_SESSIONS ?? '100').trim(), 10);
+      if (!Number.isInteger(n) || n < 1) return 100;
+      return Math.min(n, 500);
+    })(),
+  },
   /**
    * Phase 3 security headers. Set ENABLE_SECURITY_CSP=0 to disable CSP in production if needed.
    */

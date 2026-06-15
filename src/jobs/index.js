@@ -3,18 +3,25 @@
  * See docs/SCHEDULED-EMAILS-CRON.md.
  */
 
+const cronHealth = require('./cronHealth');
+const emailDeliveryTasks = require('./emailDeliveryTasks');
 const preSessionReminder = require('./preSessionReminder');
 const billingDeliverStuck = require('./billingDeliverStuck');
-const emailDeliveryTasks = require('./emailDeliveryTasks');
+const stripeReconciliation = require('./stripeReconciliation');
+const cronHealthService = require('../services/cronHealthService');
+const systemAlertService = require('../services/systemAlertService');
 
 const jobs = [
+  cronHealth,
   emailDeliveryTasks,
   preSessionReminder,
   billingDeliverStuck,
+  stripeReconciliation,
 ];
 
 /**
  * Run all registered jobs and return aggregated results.
+ * Records last_successful_cron_run_at and auto-resolves cron_not_running on success.
  * @returns {Promise<{ok: boolean, jobs: Array<{name: string, sent?: number, skipped?: number, errors?: string[]}>}>}
  */
 async function runAll() {
@@ -40,6 +47,9 @@ async function runAll() {
       });
     }
   }
+
+  await cronHealthService.recordSuccessfulCronRun();
+  await systemAlertService.resolveCronNotRunning();
 
   return {
     ok: true,

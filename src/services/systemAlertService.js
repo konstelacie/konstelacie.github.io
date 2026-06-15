@@ -5,6 +5,8 @@ const ALERT_TYPES = {
   BILLING_DOCUMENT_CREATION_FAILED: 'billing_document_creation_failed',
   RESERVATION_CONFIRMATION_EMAIL_FAILED: 'reservation_confirmation_email_failed',
   KROS_WEBHOOK_MISSING: 'kros_webhook_missing',
+  CRON_NOT_RUNNING: 'cron_not_running',
+  STRIPE_PAYMENT_NEEDS_RECONCILIATION: 'stripe_payment_needs_reconciliation',
 };
 
 /**
@@ -111,17 +113,6 @@ async function createReservationConfirmationEmailFailed({
   });
 }
 
-/**
- * @param {object} params
- * @param {number} params.billingDocumentId
- * @param {number} params.paymentId
- * @param {number|null} [params.reservationId]
- * @param {string|null} [params.krosExternalId]
- * @param {string|null} [params.krosStatus]
- * @param {string|null} [params.krosAcceptedAt]
- * @param {number} params.ageMinutes
- * @param {string|null} [params.customerEmail]
- */
 async function createKrosWebhookMissing({
   billingDocumentId,
   paymentId,
@@ -152,10 +143,147 @@ async function createKrosWebhookMissing({
   });
 }
 
+async function createCronNotRunning() {
+  const existing = await systemAlertsRepo.findUnresolvedByType(ALERT_TYPES.CRON_NOT_RUNNING);
+  if (existing) {
+    return existing.id;
+  }
+
+  const id = await systemAlertsRepo.createOpen({
+    severity: 'critical',
+    type: ALERT_TYPES.CRON_NOT_RUNNING,
+    entityType: null,
+    entityId: null,
+    title: 'Cron nebeží',
+    message:
+      'Scheduled cron tasks have not run successfully within the expected time window. Email retries, reminders, and KROS monitoring may be delayed.',
+    metadata: {
+      checkedAt: new Date().toISOString(),
+    },
+  });
+
+  logLine({
+    level: 'error',
+    tag: 'system_alert_created',
+    alertId: id,
+    alertType: ALERT_TYPES.CRON_NOT_RUNNING,
+  });
+
+  return id;
+}
+
+/**
+ * @param {object} params
+ * @param {'missing_local_payment'|'missing_reservation'|'missing_confirmation_email_task'|'confirmation_email_permanently_failed'} params.failureReason
+ * @param {string} [params.stripeSessionId]
+ * @param {number|null} [params.paymentId]
+ * @param {string|null} [params.customerEmail]
+ * @param {number|null} [params.amountCents]
+ * @param {string|null} [params.currency]
+ * @param {string|Date|null} [params.paymentTimestamp]
+ * @param {number|null} [params.reservationId]
+ */
+async function createStripePaymentNeedsReconciliation({
+  failureReason,
+  stripeSessionId,
+  paymentId,
+  customerEmail,
+  amountCents,
+  currency,
+  paymentTimestamp,
+  reservationId,
+}) {
+  if (stripeSessionId) {
+    const existing = await systemAlertsRepo.findUnresolvedByTypeAndStripeSessionId(
+      ALERT_TYPES.STRIPE_PAYMENT_NEEDS_RECONCILIATION,
+      stripeSessionId
+    );
+    if (existing) {
+      return existing.id;
+    }
+  }
+
+  if (paymentId != null) {
+    const existing = await systemAlertsRepo.findUnresolvedByTypeAndEntity(
+      ALERT_TYPES.STRIPE_PAYMENT_NEEDS_RECONCILIATION,
+      'payment',
+      paymentId
+    );
+    if (existing) {
+      return existing.id;
+    }
+  }
+
+  const entityType = paymentId != null ? 'payment' : 'stripe_session';
+  const entityId = paymentId ?? null;
+
+  const id = await systemAlertsRepo.createOpen({
+    severity: 'critical',
+    type: ALERT_TYPES.STRIPE_PAYMENT_NEEDS_RECONCILIATION,
+    entityType,
+    entityId,
+    title: 'Stripe platba vyžaduje manuálnu kontrolu',
+    message:
+      'Zistený nesúlad medzi Stripe a lokálnym systémom. Rezervácia ani platobné doklady sa automaticky nevytvárajú — vyžaduje sa manuálne prešetrenie.',
+    metadata: {
+      failureReason,
+      stripeSessionId: stripeSessionId ?? null,
+      paymentId: paymentId ?? null,
+      customerEmail: customerEmail ?? null,
+      amountCents: amountCents ?? null,
+      currency: currency ?? null,
+      paymentTimestamp: paymentTimestamp
+        ? paymentTimestamp instanceof Date
+          ? paymentTimestamp.toISOString()
+          : String(paymentTimestamp)
+        : null,
+      reservationId: reservationId ?? null,
+    },
+  });
+
+  logLine({
+    level: 'error',
+    tag: 'system_alert_created',
+    alertId: id,
+    alertType: ALERT_TYPES.STRIPE_PAYMENT_NEEDS_RECONCILIATION,
+    entityType,
+    entityId,
+    failureReason,
+  });
+
+  return id;
+}
+
+/**
+ * Auto-resolve cron_not_running after a successful cron run.
+ * @returns {Promise<boolean>} true when an alert was resolved
+ */
+async function resolveCronNotRunning() {
+  const existing = await systemAlertsRepo.findUnresolvedByType(ALERT_TYPES.CRON_NOT_RUNNING);
+  if (!existing) {
+    return false;
+  }
+
+  const result = await systemAlertsRepo.resolveAlert(existing.id);
+  if (result.ok) {
+    logLine({
+      level: 'info',
+      tag: 'system_alert_resolved',
+      alertId: existing.id,
+      alertType: ALERT_TYPES.CRON_NOT_RUNNING,
+      auto: true,
+    });
+  }
+  return result.ok;
+}
+
 module.exports = {
   ALERT_TYPES,
   createOpenAlert,
   createBillingDocumentCreationFailed,
   createReservationConfirmationEmailFailed,
   createKrosWebhookMissing,
+  createCronNotRunning,
+  createStripePaymentNeedsReconciliation,
+  resolveCronNotRunning,
 };
