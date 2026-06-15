@@ -1,7 +1,6 @@
 /**
- * KROS webhook fallback job: deliver internal CT-PDF + billing-invoice email
- * for stuck `accepted` billing documents (webhook never arrived).
- * See docs/EMAILING.md (KROS webhook fallback) and docs/SCHEDULED-EMAILS-CRON.md.
+ * KROS webhook missing recovery: admin alert + optional billing-delayed email.
+ * No legacy CT-PDF fallback. See docs/plans/payment-hook-improvements.md Phase 4.
  */
 
 const billingDeliveryService = require('../services/billingDeliveryService');
@@ -10,11 +9,14 @@ module.exports = {
   name: 'billing-deliver-stuck',
 
   async run() {
-    const { processed, errors } =
-      await billingDeliveryService.processStuckKrosAcceptedFallbackBatch();
+    const { alerted, delayedEmailsQueued, delayedEmailsSent, skipped, errors } =
+      await billingDeliveryService.processStuckKrosWebhookMissingBatch();
+
     return {
-      sent: processed,
-      skipped: 0,
+      alerted,
+      delayedEmailsQueued,
+      delayedEmailsSent,
+      skipped,
       errors: errors.map((e) => `billing_document ${e.billingDocumentId}: ${e.error}`),
     };
   },

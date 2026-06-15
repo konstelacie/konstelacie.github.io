@@ -9,6 +9,9 @@ const { getPool } = require('../db');
 const billingDocumentsRepo = require('../db/repositories/billingDocumentsRepo');
 const emailSentLogRepo = require('../db/repositories/emailSentLogRepo');
 const emailService = require('./emailService');
+const emailDeliveryTaskService = require('./emailDeliveryTaskService');
+const emailDeliveryTasksRepo = require('../db/repositories/emailDeliveryTasksRepo');
+const systemAlertService = require('./systemAlertService');
 const { renderBillingPdf } = require('./billingInvoicePdfService');
 const { logLine } = require('../lib/structuredLog');
 
@@ -291,53 +294,142 @@ async function resendBillingInvoiceEmailAdmin(billingDocumentId) {
 }
 
 /**
- * KROS webhook never arrived: deliver internal CT-PDF + billing-invoice email (idempotent per email_sent_log).
- * @returns {Promise<{ processed: number, errors: Array<{ billingDocumentId: number, error: string }> }>}
+ * Whether billing-delayed email may be sent for this document.
+ * Requires confirmed reservation or prior reservation-confirmation send.
  */
-async function processStuckKrosAcceptedFallbackBatch() {
+async function isEligibleForBillingDelayedEmail(row) {
+  if (!row.reservation_id) return false;
+
+  const pool = getPool();
+  if (!pool) return false;
+
+  const [resRows] = await pool.execute('SELECT status FROM reservations WHERE id = ? LIMIT 1', [
+    row.reservation_id,
+  ]);
+  if (resRows[0]?.status === 'confirmed') return true;
+
+  return emailSentLogRepo.wasAlreadySent(
+    'reservation-confirmation',
+    'reservation',
+    row.reservation_id
+  );
+}
+
+/**
+ * KROS webhook never arrived: create admin alert and optional billing-delayed email.
+ * Does not generate legacy CT-PDF or send billing-invoice fallback.
+ * @returns {Promise<{
+ *   alerted: number,
+ *   delayedEmailsQueued: number,
+ *   delayedEmailsSent: number,
+ *   skipped: number,
+ *   errors: Array<{ billingDocumentId: number, error: string }>
+ * }>}
+ */
+async function processStuckKrosWebhookMissingBatch() {
   const errors = [];
-  let processed = 0;
+  let alerted = 0;
+  let delayedEmailsQueued = 0;
+  let delayedEmailsSent = 0;
+  let skipped = 0;
 
   const pool = getPool();
   if (!pool) {
-    return { processed: 0, errors };
+    return { alerted, delayedEmailsQueued, delayedEmailsSent, skipped, errors };
   }
 
-  const candidates = await billingDocumentsRepo.findStuckKrosAcceptedForFallback(50);
+  const thresholdMinutes = config.kros?.stuckThresholdMinutes ?? 30;
+  const delayedEmailEnabled = config.billing?.delayedEmailEnabled !== false;
+  const candidates = await billingDocumentsRepo.findStuckKrosAcceptedWithoutWebhook(
+    thresholdMinutes,
+    50
+  );
 
   for (const row of candidates) {
     const id = row.id;
-    const [krosEmailed, internalEmailed] = await Promise.all([
+
+    const [krosEmailed, internalEmailed, billingDelayedSent] = await Promise.all([
       emailSentLogRepo.wasAlreadySent('billing-invoice-kros', 'billing_document', id),
       emailSentLogRepo.wasAlreadySent('billing-invoice', 'billing_document', id),
+      emailSentLogRepo.wasAlreadySent('billing-delayed', 'billing_document', id),
     ]);
-    if (krosEmailed || internalEmailed) {
+
+    if (krosEmailed || internalEmailed || row.email_sent_at) {
+      skipped += 1;
       continue;
     }
 
     const createdMs = row.created_at ? new Date(row.created_at).getTime() : NaN;
-    const ageMinutes = Number.isFinite(createdMs) ? Math.floor((Date.now() - createdMs) / 60_000) : 0;
-    logLine({
-      level: 'info',
-      tag: 'kros_fallback_delivery',
-      billingDocumentId: id,
-      ageMinutes,
-    });
+    const ageMinutes = Number.isFinite(createdMs)
+      ? Math.floor((Date.now() - createdMs) / 60_000)
+      : 0;
 
     try {
-      await processBillingDocumentDelivery(id, { forceInternal: true });
-      processed += 1;
+      await systemAlertService.createKrosWebhookMissing({
+        billingDocumentId: id,
+        paymentId: row.payment_id,
+        reservationId: row.reservation_id ?? null,
+        krosExternalId: row.kros_external_id ?? null,
+        krosStatus: row.kros_status ?? null,
+        krosAcceptedAt: row.created_at ? String(row.created_at) : null,
+        ageMinutes,
+        customerEmail: row.customer_email_snapshot ?? null,
+      });
+      alerted += 1;
+
+      logLine({
+        level: 'warn',
+        tag: 'kros_webhook_missing_detected',
+        billingDocumentId: id,
+        ageMinutes,
+      });
+
+      if (!delayedEmailEnabled || billingDelayedSent) {
+        continue;
+      }
+
+      if (!isValidRecipientEmail(row.customer_email_snapshot)) {
+        continue;
+      }
+
+      const eligible = await isEligibleForBillingDelayedEmail(row);
+      if (!eligible) {
+        continue;
+      }
+
+      const { taskId, created } = await emailDeliveryTaskService.insertBillingDelayedTask({
+        billingDocumentId: id,
+        paymentId: row.payment_id,
+        reservationId: row.reservation_id ?? null,
+        recipientEmail: row.customer_email_snapshot.trim(),
+      });
+
+      if (!taskId) continue;
+
+      if (created) {
+        delayedEmailsQueued += 1;
+      }
+
+      const existingTask = await emailDeliveryTasksRepo.findById(taskId);
+      if (existingTask?.status === 'sent') {
+        continue;
+      }
+
+      const sendResult = await emailDeliveryTaskService.processTaskById(taskId);
+      if (sendResult.sent) {
+        delayedEmailsSent += 1;
+      }
     } catch (err) {
       errors.push({ billingDocumentId: id, error: err?.message || String(err) });
     }
   }
 
-  return { processed, errors };
+  return { alerted, delayedEmailsQueued, delayedEmailsSent, skipped, errors };
 }
 
 module.exports = {
   processBillingDocumentDelivery,
-  processStuckKrosAcceptedFallbackBatch,
+  processStuckKrosWebhookMissingBatch,
   billingPdfDir,
   regenerateBillingPdfAdmin,
   resendBillingInvoiceEmailAdmin,

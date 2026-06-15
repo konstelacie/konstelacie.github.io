@@ -4,6 +4,7 @@ const { logLine } = require('../lib/structuredLog');
 const ALERT_TYPES = {
   BILLING_DOCUMENT_CREATION_FAILED: 'billing_document_creation_failed',
   RESERVATION_CONFIRMATION_EMAIL_FAILED: 'reservation_confirmation_email_failed',
+  KROS_WEBHOOK_MISSING: 'kros_webhook_missing',
 };
 
 /**
@@ -19,7 +20,7 @@ async function createOpenAlert({
   message,
   metadata,
 }) {
-  const existing = await systemAlertsRepo.findOpenByTypeAndEntity(type, entityType, entityId);
+  const existing = await systemAlertsRepo.findUnresolvedByTypeAndEntity(type, entityType, entityId);
   if (existing) {
     return existing.id;
   }
@@ -110,9 +111,51 @@ async function createReservationConfirmationEmailFailed({
   });
 }
 
+/**
+ * @param {object} params
+ * @param {number} params.billingDocumentId
+ * @param {number} params.paymentId
+ * @param {number|null} [params.reservationId]
+ * @param {string|null} [params.krosExternalId]
+ * @param {string|null} [params.krosStatus]
+ * @param {string|null} [params.krosAcceptedAt]
+ * @param {number} params.ageMinutes
+ * @param {string|null} [params.customerEmail]
+ */
+async function createKrosWebhookMissing({
+  billingDocumentId,
+  paymentId,
+  reservationId,
+  krosExternalId,
+  krosStatus,
+  krosAcceptedAt,
+  ageMinutes,
+  customerEmail,
+}) {
+  return createOpenAlert({
+    type: ALERT_TYPES.KROS_WEBHOOK_MISSING,
+    entityType: 'billing_document',
+    entityId: billingDocumentId,
+    title: 'KROS webhook neprišiel',
+    message:
+      'KROS prijal platobný doklad, ale webhook s výsledkom neprišiel v očakávanom čase. Rezervácia a platba zostávajú platné. Vyžaduje manuálnu kontrolu.',
+    metadata: {
+      billingDocumentId,
+      paymentId,
+      reservationId: reservationId ?? null,
+      krosExternalId: krosExternalId ?? null,
+      krosStatus: krosStatus ?? null,
+      krosAcceptedAt: krosAcceptedAt ?? null,
+      ageMinutes,
+      customerEmail: customerEmail ?? null,
+    },
+  });
+}
+
 module.exports = {
   ALERT_TYPES,
   createOpenAlert,
   createBillingDocumentCreationFailed,
   createReservationConfirmationEmailFailed,
+  createKrosWebhookMissing,
 };

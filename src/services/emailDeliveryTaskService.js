@@ -1,6 +1,6 @@
 /**
  * Durable retryable email delivery for transactional templates.
- * Phase 2: reservation-confirmation only.
+ * Phase 2: reservation-confirmation. Phase 4: billing-delayed.
  */
 
 const { logLine } = require('../lib/structuredLog');
@@ -23,6 +23,23 @@ function computeNextAttemptAt(attemptCount) {
  */
 async function insertReservationConfirmationTask(conn, { paymentId, reservationId, recipientEmail }) {
   return emailDeliveryTasksRepo.insertReservationConfirmation(conn, {
+    paymentId,
+    reservationId,
+    recipientEmail,
+  });
+}
+
+/**
+ * @returns {Promise<{ taskId: number|null, created: boolean }>}
+ */
+async function insertBillingDelayedTask({
+  billingDocumentId,
+  paymentId,
+  reservationId,
+  recipientEmail,
+}) {
+  return emailDeliveryTasksRepo.insertBillingDelayed({
+    billingDocumentId,
     paymentId,
     reservationId,
     recipientEmail,
@@ -140,25 +157,35 @@ async function processTask(task) {
 }
 
 async function dispatchSend(task) {
-  if (task.template_id !== emailDeliveryTasksRepo.RESERVATION_CONFIRMATION_TEMPLATE) {
-    return { ok: false, error: `unsupported_template:${task.template_id}` };
+  if (task.template_id === emailDeliveryTasksRepo.RESERVATION_CONFIRMATION_TEMPLATE) {
+    const row = await loadReservationSendContext(task.payment_id, task.reservation_id);
+    if (!row) {
+      return { ok: false, error: 'reservation_context_missing' };
+    }
+
+    return emailService.sendReservationConfirmation(
+      {
+        to: row.email,
+        slot: { start_at_utc: row.start_at_utc, end_at_utc: row.end_at_utc, timezone: row.timezone },
+        amountCents: row.amount_cents,
+        currency: row.currency,
+        bookingPaymentType: row.reservation_payment_type === 'full' ? 'full' : 'deposit',
+      },
+      { entity_type: emailDeliveryTasksRepo.ENTITY_TYPE_RESERVATION, entity_id: task.reservation_id }
+    );
   }
 
-  const row = await loadReservationSendContext(task.payment_id, task.reservation_id);
-  if (!row) {
-    return { ok: false, error: 'reservation_context_missing' };
+  if (task.template_id === emailDeliveryTasksRepo.BILLING_DELAYED_TEMPLATE) {
+    return emailService.sendBillingDelayedEmail(
+      { to: task.recipient_email },
+      {
+        entity_type: emailDeliveryTasksRepo.ENTITY_TYPE_BILLING_DOCUMENT,
+        entity_id: task.entity_id,
+      }
+    );
   }
 
-  return emailService.sendReservationConfirmation(
-    {
-      to: row.email,
-      slot: { start_at_utc: row.start_at_utc, end_at_utc: row.end_at_utc, timezone: row.timezone },
-      amountCents: row.amount_cents,
-      currency: row.currency,
-      bookingPaymentType: row.reservation_payment_type === 'full' ? 'full' : 'deposit',
-    },
-    { entity_type: emailDeliveryTasksRepo.ENTITY_TYPE_RESERVATION, entity_id: task.reservation_id }
-  );
+  return { ok: false, error: `unsupported_template:${task.template_id}` };
 }
 
 /**
@@ -217,6 +244,7 @@ async function processDueTasks(limit = 50) {
 
 module.exports = {
   insertReservationConfirmationTask,
+  insertBillingDelayedTask,
   processTask,
   processTaskById,
   processDueTasks,

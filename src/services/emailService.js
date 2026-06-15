@@ -402,12 +402,39 @@ async function sendBalancePayInviteEmail(
   return result;
 }
 
+/**
+ * Notify customer that billing document is delayed (KROS webhook missing).
+ * @param {object} params
+ * @param {string} params.to
+ * @param {object} [metadata]
+ * @returns {Promise<{ok: boolean, skipped?: boolean, messageId?: string}>}
+ */
+async function sendBillingDelayedEmail({ to }, metadata = {}) {
+  const html = await ejs.renderFile(path.join(EMAIL_TEMPLATES_DIR, 'billing-delayed.ejs'), {});
+
+  const result = await emailProvider.sendEmail(to, 'Doklad k platbe pošleme dodatočne', html, metadata);
+
+  if (result.ok && result.messageId) {
+    await emailSentLogRepo.log({
+      recipientEmail: to,
+      templateId: 'billing-delayed',
+      entityType: metadata.entity_type,
+      entityId: metadata.entity_id,
+      providerMessageId: result.messageId,
+      actorType: 'system',
+    });
+  }
+
+  return result;
+}
+
 module.exports = {
   sendReservationConfirmation,
   sendPreSessionReminder,
   sendBillingInvoiceEmail,
   sendBillingInvoiceKrosEmail,
   sendBalancePayInviteEmail,
+  sendBillingDelayedEmail,
   DEFAULT_BALANCE_PAY_INVITE_SUBJECT,
   MAX_BALANCE_PAY_INVITE_MESSAGE_LEN,
 };

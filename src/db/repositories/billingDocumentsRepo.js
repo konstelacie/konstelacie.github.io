@@ -100,26 +100,35 @@ async function updateNotes(id, notes) {
   return r.affectedRows > 0;
 }
 
-const STUCK_KROS_FALLBACK_LIMIT = 50;
+const STUCK_KROS_WEBHOOK_MISSING_LIMIT = 50;
 
 /**
- * Billing rows where KROS accepted the upload but no success webhook arrived (fallback CT-PDF path).
+ * Billing rows where KROS accepted the upload but no success webhook arrived.
+ * @param {number} [thresholdMinutes=30]
  * @param {number} [limit]
- * @returns {Promise<Array<{ id: number, created_at: Date }>>}
  */
-async function findStuckKrosAcceptedForFallback(limit = STUCK_KROS_FALLBACK_LIMIT) {
+async function findStuckKrosAcceptedWithoutWebhook(
+  thresholdMinutes = 30,
+  limit = STUCK_KROS_WEBHOOK_MISSING_LIMIT
+) {
   const pool = getPool();
   if (!pool) return [];
-  const lim = Math.min(Math.max(Number(limit) || STUCK_KROS_FALLBACK_LIMIT, 1), STUCK_KROS_FALLBACK_LIMIT);
+  const mins = Math.min(Math.max(Number(thresholdMinutes) || 30, 1), 24 * 60);
+  const lim = Math.min(
+    Math.max(Number(limit) || STUCK_KROS_WEBHOOK_MISSING_LIMIT, 1),
+    STUCK_KROS_WEBHOOK_MISSING_LIMIT
+  );
   const [rows] = await pool.execute(
-    `SELECT id, created_at FROM billing_documents
+    `SELECT id, payment_id, reservation_id, kros_external_id, kros_status,
+            customer_email_snapshot, created_at, email_sent_at
+     FROM billing_documents
      WHERE kros_status = 'accepted'
        AND kros_webhook_received_at IS NULL
        AND email_sent_at IS NULL
-       AND created_at < DATE_SUB(NOW(3), INTERVAL 30 MINUTE)
+       AND created_at < DATE_SUB(NOW(3), INTERVAL ? MINUTE)
      ORDER BY id ASC
      LIMIT ?`,
-    [lim]
+    [mins, lim]
   );
   return rows;
 }
@@ -130,5 +139,5 @@ module.exports = {
   findByIdWithPayment,
   searchForAdmin,
   updateNotes,
-  findStuckKrosAcceptedForFallback,
+  findStuckKrosAcceptedWithoutWebhook,
 };

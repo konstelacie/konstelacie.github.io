@@ -25,6 +25,7 @@ async function runAll() {
       const result = await job.run();
       results.push({
         name: job.name,
+        ...result,
         sent: result.sent ?? 0,
         skipped: result.skipped ?? 0,
         failed: result.failed ?? 0,

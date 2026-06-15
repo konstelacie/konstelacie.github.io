@@ -65,6 +65,10 @@ module.exports = {
     sendInvoiceEmail:
       process.env.BILLING_SEND_INVOICE_EMAIL !== '0' &&
       String(process.env.BILLING_SEND_INVOICE_EMAIL).toLowerCase() !== 'false',
+    /** Customer email when KROS webhook is delayed (Phase 4). Default on. */
+    delayedEmailEnabled:
+      process.env.BILLING_DELAYED_EMAIL_ENABLED !== '0' &&
+      String(process.env.BILLING_DELAYED_EMAIL_ENABLED || 'true').toLowerCase() !== 'false',
     supplier: {
       companyName: (process.env.BILLING_INVOICE_COMPANY_NAME || '').trim(),
       companyAddress: (process.env.BILLING_INVOICE_COMPANY_ADDRESS || '').trim(),
@@ -77,6 +81,12 @@ module.exports = {
     apiToken: (process.env.KROS_API_TOKEN || '').trim(),
     webhookSecret: (process.env.KROS_WEBHOOK_SECRET || '').trim(),
     enabled: String(process.env.KROS_ENABLED || '').toLowerCase() === 'true',
+    /** Minutes after KROS accept before webhook-missing recovery runs (billing-deliver-stuck). */
+    stuckThresholdMinutes: (() => {
+      const n = parseInt(String(process.env.KROS_STUCK_THRESHOLD_MINUTES ?? '30').trim(), 10);
+      if (!Number.isInteger(n) || n < 1) return 30;
+      return Math.min(n, 24 * 60);
+    })(),
   },
   cronSecret,
   /**

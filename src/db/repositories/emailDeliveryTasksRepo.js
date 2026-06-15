@@ -1,7 +1,9 @@
 const { getPool } = require('../index');
 
 const RESERVATION_CONFIRMATION_TEMPLATE = 'reservation-confirmation';
+const BILLING_DELAYED_TEMPLATE = 'billing-delayed';
 const ENTITY_TYPE_RESERVATION = 'reservation';
+const ENTITY_TYPE_BILLING_DOCUMENT = 'billing_document';
 
 /**
  * Insert reservation confirmation email task inside a caller-held transaction.
@@ -28,6 +30,65 @@ async function insertReservationConfirmation(conn, {
     ]
   );
   return result.insertId;
+}
+
+async function findByTemplateEntity(templateId, entityType, entityId) {
+  const pool = getPool();
+  if (!pool) return null;
+
+  const [rows] = await pool.execute(
+    `SELECT id, template_id, entity_type, entity_id, payment_id, reservation_id, recipient_email,
+            status, attempt_count, max_attempts, last_attempt_at, next_attempt_at, last_error,
+            provider_message_id, created_at, updated_at, sent_at
+     FROM email_delivery_tasks
+     WHERE template_id = ? AND entity_type = ? AND entity_id = ?
+     LIMIT 1`,
+    [templateId, entityType, entityId]
+  );
+  return rows[0] || null;
+}
+
+/**
+ * Insert billing-delayed email task (idempotent via unique template+entity key).
+ * @returns {Promise<{ taskId: number|null, created: boolean }>}
+ */
+async function insertBillingDelayed({
+  billingDocumentId,
+  paymentId,
+  reservationId,
+  recipientEmail,
+  maxAttempts = 5,
+}) {
+  const pool = getPool();
+  if (!pool) return { taskId: null, created: false };
+
+  try {
+    const [result] = await pool.execute(
+      `INSERT INTO email_delivery_tasks
+         (template_id, entity_type, entity_id, payment_id, reservation_id, recipient_email, max_attempts)
+       VALUES (?, ?, ?, ?, ?, ?, ?)`,
+      [
+        BILLING_DELAYED_TEMPLATE,
+        ENTITY_TYPE_BILLING_DOCUMENT,
+        billingDocumentId,
+        paymentId,
+        reservationId ?? null,
+        recipientEmail,
+        maxAttempts,
+      ]
+    );
+    return { taskId: result.insertId, created: true };
+  } catch (err) {
+    if (err.code === 'ER_DUP_ENTRY' || err.errno === 1062) {
+      const existing = await findByTemplateEntity(
+        BILLING_DELAYED_TEMPLATE,
+        ENTITY_TYPE_BILLING_DOCUMENT,
+        billingDocumentId
+      );
+      return { taskId: existing?.id ?? null, created: false };
+    }
+    throw err;
+  }
 }
 
 async function findById(id) {
@@ -117,8 +178,12 @@ async function findDue(limit = 50) {
 
 module.exports = {
   RESERVATION_CONFIRMATION_TEMPLATE,
+  BILLING_DELAYED_TEMPLATE,
   ENTITY_TYPE_RESERVATION,
+  ENTITY_TYPE_BILLING_DOCUMENT,
   insertReservationConfirmation,
+  insertBillingDelayed,
+  findByTemplateEntity,
   findById,
   claimForSending,
   markSent,
