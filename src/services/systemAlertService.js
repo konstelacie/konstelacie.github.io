@@ -3,6 +3,7 @@ const { logLine } = require('../lib/structuredLog');
 
 const ALERT_TYPES = {
   BILLING_DOCUMENT_CREATION_FAILED: 'billing_document_creation_failed',
+  RESERVATION_CONFIRMATION_EMAIL_FAILED: 'reservation_confirmation_email_failed',
 };
 
 /**
@@ -74,8 +75,44 @@ async function createBillingDocumentCreationFailed({
   });
 }
 
+/**
+ * @param {object} params
+ * @param {number} params.taskId
+ * @param {number|null} [params.reservationId]
+ * @param {number|null} [params.paymentId]
+ * @param {string} [params.recipientEmail]
+ * @param {number} params.attemptCount
+ * @param {string} params.errorMessage
+ */
+async function createReservationConfirmationEmailFailed({
+  taskId,
+  reservationId,
+  paymentId,
+  recipientEmail,
+  attemptCount,
+  errorMessage,
+}) {
+  return createOpenAlert({
+    type: ALERT_TYPES.RESERVATION_CONFIRMATION_EMAIL_FAILED,
+    entityType: 'reservation',
+    entityId: reservationId ?? null,
+    title: 'Potvrdzovací e-mail rezervácie sa nepodarilo doručiť',
+    message:
+      'Rezervácia je potvrdená a platba dokončená, ale potvrzovací e-mail sa po opakovaných pokusoch neodoslal. Vyžaduje manuálny zásah.',
+    metadata: {
+      taskId,
+      reservationId: reservationId ?? null,
+      paymentId: paymentId ?? null,
+      recipientEmail: recipientEmail ?? null,
+      attemptCount,
+      errorMessage: errorMessage || 'unknown',
+    },
+  });
+}
+
 module.exports = {
   ALERT_TYPES,
   createOpenAlert,
   createBillingDocumentCreationFailed,
+  createReservationConfirmationEmailFailed,
 };

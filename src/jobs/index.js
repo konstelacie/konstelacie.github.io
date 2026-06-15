@@ -5,8 +5,10 @@
 
 const preSessionReminder = require('./preSessionReminder');
 const billingDeliverStuck = require('./billingDeliverStuck');
+const emailDeliveryTasks = require('./emailDeliveryTasks');
 
 const jobs = [
+  emailDeliveryTasks,
   preSessionReminder,
   billingDeliverStuck,
 ];
@@ -25,6 +27,7 @@ async function runAll() {
         name: job.name,
         sent: result.sent ?? 0,
         skipped: result.skipped ?? 0,
+        failed: result.failed ?? 0,
         errors: result.errors ?? [],
       });
     } catch (err) {

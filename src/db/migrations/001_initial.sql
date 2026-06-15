@@ -245,6 +245,34 @@ CREATE TABLE email_sent_log (
   INDEX idx_email_sent_log_sent_at (sent_at)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+-- email_delivery_tasks: durable retryable transactional email outbox
+CREATE TABLE email_delivery_tasks (
+  id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  template_id VARCHAR(100) NOT NULL,
+  entity_type VARCHAR(50) NOT NULL,
+  entity_id BIGINT UNSIGNED NOT NULL,
+  payment_id BIGINT UNSIGNED NULL,
+  reservation_id BIGINT UNSIGNED NULL,
+  recipient_email VARCHAR(255) NOT NULL,
+  status ENUM('pending','sending','sent','failed','cancelled') NOT NULL DEFAULT 'pending',
+  attempt_count INT UNSIGNED NOT NULL DEFAULT 0,
+  max_attempts INT UNSIGNED NOT NULL DEFAULT 5,
+  last_attempt_at DATETIME(3) NULL,
+  next_attempt_at DATETIME(3) NULL,
+  last_error TEXT NULL,
+  provider_message_id VARCHAR(255) NULL,
+  created_at DATETIME(3) DEFAULT CURRENT_TIMESTAMP(3),
+  updated_at DATETIME(3) DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3),
+  sent_at DATETIME(3) NULL,
+  INDEX idx_email_delivery_tasks_due (status, next_attempt_at),
+  INDEX idx_email_delivery_tasks_template_entity (template_id, entity_type, entity_id),
+  INDEX idx_email_delivery_tasks_reservation (reservation_id),
+  INDEX idx_email_delivery_tasks_payment (payment_id),
+  UNIQUE KEY uq_email_task_reservation_confirmation (template_id, entity_type, entity_id),
+  CONSTRAINT fk_email_delivery_tasks_payment FOREIGN KEY (payment_id) REFERENCES payments(id),
+  CONSTRAINT fk_email_delivery_tasks_reservation FOREIGN KEY (reservation_id) REFERENCES reservations(id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
 -- system_alerts: persistent admin alerts (payment/billing/email safety)
 CREATE TABLE system_alerts (
   id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,

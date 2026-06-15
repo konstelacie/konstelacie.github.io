@@ -5,6 +5,7 @@ const { asyncHandler } = require('../../middleware/apiError');
 const { validateLockToken } = require('../../middleware/validators');
 const { getPool } = require('../../db');
 const checkoutPostCommitService = require('../../services/checkoutPostCommitService');
+const emailDeliveryTaskService = require('../../services/emailDeliveryTaskService');
 const { constructStripeEvent } = require('../../lib/stripeWebhook');
 
 const router = express.Router();
@@ -193,6 +194,7 @@ router.post(
         let reservationIdForEmail = null;
         let paymentId = null;
         let slotId = null;
+        let confirmationEmailTaskId = null;
         try {
           await conn.beginTransaction();
 
@@ -235,6 +237,22 @@ router.post(
             ['completed', payment.id]
           );
 
+          if (reservationIdForEmail) {
+            const [reservationRows] = await conn.execute(
+              'SELECT email FROM reservations WHERE id = ? LIMIT 1',
+              [reservationIdForEmail]
+            );
+            const recipientEmail = reservationRows[0]?.email;
+            if (!recipientEmail) {
+              throw new Error('checkout.reservation_email_missing');
+            }
+            confirmationEmailTaskId = await emailDeliveryTaskService.insertReservationConfirmationTask(conn, {
+              paymentId: payment.id,
+              reservationId: reservationIdForEmail,
+              recipientEmail,
+            });
+          }
+
           await conn.execute('INSERT INTO webhook_events (stripe_event_id) VALUES (?)', [event.id]);
           await conn.commit();
 
@@ -251,6 +269,7 @@ router.post(
           await checkoutPostCommitService.runCheckoutPostCommit({
             paymentId: payment.id,
             reservationId: reservationIdForEmail ?? payment.reservation_id ?? null,
+            confirmationEmailTaskId,
             session,
             stripeEventId: event.id,
             paymentBackendName,

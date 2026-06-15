@@ -7,37 +7,9 @@ const { logLine } = require('../lib/structuredLog');
 const auditRepo = require('../db/repositories/auditRepo');
 const billingDocumentService = require('./billingDocumentService');
 const billingDeliveryService = require('./billingDeliveryService');
-const emailService = require('./emailService');
+const emailDeliveryTaskService = require('./emailDeliveryTaskService');
 const systemAlertService = require('./systemAlertService');
 const { syncToKros } = require('./krosInvoiceService');
-const { getPool } = require('../db');
-
-async function sendConfirmationEmailAsync(paymentId, reservationId) {
-  const pool = getPool();
-  if (!pool) return;
-
-  const [rows] = await pool.execute(
-    `SELECT r.email, r.payment_type AS reservation_payment_type, s.start_at_utc, s.end_at_utc, s.timezone, p.amount_cents, p.currency
-     FROM reservations r
-     JOIN slots s ON r.slot_id = s.id
-     JOIN payments p ON p.reservation_id = r.id
-     WHERE r.id = ? AND p.id = ? LIMIT 1`,
-    [reservationId, paymentId]
-  );
-  const row = rows[0];
-  if (!row) return;
-
-  await emailService.sendReservationConfirmation(
-    {
-      to: row.email,
-      slot: { start_at_utc: row.start_at_utc, end_at_utc: row.end_at_utc, timezone: row.timezone },
-      amountCents: row.amount_cents,
-      currency: row.currency,
-      bookingPaymentType: row.reservation_payment_type === 'full' ? 'full' : 'deposit',
-    },
-    { entity_type: 'reservation', entity_id: reservationId }
-  );
-}
 
 function startBillingDelivery(billingDocumentId) {
   billingDeliveryService.processBillingDocumentDelivery(billingDocumentId).catch((err) => {
@@ -61,10 +33,22 @@ function startKrosSync(billingDocumentId, paymentBackendName) {
   });
 }
 
+function startConfirmationEmailTask(confirmationEmailTaskId) {
+  emailDeliveryTaskService.processTaskById(confirmationEmailTaskId).catch((err) => {
+    logLine({
+      level: 'error',
+      tag: 'confirmation_email_task_failed',
+      taskId: confirmationEmailTaskId,
+      err: err?.message || String(err),
+    });
+  });
+}
+
 /**
  * @param {object} params
  * @param {number} params.paymentId
  * @param {number|null} params.reservationId
+ * @param {number|null} [params.confirmationEmailTaskId]
  * @param {object} params.session - Stripe Checkout Session
  * @param {string} params.stripeEventId
  * @param {'test'|'prod'} params.paymentBackendName
@@ -77,6 +61,7 @@ function startKrosSync(billingDocumentId, paymentBackendName) {
 async function runCheckoutPostCommit({
   paymentId,
   reservationId,
+  confirmationEmailTaskId,
   session,
   stripeEventId,
   paymentBackendName,
@@ -163,16 +148,8 @@ async function runCheckoutPostCommit({
     });
   }
 
-  if (reservationId && !skipConfirmationEmail) {
-    sendConfirmationEmailAsync(paymentId, reservationId).catch((err) => {
-      logLine({
-        level: 'error',
-        tag: 'confirmation_email_failed',
-        paymentId,
-        reservationId,
-        err: err?.message || String(err),
-      });
-    });
+  if (confirmationEmailTaskId && !skipConfirmationEmail) {
+    startConfirmationEmailTask(confirmationEmailTaskId);
   }
 
   return { billingDocumentId, billingCreated, billingError };
@@ -182,6 +159,7 @@ async function runCheckoutPostCommit({
  * Recover billing when webhook event was already processed but billing row is missing.
  */
 async function recoverBillingForCompletedCheckoutSession(session, stripeEventId, paymentBackendName) {
+  const { getPool } = require('../db');
   const pool = getPool();
   if (!pool) return;
 
@@ -195,6 +173,7 @@ async function recoverBillingForCompletedCheckoutSession(session, stripeEventId,
   await runCheckoutPostCommit({
     paymentId: payment.id,
     reservationId: payment.reservation_id ?? null,
+    confirmationEmailTaskId: null,
     session,
     stripeEventId,
     paymentBackendName,
@@ -206,5 +185,4 @@ async function recoverBillingForCompletedCheckoutSession(session, stripeEventId,
 module.exports = {
   runCheckoutPostCommit,
   recoverBillingForCompletedCheckoutSession,
-  sendConfirmationEmailAsync,
 };
