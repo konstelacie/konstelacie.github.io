@@ -1,6 +1,8 @@
 const { randomUUID } = require('crypto');
 const { DateTime } = require('luxon');
 const { billing } = require('../config');
+const { getPool } = require('../db');
+const billingDocumentsRepo = require('../db/repositories/billingDocumentsRepo');
 
 const DEFAULT_VAT_RATE_PERCENT = 23;
 
@@ -219,8 +221,67 @@ async function insertBillingDocumentForCompletedPayment(conn, { paymentRow, sess
   return result.insertId;
 }
 
+/**
+ * Load payment + reservation + user fields needed for billing document insert.
+ * @param {import('mysql2/promise').Pool|import('mysql2/promise').PoolConnection} db
+ * @param {number} paymentId
+ */
+async function loadPaymentRowForBilling(db, paymentId) {
+  const [rows] = await db.execute(
+    `SELECT p.id, p.reservation_id, p.user_id, p.payment_type, p.amount_cents, p.currency,
+            r.email AS reservation_email, r.funnel_name, r.funnel_campaign, r.funnel_video_id,
+            r.billing_name, r.billing_is_company, r.billing_company_name, r.billing_ico, r.billing_dic,
+            r.billing_ic_dph, r.billing_street, r.billing_city, r.billing_post_code, r.billing_country,
+            u.email AS user_email, u.name AS user_name
+     FROM payments p
+     LEFT JOIN reservations r ON r.id = p.reservation_id
+     LEFT JOIN users u ON u.id = p.user_id
+     WHERE p.id = ? LIMIT 1`,
+    [paymentId]
+  );
+  return rows[0] || null;
+}
+
+/**
+ * Create billing document after payment commit (own transaction). Idempotent per payment_id.
+ * @returns {Promise<{ billingDocumentId: number, created: boolean }|null>}
+ */
+async function ensureBillingDocumentForCompletedPayment({ paymentId, session, stripeEventId }) {
+  const pool = getPool();
+  if (!pool) return null;
+
+  const existing = await billingDocumentsRepo.findByPaymentId(paymentId);
+  if (existing) {
+    return { billingDocumentId: existing.id, created: false };
+  }
+
+  const paymentRow = await loadPaymentRowForBilling(pool, paymentId);
+  if (!paymentRow) {
+    throw new Error('billing.payment_row_not_found');
+  }
+
+  const conn = await pool.getConnection();
+  try {
+    await conn.beginTransaction();
+    const billingDocumentId = await insertBillingDocumentForCompletedPayment(conn, {
+      paymentRow,
+      session,
+      stripeEventId,
+    });
+    await conn.commit();
+    return { billingDocumentId, created: true };
+  } catch (err) {
+    await conn.rollback();
+    throw err;
+  } finally {
+    conn.release();
+  }
+}
+
 module.exports = {
   insertBillingDocumentForCompletedPayment,
+  ensureBillingDocumentForCompletedPayment,
+  loadPaymentRowForBilling,
   lineItemNameForDocumentType,
   splitGrossToNetVat,
   vatRatePercentToDocumentDecimal,

@@ -7,6 +7,16 @@ async function findById(id) {
   return rows[0] || null;
 }
 
+async function findByPaymentId(paymentId) {
+  const pool = getPool();
+  if (!pool) return null;
+  const [rows] = await pool.execute(
+    'SELECT * FROM billing_documents WHERE payment_id = ? LIMIT 1',
+    [paymentId]
+  );
+  return rows[0] || null;
+}
+
 async function findByIdWithPayment(id) {
   const pool = getPool();
   if (!pool) return null;
@@ -116,6 +126,7 @@ async function findStuckKrosAcceptedForFallback(limit = STUCK_KROS_FALLBACK_LIMI
 
 module.exports = {
   findById,
+  findByPaymentId,
   findByIdWithPayment,
   searchForAdmin,
   updateNotes,

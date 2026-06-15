@@ -4,41 +4,10 @@ const { logLine } = require('../../lib/structuredLog');
 const { asyncHandler } = require('../../middleware/apiError');
 const { validateLockToken } = require('../../middleware/validators');
 const { getPool } = require('../../db');
-const auditRepo = require('../../db/repositories/auditRepo');
-const emailService = require('../../services/emailService');
-const billingDocumentService = require('../../services/billingDocumentService');
-const billingDeliveryService = require('../../services/billingDeliveryService');
-const { syncToKros } = require('../../services/krosInvoiceService');
+const checkoutPostCommitService = require('../../services/checkoutPostCommitService');
 const { constructStripeEvent } = require('../../lib/stripeWebhook');
 
 const router = express.Router();
-
-async function sendConfirmationEmailAsync(paymentId, reservationId) {
-  const pool = getPool();
-  if (!pool) return;
-
-  const [rows] = await pool.execute(
-    `SELECT r.email, r.payment_type AS reservation_payment_type, s.start_at_utc, s.end_at_utc, s.timezone, p.amount_cents, p.currency
-     FROM reservations r
-     JOIN slots s ON r.slot_id = s.id
-     JOIN payments p ON p.reservation_id = r.id
-     WHERE r.id = ? AND p.id = ? LIMIT 1`,
-    [reservationId, paymentId]
-  );
-  const row = rows[0];
-  if (!row) return;
-
-  await emailService.sendReservationConfirmation(
-    {
-      to: row.email,
-      slot: { start_at_utc: row.start_at_utc, end_at_utc: row.end_at_utc, timezone: row.timezone },
-      amountCents: row.amount_cents,
-      currency: row.currency,
-      bookingPaymentType: row.reservation_payment_type === 'full' ? 'full' : 'deposit',
-    },
-    { entity_type: 'reservation', entity_id: reservationId }
-  );
-}
 
 async function isEventAlreadyProcessed(pool, eventId) {
   const [rows] = await pool.execute(
@@ -205,6 +174,15 @@ router.post(
         eventId: event.id,
         duplicate: true,
       });
+
+      if (event.type === 'checkout.session.completed') {
+        await checkoutPostCommitService.recoverBillingForCompletedCheckoutSession(
+          event.data.object,
+          event.id,
+          paymentBackendName
+        );
+      }
+
       return res.status(200).json({ received: true });
     }
 
@@ -213,6 +191,8 @@ router.post(
         const session = event.data.object;
         const conn = await pool.getConnection();
         let reservationIdForEmail = null;
+        let paymentId = null;
+        let slotId = null;
         try {
           await conn.beginTransaction();
 
@@ -230,6 +210,9 @@ router.post(
             console.warn('[Stripe webhook] checkout.session.completed: no pending payment for', session.id);
             break;
           }
+
+          paymentId = payment.id;
+          slotId = payment.slot_id;
 
           const md = session.metadata || {};
           const isBalanceTopup =
@@ -252,29 +235,7 @@ router.post(
             ['completed', payment.id]
           );
 
-          const [billingPaymentRows] = await conn.execute(
-            `SELECT p.id, p.reservation_id, p.user_id, p.payment_type, p.amount_cents, p.currency,
-                    r.email AS reservation_email, r.funnel_name, r.funnel_campaign, r.funnel_video_id,
-                    r.billing_name, r.billing_is_company, r.billing_company_name, r.billing_ico, r.billing_dic,
-                    r.billing_ic_dph, r.billing_street, r.billing_city, r.billing_post_code, r.billing_country,
-                    u.email AS user_email, u.name AS user_name
-             FROM payments p
-             LEFT JOIN reservations r ON r.id = p.reservation_id
-             LEFT JOIN users u ON u.id = p.user_id
-             WHERE p.id = ? LIMIT 1`,
-            [payment.id]
-          );
-          const paymentRowForBilling = billingPaymentRows[0];
-
-          const billingDocumentId = await billingDocumentService.insertBillingDocumentForCompletedPayment(
-            conn,
-            { paymentRow: paymentRowForBilling, session, stripeEventId: event.id }
-          );
-
-          await conn.execute(
-            'INSERT INTO webhook_events (stripe_event_id) VALUES (?)',
-            [event.id]
-          );
+          await conn.execute('INSERT INTO webhook_events (stripe_event_id) VALUES (?)', [event.id]);
           await conn.commit();
 
           logLine({
@@ -287,66 +248,27 @@ router.post(
             sessionId: session.id,
           });
 
-          if (reservationIdForEmail) {
-            await auditRepo.log(
-              'reservation_created',
-              'reservation',
-              reservationIdForEmail,
-              {
-                slotId: payment.slot_id,
-                stripeSessionId: session.id,
-                fromPaymentId: payment.id,
-              },
-              'system'
-            );
-          }
-
-          await auditRepo.log('payment_confirmed', 'payment', payment.id, {
-            stripeSessionId: session.id,
-            reservationId: reservationIdForEmail ?? payment.reservation_id,
+          await checkoutPostCommitService.runCheckoutPostCommit({
+            paymentId: payment.id,
+            reservationId: reservationIdForEmail ?? payment.reservation_id ?? null,
+            session,
+            stripeEventId: event.id,
+            paymentBackendName,
+            slotId,
           });
-
-          await auditRepo.log(
-            'billing_document_recorded',
-            'billing_document',
-            billingDocumentId,
-            { paymentId: payment.id, stripeSessionId: session.id },
-            'system'
-          );
-
-          billingDeliveryService.processBillingDocumentDelivery(billingDocumentId).catch((err) => {
-            logLine({
-              level: 'error',
-              tag: 'billing_delivery',
-              billingDocumentId,
-              err: err?.message || String(err),
-            });
-          });
-
-          syncToKros(billingDocumentId, { backend: paymentBackendName }).catch((err) => {
-            logLine({
-              level: 'error',
-              tag: 'kros_sync',
-              billingDocumentId,
-              err: err?.message || String(err),
-            });
-          });
-
-          if (reservationIdForEmail) {
-            sendConfirmationEmailAsync(payment.id, reservationIdForEmail).catch((err) => {
-              console.error('[email] Confirmation send failed:', err);
-            });
-          }
         } catch (err) {
           await conn.rollback();
-          // If billing-document insertion fails, the transaction rolls back and the payment stays `pending`.
-          // Mark the payment as `failed` so the frontend stops waiting and shows an error state.
-          try {
-            await pool.execute('UPDATE payments SET status = ? WHERE provider_ref = ?', ['failed', session.id]);
-          } catch (markErr) {
-            console.error('[Stripe webhook] failed to mark payment as failed:', markErr);
-          }
-          console.error('[Stripe webhook] checkout.session.completed failed:', session.id, err);
+          // Stripe already captured funds — never mark payment `failed` here.
+          logLine({
+            level: 'error',
+            tag: 'stripe_webhook_checkout_failed',
+            requestId: req.id,
+            eventId: event.id,
+            paymentId,
+            reservationId: reservationIdForEmail,
+            sessionId: session.id,
+            err: err?.message || String(err),
+          });
           throw err;
         } finally {
           conn.release();
@@ -392,10 +314,7 @@ router.post(
             ]);
           }
 
-          await conn.execute(
-            'INSERT INTO webhook_events (stripe_event_id) VALUES (?)',
-            [event.id]
-          );
+          await conn.execute('INSERT INTO webhook_events (stripe_event_id) VALUES (?)', [event.id]);
           await conn.commit();
         } catch (err) {
           await conn.rollback();

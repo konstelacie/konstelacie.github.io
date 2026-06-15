@@ -245,6 +245,27 @@ CREATE TABLE email_sent_log (
   INDEX idx_email_sent_log_sent_at (sent_at)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+-- system_alerts: persistent admin alerts (payment/billing/email safety)
+CREATE TABLE system_alerts (
+  id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  severity ENUM('info','warning','critical') NOT NULL DEFAULT 'critical',
+  type VARCHAR(100) NOT NULL,
+  entity_type VARCHAR(50) NULL,
+  entity_id BIGINT UNSIGNED NULL,
+  title VARCHAR(255) NOT NULL,
+  message TEXT NOT NULL,
+  status ENUM('open','acknowledged','resolved') NOT NULL DEFAULT 'open',
+  created_at DATETIME(3) DEFAULT CURRENT_TIMESTAMP(3),
+  updated_at DATETIME(3) DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3),
+  acknowledged_at DATETIME(3) NULL,
+  acknowledged_by BIGINT UNSIGNED NULL,
+  resolved_at DATETIME(3) NULL,
+  resolved_by BIGINT UNSIGNED NULL,
+  metadata_json JSON NULL,
+  INDEX idx_system_alerts_status_severity (status, severity),
+  INDEX idx_system_alerts_type_entity (type, entity_type, entity_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
 -- audit_logs: minimal
 CREATE TABLE audit_logs (
   id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
