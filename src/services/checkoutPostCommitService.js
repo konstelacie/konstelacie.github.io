@@ -122,18 +122,28 @@ async function runCheckoutPostCommit({
       billingDocumentId = billingResult.billingDocumentId;
       billingCreated = billingResult.created;
 
-      if (!skipAudits) {
-        await auditRepo.log(
-          'billing_document_recorded',
-          'billing_document',
-          billingDocumentId,
-          { paymentId, stripeSessionId: session.id, created: billingCreated },
-          'system'
-        );
-      }
+      if (billingCreated) {
+        if (!skipAudits) {
+          await auditRepo.log(
+            'billing_document_recorded',
+            'billing_document',
+            billingDocumentId,
+            { paymentId, stripeSessionId: session.id, created: true },
+            'system'
+          );
+        }
 
-      startBillingDelivery(billingDocumentId);
-      startKrosSync(billingDocumentId, paymentBackendName);
+        startBillingDelivery(billingDocumentId);
+        startKrosSync(billingDocumentId, paymentBackendName);
+      } else {
+        logLine({
+          level: 'info',
+          tag: 'billing_document_already_exists',
+          paymentId,
+          billingDocumentId,
+          stripeSessionId: session.id,
+        });
+      }
     }
   } catch (err) {
     billingError = err?.message || String(err);
