@@ -25,6 +25,17 @@ test('system alert types include billing document creation failure', () => {
 const checkoutPostCommitPath = path.join(__dirname, '../src/services/checkoutPostCommitService.js');
 const checkoutPostCommitSrc = fs.readFileSync(checkoutPostCommitPath, 'utf8');
 
+test('post-commit starts confirmation email before audits and billing', () => {
+  const fnStart = checkoutPostCommitSrc.indexOf('async function runCheckoutPostCommit');
+  const fnBody = checkoutPostCommitSrc.slice(fnStart, checkoutPostCommitSrc.indexOf('async function recoverBilling'));
+  const emailStart = fnBody.indexOf('startConfirmationEmailTask');
+  const auditStart = fnBody.indexOf("auditRepo.log(\n        'reservation_created'");
+  const billingStart = fnBody.indexOf('ensureBillingDocumentForCompletedPayment');
+  assert.ok(emailStart > 0, 'confirmation email kickoff present');
+  assert.ok(auditStart > emailStart, 'audits after confirmation email');
+  assert.ok(billingStart > emailStart, 'billing after confirmation email');
+});
+
 test('duplicate billing recovery skips delivery and KROS when document already exists', () => {
   assert.match(checkoutPostCommitSrc, /if\s*\(\s*billingCreated\s*\)/);
   assert.match(checkoutPostCommitSrc, /tag:\s*'billing_document_already_exists'/);

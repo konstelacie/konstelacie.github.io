@@ -71,6 +71,10 @@ async function runCheckoutPostCommit({
   const skipAudits = options.skipAudits === true;
   const skipConfirmationEmail = options.skipConfirmationEmail === true;
 
+  if (confirmationEmailTaskId && !skipConfirmationEmail) {
+    startConfirmationEmailTask(confirmationEmailTaskId);
+  }
+
   if (!skipAudits) {
     if (reservationId) {
       await auditRepo.log(
@@ -146,10 +150,6 @@ async function runCheckoutPostCommit({
       stripeSessionId: session.id,
       errorMessage: billingError,
     });
-  }
-
-  if (confirmationEmailTaskId && !skipConfirmationEmail) {
-    startConfirmationEmailTask(confirmationEmailTaskId);
   }
 
   return { billingDocumentId, billingCreated, billingError };
