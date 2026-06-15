@@ -23,7 +23,7 @@ const jobsIndexSrc = fs.readFileSync(path.join(__dirname, '../src/jobs/index.js'
 
 test('schema defines email_delivery_tasks with idempotency constraint', () => {
   assert.match(migrationSql, /CREATE TABLE email_delivery_tasks/);
-  assert.match(migrationSql, /uq_email_task_reservation_confirmation/);
+  assert.match(migrationSql, /uq_email_delivery_tasks_template_entity/);
   assert.match(migrationSql, /idx_email_delivery_tasks_due/);
   assert.match(migrationSql, /template_id VARCHAR\(100\)/);
   assert.match(migrationSql, /status ENUM\('pending','sending','sent','failed','cancelled'\)/);
@@ -65,7 +65,7 @@ test('Test 3 — retry succeeds: cron job processes due tasks', () => {
 
 test('Test 4 — duplicate webhook: idempotency via webhook_events and unique task key', () => {
   assert.match(stripeWebhookSrc, /isEventAlreadyProcessed/);
-  assert.match(migrationSql, /uq_email_task_reservation_confirmation/);
+  assert.match(migrationSql, /uq_email_delivery_tasks_template_entity/);
   assert.match(emailDeliveryTaskServiceSrc, /task\.status === 'sent'/);
   assert.match(emailDeliveryTaskServiceSrc, /wasAlreadySent/);
 });

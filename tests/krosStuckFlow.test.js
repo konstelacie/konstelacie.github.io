@@ -97,9 +97,14 @@ test('Test 5 — KROS failed state: stuck query only matches accepted', () => {
 });
 
 test('Test 6 — billing delayed is secondary to reservation confirmation', () => {
-  assert.match(billingDeliveryServiceSrc, /isEligibleForBillingDelayedEmail/);
-  assert.match(billingDeliveryServiceSrc, /reservation-confirmation/);
-  assert.match(billingDeliveryServiceSrc, /status === 'confirmed'/);
+  const eligibilityBlock = billingDeliveryServiceSrc.slice(
+    billingDeliveryServiceSrc.indexOf('async function isEligibleForBillingDelayedEmail'),
+    billingDeliveryServiceSrc.indexOf('async function processStuckKrosWebhookMissingBatch')
+  );
+
+  assert.match(eligibilityBlock, /status === 'confirmed'/);
+  assert.doesNotMatch(eligibilityBlock, /reservation-confirmation/);
+  assert.match(billingDeliveryServiceSrc, /never replaces reservation confirmation/);
   assert.match(emailDeliveryTaskServiceSrc, /sendBillingDelayedEmail/);
   assert.match(emailDeliveryTaskServiceSrc, /RESERVATION_CONFIRMATION_TEMPLATE/);
   assert.match(emailDeliveryTaskServiceSrc, /BILLING_DELAYED_TEMPLATE/);
@@ -123,4 +128,13 @@ test('config exposes stuck threshold and billing delayed email flag', () => {
 test('billing-delayed dispatch uses billing_document entity', () => {
   assert.match(emailDeliveryTaskServiceSrc, /BILLING_DELAYED_TEMPLATE/);
   assert.match(emailDeliveryTaskServiceSrc, /ENTITY_TYPE_BILLING_DOCUMENT/);
+});
+
+test('schema uses generic email task idempotency constraint name', () => {
+  const migrationSql = fs.readFileSync(
+    path.join(__dirname, '../src/db/migrations/001_initial.sql'),
+    'utf8'
+  );
+  assert.match(migrationSql, /uq_email_delivery_tasks_template_entity/);
+  assert.doesNotMatch(migrationSql, /uq_email_task_reservation_confirmation/);
 });

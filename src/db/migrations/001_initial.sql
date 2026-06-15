@@ -268,7 +268,7 @@ CREATE TABLE email_delivery_tasks (
   INDEX idx_email_delivery_tasks_template_entity (template_id, entity_type, entity_id),
   INDEX idx_email_delivery_tasks_reservation (reservation_id),
   INDEX idx_email_delivery_tasks_payment (payment_id),
-  UNIQUE KEY uq_email_task_reservation_confirmation (template_id, entity_type, entity_id),
+  UNIQUE KEY uq_email_delivery_tasks_template_entity (template_id, entity_type, entity_id),
   CONSTRAINT fk_email_delivery_tasks_payment FOREIGN KEY (payment_id) REFERENCES payments(id),
   CONSTRAINT fk_email_delivery_tasks_reservation FOREIGN KEY (reservation_id) REFERENCES reservations(id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

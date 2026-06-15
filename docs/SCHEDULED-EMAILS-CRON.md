@@ -9,7 +9,7 @@
 ## 1. Purpose
 
 - **Personal timed emails** — One recipient per send; triggered by cron (e.g. pre-session reminder in a ~24h window before slot). **Implemented:** `pre-session-reminder` job.
-- **Recovery jobs** — **Implemented:** `billing-deliver-stuck` (KROS webhook fallback; internal CT-PDF + `billing-invoice` email for stuck `accepted` documents — see `docs/EMAILING.md`).
+- **Recovery jobs** — **Implemented:** `billing-deliver-stuck` (KROS webhook missing: admin alert + optional `billing-delayed` email — see `docs/EMAILING.md`).
 - **Bulk timed emails** — Newsletter, special messages, etc. **Planned** — not in `src/jobs/index.js`.
 - **Cron endpoint** — `POST` or `GET` `/api/cron/run` runs **all** registered jobs sequentially via `runAll()`. This is the single endpoint for all cron tasks; there are no per-job cron routes.
 
@@ -155,7 +155,7 @@ module.exports = {
 | Job | Status | Query / source | Idempotency |
 |-----|--------|----------------|-------------|
 | `pre-session-reminder` | **Implemented** (`src/jobs/preSessionReminder.js`) | `reservationsRepo.findDueForPreSessionReminder()` — confirmed reservations, slot `start_at_utc` in [now+23h30m, now+24h30m) | `email_sent_log` via `emailSentLogRepo.wasAlreadySent` |
-| `billing-deliver-stuck` | **Implemented** (`src/jobs/billingDeliverStuck.js`) | `billingDocumentsRepo.findStuckKrosAcceptedForFallback()` — `kros_status='accepted'`, no webhook, no email, older than 30 min (max 50/run) | `email_sent_log` (`billing-invoice-kros` **or** `billing-invoice`) + `email_sent_at` |
+| `billing-deliver-stuck` | **Implemented** (`src/jobs/billingDeliverStuck.js`) | `billingDocumentsRepo.findStuckKrosAcceptedWithoutWebhook()` — `kros_status='accepted'`, no webhook, no invoice email, older than threshold (max 50/run) | `system_alerts` (`kros_webhook_missing`); `email_delivery_tasks` + `email_sent_log` (`billing-delayed`); skip if `billing-invoice-kros` **or** `billing-invoice` sent |
 | `post-session-follow-up` | Planned | — | — |
 | `doplatok-reminder` | Planned | — | — |
 | `newsletter-batch` | Planned | — | — |
@@ -202,16 +202,17 @@ src/
 ├── jobs/
 │   ├── index.js                   # Registry; runAll()
 │   ├── preSessionReminder.js    # pre-session reminder
-│   └── billingDeliverStuck.js   # KROS webhook fallback (deliver-stuck batch)
+│   └── billingDeliverStuck.js   # KROS webhook missing (alert + billing-delayed)
 ├── routes/api/cron.js             # POST & GET /api/cron/run (single cron endpoint)
-├── services/emailService.js       # sendReservationConfirmation, sendPreSessionReminder
-├── services/billingDeliveryService.js # processStuckKrosAcceptedFallbackBatch
+├── services/emailService.js       # sendReservationConfirmation, sendPreSessionReminder, sendBillingDelayedEmail
+├── services/billingDeliveryService.js # processStuckKrosWebhookMissingBatch
 ├── db/repositories/
 │   ├── emailSentLogRepo.js
-│   ├── billingDocumentsRepo.js  # findStuckKrosAcceptedForFallback
+│   ├── billingDocumentsRepo.js  # findStuckKrosAcceptedWithoutWebhook
 │   └── reservationsRepo.js      # findDueForPreSessionReminder
 ├── templates/emails/
 │   ├── reservation-confirmation.ejs
+│   ├── billing-delayed.ejs
 │   └── pre-session-reminder.ejs
 └── email/provider.js            # Resend
 ```
@@ -299,7 +300,7 @@ If a send fails, no `email_sent_log` row is written for that template + entity (
 |------|--------|
 | Cron route, `CRON_SECRET`, dev localhost bypass | Done (`src/routes/api/cron.js`) |
 | `runAll()`, `pre-session-reminder` job | Done |
-| `billing-deliver-stuck` job (KROS webhook fallback) | Done (`src/jobs/billingDeliverStuck.js`) |
+| `billing-deliver-stuck` job (KROS webhook missing recovery) | Done (`src/jobs/billingDeliverStuck.js`) |
 | `findDueForPreSessionReminder`, template `pre-session-reminder.ejs` | Done |
 | Advisory lock on cron | Not implemented |
 | Per-email Resend retries / pacing | Not implemented |

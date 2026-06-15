@@ -407,7 +407,7 @@ Full flow: `docs/STRIPE-ARCHITECTURE.md`.
 
 ## POST /api/cron/run (GET also supported)
 
-Single endpoint for **all** cron tasks. Runs registered jobs in `src/jobs/index.js`: **pre-session-reminder** and **billing-deliver-stuck** (KROS webhook fallback).
+Single endpoint for **all** cron tasks. Runs registered jobs in `src/jobs/index.js`: **pre-session-reminder** and **billing-deliver-stuck** (KROS webhook missing recovery).
 
 **Auth:**
 
@@ -435,7 +435,9 @@ curl -X POST https://your-app.alwaysdata.net/api/cron/run \
     },
     {
       "name": "billing-deliver-stuck",
-      "sent": 0,
+      "alerted": 0,
+      "delayedEmailsQueued": 0,
+      "delayedEmailsSent": 0,
       "skipped": 0,
       "errors": []
     }

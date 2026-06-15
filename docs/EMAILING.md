@@ -24,6 +24,7 @@
 | `billing-invoice.ejs` | `billing-invoice` | `Platobný doklad {documentNumber} — citimtedasom.sk` | After billing row exists + PDF on disk; `processBillingDocumentDelivery` (skipped if duplicate log, invalid email, or `BILLING_SEND_INVOICE_EMAIL` off) | `billing_document` / document id | `system` |
 | `billing-invoice-resend.ejs` | `billing-invoice-resend` | `Platobný doklad {documentNumber} (znova) — citimtedasom.sk` | Admin **`resendBillingInvoiceEmailAdmin`** → **`POST /admin/billing/:id/resend-email`** | `billing_document` / document id | **`admin`** |
 | `pre-session-reminder.ejs` | `pre-session-reminder` | `Pripomienka sedenia zajtra` | Cron **`pre-session-reminder`**: `confirmed` reservations whose slot **`start_at_utc`** falls in **`[NOW+23:30h, NOW+24:30h)`** (`reservationsRepo.findDueForPreSessionReminder`) | `reservation` / reservation id | `system` |
+| `billing-delayed.ejs` | `billing-delayed` | `Doklad k platbe pošleme dodatočne` | Cron **`billing-deliver-stuck`** when KROS webhook missing and reservation **`confirmed`** (`BILLING_DELAYED_EMAIL_ENABLED`); idempotent via `email_delivery_tasks` + `email_sent_log` | `billing_document` / document id | `system` |
 
 **Provider API:** `src/email/provider.js` — **`sendEmail(to, subject, html, metadata, options?)`**. If Resend is not configured (`RESEND_API_KEY` + `RESEND_FROM_EMAIL`), returns **`{ ok: false, skipped: true }`** and nothing is sent. **`options.attachments`** is used for billing PDFs. **`reply_to`** is set to the configured from address.
 
@@ -31,13 +32,13 @@
 
 **Idempotency:** Pre-session and initial billing invoice use **`emailSentLogRepo.wasAlreadySent`** (template + entity) so cron/webhook retries do not double-send; reservation confirmation has no duplicate guard beyond business rules (one payment flow per reservation).
 
-### KROS webhook fallback (stuck `accepted` documents)
+### KROS webhook missing (stuck `accepted` documents)
 
 When **`KROS_ENABLED`** is on, the customer invoice link normally comes from the KROS success webhook (`billing-invoice-kros`). If KROS accepts the document (**`kros_status = accepted`**) but the webhook never arrives, the row can sit with **`kros_webhook_received_at` NULL** and **`email_sent_at` NULL**.
 
-**Stuck criteria (implementation):** `kros_status = 'accepted'`, `kros_webhook_received_at IS NULL`, `email_sent_at IS NULL`, and **`created_at` older than 30 minutes**. The app does not run an internal scheduler; recovery is explicit.
+**Stuck criteria (implementation):** `kros_status = 'accepted'`, `kros_webhook_received_at IS NULL`, `email_sent_at IS NULL`, and **`created_at` older than `KROS_STUCK_THRESHOLD_MINUTES`** (default 30). The app does not run an internal scheduler; recovery is explicit.
 
-**Job:** **`billing-deliver-stuck`** (`src/jobs/billingDeliverStuck.js`), registered in `src/jobs/index.js` and run via the single cron endpoint **`/api/cron/run`** (auth: `CRON_SECRET` — see `docs/SCHEDULED-EMAILS-CRON.md`). For each candidate (up to **50** per run), it checks **`email_sent_log`** for **both** **`billing-invoice-kros`** and **`billing-invoice`**; if either was already sent for that **`billing_document`**, the row is skipped. Otherwise it logs **`kros_fallback_delivery`** (with **`ageMinutes`**) and runs **`processBillingDocumentDelivery(id, { forceInternal: true })`**, which issues the internal **CT-PDF** and sends **`billing-invoice`** when **`BILLING_SEND_INVOICE_EMAIL`** allows and the snapshot email is valid. Job result in the cron response: `{ name: 'billing-deliver-stuck', sent, skipped, errors }` where `sent` is processed documents.
+**Job:** **`billing-deliver-stuck`** (`src/jobs/billingDeliverStuck.js`), registered in `src/jobs/index.js` and run via the single cron endpoint **`/api/cron/run`** (auth: `CRON_SECRET` — see `docs/SCHEDULED-EMAILS-CRON.md`). For each candidate (up to **50** per run), it checks **`email_sent_log`** for **both** **`billing-invoice-kros`** and **`billing-invoice`**; if either was already sent for that **`billing_document`**, the row is skipped. Otherwise it creates a **`kros_webhook_missing`** admin alert (`system_alerts`) and, when **`BILLING_DELAYED_EMAIL_ENABLED`** is on and the reservation is **`confirmed`**, queues/sends **`billing-delayed`** at most once per billing document. **Cron does not** generate internal CT-PDF or send legacy **`billing-invoice`** fallback. Job result: `{ name: 'billing-deliver-stuck', alerted, delayedEmailsQueued, delayedEmailsSent, skipped, errors }`.
 
 **Operations:** The production scheduled task calls **`/api/cron/run`** (every 15 minutes, with `X-Cron-Secret`); this job runs as part of that — no separate URL is needed.
 

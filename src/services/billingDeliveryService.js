@@ -80,7 +80,7 @@ async function allocateDocumentNumber(conn, billingDocumentId, year, prefix) {
 /**
  * @param {number} billingDocumentId
  * @param {object} [options]
- * @param {boolean} [options.forceInternal] - Run CT-PDF pipeline even when `KROS_ENABLED` (KROS webhook fallback)
+ * @param {boolean} [options.forceInternal] - Run CT-PDF pipeline even when `KROS_ENABLED` (manual/admin only; cron does not call this)
  */
 async function processBillingDocumentDelivery(billingDocumentId, options = {}) {
   const forceInternal = options.forceInternal === true;
@@ -295,7 +295,8 @@ async function resendBillingInvoiceEmailAdmin(billingDocumentId) {
 
 /**
  * Whether billing-delayed email may be sent for this document.
- * Requires confirmed reservation or prior reservation-confirmation send.
+ * Requires a confirmed reservation (independent of confirmation email delivery state).
+ * Billing-delayed is secondary and never replaces reservation confirmation.
  */
 async function isEligibleForBillingDelayedEmail(row) {
   if (!row.reservation_id) return false;
@@ -306,13 +307,7 @@ async function isEligibleForBillingDelayedEmail(row) {
   const [resRows] = await pool.execute('SELECT status FROM reservations WHERE id = ? LIMIT 1', [
     row.reservation_id,
   ]);
-  if (resRows[0]?.status === 'confirmed') return true;
-
-  return emailSentLogRepo.wasAlreadySent(
-    'reservation-confirmation',
-    'reservation',
-    row.reservation_id
-  );
+  return resRows[0]?.status === 'confirmed';
 }
 
 /**
