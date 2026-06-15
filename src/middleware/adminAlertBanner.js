@@ -1,7 +1,7 @@
 const systemAlertsRepo = require('../db/repositories/systemAlertsRepo');
 
 /**
- * Loads open critical alert count into res.locals for authenticated admin pages.
+ * Loads unresolved critical alert count (open + acknowledged) into res.locals for authenticated admin pages.
  */
 async function adminAlertBanner(req, res, next) {
   res.locals.openCriticalAlertCount = 0;

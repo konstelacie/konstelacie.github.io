@@ -66,7 +66,7 @@ async function getOpenCriticalCount() {
   const [rows] = await pool.execute(
     `SELECT COUNT(*) AS cnt
      FROM system_alerts
-     WHERE severity = 'critical' AND status = 'open'`
+     WHERE severity = 'critical' AND status IN ('open', 'acknowledged')`
   );
   return Number(rows[0]?.cnt ?? 0);
 }

@@ -28,25 +28,26 @@ test('Test 1 — open critical alert: red admin banner with count and link to /a
   assert.match(adminLayoutSrc, /href="\/admin\/alerts"/);
   assert.match(adminLayoutSrc, /openCriticalAlertCount === 1/);
   assert.match(adminLayoutSrc, /nevyriešen/);
+  assert.match(adminLayoutSrc, /kritick/);
 
   assert.match(adminAlertBannerSrc, /getOpenCriticalCount/);
   assert.match(adminAlertBannerSrc, /adminLoggedIn === true/);
   assert.match(adminAlertBannerSrc, /openCriticalAlertCount/);
 
   assert.match(systemAlertsRepoSrc, /async function getOpenCriticalCount/);
-  assert.match(systemAlertsRepoSrc, /severity = 'critical' AND status = 'open'/);
+  assert.match(systemAlertsRepoSrc, /severity = 'critical' AND status IN \('open', 'acknowledged'\)/);
 
   assert.match(adminRoutesSrc, /adminAlertBanner/);
   assert.match(adminRoutesSrc, /router\.use\(adminAlertBanner\)/);
 });
 
-test('Test 1 — banner does not treat acknowledged alerts as resolved', () => {
+test('Test 1b — banner counts open and acknowledged critical alerts, not resolved', () => {
   const countBlock = systemAlertsRepoSrc.slice(
     systemAlertsRepoSrc.indexOf('async function getOpenCriticalCount'),
     systemAlertsRepoSrc.indexOf('async function getAlerts')
   );
-  assert.match(countBlock, /status = 'open'/);
-  assert.doesNotMatch(countBlock, /acknowledged/);
+  assert.match(countBlock, /status IN \('open', 'acknowledged'\)/);
+  assert.doesNotMatch(countBlock, /status = 'resolved'/);
 });
 
 test('Test 2 — acknowledge: open → acknowledged with acknowledged_at', () => {
