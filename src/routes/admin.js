@@ -29,8 +29,13 @@ const { mysqlLocalDateToYmd } = require('../lib/slotApiMap');
 const { resolveBalancePayAdminLink } = require('../lib/balancePayAdminLink');
 const emailService = require('../services/emailService');
 const { logLine } = require('../lib/structuredLog');
+const systemAlertsRepo = require('../db/repositories/systemAlertsRepo');
+const { mapAdminAlertRow } = require('../lib/adminAlertDisplay');
+const { adminAlertBanner } = require('../middleware/adminAlertBanner');
 
 const router = express.Router();
+
+router.use(adminAlertBanner);
 
 const ADMIN_RESERVATION_FILTERS = ['today', 'upcoming', 'unpaid', 'confirmed', 'expired'];
 
@@ -123,6 +128,108 @@ router.post('/logout', (req, res) => {
   req.session.destroy(() => {
     res.redirect('/admin/login');
   });
+});
+
+router.get('/alerts', requireAdmin, async (req, res) => {
+  const flash = req.session.adminFlash;
+  if (flash) {
+    delete req.session.adminFlash;
+  }
+
+  try {
+    const pool = getPool();
+    if (!pool) {
+      return res.render('admin/alerts', {
+        layout: 'layouts/admin',
+        title: 'Systémové upozornenia — administrácia',
+        adminSection: 'alerts',
+        dbConfigured: false,
+        loadError: false,
+        flash,
+        alerts: [],
+      });
+    }
+
+    const rows = await systemAlertsRepo.getAlerts();
+    const alerts = rows.map((row) => mapAdminAlertRow(row));
+
+    return res.render('admin/alerts', {
+      layout: 'layouts/admin',
+      title: 'Systémové upozornenia — administrácia',
+      adminSection: 'alerts',
+      dbConfigured: true,
+      loadError: false,
+      flash,
+      alerts,
+    });
+  } catch (err) {
+    console.error('[admin/alerts]', err);
+    return res.status(500).render('admin/alerts', {
+      layout: 'layouts/admin',
+      title: 'Systémové upozornenia — administrácia',
+      adminSection: 'alerts',
+      dbConfigured: !!getPool(),
+      loadError: true,
+      flash,
+      alerts: [],
+    });
+  }
+});
+
+router.post('/alerts/:id/acknowledge', requireAdmin, async (req, res) => {
+  const id = parseAlertIdParam(req.params.id);
+  const redirect = '/admin/alerts';
+  if (!id) {
+    req.session.adminFlash = { level: 'error', message: 'Neplatné upozornenie.' };
+    return res.redirect(redirect);
+  }
+  try {
+    const pool = getPool();
+    if (!pool) {
+      req.session.adminFlash = { level: 'error', message: 'Databáza nie je dostupná.' };
+      return res.redirect(redirect);
+    }
+    const result = await systemAlertsRepo.acknowledgeAlert(id);
+    if (!result.ok) {
+      req.session.adminFlash = { level: 'error', message: mapAlertActionError(result.code) };
+    } else {
+      await auditRepo.log('system_alert_acknowledged', 'system_alert', id, null, 'admin');
+      req.session.adminFlash = { level: 'success', message: 'Upozornenie bolo potvrdené.' };
+    }
+    return res.redirect(redirect);
+  } catch (err) {
+    console.error('[admin/alerts/acknowledge]', err);
+    req.session.adminFlash = { level: 'error', message: 'Neznáma chyba.' };
+    return res.redirect(redirect);
+  }
+});
+
+router.post('/alerts/:id/resolve', requireAdmin, async (req, res) => {
+  const id = parseAlertIdParam(req.params.id);
+  const redirect = '/admin/alerts';
+  if (!id) {
+    req.session.adminFlash = { level: 'error', message: 'Neplatné upozornenie.' };
+    return res.redirect(redirect);
+  }
+  try {
+    const pool = getPool();
+    if (!pool) {
+      req.session.adminFlash = { level: 'error', message: 'Databáza nie je dostupná.' };
+      return res.redirect(redirect);
+    }
+    const result = await systemAlertsRepo.resolveAlert(id);
+    if (!result.ok) {
+      req.session.adminFlash = { level: 'error', message: mapAlertActionError(result.code) };
+    } else {
+      await auditRepo.log('system_alert_resolved', 'system_alert', id, null, 'admin');
+      req.session.adminFlash = { level: 'success', message: 'Upozornenie bolo vyriešené.' };
+    }
+    return res.redirect(redirect);
+  } catch (err) {
+    console.error('[admin/alerts/resolve]', err);
+    req.session.adminFlash = { level: 'error', message: 'Neznáma chyba.' };
+    return res.redirect(redirect);
+  }
 });
 
 function formatDbInstantForAdmin(value) {
@@ -380,6 +487,25 @@ function parseBillingIdParam(raw) {
   const id = parseInt(raw, 10);
   if (!Number.isInteger(id) || id <= 0) return null;
   return id;
+}
+
+function parseAlertIdParam(raw) {
+  const id = parseInt(raw, 10);
+  if (!Number.isInteger(id) || id <= 0) return null;
+  return id;
+}
+
+function mapAlertActionError(code) {
+  switch (code) {
+    case 'NOT_FOUND':
+      return 'Upozornenie sa nenašlo.';
+    case 'INVALID_STATE':
+      return 'Táto akcia nie je v aktuálnom stave dostupná.';
+    case 'NO_DB':
+      return 'Databáza nie je dostupná.';
+    default:
+      return 'Akciu sa nepodarilo vykonať.';
+  }
 }
 
 function mapBillingActionError(code) {

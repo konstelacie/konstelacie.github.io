@@ -1,0 +1,92 @@
+<div class="admin-wrap admin-wrap--wide">
+  <header class="admin-header admin-header--bar">
+    <h1 class="admin-title">Systémové upozornenia</h1>
+    <form method="post" action="/admin/logout">
+      <button type="submit" class="admin-btn admin-btn--ghost">Odhlásiť sa</button>
+    </form>
+  </header>
+
+  <% if (typeof flash !== 'undefined' && flash) { %>
+    <p class="admin-flash admin-flash--<%= flash.level %>" role="status"><%= flash.message %></p>
+  <% } %>
+
+  <% if (typeof loadError !== 'undefined' && loadError) { %>
+    <p class="admin-error" role="alert">Nepodarilo sa načítať upozornenia. Skúste znova neskôr.</p>
+  <% } %>
+
+  <% if (typeof dbConfigured !== 'undefined' && !dbConfigured) { %>
+    <p class="admin-error" role="alert">Databáza nie je nakonfigurovaná.</p>
+  <% } %>
+
+  <% if (typeof dbConfigured !== 'undefined' && dbConfigured) { %>
+    <% if (typeof alerts !== 'undefined' && alerts.length) { %>
+    <div class="admin-table-wrap admin-table-wrap--scroll">
+      <table class="admin-table admin-table--alerts">
+        <thead>
+          <tr>
+            <th scope="col">ID</th>
+            <th scope="col">Závažnosť</th>
+            <th scope="col">Stav</th>
+            <th scope="col">Typ</th>
+            <th scope="col">Názov</th>
+            <th scope="col">Entita</th>
+            <th scope="col">ID entity</th>
+            <th scope="col">Vytvorené</th>
+            <th scope="col">Aktualizované</th>
+            <th scope="col">Akcie</th>
+          </tr>
+        </thead>
+        <tbody>
+          <% for (const row of alerts) { %>
+          <tr class="<%= row.status === 'open' && row.severity === 'critical' ? 'admin-table__row--critical-open' : '' %>">
+            <td><%= row.id %></td>
+            <td><%= row.severity %></td>
+            <td><%= row.status %></td>
+            <td><code class="admin-code"><%= row.type %></code></td>
+            <td><%= row.title %></td>
+            <td><%= row.entity_type || '—' %></td>
+            <td><%= row.entity_id != null ? row.entity_id : '—' %></td>
+            <td><%= row.createdAtLabel %></td>
+            <td><%= row.updatedAtLabel %></td>
+            <td class="admin-table__actions">
+              <% if (row.canAcknowledge) { %>
+              <form method="post" action="/admin/alerts/<%= row.id %>/acknowledge" class="admin-inline-form">
+                <button type="submit" class="admin-btn admin-btn--ghost admin-btn--small">Potvrdiť</button>
+              </form>
+              <% } %>
+              <% if (row.canResolve) { %>
+              <form method="post" action="/admin/alerts/<%= row.id %>/resolve" class="admin-inline-form">
+                <button type="submit" class="admin-btn admin-btn--primary admin-btn--small">Vyriešiť</button>
+              </form>
+              <% } %>
+              <% if (!row.canAcknowledge && !row.canResolve) { %>
+              <span class="admin-placeholder">—</span>
+              <% } %>
+            </td>
+          </tr>
+          <tr class="admin-table__detail-row">
+            <td colspan="10">
+              <div class="admin-alert-detail">
+                <p class="admin-alert-detail__message"><strong>Správa:</strong> <%= row.message %></p>
+                <% if (row.acknowledgedAtLabel !== '—') { %>
+                <p class="admin-alert-detail__meta"><strong>Potvrdené:</strong> <%= row.acknowledgedAtLabel %></p>
+                <% } %>
+                <% if (row.resolvedAtLabel !== '—') { %>
+                <p class="admin-alert-detail__meta"><strong>Vyriešené:</strong> <%= row.resolvedAtLabel %></p>
+                <% } %>
+                <div class="admin-alert-detail__metadata">
+                  <strong>Metadata:</strong>
+                  <pre class="admin-pre"><%= row.metadataFormatted %></pre>
+                </div>
+              </div>
+            </td>
+          </tr>
+          <% } %>
+        </tbody>
+      </table>
+    </div>
+    <% } else { %>
+    <p class="admin-placeholder">Žiadne systémové upozornenia.</p>
+    <% } %>
+  <% } %>
+</div>

@@ -915,6 +915,94 @@ a:hover {
   background: var(--color-booking-accent-soft);
 }
 
+.admin-critical-banner {
+  padding: var(--spacing-sm) var(--spacing-container);
+  background: #b91c1c;
+  color: #ffffff;
+  border-bottom: 1px solid #991b1b;
+}
+
+.admin-critical-banner__title {
+  margin: 0 0 0.25rem;
+  font-size: 1rem;
+  font-weight: 700;
+}
+
+.admin-critical-banner__text {
+  margin: 0 0 0.5rem;
+  font-size: 0.95rem;
+}
+
+.admin-critical-banner__link {
+  display: inline-block;
+  padding: 0.35rem 0.75rem;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: #b91c1c;
+  background: #ffffff;
+  border-radius: 6px;
+  text-decoration: none;
+}
+
+.admin-critical-banner__link:hover {
+  text-decoration: none;
+  background: #fef2f2;
+}
+
+.admin-table--alerts .admin-table__detail-row td {
+  padding-top: 0;
+  border-top: none;
+  background: var(--color-booking-surface);
+}
+
+.admin-table__row--critical-open td {
+  background: #fef2f2;
+}
+
+.admin-alert-detail {
+  padding: var(--spacing-sm) 0 var(--spacing-md);
+}
+
+.admin-alert-detail__message,
+.admin-alert-detail__meta {
+  margin: 0 0 var(--spacing-sm);
+  font-size: 0.95rem;
+}
+
+.admin-alert-detail__metadata {
+  margin: 0;
+  font-size: 0.9rem;
+}
+
+.admin-pre {
+  margin: var(--spacing-sm) 0 0;
+  padding: var(--spacing-sm);
+  overflow-x: auto;
+  font-size: 0.85rem;
+  line-height: 1.45;
+  background: var(--color-bg);
+  border: 1px solid var(--color-border);
+  border-radius: 6px;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.admin-code {
+  font-size: 0.85rem;
+}
+
+.admin-table__actions {
+  white-space: nowrap;
+}
+
+.admin-inline-form {
+  display: inline;
+}
+
+.admin-inline-form + .admin-inline-form {
+  margin-left: 0.35rem;
+}
+
 .admin-filters {
   display: flex;
   flex-wrap: wrap;

@@ -8,11 +8,21 @@
   <link rel="stylesheet" href="/assets/css/site.css">
 </head>
 <body class="admin-body">
+  <% if (typeof openCriticalAlertCount !== 'undefined' && openCriticalAlertCount > 0) { %>
+  <div class="admin-critical-banner" role="alert">
+    <p class="admin-critical-banner__title">🔴 Kritické systémové problémy</p>
+    <p class="admin-critical-banner__text">
+      <%= openCriticalAlertCount === 1 ? '1 nevyriešené upozornenie vyžaduje pozornosť.' : openCriticalAlertCount + ' nevyriešených upozornení vyžaduje pozornosť.' %>
+    </p>
+    <a class="admin-critical-banner__link" href="/admin/alerts">Zobraziť upozornenia</a>
+  </div>
+  <% } %>
   <% if (typeof adminSection !== 'undefined') { %>
   <nav class="admin-nav" aria-label="Hlavná sekcia administrácie">
     <a class="admin-nav__link <%= adminSection === 'slots' ? 'admin-nav__link--active' : '' %>" href="/admin/slots">Termíny</a>
     <a class="admin-nav__link <%= adminSection === 'reservations' ? 'admin-nav__link--active' : '' %>" href="/admin/reservations">Rezervácie</a>
     <a class="admin-nav__link <%= adminSection === 'billing' ? 'admin-nav__link--active' : '' %>" href="/admin/billing">Platobné doklady</a>
+    <a class="admin-nav__link <%= adminSection === 'alerts' ? 'admin-nav__link--active' : '' %>" href="/admin/alerts">Upozornenia</a>
     <a class="admin-nav__link <%= adminSection === 'maintenance' ? 'admin-nav__link--active' : '' %>" href="/admin/maintenance">Údržba</a>
   </nav>
   <% } %>

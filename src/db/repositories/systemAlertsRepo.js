@@ -59,7 +59,90 @@ async function createOpen({
   return result.insertId;
 }
 
+async function getOpenCriticalCount() {
+  const pool = getPool();
+  if (!pool) return 0;
+
+  const [rows] = await pool.execute(
+    `SELECT COUNT(*) AS cnt
+     FROM system_alerts
+     WHERE severity = 'critical' AND status = 'open'`
+  );
+  return Number(rows[0]?.cnt ?? 0);
+}
+
+async function getAlerts() {
+  const pool = getPool();
+  if (!pool) return [];
+
+  const [rows] = await pool.execute(
+    `SELECT id, severity, type, entity_type, entity_id, title, message, status,
+            created_at, updated_at, acknowledged_at, acknowledged_by,
+            resolved_at, resolved_by, metadata_json
+     FROM system_alerts
+     ORDER BY created_at DESC`
+  );
+  return rows;
+}
+
+async function findById(id) {
+  const pool = getPool();
+  if (!pool) return null;
+
+  const [rows] = await pool.execute(
+    `SELECT id, severity, type, entity_type, entity_id, title, message, status,
+            created_at, updated_at, acknowledged_at, acknowledged_by,
+            resolved_at, resolved_by, metadata_json
+     FROM system_alerts
+     WHERE id = ?
+     LIMIT 1`,
+    [id]
+  );
+  return rows[0] || null;
+}
+
+async function acknowledgeAlert(id) {
+  const pool = getPool();
+  if (!pool) return { ok: false, code: 'NO_DB' };
+
+  const [result] = await pool.execute(
+    `UPDATE system_alerts
+     SET status = 'acknowledged', acknowledged_at = CURRENT_TIMESTAMP(3)
+     WHERE id = ? AND status = 'open'`,
+    [id]
+  );
+  if (result.affectedRows === 0) {
+    const existing = await findById(id);
+    if (!existing) return { ok: false, code: 'NOT_FOUND' };
+    return { ok: false, code: 'INVALID_STATE' };
+  }
+  return { ok: true };
+}
+
+async function resolveAlert(id) {
+  const pool = getPool();
+  if (!pool) return { ok: false, code: 'NO_DB' };
+
+  const [result] = await pool.execute(
+    `UPDATE system_alerts
+     SET status = 'resolved', resolved_at = CURRENT_TIMESTAMP(3)
+     WHERE id = ? AND status IN ('open', 'acknowledged')`,
+    [id]
+  );
+  if (result.affectedRows === 0) {
+    const existing = await findById(id);
+    if (!existing) return { ok: false, code: 'NOT_FOUND' };
+    return { ok: false, code: 'INVALID_STATE' };
+  }
+  return { ok: true };
+}
+
 module.exports = {
   findOpenByTypeAndEntity,
   createOpen,
+  getOpenCriticalCount,
+  getAlerts,
+  findById,
+  acknowledgeAlert,
+  resolveAlert,
 };
