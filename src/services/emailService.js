@@ -169,6 +169,49 @@ async function sendPreSessionReminder({ to, slot }, metadata = {}) {
 }
 
 /**
+ * Send session before-start email (meeting link shortly before slot).
+ * @param {object} params
+ * @param {string} params.to - Recipient email
+ * @param {object} params.slot - { start_at_utc, end_at_utc, timezone }
+ * @param {object} [metadata] - Optional metadata for logging (entity_type, entity_id)
+ * @returns {Promise<{ok: boolean, skipped?: boolean, messageId?: string}>}
+ */
+async function sendSessionBeforeStartEmail({ to, slot }, metadata = {}) {
+  const tz = slot.timezone || 'Europe/Bratislava';
+  const slotDateFormatted = formatSlotDate(slot.start_at_utc, tz);
+  const slotTimeFormatted = formatSlotTime(slot.start_at_utc, tz);
+
+  const meetingUrl = (process.env.SESSION_MEETING_URL || '').trim() || null;
+  const meetingUrlAttr = meetingUrl ? escapeHtmlAttribute(meetingUrl) : null;
+  const meetingUrlText = meetingUrl ? escapeHtml(meetingUrl) : null;
+
+  const html = await ejs.renderFile(
+    path.join(EMAIL_TEMPLATES_DIR, 'session-before-start.ejs'),
+    { slotDateFormatted, slotTimeFormatted, timezone: tz, meetingUrlAttr, meetingUrlText }
+  );
+
+  const result = await emailProvider.sendEmail(
+    to,
+    'Sedenie začína o chvíľu — pripoj sa',
+    html,
+    metadata
+  );
+
+  if (result.ok && result.messageId) {
+    await emailSentLogRepo.log({
+      recipientEmail: to,
+      templateId: 'session-before-start',
+      entityType: metadata.entity_type,
+      entityId: metadata.entity_id,
+      providerMessageId: result.messageId,
+      actorType: 'system',
+    });
+  }
+
+  return result;
+}
+
+/**
  * Send billing invoice email (PDF from Phase 2 pipeline).
  * @param {object} params
  * @param {string} params.to
@@ -431,6 +474,7 @@ async function sendBillingDelayedEmail({ to }, metadata = {}) {
 module.exports = {
   sendReservationConfirmation,
   sendPreSessionReminder,
+  sendSessionBeforeStartEmail,
   sendBillingInvoiceEmail,
   sendBillingInvoiceKrosEmail,
   sendBalancePayInviteEmail,

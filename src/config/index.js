@@ -44,6 +44,12 @@ module.exports = {
       fromEmail: process.env.RESEND_FROM_EMAIL || '',
       fromName: process.env.RESEND_FROM_NAME || 'citimtedasom.sk',
     },
+    /** Minutes before slot start to send session-before-start email (cron retries until start). */
+    sessionBeforeStartMinutes: (() => {
+      const n = parseInt(String(process.env.SESSION_BEFORE_START_EMAIL_MINUTES ?? '20').trim(), 10);
+      if (!Number.isInteger(n) || n < 1) return 20;
+      return Math.min(n, 24 * 60);
+    })(),
   },
   /**
    * Billing PDF / supplier block on invoices (see docs/payments/invoicing-mvp-implementation.md).

@@ -216,6 +216,32 @@ async function findDueForPreSessionReminder() {
 }
 
 /**
+ * Confirmed reservations whose slot starts within the next N minutes (not yet started).
+ * Used by session-before-start cron job; failed sends retry until start_at_utc.
+ * @param {number} minutesBeforeStart
+ * @returns {Promise<Array<{id, email, slot_id, start_at_utc, end_at_utc, timezone}>>}
+ */
+async function findDueForSessionBeforeStartEmail(minutesBeforeStart) {
+  const minutes = Number(minutesBeforeStart);
+  if (!Number.isInteger(minutes) || minutes < 1) return [];
+
+  const pool = getPool();
+  if (!pool) return [];
+
+  const [rows] = await pool.execute(
+    `SELECT r.id, r.email, r.slot_id,
+            s.start_at_utc, s.end_at_utc, s.timezone
+     FROM reservations r
+     JOIN slots s ON r.slot_id = s.id
+     WHERE r.status = 'confirmed'
+       AND s.start_at_utc > NOW(3)
+       AND s.start_at_utc <= DATE_ADD(NOW(3), INTERVAL ? MINUTE)`,
+    [minutes]
+  );
+  return rows;
+}
+
+/**
  * Admin list with slot + latest payment summary.
  * @param {{ filter: string, todayStartUtc?: Date, todayEndUtc?: Date }} opts
  */
@@ -286,6 +312,7 @@ module.exports = {
   hasActiveReservationForEmail,
   getById,
   findDueForPreSessionReminder,
+  findDueForSessionBeforeStartEmail,
   listForAdmin,
   getAdminDetailById,
   adminConfirmReservation,

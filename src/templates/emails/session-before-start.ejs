@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="sk">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Sedenie začína o chvíľu</title>
+</head>
+<body style="margin: 0; padding: 0; font-family: system-ui, -apple-system, 'Segoe UI', sans-serif; font-size: 16px; line-height: 1.6; color: #0f172a; background-color: #f8fafc;">
+  <div style="max-width: 600px; margin: 0 auto; padding: 24px;">
+    <h1 style="margin: 0 0 24px; font-size: 1.5rem; font-weight: 600;">Sedenie začína o chvíľu</h1>
+
+    <p style="margin: 0 0 16px;">Ahoj,</p>
+    <p style="margin: 0 0 24px;">Tvoje sedenie sa čoskoro začne. Nižšie nájdeš termín a odkaz na pripojenie.</p>
+
+    <div style="background: #ffffff; border: 1px solid #e2e8f0; border-radius: 8px; padding: 20px; margin-bottom: 24px;">
+      <p style="margin: 0 0 8px; font-weight: 600;">Termín</p>
+      <p style="margin: 0; color: #334155;"><%= slotDateFormatted %> o <%= slotTimeFormatted %> (<%= timezone %>)</p>
+    </div>
+
+    <div style="background: #ffffff; border: 1px solid #e2e8f0; border-radius: 8px; padding: 20px; margin-bottom: 24px;">
+      <p style="margin: 0 0 8px; font-weight: 600;">Online sedenie</p>
+      <p style="margin: 0 0 16px; color: #334155;">Sedenie prebehne cez Google Meet. Môžeš sa pripojiť 2–3 minúty pred začiatkom.</p>
+<% if (meetingUrlAttr) { %>
+      <a href="<%= meetingUrlAttr %>" style="display: inline-block; padding: 12px 20px; background: #2563eb; color: #ffffff; text-decoration: none; border-radius: 6px; font-weight: 600;">Pripojiť sa</a>
+      <p style="margin: 16px 0 0; color: #64748b; font-size: 0.875rem;">Ak tlačidlo nefunguje, skopíruj tento odkaz do prehliadača:<br><span style="word-break: break-all;"><%= meetingUrlText %></span></p>
+<% } else { %>
+      <p style="margin: 0; color: #334155;">[SEM DÁŠ LINK]</p>
+<% } %>
+    </div>
+
+    <p style="margin: 0 0 16px;">Ak potrebuješ zrušiť alebo presunúť termín, odpovedz na tento e-mail.</p>
+    <p style="margin: 0 0 24px; color: #64748b; font-size: 0.9rem;">Tešíme sa na teba.</p>
+
+    <p style="margin: 0; color: #64748b; font-size: 0.875rem;">S pozdravom,<br>Michal Mihálik</p>
+  </div>
+</body>
+</html>

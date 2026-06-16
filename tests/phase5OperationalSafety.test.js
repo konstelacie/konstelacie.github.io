@@ -33,6 +33,10 @@ const preSessionReminderSrc = fs.readFileSync(
   path.join(__dirname, '../src/jobs/preSessionReminder.js'),
   'utf8'
 );
+const sessionBeforeStartSrc = fs.readFileSync(
+  path.join(__dirname, '../src/jobs/sessionBeforeStart.js'),
+  'utf8'
+);
 const reservationsRepoSrc = fs.readFileSync(
   path.join(__dirname, '../src/db/repositories/reservationsRepo.js'),
   'utf8'
@@ -179,6 +183,17 @@ test('Test 6 — Reminder unchanged: window and idempotency preserved', () => {
   assert.match(preSessionReminderSrc, /wasAlreadySent/);
   assert.match(preSessionReminderSrc, /pre-session-reminder/);
   assert.doesNotMatch(preSessionReminderSrc, /email_delivery_tasks/);
+});
+
+test('session-before-start: retries until start, idempotent via email_sent_log', () => {
+  assert.match(jobsIndexSrc, /sessionBeforeStart/);
+  assert.match(reservationsRepoSrc, /findDueForSessionBeforeStartEmail/);
+  assert.match(reservationsRepoSrc, /start_at_utc > NOW\(3\)/);
+  assert.match(reservationsRepoSrc, /DATE_ADD\(NOW\(3\), INTERVAL \? MINUTE\)/);
+  assert.match(sessionBeforeStartSrc, /wasAlreadySent/);
+  assert.match(sessionBeforeStartSrc, /session-before-start/);
+  assert.match(sessionBeforeStartSrc, /sessionBeforeStartMinutes/);
+  assert.doesNotMatch(sessionBeforeStartSrc, /email_delivery_tasks/);
 });
 
 test('Stripe reconciliation only inspects booking checkout sessions', () => {

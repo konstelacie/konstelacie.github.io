@@ -6,6 +6,7 @@
 const cronHealth = require('./cronHealth');
 const emailDeliveryTasks = require('./emailDeliveryTasks');
 const preSessionReminder = require('./preSessionReminder');
+const sessionBeforeStart = require('./sessionBeforeStart');
 const billingDeliverStuck = require('./billingDeliverStuck');
 const stripeReconciliation = require('./stripeReconciliation');
 const cronHealthService = require('../services/cronHealthService');
@@ -15,6 +16,7 @@ const jobs = [
   cronHealth,
   emailDeliveryTasks,
   preSessionReminder,
+  sessionBeforeStart,
   billingDeliverStuck,
   stripeReconciliation,
 ];
