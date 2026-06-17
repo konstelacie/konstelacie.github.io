@@ -65,6 +65,15 @@ router.get('/', (req, res) => {
   renderSiteHome(req, res);
 });
 
+router.get('/ako-sa-pripravit-na-sedenie', (_req, res) => {
+  res.render('pages/session-preparation', {
+    layout: 'layouts/default',
+    title: 'Ako sa pripraviť na sedenie',
+    description: 'Praktické tipy a uvoľnenie pred online sedením. Nemusíš sa pripravovať dokonale.',
+    extraStyles: '<link rel="stylesheet" href="/assets/css/funnel.css">',
+  });
+});
+
 router.get('/success', (_req, res) => {
   res.render('pages/booking-success', {
     layout: 'layouts/default',
@@ -73,7 +82,6 @@ router.get('/success', (_req, res) => {
     showTestingBanner: homeTestingBanner(),
     title: 'Platba dokončená',
     description: 'Ďakujeme, platba je dokončená.',
-    homeUrl: '/',
     extraStyles: '<link rel="stylesheet" href="/assets/css/funnel.css">',
     extraScripts: '<script src="/assets/js/success-page.js"></script>',
   });

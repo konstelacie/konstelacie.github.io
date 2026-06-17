@@ -4,6 +4,12 @@
   const TIMEZONE = 'Europe/Bratislava';
   const POLL_INTERVAL_MS = 2000;
   const MAX_POLL_ATTEMPTS = 30; // ~1 minute
+  const CALENDAR_EVENT_TITLE = 'Online sedenie | citimtedasom.sk';
+  const CALENDAR_EVENT_DETAILS =
+    'Online sedenie cez Google Meet. Odkaz na pripojenie nájdeš v potvrdzujúcom e-maile.';
+
+  /** @type {{ startAt: string, endAt: string, reservationId?: number } | null} */
+  let calendarEventData = null;
 
   function getSessionId() {
     const params = new URLSearchParams(window.location.search);
@@ -41,6 +47,122 @@
     if (msgEl) msgEl.textContent = text;
   }
 
+  function formatUtcCalendarStamp(isoString) {
+    return new Date(isoString).toISOString().replace(/[-:]/g, '').replace(/\.\d{3}/, '');
+  }
+
+  function formatLocalCalendarStamp(isoString) {
+    const parts = new Intl.DateTimeFormat('en-GB', {
+      timeZone: TIMEZONE,
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit',
+      hour12: false,
+    }).formatToParts(new Date(isoString));
+    const map = Object.fromEntries(parts.filter((p) => p.type !== 'literal').map((p) => [p.type, p.value]));
+    return `${map.year}${map.month}${map.day}T${map.hour}${map.minute}${map.second}`;
+  }
+
+  function escapeIcsText(value) {
+    return String(value)
+      .replace(/\\/g, '\\\\')
+      .replace(/;/g, '\\;')
+      .replace(/,/g, '\\,')
+      .replace(/\r?\n/g, '\\n');
+  }
+
+  function buildCalendarEvent(data) {
+    if (!data?.slot?.startAt || !data?.slot?.endAt) return null;
+    return {
+      startAt: data.slot.startAt,
+      endAt: data.slot.endAt,
+      reservationId: data.reservation?.id,
+    };
+  }
+
+  function buildGoogleCalendarUrl(event) {
+    const params = new URLSearchParams({
+      action: 'TEMPLATE',
+      text: CALENDAR_EVENT_TITLE,
+      dates: `${formatLocalCalendarStamp(event.startAt)}/${formatLocalCalendarStamp(event.endAt)}`,
+      details: CALENDAR_EVENT_DETAILS,
+      location: 'Online (Google Meet)',
+      ctz: TIMEZONE,
+    });
+    return 'https://calendar.google.com/calendar/render?' + params.toString();
+  }
+
+  function downloadIcsFile(event) {
+    const uid = event.reservationId
+      ? `reservation-${event.reservationId}@citimtedasom.sk`
+      : `session-${formatUtcCalendarStamp(event.startAt)}@citimtedasom.sk`;
+    const ics = [
+      'BEGIN:VCALENDAR',
+      'VERSION:2.0',
+      'PRODID:-//citimtedasom.sk//Booking//SK',
+      'CALSCALE:GREGORIAN',
+      'METHOD:PUBLISH',
+      'BEGIN:VEVENT',
+      'UID:' + uid,
+      'DTSTAMP:' + formatUtcCalendarStamp(new Date().toISOString()),
+      'DTSTART:' + formatUtcCalendarStamp(event.startAt),
+      'DTEND:' + formatUtcCalendarStamp(event.endAt),
+      'SUMMARY:' + escapeIcsText(CALENDAR_EVENT_TITLE),
+      'DESCRIPTION:' + escapeIcsText(CALENDAR_EVENT_DETAILS),
+      'LOCATION:' + escapeIcsText('Online (Google Meet)'),
+      'END:VEVENT',
+      'END:VCALENDAR',
+    ].join('\r\n');
+
+    const blob = new Blob([ics], { type: 'text/calendar;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = 'sedenie.ics';
+    link.click();
+    URL.revokeObjectURL(url);
+  }
+
+  function setCalendarMenuOpen(open) {
+    const toggle = document.getElementById('success-calendar-toggle');
+    const menu = document.getElementById('success-calendar-menu');
+    if (!toggle || !menu) return;
+    toggle.setAttribute('aria-expanded', open ? 'true' : 'false');
+    menu.hidden = !open;
+  }
+
+  function wireCalendarActions(event) {
+    const toggle = document.getElementById('success-calendar-toggle');
+    const googleLink = document.getElementById('success-calendar-google');
+    const icsButton = document.getElementById('success-calendar-ics');
+    if (!toggle || !googleLink || !icsButton) return;
+
+    googleLink.href = buildGoogleCalendarUrl(event);
+
+    toggle.onclick = function () {
+      setCalendarMenuOpen(toggle.getAttribute('aria-expanded') !== 'true');
+    };
+
+    icsButton.onclick = function () {
+      downloadIcsFile(event);
+      setCalendarMenuOpen(false);
+    };
+
+    document.addEventListener('click', function onDocumentClick(e) {
+      const picker = document.querySelector('.success-calendar-picker');
+      if (!picker || picker.contains(/** @type {Node} */ (e.target))) return;
+      setCalendarMenuOpen(false);
+    });
+  }
+
+  function setCtaSectionVisible(visible) {
+    const ctaSection = document.getElementById('success-cta-section');
+    if (ctaSection) ctaSection.hidden = !visible;
+  }
+
   function showState(state, data) {
     const titleEl = document.getElementById('success-main-title');
     const loadingEl = document.getElementById('success-loading');
@@ -54,6 +176,7 @@
     if (confirmedEl) confirmedEl.hidden = state !== 'confirmed';
     if (processingEl) processingEl.hidden = state !== 'processing';
     if (errorEl) errorEl.hidden = state !== 'error';
+    setCtaSectionVisible(state === 'confirmed');
 
     if (state === 'loading') {
       setTitle(titleEl, 'Potvrdzujeme platbu');
@@ -86,6 +209,17 @@
         const amountEl = document.getElementById('success-amount-deposit');
         if (slotEl) slotEl.textContent = slotText;
         if (amountEl) amountEl.textContent = amountText;
+      }
+
+      const nextCalendarEvent = buildCalendarEvent(data);
+      if (
+        nextCalendarEvent &&
+        (!calendarEventData ||
+          calendarEventData.startAt !== nextCalendarEvent.startAt ||
+          calendarEventData.endAt !== nextCalendarEvent.endAt)
+      ) {
+        calendarEventData = nextCalendarEvent;
+        wireCalendarActions(nextCalendarEvent);
       }
     }
   }

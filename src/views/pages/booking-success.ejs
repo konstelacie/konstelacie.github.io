@@ -39,11 +39,39 @@
     </div>
   </section>
 
-  <section class="content-cta prose">
+  <section id="success-cta-section" class="content-cta success-cta prose" hidden>
     <div class="container">
-      <p>
-        <a href="<%= homeUrl %>" class="cta">Prejsť na úvodnú stránku</a>
-      </p>
+      <div class="success-cta-actions">
+        <div class="success-calendar-picker">
+          <button
+            type="button"
+            id="success-calendar-toggle"
+            class="cta success-calendar-toggle"
+            aria-expanded="false"
+            aria-controls="success-calendar-menu"
+          >
+            Pridať do kalendára
+          </button>
+          <div id="success-calendar-menu" class="success-calendar-menu" hidden>
+            <a
+              id="success-calendar-google"
+              class="success-calendar-option"
+              href="#"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              Google Kalendár
+            </a>
+            <button type="button" id="success-calendar-ics" class="success-calendar-option">
+              Apple / Outlook (.ics)
+            </button>
+          </div>
+        </div>
+        <a href="/ako-sa-pripravit-na-sedenie" class="cta-secondary">Ako sa pripraviť na sedenie</a>
+        <p class="success-cta-reassurance">
+          Nemusíš sa pripravovať dokonale. Stačí prísť taký/á, aký/á práve si.
+        </p>
+      </div>
     </div>
   </section>
 </main>
