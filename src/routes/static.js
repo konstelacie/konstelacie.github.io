@@ -30,6 +30,7 @@ router.get('/robots.txt', (_req, res) => {
       'Allow: /',
       ...disallowFunnels,
       'Disallow: /admin',
+      'Disallow: /email-subscribe-success',
       `Sitemap: ${SITE_ORIGIN}/sitemap.xml`,
       '',
     ].join('\n')

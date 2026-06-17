@@ -1,0 +1,163 @@
+{
+  "en": {
+    "metaDescription": "Thank you for subscribing!",
+    "title": "Thank you!",
+    "heading": "Thank you!",
+    "message": "Check your inbox and confirm your subscription. You'll hear from us soon.",
+    "spamNote": "If you don't see the email, check your Spam or Promotions folder.",
+    "backToSite": "Back to site",
+    "privacyLabel": "Privacy Policy",
+    "footerNote": "© citimtedasom.sk",
+    "openVerb": "Open",
+    "mascotAlt": "",
+    "providers": {
+      "gmail": "Gmail",
+      "outlook": "Outlook",
+      "yahoo": "Yahoo Mail",
+      "centrum": "Centrum Mail",
+      "azet": "Azet Mail",
+      "zoznam": "Zoznam Mail",
+      "seznam": "Seznam Mail",
+      "proton": "Proton Mail",
+      "icloud": "iCloud Mail"
+    }
+  },
+  "de": {
+    "metaDescription": "Danke für Ihr Abonnement!",
+    "title": "Danke!",
+    "heading": "Danke!",
+    "message": "Schau in dein Postfach und bestätige dein Abonnement. Du hörst bald von uns.",
+    "spamNote": "Wenn du die E-Mail nicht siehst, prüfe den Spam- oder Werbeordner.",
+    "backToSite": "Zurück zur Seite",
+    "privacyLabel": "Datenschutz",
+    "footerNote": "© citimtedasom.sk",
+    "openVerb": "Öffnen",
+    "mascotAlt": "",
+    "providers": {
+      "gmail": "Gmail",
+      "outlook": "Outlook",
+      "yahoo": "Yahoo Mail",
+      "centrum": "Centrum Mail",
+      "azet": "Azet Mail",
+      "zoznam": "Zoznam Mail",
+      "seznam": "Seznam Mail",
+      "proton": "Proton Mail",
+      "icloud": "iCloud Mail"
+    }
+  },
+  "es": {
+    "metaDescription": "¡Gracias por suscribirte!",
+    "title": "¡Gracias!",
+    "heading": "¡Gracias!",
+    "message": "Revisa tu bandeja de entrada y confirma tu suscripción. Pronto tendrás noticias nuestras.",
+    "spamNote": "Si no ves el correo, revisa la carpeta de spam o promociones.",
+    "backToSite": "Volver al sitio",
+    "privacyLabel": "Política de privacidad",
+    "footerNote": "© citimtedasom.sk",
+    "openVerb": "Abrir",
+    "mascotAlt": "",
+    "providers": {
+      "gmail": "Gmail",
+      "outlook": "Outlook",
+      "yahoo": "Yahoo Mail",
+      "centrum": "Centrum Mail",
+      "azet": "Azet Mail",
+      "zoznam": "Zoznam Mail",
+      "seznam": "Seznam Mail",
+      "proton": "Proton Mail",
+      "icloud": "iCloud Mail"
+    }
+  },
+  "fr": {
+    "metaDescription": "Merci pour votre abonnement !",
+    "title": "Merci !",
+    "heading": "Merci !",
+    "message": "Consulte ta boîte de réception et confirme ton abonnement. Tu auras bientôt de nos nouvelles.",
+    "spamNote": "Si tu ne vois pas l'e-mail, vérifie les dossiers Spam ou Promotions.",
+    "backToSite": "Retour au site",
+    "privacyLabel": "Politique de confidentialité",
+    "footerNote": "© citimtedasom.sk",
+    "openVerb": "Ouvrir",
+    "mascotAlt": "",
+    "providers": {
+      "gmail": "Gmail",
+      "outlook": "Outlook",
+      "yahoo": "Yahoo Mail",
+      "centrum": "Centrum Mail",
+      "azet": "Azet Mail",
+      "zoznam": "Zoznam Mail",
+      "seznam": "Seznam Mail",
+      "proton": "Proton Mail",
+      "icloud": "iCloud Mail"
+    }
+  },
+  "it": {
+    "metaDescription": "Grazie per l'iscrizione!",
+    "title": "Grazie!",
+    "heading": "Grazie!",
+    "message": "Controlla la posta in arrivo e conferma l'iscrizione. Avrai presto nostre notizie.",
+    "spamNote": "Se non vedi l'email, controlla la cartella Spam o Promozioni.",
+    "backToSite": "Torna al sito",
+    "privacyLabel": "Informativa sulla privacy",
+    "footerNote": "© citimtedasom.sk",
+    "openVerb": "Apri",
+    "mascotAlt": "",
+    "providers": {
+      "gmail": "Gmail",
+      "outlook": "Outlook",
+      "yahoo": "Yahoo Mail",
+      "centrum": "Centrum Mail",
+      "azet": "Azet Mail",
+      "zoznam": "Zoznam Mail",
+      "seznam": "Seznam Mail",
+      "proton": "Proton Mail",
+      "icloud": "iCloud Mail"
+    }
+  },
+  "cs": {
+    "metaDescription": "Děkujeme za přihlášení k odběru!",
+    "title": "Děkujeme!",
+    "heading": "Děkujeme!",
+    "message": "Zkontroluj doručenou poštu a potvrď odběr. Brzy se ozveme.",
+    "spamNote": "Pokud e-mail nevidíš, zkontroluj složku Spam nebo Propagace.",
+    "backToSite": "Zpět na stránku",
+    "privacyLabel": "Zásady ochrany osobních údajů",
+    "footerNote": "© citimtedasom.sk",
+    "openVerb": "Otevřít",
+    "mascotAlt": "",
+    "providers": {
+      "gmail": "Gmail",
+      "outlook": "Outlook",
+      "yahoo": "Yahoo Mail",
+      "centrum": "Centrum Mail",
+      "azet": "Azet Mail",
+      "zoznam": "Zoznam Mail",
+      "seznam": "Seznam Mail",
+      "proton": "Proton Mail",
+      "icloud": "iCloud Mail"
+    }
+  },
+  "sk": {
+    "metaDescription": "Ďakujeme za prihlásenie k odberu!",
+    "title": "Ďakujeme!",
+    "heading": "Ďakujeme!",
+    "message": "Skontroluj doručenú poštu a potvrď odber. Čoskoro sa ozveme.",
+    "spamNote": "Ak e-mail nevidíš, skontroluj priečinok Spam alebo Propagácia.",
+    "backToSite": "Späť na stránku",
+    "privacyLabel": "Ochrana osobných údajov",
+    "footerNote": "© citimtedasom.sk",
+    "openVerb": "Otvoriť",
+    "mascotAlt": "",
+    "providers": {
+      "gmail": "Gmail",
+      "outlook": "Outlook",
+      "yahoo": "Yahoo Mail",
+      "centrum": "Centrum Mail",
+      "azet": "Azet Mail",
+      "zoznam": "Zoznam Mail",
+      "seznam": "Seznam Mail",
+      "proton": "Proton Mail",
+      "icloud": "iCloud Mail"
+    }
+  }
+}

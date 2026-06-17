@@ -1,0 +1,434 @@
+<!DOCTYPE html>
+<html lang="sk">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="robots" content="noindex, follow">
+    <title>Ďakujeme</title>
+    <meta name="description" content="">
+    <style>
+        :root {
+            --page-bg: #faf9f7;
+            --text-color: #0f172a;
+            --hero-gradient-start: #e8f5f3;
+            --hero-gradient-end: #d4ebe8;
+            --hero-text: #0f172a;
+            --cta-bg: #0f766e;
+            --cta-bg-hover: #0d6660;
+            --cta-text: #ffffff;
+            --footer-bg: #0f172a;
+            --footer-text: #ffffff;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        html, body {
+            height: 100%;
+        }
+
+        body.success-page {
+            font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+            line-height: 1.6;
+            color: var(--text-color);
+            background-color: var(--page-bg);
+            display: flex;
+            flex-direction: column;
+            min-height: 100vh;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 0 20px;
+        }
+
+        .success-page .hero {
+            flex: 1;
+            background: linear-gradient(135deg, var(--hero-gradient-start) 0%, var(--hero-gradient-end) 100%);
+            color: var(--hero-text);
+            text-align: center;
+            padding: 80px 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .success-page .hero-inner {
+            max-width: 700px;
+            margin: 0 auto;
+        }
+
+        .hero-mascot {
+            width: 96px;
+            height: auto;
+            margin: 0 auto 10px;
+        }
+
+        .hero-mascot.is-hidden {
+            display: none;
+        }
+
+        .hero-mascot img {
+            width: 100%;
+            height: auto;
+            display: block;
+        }
+
+        .hero h1 {
+            font-size: 2.5rem;
+            font-weight: 700;
+            margin-bottom: 20px;
+            line-height: 1.2;
+        }
+
+        .hero p {
+            font-size: 1.25rem;
+            margin-bottom: 40px;
+            opacity: 0.95;
+            max-width: 600px;
+            margin-left: auto;
+            margin-right: auto;
+        }
+
+        .cta-button {
+            display: none;
+            align-items: center;
+            justify-content: center;
+            background-color: var(--cta-bg);
+            color: var(--cta-text);
+            padding: 16px 48px;
+            font-size: 1.15rem;
+            font-weight: 700;
+            text-decoration: none;
+            border-radius: 50px;
+            transition: transform 0.2s, box-shadow 0.2s, background-color 0.2s;
+            cursor: pointer;
+            margin-bottom: 20px;
+        }
+
+        .cta-button:hover {
+            background-color: var(--cta-bg-hover);
+            transform: translateY(-3px);
+            box-shadow: 0 6px 25px rgba(0, 0, 0, 0.25);
+        }
+
+        .secondary-button {
+            margin-top: 8px;
+            display: none;
+            background-color: transparent;
+            border: 2px solid rgba(15, 23, 42, 0.35);
+            color: var(--hero-text);
+        }
+
+        .secondary-button:hover {
+            background-color: rgba(15, 23, 42, 0.06);
+            border-color: rgba(15, 23, 42, 0.6);
+            box-shadow: none;
+        }
+
+        .inbox-icon {
+            width: 22px;
+            height: 22px;
+            margin-right: 10px;
+            background-size: contain;
+            background-repeat: no-repeat;
+            background-position: center;
+            flex-shrink: 0;
+        }
+
+        .hero-note {
+            margin-top: 20px;
+            font-size: 0.9rem;
+            opacity: 0.9;
+        }
+
+        .footer {
+            background-color: var(--footer-bg);
+            color: var(--footer-text);
+            padding: 40px 20px 30px;
+        }
+
+        .footer .container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 12px;
+        }
+
+        .footer a {
+            color: var(--footer-text);
+            text-decoration: none;
+            opacity: 0.9;
+            transition: opacity 0.3s;
+            font-size: 0.95rem;
+        }
+
+        .footer a:hover {
+            opacity: 1;
+            text-decoration: underline;
+        }
+
+        .footer-note {
+            font-size: 0.85rem;
+            opacity: 0.8;
+            padding-top: 8px;
+            border-top: 1px solid rgba(255, 255, 255, 0.25);
+        }
+
+        body.is-loading .hero-lead,
+        body.is-loading h1 {
+            visibility: hidden;
+        }
+
+        @media (max-width: 768px) {
+            .hero {
+                padding: 60px 20px 80px;
+            }
+
+            .hero h1 {
+                font-size: 1.9rem;
+            }
+
+            .hero p {
+                font-size: 1.1rem;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .hero {
+                padding: 50px 20px 70px;
+            }
+
+            .hero h1 {
+                font-size: 1.6rem;
+            }
+
+            .cta-button {
+                padding: 14px 32px;
+                font-size: 1rem;
+            }
+        }
+    </style>
+</head>
+<body class="success-page is-loading">
+    <section class="hero">
+        <div class="container hero-inner">
+            <div id="hero-mascot-wrap" class="hero-mascot is-hidden">
+                <img id="hero-mascot-image" src="" alt="">
+            </div>
+            <h1 id="success-heading"></h1>
+            <p id="success-message" class="hero-lead"></p>
+            <a id="open-inbox-btn" class="cta-button" href="#">
+                <span id="inbox-icon" class="inbox-icon"></span>
+                <span id="inbox-text"></span>
+            </a>
+            <p id="success-spam-note" class="hero-note"></p>
+            <a id="back-to-app-btn" class="cta-button secondary-button" href="#"></a>
+        </div>
+    </section>
+    <footer class="footer">
+        <div class="container">
+            <a id="privacy-link" href="#"></a>
+            <div id="footer-note" class="footer-note"></div>
+        </div>
+    </footer>
+    <script src="/email-subscribe-success/config.js"></script>
+    <script>
+        (function () {
+            var cfg = window.OPEN_EMAIL_SUCCESS_CONFIG || {};
+            var SESSION_KEY = (cfg.sessionKeys && cfg.sessionKeys.params) || 'emailSubscribeSuccessParams';
+            var RETURN_URL_SESSION_KEY = (cfg.sessionKeys && cfg.sessionKeys.returnUrl) || 'emailSubscribeSuccessReturnUrl';
+            var BACK_BUTTON_SESSION_KEY = (cfg.sessionKeys && cfg.sessionKeys.allowBackButton) || 'emailSubscribeSuccessAllowBackButton';
+            var providerMap = cfg.providerMap || {};
+            var backToAppUrl = '';
+            var shouldShowBackButton = false;
+            var localizedStrings = null;
+
+            function isReloadNavigation() {
+                try {
+                    var nav = window.performance && window.performance.getEntriesByType ? window.performance.getEntriesByType('navigation') : [];
+                    return !!(nav && nav.length && nav[0].type === 'reload');
+                } catch (e) {
+                    return false;
+                }
+            }
+
+            var params = new URLSearchParams(window.location.search);
+            var lang = params.get('lang');
+            var provider = params.get('provider');
+
+            if (!lang || !provider) {
+                try {
+                    var stored = sessionStorage.getItem(SESSION_KEY);
+                    if (stored) {
+                        var storedParams = JSON.parse(stored);
+                        if (!lang) lang = storedParams.lang;
+                        if (!provider) provider = storedParams.provider;
+                        var newParams = new URLSearchParams(window.location.search);
+                        if (lang && !newParams.has('lang')) newParams.set('lang', lang);
+                        if (provider && !newParams.has('provider')) newParams.set('provider', provider);
+                        var qs = newParams.toString();
+                        var path = window.location.pathname + (qs ? '?' + qs : '');
+                        window.history.replaceState({}, '', path);
+                        sessionStorage.removeItem(SESSION_KEY);
+                    }
+                } catch (e) {
+                    console.error('open-email success: session restore failed', e);
+                }
+            } else {
+                try {
+                    sessionStorage.removeItem(SESSION_KEY);
+                } catch (ignore) {}
+            }
+
+            try {
+                backToAppUrl = sessionStorage.getItem(RETURN_URL_SESSION_KEY) || '';
+                var storedBackState = sessionStorage.getItem(BACK_BUTTON_SESSION_KEY);
+                shouldShowBackButton = storedBackState === '1' || isReloadNavigation();
+                if (shouldShowBackButton) {
+                    sessionStorage.setItem(BACK_BUTTON_SESSION_KEY, '1');
+                }
+            } catch (e) {
+                console.error('open-email success: back button state failed', e);
+            }
+
+            window.addEventListener('pagehide', markBackButtonEligible);
+            window.addEventListener('blur', markBackButtonEligible);
+            window.addEventListener('pageshow', refreshBackButtonState);
+            window.addEventListener('focus', refreshBackButtonState);
+            document.addEventListener('visibilitychange', function () {
+                if (document.visibilityState === 'hidden') {
+                    markBackButtonEligible();
+                } else if (document.visibilityState === 'visible') {
+                    refreshBackButtonState();
+                }
+            });
+
+            var effectiveLang = (lang || 'sk').toLowerCase().split('-')[0];
+
+            function applyMascot(strings) {
+                var wrap = document.getElementById('hero-mascot-wrap');
+                var mascot = document.getElementById('hero-mascot-image');
+                if (!wrap || !mascot) return;
+                var url = cfg.mascotImageUrl || '';
+                if (!url) {
+                    wrap.classList.add('is-hidden');
+                    return;
+                }
+                wrap.classList.remove('is-hidden');
+                mascot.src = url;
+                mascot.alt = strings.mascotAlt || '';
+            }
+
+            function applyPrivacyLink() {
+                var privacyLink = document.getElementById('privacy-link');
+                if (!privacyLink) return;
+                var template = cfg.privacyPolicyUrlTemplate || '/ochrana-udajov';
+                privacyLink.href = template.replace('{lang}', encodeURIComponent(effectiveLang));
+            }
+
+            function applyInboxButton(strings) {
+                var inboxBtn = document.getElementById('open-inbox-btn');
+                var inboxIcon = document.getElementById('inbox-icon');
+                var inboxText = document.getElementById('inbox-text');
+                if (!inboxBtn || !inboxIcon || !inboxText) return;
+
+                var info = provider ? providerMap[provider] : null;
+                var openWord = strings.openVerb;
+                var providerLabel = strings.providers && strings.providers[provider] ? strings.providers[provider] : '';
+
+                if (info && providerLabel) {
+                    inboxBtn.href = info.url;
+                    inboxText.textContent = openWord + ' ' + providerLabel;
+                    if (info.icon) {
+                        inboxIcon.style.backgroundImage = "url('" + info.icon + "')";
+                    } else {
+                        inboxIcon.style.backgroundImage = '';
+                        inboxIcon.style.background = 'linear-gradient(135deg, #fff4, #fff1)';
+                        inboxIcon.style.borderRadius = '4px';
+                    }
+                    inboxBtn.style.display = 'inline-flex';
+                } else {
+                    inboxBtn.style.display = 'none';
+                }
+            }
+
+            function applyBackButton(strings) {
+                var backBtn = document.getElementById('back-to-app-btn');
+                if (!backBtn) return;
+                backBtn.textContent = strings.backToSite || strings.backToPuzzle || 'Späť na stránku';
+                if (!shouldShowBackButton) {
+                    backBtn.style.display = 'none';
+                    return;
+                }
+                backBtn.href = backToAppUrl || cfg.defaultReturnUrl || '/';
+                backBtn.style.display = 'inline-flex';
+            }
+
+            function markBackButtonEligible() {
+                try {
+                    sessionStorage.setItem(BACK_BUTTON_SESSION_KEY, '1');
+                } catch (ignore) {}
+            }
+
+            function refreshBackButtonState() {
+                try {
+                    if (sessionStorage.getItem(BACK_BUTTON_SESSION_KEY) === '1') {
+                        shouldShowBackButton = true;
+                    }
+                } catch (ignore) {}
+                if (localizedStrings) {
+                    applyBackButton(localizedStrings);
+                }
+            }
+
+            function pickStrings(bundle, code) {
+                if (bundle[code]) return bundle[code];
+                if (bundle.sk) return bundle.sk;
+                return bundle.en;
+            }
+
+            fetch(new URL('i18n-bundle.json', window.location.href).href)
+                .then(function (r) {
+                    if (!r.ok) throw new Error('i18n fetch failed');
+                    return r.json();
+                })
+                .then(function (bundle) {
+                    var strings = pickStrings(bundle, effectiveLang);
+                    localizedStrings = strings;
+                    document.documentElement.lang = effectiveLang;
+                    document.title = strings.title;
+                    var metaDesc = document.querySelector('meta[name="description"]');
+                    if (metaDesc) metaDesc.setAttribute('content', strings.metaDescription);
+
+                    var h = document.getElementById('success-heading');
+                    var m = document.getElementById('success-message');
+                    var s = document.getElementById('success-spam-note');
+                    var fl = document.getElementById('privacy-link');
+                    var fn = document.getElementById('footer-note');
+                    if (h) h.textContent = strings.heading;
+                    if (m) m.textContent = strings.message;
+                    if (s) s.textContent = strings.spamNote;
+                    if (fl) fl.textContent = strings.privacyLabel;
+                    if (fn) fn.textContent = strings.footerNote;
+
+                    applyMascot(strings);
+                    applyPrivacyLink();
+                    applyInboxButton(strings);
+                    applyBackButton(strings);
+                    document.body.classList.remove('is-loading');
+                })
+                .catch(function () {
+                    document.body.classList.remove('is-loading');
+                    var h = document.getElementById('success-heading');
+                    if (h) h.textContent = 'Ďakujeme!';
+                });
+        })();
+    </script>
+</body>
+</html>

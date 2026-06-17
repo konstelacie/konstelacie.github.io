@@ -104,6 +104,10 @@ if (process.env.NODE_ENV !== 'production') {
 // Static assets
 const projectRoot = path.join(__dirname, '..');
 app.use('/assets', express.static(path.join(projectRoot, 'public', 'assets')));
+app.use(
+  '/email-subscribe-success',
+  express.static(path.join(projectRoot, 'public', 'email-subscribe-success'))
+);
 
 app.use((req, res, next) => {
   res.locals.metaPixelId = config.metaPixelId || '';
