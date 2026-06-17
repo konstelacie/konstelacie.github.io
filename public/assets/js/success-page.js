@@ -5,10 +5,11 @@
   const POLL_INTERVAL_MS = 2000;
   const MAX_POLL_ATTEMPTS = 30; // ~1 minute
   const CALENDAR_EVENT_TITLE = 'Online sedenie | citimtedasom.sk';
-  const CALENDAR_EVENT_DETAILS =
+  const CALENDAR_EVENT_DETAILS_FALLBACK =
     'Online sedenie cez Google Meet. Odkaz na pripojenie nájdeš v potvrdzujúcom e-maile.';
+  const CALENDAR_LOCATION_FALLBACK = 'Online (Google Meet)';
 
-  /** @type {{ startAt: string, endAt: string, reservationId?: number } | null} */
+  /** @type {{ startAt: string, endAt: string, reservationId?: number, meetingUrl?: string | null } | null} */
   let calendarEventData = null;
 
   function getSessionId() {
@@ -74,32 +75,57 @@
       .replace(/\r?\n/g, '\\n');
   }
 
+  function normalizeMeetingUrl(value) {
+    if (typeof value !== 'string') return null;
+    const trimmed = value.trim();
+    return trimmed || null;
+  }
+
+  function buildCalendarEventDetails(meetingUrl) {
+    if (meetingUrl) {
+      return 'Online sedenie cez Google Meet.\n\nOdkaz na pripojenie:\n' + meetingUrl;
+    }
+    return CALENDAR_EVENT_DETAILS_FALLBACK;
+  }
+
+  function buildCalendarLocation(meetingUrl) {
+    return meetingUrl || CALENDAR_LOCATION_FALLBACK;
+  }
+
   function buildCalendarEvent(data) {
     if (!data?.slot?.startAt || !data?.slot?.endAt) return null;
     return {
       startAt: data.slot.startAt,
       endAt: data.slot.endAt,
       reservationId: data.reservation?.id,
+      meetingUrl: normalizeMeetingUrl(data.meetingUrl),
     };
   }
 
+  function calendarEventSignature(event) {
+    return [event.startAt, event.endAt, event.meetingUrl || ''].join('|');
+  }
+
   function buildGoogleCalendarUrl(event) {
+    const details = buildCalendarEventDetails(event.meetingUrl);
     const params = new URLSearchParams({
       action: 'TEMPLATE',
       text: CALENDAR_EVENT_TITLE,
       dates: `${formatLocalCalendarStamp(event.startAt)}/${formatLocalCalendarStamp(event.endAt)}`,
-      details: CALENDAR_EVENT_DETAILS,
-      location: 'Online (Google Meet)',
+      details: details,
+      location: buildCalendarLocation(event.meetingUrl),
       ctz: TIMEZONE,
     });
     return 'https://calendar.google.com/calendar/render?' + params.toString();
   }
 
   function downloadIcsFile(event) {
+    const details = buildCalendarEventDetails(event.meetingUrl);
+    const location = buildCalendarLocation(event.meetingUrl);
     const uid = event.reservationId
       ? `reservation-${event.reservationId}@citimtedasom.sk`
       : `session-${formatUtcCalendarStamp(event.startAt)}@citimtedasom.sk`;
-    const ics = [
+    const lines = [
       'BEGIN:VCALENDAR',
       'VERSION:2.0',
       'PRODID:-//citimtedasom.sk//Booking//SK',
@@ -111,11 +137,14 @@
       'DTSTART:' + formatUtcCalendarStamp(event.startAt),
       'DTEND:' + formatUtcCalendarStamp(event.endAt),
       'SUMMARY:' + escapeIcsText(CALENDAR_EVENT_TITLE),
-      'DESCRIPTION:' + escapeIcsText(CALENDAR_EVENT_DETAILS),
-      'LOCATION:' + escapeIcsText('Online (Google Meet)'),
-      'END:VEVENT',
-      'END:VCALENDAR',
-    ].join('\r\n');
+      'DESCRIPTION:' + escapeIcsText(details),
+      'LOCATION:' + escapeIcsText(location),
+    ];
+    if (event.meetingUrl) {
+      lines.push('URL:' + event.meetingUrl);
+    }
+    lines.push('END:VEVENT', 'END:VCALENDAR');
+    const ics = lines.join('\r\n');
 
     const blob = new Blob([ics], { type: 'text/calendar;charset=utf-8' });
     const url = URL.createObjectURL(blob);
@@ -215,8 +244,7 @@
       if (
         nextCalendarEvent &&
         (!calendarEventData ||
-          calendarEventData.startAt !== nextCalendarEvent.startAt ||
-          calendarEventData.endAt !== nextCalendarEvent.endAt)
+          calendarEventSignature(calendarEventData) !== calendarEventSignature(nextCalendarEvent))
       ) {
         calendarEventData = nextCalendarEvent;
         wireCalendarActions(nextCalendarEvent);

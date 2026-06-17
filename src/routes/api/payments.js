@@ -199,6 +199,7 @@ router.get(
             timezone: slot.timezone,
           }
         : null,
+      meetingUrl: (process.env.SESSION_MEETING_URL || '').trim() || null,
     });
   })
 );
