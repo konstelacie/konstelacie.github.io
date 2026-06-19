@@ -340,6 +340,12 @@ a.funnel-scroll-hint__arrow:focus-visible {
   background: var(--color-bg);
 }
 
+/* Author `display:flex` must not beat HTML `[hidden]` (same as `.booking-modal[hidden]`). */
+.success-calendar-menu[hidden] {
+  display: none !important;
+  pointer-events: none !important;
+}
+
 .success-calendar-option {
   display: block;
   width: 100%;
