@@ -313,8 +313,22 @@ a.funnel-scroll-hint__arrow:focus-visible {
 }
 
 .success-detail-amount {
+  position: relative;
+  padding-left: 1.35rem;
   color: var(--color-text);
   font-weight: 500;
+}
+
+.success-detail-amount::before,
+.success-next-step::before {
+  content: "✓";
+  position: absolute;
+  left: 0;
+  top: 0.05em;
+  color: var(--color-booking-accent);
+  font-size: 0.875rem;
+  font-weight: 600;
+  line-height: 1.55;
 }
 
 .success-section {
@@ -354,17 +368,6 @@ a.funnel-scroll-hint__arrow:focus-visible {
   margin: 0;
   padding-left: 1.35rem;
   font-size: 0.9375rem;
-  line-height: 1.55;
-}
-
-.success-next-step::before {
-  content: "✓";
-  position: absolute;
-  left: 0;
-  top: 0.05em;
-  color: var(--color-booking-accent);
-  font-size: 0.875rem;
-  font-weight: 600;
   line-height: 1.55;
 }
 
