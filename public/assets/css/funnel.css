@@ -302,7 +302,19 @@ a.funnel-scroll-hint__arrow:focus-visible {
   margin: var(--spacing-md) 0;
 }
 .success-detail {
-  display: inline-block;
+  display: block;
+}
+
+.success-section--summary .success-details {
+  margin: var(--spacing-sm) 0 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.success-detail-amount {
+  color: var(--color-text);
+  font-weight: 500;
 }
 
 .success-section {
@@ -315,10 +327,6 @@ a.funnel-scroll-hint__arrow:focus-visible {
 
 .success-section--summary .success-lead {
   margin-bottom: var(--spacing-sm);
-}
-
-.success-section--summary .success-details {
-  margin: var(--spacing-sm) 0 0;
 }
 
 .success-section-title,
