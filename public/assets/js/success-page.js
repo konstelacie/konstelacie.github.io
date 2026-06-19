@@ -155,36 +155,15 @@
     URL.revokeObjectURL(url);
   }
 
-  function setCalendarMenuOpen(open) {
-    const toggle = document.getElementById('success-calendar-toggle');
-    const menu = document.getElementById('success-calendar-menu');
-    if (!toggle || !menu) return;
-    toggle.setAttribute('aria-expanded', open ? 'true' : 'false');
-    menu.hidden = !open;
-  }
-
   function wireCalendarActions(event) {
-    const toggle = document.getElementById('success-calendar-toggle');
     const googleLink = document.getElementById('success-calendar-google');
     const icsButton = document.getElementById('success-calendar-ics');
-    if (!toggle || !googleLink || !icsButton) return;
+    if (!googleLink || !icsButton) return;
 
     googleLink.href = buildGoogleCalendarUrl(event);
-
-    toggle.onclick = function () {
-      setCalendarMenuOpen(toggle.getAttribute('aria-expanded') !== 'true');
-    };
-
     icsButton.onclick = function () {
       downloadIcsFile(event);
-      setCalendarMenuOpen(false);
     };
-
-    document.addEventListener('click', function onDocumentClick(e) {
-      const picker = document.querySelector('.success-calendar-picker');
-      if (!picker || picker.contains(/** @type {Node} */ (e.target))) return;
-      setCalendarMenuOpen(false);
-    });
   }
 
   function setCtaSectionVisible(visible) {
@@ -200,6 +179,8 @@
     const errorEl = document.getElementById('success-error');
     const variantDeposit = document.getElementById('success-variant-deposit');
     const variantFull = document.getElementById('success-variant-full');
+    const footerDeposit = document.getElementById('success-footer-deposit');
+    const footerFull = document.getElementById('success-footer-full');
 
     if (loadingEl) loadingEl.hidden = state !== 'loading';
     if (confirmedEl) confirmedEl.hidden = state !== 'confirmed';
@@ -220,6 +201,8 @@
       setTitle(titleEl, full ? 'Platba je dokončená' : 'Rezervácia je potvrdená');
       if (variantDeposit) variantDeposit.hidden = full;
       if (variantFull) variantFull.hidden = !full;
+      if (footerDeposit) footerDeposit.hidden = full;
+      if (footerFull) footerFull.hidden = !full;
 
       const slotText = data.slot ? 'Termín: ' + formatDateTime(data.slot.startAt) : '';
       const amountText =

@@ -14,8 +14,6 @@
             <span id="success-slot-deposit" class="success-detail"></span><br>
             <span id="success-amount-deposit" class="success-detail muted"></span>
           </p>
-          <p class="muted">Potvrdenie nájdeš v e-maile. Pred stretnutím Ti môže prísť ešte pripomienka.</p>
-          <p class="muted">Po sedení sa môžeš v pokoji rozhodnúť, ako to budeš chcieť uzavrieť.</p>
         </div>
         <div id="success-variant-full" class="success-variant" hidden>
           <p class="success-lead">Teším sa na naše stretnutie.</p>
@@ -23,9 +21,31 @@
             <span id="success-slot-full" class="success-detail"></span><br>
             <span id="success-amount-full" class="success-detail muted"></span>
           </p>
-          <p class="muted">Potvrdenie nájdeš v e-maile. Pred stretnutím Ti môže prísť ešte pripomienka.</p>
-          <p class="muted">Na sedenie sa nemusíš nijako špeciálne pripravovať.</p>
         </div>
+        <p class="muted success-confirm-info">
+          Potvrdenie sme Ti poslali e-mailom.<br><br>
+          Približne 20 minút pred sedením Ti pošleme ešte pripomienku s odkazom na pripojenie.
+        </p>
+        <div class="success-calendar-actions">
+          <a
+            id="success-calendar-google"
+            class="success-calendar-card"
+            href="#"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            📅 Google Kalendár
+          </a>
+          <button type="button" id="success-calendar-ics" class="success-calendar-card">
+            📥 Apple / Outlook (.ics)
+          </button>
+        </div>
+        <p id="success-footer-deposit" class="muted" hidden>
+          Po sedení sa môžeš v pokoji rozhodnúť, ako to budeš chcieť uzavrieť.
+        </p>
+        <p id="success-footer-full" class="muted" hidden>
+          Na sedenie sa nemusíš nijako špeciálne pripravovať.
+        </p>
       </div>
 
       <div id="success-processing" class="success-state" hidden>
@@ -42,31 +62,6 @@
   <section id="success-cta-section" class="content-cta success-cta prose" hidden>
     <div class="container">
       <div class="success-cta-actions">
-        <div class="success-calendar-picker">
-          <button
-            type="button"
-            id="success-calendar-toggle"
-            class="cta success-calendar-toggle"
-            aria-expanded="false"
-            aria-controls="success-calendar-menu"
-          >
-            Pridať do kalendára
-          </button>
-          <div id="success-calendar-menu" class="success-calendar-menu" hidden>
-            <a
-              id="success-calendar-google"
-              class="success-calendar-option"
-              href="#"
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              Google Kalendár
-            </a>
-            <button type="button" id="success-calendar-ics" class="success-calendar-option">
-              Apple / Outlook (.ics)
-            </button>
-          </div>
-        </div>
         <a href="/ako-sa-pripravit-na-sedenie" class="cta-secondary">Ako sa pripraviť na sedenie</a>
         <p class="success-cta-reassurance">
           Nemusíš sa pripravovať dokonale. Stačí prísť taký/á, aký/á práve si.
