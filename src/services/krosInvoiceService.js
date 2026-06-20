@@ -122,7 +122,6 @@ async function loadBillingDocumentContext(pool, billingDocumentId) {
 
 function buildKrosPayload(row, backend) {
   const isCompany = Number(row.customer_is_company) === 1;
-  const country = (row.customer_country || 'SK').toUpperCase().slice(0, 2) || 'SK';
   const externalId = row.kros_external_id || crypto.randomUUID();
   const invoiceType = row.document_type === 'advance' ? 2 : 0;
   const advancePaymentDeduction =
@@ -131,18 +130,22 @@ function buildKrosPayload(row, backend) {
       : 0;
   const numberingSequence = resolveNumberingSequence(paymentBackend.krosSequencePrefix(backend));
 
+  const address = {
+    businessName: isCompany ? row.customer_company_name || row.customer_name : row.customer_name,
+    contactName: isCompany ? row.customer_name : null,
+    street: isCompany ? row.customer_street || null : null,
+    city: isCompany ? row.customer_city || null : null,
+    postCode: isCompany ? row.customer_post_code || null : null,
+  };
+  if (isCompany) {
+    address.country = (row.customer_country || 'SK').toUpperCase().slice(0, 2) || 'SK';
+  }
+
   return {
     data: {
       externalId,
       partner: {
-        address: {
-          businessName: isCompany ? row.customer_company_name || row.customer_name : row.customer_name,
-          contactName: isCompany ? row.customer_name : null,
-          street: isCompany ? row.customer_street || null : null,
-          city: isCompany ? row.customer_city || null : null,
-          postCode: isCompany ? row.customer_post_code || null : null,
-          country,
-        },
+        address,
         registrationId: row.customer_ico || null,
         taxId: row.customer_dic || null,
         vatId: row.customer_ic_dph || null,
@@ -365,6 +368,7 @@ async function downloadAndCacheKrosInvoicePdf(billingDocumentId) {
 }
 
 module.exports = {
+  buildKrosPayload,
   syncToKros,
   downloadAndCacheKrosInvoicePdf,
 };
