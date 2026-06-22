@@ -9,6 +9,7 @@
   const CALENDAR_EVENT_DETAILS_FALLBACK =
     'Online sedenie cez Google Meet. Odkaz na pripojenie nájdeš v potvrdzujúcom e-maile.';
   const CALENDAR_LOCATION_FALLBACK = 'Online (Google Meet)';
+  const SUPPORT_EMAIL = 'michal@citimtedasom.sk';
 
   /** @type {{ startAt: string, endAt: string, reservationId?: number, meetingUrl?: string | null } | null} */
   let calendarEventData = null;
@@ -172,25 +173,71 @@
     if (ctaSection) ctaSection.hidden = !visible;
   }
 
-  function updateConfirmationEmailCopy(confirmationEmail) {
+  function buildMailtoLink(email, subject, body) {
+    const params = new URLSearchParams();
+    if (subject) params.set('subject', subject);
+    if (body) params.set('body', body);
+    const query = params.toString();
+    return `mailto:${email}${query ? '?' + query : ''}`;
+  }
+
+  function buildSupportContextLines(reservationId) {
+    if (!reservationId) return '';
+    return `\n\nID rezervácie: ${reservationId}`;
+  }
+
+  function wireEmailDeliveryAlertActions(reservationId) {
+    const fixEmailCta = document.getElementById('success-fix-email-cta');
+    const supportCta = document.getElementById('success-support-cta');
+    const context = buildSupportContextLines(reservationId);
+
+    if (fixEmailCta) {
+      fixEmailCta.href = buildMailtoLink(
+        SUPPORT_EMAIL,
+        'Oprava e-mailu rezervácie',
+        'Dobrý deň,\n\npri rezervácii som zadal/a nesprávnu e-mailovú adresu. Prosím o opravu a znovuodoslanie potvrdenia.\n\nSprávna adresa: ' +
+          context +
+          '\n\nĎakujem.'
+      );
+    }
+
+    if (supportCta) {
+      supportCta.href = buildMailtoLink(
+        SUPPORT_EMAIL,
+        'Podpora – potvrdenie rezervácie',
+        'Dobrý deň,\n\nmám problém s doručením potvrdenia rezervácie.' + context + '\n\nĎakujem.'
+      );
+    }
+  }
+
+  function updateConfirmationEmailCopy(confirmationEmail, reservationId) {
+    const confirmedEl = document.getElementById('success-confirmed');
+    const alertEl = document.getElementById('success-email-delivery-alert');
+    const alertTextEl = document.getElementById('success-email-delivery-alert-text');
     const defaultEl = document.getElementById('success-email-confirmation-default');
-    const warningEl = document.getElementById('success-email-warning');
     const noticeEl = document.getElementById('success-email-notice');
 
     const status = confirmationEmail?.status || null;
     const masked = confirmationEmail?.recipientMasked || '';
     const showWarning = status === 'bounced' || status === 'failed';
 
-    if (defaultEl) defaultEl.hidden = showWarning;
-
-    if (warningEl) {
-      warningEl.hidden = !showWarning;
-      if (showWarning) {
-        warningEl.textContent = masked
-          ? `Potvrdenie sa nepodarilo doručiť na ${masked}. Skontroluj e-mail alebo nás kontaktuj.`
-          : 'Potvrdenie sa nepodarilo doručiť na zadanú adresu. Skontroluj e-mail alebo nás kontaktuj.';
-      }
+    if (confirmedEl) {
+      confirmedEl.classList.toggle('success-confirmed--email-failed', showWarning);
     }
+
+    if (alertEl) alertEl.hidden = !showWarning;
+
+    if (alertTextEl && showWarning) {
+      alertTextEl.textContent = masked
+        ? `Rezervácia je vytvorená a termín je rezervovaný, ale potvrdenie sa nepodarilo doručiť na ${masked}.`
+        : 'Rezervácia je vytvorená a termín je rezervovaný, ale potvrdenie sa nepodarilo doručiť na zadanú adresu.';
+    }
+
+    if (showWarning) {
+      wireEmailDeliveryAlertActions(reservationId);
+    }
+
+    if (defaultEl) defaultEl.hidden = showWarning;
 
     if (noticeEl) {
       const showNotice = !showWarning && Boolean(masked);
@@ -228,7 +275,10 @@
       const paymentType =
         data.reservation && data.reservation.paymentType === 'full' ? 'full' : 'deposit';
       const full = isFullPayment(paymentType);
-      setTitle(titleEl, full ? 'Platba je dokončená' : 'Rezervácia je potvrdená');
+      const emailFailed =
+        data.confirmationEmail?.status === 'bounced' || data.confirmationEmail?.status === 'failed';
+      const title = emailFailed || !full ? 'Termín je rezervovaný' : 'Platba je dokončená';
+      setTitle(titleEl, title);
       if (variantDeposit) variantDeposit.hidden = full;
       if (variantFull) variantFull.hidden = !full;
       if (footerDeposit) footerDeposit.hidden = full;
@@ -263,7 +313,7 @@
         wireCalendarActions(nextCalendarEvent);
       }
 
-      updateConfirmationEmailCopy(data.confirmationEmail);
+      updateConfirmationEmailCopy(data.confirmationEmail, data.reservation?.id);
     }
   }
 

@@ -294,6 +294,67 @@ a.funnel-scroll-hint__arrow:focus-visible {
 .success-state {
   margin-top: var(--spacing-md);
 }
+
+.success-delivery-alert {
+  display: flex;
+  gap: var(--spacing-md);
+  margin: 0 0 var(--spacing-section-lg);
+  padding: var(--spacing-md);
+  background: #fff7ed;
+  border: 1px solid #f59e0b;
+  border-radius: var(--radius-booking-slot);
+}
+
+.success-delivery-alert__icon {
+  flex-shrink: 0;
+  width: 1.75rem;
+  height: 1.75rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background: #fef3c7;
+  color: #b45309;
+  font-size: 1rem;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.success-delivery-alert__title {
+  margin: 0 0 var(--spacing-xs);
+  font-size: 1.125rem;
+  font-weight: 600;
+  line-height: 1.35;
+  color: var(--color-text);
+}
+
+.success-delivery-alert__text {
+  margin: 0 0 var(--spacing-md);
+  font-size: 0.9375rem;
+  line-height: 1.55;
+  color: var(--color-text);
+}
+
+.success-delivery-alert__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--spacing-sm);
+  margin-bottom: var(--spacing-sm);
+}
+
+.success-delivery-alert__contact {
+  margin: 0;
+  font-size: 0.875rem;
+  line-height: 1.5;
+  color: var(--color-text-muted);
+}
+
+.success-confirmed--email-failed .success-section--summary {
+  padding: var(--spacing-md);
+  background: var(--color-booking-accent-softer);
+  border: 1px solid rgba(15, 118, 110, 0.16);
+  border-radius: var(--radius-booking-slot);
+}
 .success-lead {
   margin: 0 0 var(--spacing-md);
   font-size: 1.125rem;

@@ -8,6 +8,28 @@
       </div>
 
       <div id="success-confirmed" class="success-state" hidden>
+        <div
+          id="success-email-delivery-alert"
+          class="success-delivery-alert"
+          role="alert"
+          aria-live="polite"
+          hidden
+        >
+          <div class="success-delivery-alert__icon" aria-hidden="true">⚠</div>
+          <div class="success-delivery-alert__content">
+            <h2 class="success-delivery-alert__title">Nepodarilo sa doručiť potvrdenie</h2>
+            <p id="success-email-delivery-alert-text" class="success-delivery-alert__text"></p>
+            <div class="success-delivery-alert__actions">
+              <a id="success-fix-email-cta" class="cta" href="mailto:michal@citimtedasom.sk">Opraviť e-mail</a>
+              <a id="success-support-cta" class="cta-secondary" href="mailto:michal@citimtedasom.sk">Napísať na podporu</a>
+            </div>
+            <p class="success-delivery-alert__contact">
+              Kontakt:
+              <a href="mailto:michal@citimtedasom.sk">michal@citimtedasom.sk</a>
+            </p>
+          </div>
+        </div>
+
         <div class="success-section success-section--summary">
           <div id="success-variant-deposit" class="success-variant" hidden>
             <p class="success-lead">Tvoj termín je rezervovaný.</p>
@@ -29,9 +51,6 @@
           <h2 class="success-section-title">Čo bude nasledovať</h2>
           <ul class="success-next-steps">
             <li id="success-email-confirmation-default" class="success-next-step muted">Potvrdenie sme Ti poslali e-mailom.</li>
-            <li id="success-email-warning" class="success-next-step success-next-step--warning" hidden>
-              Potvrdenie sa nepodarilo doručiť na zadanú adresu. Skontroluj e-mail alebo nás kontaktuj.
-            </li>
             <li id="success-email-notice" class="success-next-step muted" hidden></li>
             <li class="success-next-step muted">
               Približne 20 minút pred sedením Ti pošleme ešte pripomienku s odkazom na pripojenie.
