@@ -44,6 +44,10 @@ function resolveConfirmationEmailStatus(task, logRow) {
     return 'pending';
   }
 
+  if (logRow) {
+    return 'sent';
+  }
+
   return 'pending';
 }
 

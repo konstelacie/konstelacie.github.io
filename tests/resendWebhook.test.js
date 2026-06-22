@@ -116,3 +116,33 @@ test('markBounced is idempotent for the same provider message id', async (t) => 
     await pool.execute('DELETE FROM email_sent_log WHERE provider_message_id = ?', [messageId]);
   }
 });
+
+test('markBounced concurrent calls update exactly once', async (t) => {
+  if (!(await dbAvailable())) {
+    return t.skip('DB not configured or schema not migrated');
+  }
+
+  const pool = getPool();
+  const messageId = `test-bounce-concurrent-${Date.now()}-${crypto.randomBytes(4).toString('hex')}`;
+
+  await pool.execute(
+    `INSERT INTO email_sent_log
+       (recipient_email, template_id, entity_type, entity_id, provider_message_id, delivery_status)
+     VALUES (?, ?, ?, ?, ?, 'accepted')`,
+    ['bounce-concurrent@example.com', 'reservation-confirmation', 'reservation', 999999002, messageId]
+  );
+
+  try {
+    const [first, second] = await Promise.all([
+      emailSentLogRepo.markBounced(messageId, { status: 'bounced', reason: 'concurrent-a' }),
+      emailSentLogRepo.markBounced(messageId, { status: 'bounced', reason: 'concurrent-b' }),
+    ]);
+
+    const updatedCount = [first, second].filter((r) => r.updated).length;
+    assert.equal(updatedCount, 1);
+    assert.equal(first.row?.delivery_status, 'bounced');
+    assert.equal(second.row?.delivery_status, 'bounced');
+  } finally {
+    await pool.execute('DELETE FROM email_sent_log WHERE provider_message_id = ?', [messageId]);
+  }
+});

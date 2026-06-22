@@ -182,19 +182,22 @@
     const showWarning = status === 'bounced' || status === 'failed';
 
     if (defaultEl) defaultEl.hidden = showWarning;
-    if (warningEl) warningEl.hidden = !showWarning;
+
+    if (warningEl) {
+      warningEl.hidden = !showWarning;
+      if (showWarning) {
+        warningEl.textContent = masked
+          ? `Potvrdenie sa nepodarilo doručiť na ${masked}. Skontroluj e-mail alebo nás kontaktuj.`
+          : 'Potvrdenie sa nepodarilo doručiť na zadanú adresu. Skontroluj e-mail alebo nás kontaktuj.';
+      }
+    }
 
     if (noticeEl) {
-      if (masked) {
-        noticeEl.textContent =
-          'Potvrdenie posielame na ' +
-          masked +
-          '. Ak do pár minút nedorazí, skontroluj adresu alebo nás kontaktuj.';
-        noticeEl.hidden = false;
-      } else {
-        noticeEl.hidden = true;
-        noticeEl.textContent = '';
-      }
+      const showNotice = !showWarning && Boolean(masked);
+      noticeEl.hidden = !showNotice;
+      noticeEl.textContent = showNotice
+        ? `Potvrdenie posielame na ${masked}. Ak do pár minút nedorazí, skontroluj adresu alebo nás kontaktuj.`
+        : '';
     }
   }
 

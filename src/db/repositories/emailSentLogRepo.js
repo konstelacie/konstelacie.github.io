@@ -85,7 +85,7 @@ async function markBounced(messageId, { status, reason }) {
 
   const bounceReason = reason != null && String(reason).trim() !== '' ? String(reason).trim() : null;
 
-  await pool.execute(
+  const [result] = await pool.execute(
     `UPDATE email_sent_log
      SET delivery_status = ?, bounce_reason = ?, bounced_at = NOW(3)
      WHERE provider_message_id = ? AND delivery_status NOT IN ('bounced', 'complained')`,
@@ -93,7 +93,7 @@ async function markBounced(messageId, { status, reason }) {
   );
 
   const row = await findByProviderMessageId(messageId);
-  return { updated: true, row };
+  return { updated: result.affectedRows > 0, row };
 }
 
 /**

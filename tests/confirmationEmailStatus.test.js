@@ -28,6 +28,13 @@ test('resolveConfirmationEmailStatus prefers latest successful send semantics vi
   );
 });
 
+test('resolveConfirmationEmailStatus returns sent when task is null but log row exists', () => {
+  assert.equal(
+    resolveConfirmationEmailStatus(null, { delivery_status: 'accepted' }),
+    'sent'
+  );
+});
+
 test('resolveConfirmationEmailStatus returns failed when task exhausted', () => {
   assert.equal(
     resolveConfirmationEmailStatus(

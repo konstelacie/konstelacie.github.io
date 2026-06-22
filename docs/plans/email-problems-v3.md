@@ -326,3 +326,53 @@ Backend detection first, frontend UX second, admin recovery last.
 2. Set `RESEND_WEBHOOK_SECRET` in env (Resend dashboard → Webhooks → signing secret).
 3. Register webhook URL: `https://<domain>/api/resend/webhook` — subscribe at least to `email.bounced`, `email.complained`, and optionally `email.delivered`.
 4. After deploy, send a test booking and verify webhook delivery in Resend + `delivery_status` on `email_sent_log`.
+
+---
+
+## Post-implementation review fixes
+
+> Follow-up pass after code review of the bounce-handling implementation. Four concrete issues fixed; schema, webhook wiring, `entity_type`/`entity_id`, Option A admin resend, `isBouncedForEntity` latest-log-wins, and `evaluateLocalPaymentIssue` bounce param were left unchanged.
+
+### 1. Success page — contradictory bounce messages (blocker)
+
+**Problem:** On bounce, `#success-email-warning` and `#success-email-notice` both rendered — warning said delivery failed (without the address) while notice still said "posielame na …" in present tense.
+
+**Fix:** `updateConfirmationEmailCopy` in `public/assets/js/success-page.js`:
+- When `status` is `bounced` or `failed`, put the masked address into the **warning** text; hide the notice.
+- Show the generic "still pending" notice only when `!showWarning && recipientMasked` is set.
+- No HTML changes in `booking-success.ejs`.
+
+### 2. `markBounced` — check-then-act race (correctness)
+
+**Problem:** Concurrent Resend webhook retries could both pass the pre-UPDATE `delivery_status` check; the guarded `WHERE … NOT IN ('bounced','complained')` prevented double writes but the function always returned `updated: true` after UPDATE, risking duplicate `EMAIL_BOUNCED` alerts.
+
+**Fix:** `src/db/repositories/emailSentLogRepo.js` — `updated` is now `result.affectedRows > 0` after the UPDATE.
+
+**Defense in depth:** `createOpenAlert` in `systemAlertService.js` already dedupes via `findUnresolvedByTypeAndEntity` — no change needed.
+
+**Test:** `tests/resendWebhook.test.js` — added `markBounced concurrent calls update exactly once` (`Promise.all`, assert exactly one `updated === true`).
+
+### 3. Status poll — redundant email query (performance)
+
+**Problem:** `GET /api/payments/status` ran a separate `SELECT email FROM reservations` on every poll (~2 s for up to ~3 min after completion).
+
+**Fix:** `src/routes/api/payments.js` — include `r.email` in the existing reservation SELECT; pass `reservation.email ?? null` to `buildConfirmationEmailPayload`; dropped the extra query.
+
+### 4. `resolveConfirmationEmailStatus` — null task edge case (defensive)
+
+**Problem:** When `task` was null but `logRow` existed with a non-bounced status (`accepted` / `delivered`), the function returned `'pending'` instead of `'sent'`.
+
+**Fix:** `src/lib/confirmationEmailStatus.js` — after the `task` branch, return `'sent'` when `logRow` is present.
+
+**Test:** `tests/confirmationEmailStatus.test.js` — `resolveConfirmationEmailStatus returns sent when task is null but log row exists`.
+
+### Files touched in this pass
+
+| File | Change |
+|------|--------|
+| `public/assets/js/success-page.js` | Mutual exclusion of warning vs notice; masked address in warning |
+| `src/db/repositories/emailSentLogRepo.js` | `markBounced` uses `affectedRows` |
+| `src/routes/api/payments.js` | `r.email` in reservation query; no redundant SELECT |
+| `src/lib/confirmationEmailStatus.js` | `logRow`-only → `'sent'` |
+| `tests/resendWebhook.test.js` | Concurrent `markBounced` test |
+| `tests/confirmationEmailStatus.test.js` | Null-task + logRow test |

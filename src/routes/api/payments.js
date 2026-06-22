@@ -163,7 +163,7 @@ router.get(
     let slot = null;
     if (payment.reservation_id) {
       const [resRows] = await pool.execute(
-        `SELECT r.id, r.status AS reservation_status, r.slot_id, r.payment_type AS reservation_payment_type
+        `SELECT r.id, r.email, r.status AS reservation_status, r.slot_id, r.payment_type AS reservation_payment_type
          FROM reservations r WHERE r.id = ?`,
         [payment.reservation_id]
       );
@@ -179,20 +179,13 @@ router.get(
 
     let confirmationEmail = null;
     if (reservation?.id) {
-      const [resEmailRows] = await pool.execute('SELECT email FROM reservations WHERE id = ? LIMIT 1', [
-        reservation.id,
-      ]);
       const task = await emailDeliveryTasksRepo.findByTemplateEntity(
         emailDeliveryTasksRepo.RESERVATION_CONFIRMATION_TEMPLATE,
         emailDeliveryTasksRepo.ENTITY_TYPE_RESERVATION,
         reservation.id
       );
       const logRow = await emailSentLogRepo.findLatestConfirmationLogForReservation(reservation.id);
-      confirmationEmail = buildConfirmationEmailPayload(
-        task,
-        logRow,
-        resEmailRows[0]?.email ?? null
-      );
+      confirmationEmail = buildConfirmationEmailPayload(task, logRow, reservation.email ?? null);
     }
 
     res.json({
