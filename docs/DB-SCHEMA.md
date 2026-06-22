@@ -245,11 +245,14 @@ Audit trail for transactional emails. See `docs/EMAILING.md`.
 | entity_type        | VARCHAR(50)  | NULL (e.g. reservation)                  |
 | entity_id          | BIGINT UNSIGNED | NULL                                  |
 | provider_message_id | VARCHAR(255) | NULL (Resend message ID)                 |
+| delivery_status    | ENUM         | accepted, delivered, bounced, complained (default: accepted) |
+| bounce_reason      | TEXT         | NULL — provider bounce/complaint message |
+| bounced_at         | DATETIME(3)  | NULL — when bounce/complaint webhook received |
 | actor_type         | ENUM         | anon, user, admin, system (default: system) |
 | actor_id           | BIGINT UNSIGNED | NULL                                  |
 | sent_at            | DATETIME(3)  | When sent                                |
 
-**Indexes:** `(recipient_email)`, `(entity_type, entity_id)`, `(sent_at)`.
+**Indexes:** `(recipient_email)`, `(entity_type, entity_id)`, `(sent_at)`, `(provider_message_id)`.
 
 ---
 

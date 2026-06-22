@@ -237,12 +237,16 @@ CREATE TABLE email_sent_log (
   entity_type VARCHAR(50) NULL,
   entity_id BIGINT UNSIGNED NULL,
   provider_message_id VARCHAR(255) NULL,
+  delivery_status ENUM('accepted','delivered','bounced','complained') NOT NULL DEFAULT 'accepted',
+  bounce_reason TEXT NULL,
+  bounced_at DATETIME(3) NULL,
   actor_type ENUM('anon','user','admin','system') NOT NULL DEFAULT 'system',
   actor_id BIGINT UNSIGNED NULL,
   sent_at DATETIME(3) DEFAULT CURRENT_TIMESTAMP(3),
   INDEX idx_email_sent_log_recipient (recipient_email),
   INDEX idx_email_sent_log_entity (entity_type, entity_id),
-  INDEX idx_email_sent_log_sent_at (sent_at)
+  INDEX idx_email_sent_log_sent_at (sent_at),
+  INDEX idx_email_sent_log_provider_message_id (provider_message_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- email_delivery_tasks: durable retryable transactional email outbox

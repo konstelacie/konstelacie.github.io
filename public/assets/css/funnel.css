@@ -371,6 +371,11 @@ a.funnel-scroll-hint__arrow:focus-visible {
   line-height: 1.55;
 }
 
+.success-next-step--warning {
+  color: var(--color-text);
+  font-weight: 500;
+}
+
 .success-cta .container {
   max-width: var(--max-width-narrow);
 }

@@ -28,7 +28,11 @@
         <div class="success-section">
           <h2 class="success-section-title">Čo bude nasledovať</h2>
           <ul class="success-next-steps">
-            <li class="success-next-step muted">Potvrdenie sme Ti poslali e-mailom.</li>
+            <li id="success-email-confirmation-default" class="success-next-step muted">Potvrdenie sme Ti poslali e-mailom.</li>
+            <li id="success-email-warning" class="success-next-step success-next-step--warning" hidden>
+              Potvrdenie sa nepodarilo doručiť na zadanú adresu. Skontroluj e-mail alebo nás kontaktuj.
+            </li>
+            <li id="success-email-notice" class="success-next-step muted" hidden></li>
             <li class="success-next-step muted">
               Približne 20 minút pred sedením Ti pošleme ešte pripomienku s odkazom na pripojenie.
             </li>

@@ -1,6 +1,7 @@
 const config = require('../config');
 const paymentsRepo = require('../db/repositories/paymentsRepo');
 const emailDeliveryTasksRepo = require('../db/repositories/emailDeliveryTasksRepo');
+const emailSentLogRepo = require('../db/repositories/emailSentLogRepo');
 const systemSettingsRepo = require('../db/repositories/systemSettingsRepo');
 const systemAlertService = require('./systemAlertService');
 const { listRecentCompletedCheckoutSessions } = require('../lib/stripeReconciliation');
@@ -120,9 +121,10 @@ async function runStripeReconciliation(now = new Date()) {
 /**
  * @param {object} payment
  * @param {object|null} task
+ * @param {boolean} [bounced=false]
  * @returns {{ failureReason: string }|null}
  */
-function evaluateLocalPaymentIssue(payment, task) {
+function evaluateLocalPaymentIssue(payment, task, bounced = false) {
   if (payment.reservation_id == null) {
     return { failureReason: 'missing_reservation' };
   }
@@ -141,6 +143,10 @@ function evaluateLocalPaymentIssue(payment, task) {
     return { failureReason: 'confirmation_email_permanently_failed' };
   }
 
+  if (bounced) {
+    return { failureReason: 'confirmation_email_bounced' };
+  }
+
   return null;
 }
 
@@ -154,7 +160,11 @@ async function detectLocalPaymentIssue(payment) {
     emailDeliveryTasksRepo.ENTITY_TYPE_RESERVATION,
     payment.reservation_id
   );
-  return evaluateLocalPaymentIssue(payment, task);
+  const bounced = await emailSentLogRepo.isBouncedForEntity(
+    emailDeliveryTasksRepo.ENTITY_TYPE_RESERVATION,
+    payment.reservation_id
+  );
+  return evaluateLocalPaymentIssue(payment, task, bounced);
 }
 
 module.exports = {

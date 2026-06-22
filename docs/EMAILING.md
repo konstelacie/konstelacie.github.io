@@ -12,7 +12,8 @@
 | Reservation confirmation | **Yes** — after `checkout.session.completed` webhook (`src/routes/api/stripe.js`), `sendReservationConfirmation`, template id `reservation-confirmation`. |
 | Billing invoice (PDF email) | **Yes** — same webhook path triggers `billingDeliveryService.processBillingDocumentDelivery`, then `sendBillingInvoiceEmail` when enabled and recipient valid; template ids **`billing-invoice`** (initial) and **`billing-invoice-resend`** (admin). Disable outbound invoice mail with `BILLING_SEND_INVOICE_EMAIL=false` (PDF can still be generated). |
 | Pre-session reminder | **Yes** — cron job `pre-session-reminder` (`src/jobs/preSessionReminder.js`), template id `pre-session-reminder`. |
-| `email_sent_log` table | **Yes** — audit for sends with template id, entity link, `provider_message_id` when available. |
+| `email_sent_log` table | **Yes** — audit for sends with template id, entity link, `provider_message_id` when available; **`delivery_status`** (`accepted`, `delivered`, `bounced`, `complained`) updated via Resend webhook. |
+| Resend delivery webhook | **Yes** — `POST /api/resend/webhook` (Svix-signed). Updates `email_sent_log`; creates **`email_bounced`** admin alert for `reservation-confirmation` only. |
 | Queue / worker | **No** — confirmation and invoice pipelines use fire-and-forget `async` from webhook or admin redirects (errors logged). |
 | Operator manual send UI | **No** — still external / future. Admin **resend invoice** for an existing billing document: **`POST /admin/billing/:id/resend-email`**. |
 
@@ -51,6 +52,7 @@ Set in `.env` (or environment); see `src/config/index.js` and `.env.example`.
 | `RESEND_API_KEY` | API key from [Resend Dashboard → API Keys](https://resend.com/api-keys). |
 | `RESEND_FROM_EMAIL` | Sender address (verified domain in Resend). |
 | `RESEND_FROM_NAME` | Display name (default in config: `citimtedasom.sk`). |
+| `RESEND_WEBHOOK_SECRET` | Signing secret from Resend Dashboard → Webhooks (Svix). Required for `POST /api/resend/webhook` in production. |
 | `SESSION_MEETING_URL` | Google Meet link in **reservation confirmation** and **pre-session reminder** emails. If unset, templates show placeholder `[SEM DÁŠ LINK]`. |
 
 **Billing invoice email** also respects **`BILLING_SEND_INVOICE_EMAIL`** and supplier/PDF dirs under the **`billing`** config block — see `docs/STRIPE-ARCHITECTURE.md` (Billing / invoice env).
@@ -287,7 +289,7 @@ Ak by Meet u vás nefungoval, môžeme použiť aj inú platformu.
 **Needs:**
 - **Transactional:** Log each send (template id, recipient, timestamp, provider message id). Link to reservation or payment if applicable.
 - **Operator-assisted:** Log actor (admin user), recipient, timestamp, optional subject/body snapshot.
-- **Delivery status:** Provider webhooks (delivered, bounced, opened) — nice to have; not required for V1.
+- **Delivery status:** Provider webhooks (delivered, bounced, complained) — **implemented** via `POST /api/resend/webhook`; stored on `email_sent_log.delivery_status`.
 
 **Open:** Retention policy; optional storage of full body vs. template id only (today: **no body** in DB — `email_sent_log` stores template id, recipient, entity link, provider message id, `actor_type`).
 
@@ -313,7 +315,7 @@ Ak by Meet u vás nefungoval, môžeme použiť aj inú platformu.
 |------|---------|--------|
 | Email send log | Audit, "what did we send" | **Implemented:** `email_sent_log` |
 | Provider message ID | Link to Resend dashboard | **Implemented** when Resend returns `messageId` |
-| Delivery status | Bounce handling; analytics | Not stored (future) |
+| Delivery status | Bounce handling; analytics | **Implemented:** `email_sent_log.delivery_status` via Resend webhook |
 | Template versions | Reproducibility | Code-level templates only (git) |
 
 ### 7.2 Email History

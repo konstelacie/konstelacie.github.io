@@ -28,6 +28,9 @@ const { mapBillingListRow, mapBillingDetailRow, csvEscape } = require('../lib/ad
 const { mysqlLocalDateToYmd } = require('../lib/slotApiMap');
 const { resolveBalancePayAdminLink } = require('../lib/balancePayAdminLink');
 const emailService = require('../services/emailService');
+const emailSentLogRepo = require('../db/repositories/emailSentLogRepo');
+const systemAlertService = require('../services/systemAlertService');
+const { validateEmail } = require('../middleware/validators');
 const { logLine } = require('../lib/structuredLog');
 const systemAlertsRepo = require('../db/repositories/systemAlertsRepo');
 const { mapAdminAlertRow } = require('../lib/adminAlertDisplay');
@@ -1090,6 +1093,99 @@ router.post('/reservations/:id/send-balance-email', requireAdmin, async (req, re
   }
 });
 
+router.post('/reservations/:id/resend-confirmation', requireAdmin, async (req, res) => {
+  const id = parseReservationIdParam(req.params.id);
+  const redirect = id ? `/admin/reservations/${id}` : '/admin/reservations';
+  if (!id) {
+    req.session.adminFlash = { level: 'error', message: 'Neplatná rezervácia.' };
+    return res.redirect('/admin/reservations');
+  }
+
+  let email;
+  try {
+    email = validateEmail(req.body?.email, true);
+  } catch {
+    req.session.adminFlash = { level: 'error', message: 'Zadaj platnú e-mailovú adresu.' };
+    return res.redirect(redirect);
+  }
+
+  try {
+    const pool = getPool();
+    if (!pool) {
+      req.session.adminFlash = { level: 'error', message: 'Databáza nie je dostupná.' };
+      return res.redirect(redirect);
+    }
+
+    const raw = await reservationsRepo.getAdminDetailById(id);
+    if (!raw) {
+      req.session.adminFlash = { level: 'error', message: 'Rezervácia sa nenašla.' };
+      return res.redirect(redirect);
+    }
+
+    if (raw.reservation.status !== 'confirmed') {
+      req.session.adminFlash = {
+        level: 'error',
+        message: 'Potvrdenie je možné poslať znova len pre potvrdené rezervácie.',
+      };
+      return res.redirect(redirect);
+    }
+
+    const completedPayment = [...raw.payments].reverse().find((p) => p.status === 'completed');
+    if (!completedPayment) {
+      req.session.adminFlash = {
+        level: 'error',
+        message: 'Rezervácia nemá dokončenú platbu — potvrdenie nie je možné.',
+      };
+      return res.redirect(redirect);
+    }
+
+    const updateResult = await reservationsRepo.adminUpdateEmail(id, email);
+    if (!updateResult.ok) {
+      req.session.adminFlash = { level: 'error', message: 'Nepodarilo sa aktualizovať e-mail rezervácie.' };
+      return res.redirect(redirect);
+    }
+
+    const result = await emailService.sendReservationConfirmation(
+      {
+        to: email,
+        slot: raw.slot,
+        amountCents: completedPayment.amount_cents,
+        currency: completedPayment.currency,
+        bookingPaymentType: raw.reservation.payment_type === 'full' ? 'full' : 'deposit',
+        resend: true,
+      },
+      { entity_type: 'reservation', entity_id: id, actorType: 'admin' }
+    );
+
+    if (result.skipped) {
+      req.session.adminFlash = {
+        level: 'error',
+        message: 'E-mail sa neodoslal — skontrolujte konfiguráciu Resend (API kľúč a odosielateľa).',
+      };
+    } else if (!result.ok) {
+      req.session.adminFlash = { level: 'error', message: 'Odoslanie potvrdenia zlyhalo. Skúste znova.' };
+    } else {
+      await systemAlertService.resolveEmailBounced(id);
+      await auditRepo.log(
+        'reservation_confirmation_resent',
+        'reservation',
+        id,
+        { to: email },
+        'admin'
+      );
+      req.session.adminFlash = {
+        level: 'success',
+        message: `Potvrdenie bolo odoslané na ${email}.`,
+      };
+    }
+    return res.redirect(redirect);
+  } catch (err) {
+    console.error('[admin/reservations/resend-confirmation]', err);
+    req.session.adminFlash = { level: 'error', message: 'Neznáma chyba pri odosielaní potvrdenia.' };
+    return res.redirect(redirect);
+  }
+});
+
 router.get('/reservations/:id', requireAdmin, async (req, res) => {
   const id = parseReservationIdParam(req.params.id);
   if (!id) {
@@ -1135,7 +1231,10 @@ router.get('/reservations/:id', requireAdmin, async (req, res) => {
       });
     }
 
-    const detail = mapAdminDetail(raw);
+    const detail = mapAdminDetail(
+      raw,
+      await emailSentLogRepo.findLatestConfirmationLogForReservation(id)
+    );
     const balancePay = await resolveBalancePayAdminLink(pool, id);
     return res.render('admin/reservation-detail', {
       layout: 'layouts/admin',

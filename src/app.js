@@ -77,6 +77,21 @@ app.use(
   krosRouter
 );
 
+// Resend webhook: raw body + Svix signature verification (see src/routes/api/resend.js).
+const { router: resendWebhookRouter } = require('./routes/api/resend');
+function resendWebhookRequestId(req, res, next) {
+  req.id = req.get('X-Request-Id') || crypto.randomBytes(8).toString('hex');
+  res.setHeader('X-Request-Id', req.id);
+  next();
+}
+app.use(
+  '/api/resend/webhook',
+  resendWebhookRequestId,
+  apiAccessLog,
+  express.raw({ type: 'application/json' }),
+  resendWebhookRouter
+);
+
 // Middleware
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));

@@ -4,6 +4,7 @@ const { logLine } = require('../lib/structuredLog');
 const ALERT_TYPES = {
   BILLING_DOCUMENT_CREATION_FAILED: 'billing_document_creation_failed',
   RESERVATION_CONFIRMATION_EMAIL_FAILED: 'reservation_confirmation_email_failed',
+  EMAIL_BOUNCED: 'email_bounced',
   KROS_WEBHOOK_MISSING: 'kros_webhook_missing',
   CRON_NOT_RUNNING: 'cron_not_running',
   STRIPE_PAYMENT_NEEDS_RECONCILIATION: 'stripe_payment_needs_reconciliation',
@@ -114,6 +115,38 @@ async function createReservationConfirmationEmailFailed({
   });
 }
 
+/**
+ * @param {object} params
+ * @param {number} params.reservationId
+ * @param {string} [params.recipientEmail]
+ * @param {string} [params.providerMessageId]
+ * @param {string|null} [params.bounceReason]
+ * @param {'bounced'|'complained'} [params.deliveryStatus]
+ */
+async function createEmailBounced({
+  reservationId,
+  recipientEmail,
+  providerMessageId,
+  bounceReason,
+  deliveryStatus = 'bounced',
+}) {
+  return createOpenAlert({
+    type: ALERT_TYPES.EMAIL_BOUNCED,
+    entityType: 'reservation',
+    entityId: reservationId,
+    title: 'Potvrdzovací e-mail sa nepodarilo doručiť (bounce)',
+    message:
+      'Rezervácia je potvrdená a e-mail bol odoslaný, ale doručenie zlyhalo (neplatná adresa alebo spam hlásenie). Skontroluj e-mail v detaile rezervácie a odošli znova na správnu adresu.',
+    metadata: {
+      reservationId,
+      recipientEmail: recipientEmail ?? null,
+      providerMessageId: providerMessageId ?? null,
+      bounceReason: bounceReason ?? null,
+      deliveryStatus,
+    },
+  });
+}
+
 async function createKrosWebhookMissing({
   billingDocumentId,
   paymentId,
@@ -175,7 +208,7 @@ async function createCronNotRunning() {
 
 /**
  * @param {object} params
- * @param {'missing_local_payment'|'missing_reservation'|'missing_confirmation_email_task'|'confirmation_email_permanently_failed'} params.failureReason
+ * @param {'missing_local_payment'|'missing_reservation'|'missing_confirmation_email_task'|'confirmation_email_permanently_failed'|'confirmation_email_bounced'} params.failureReason
  * @param {string} [params.stripeSessionId]
  * @param {number|null} [params.paymentId]
  * @param {string|null} [params.customerEmail]
@@ -338,15 +371,44 @@ async function resolveCronNotRunning() {
   return result.ok;
 }
 
+/**
+ * @param {number} reservationId
+ * @returns {Promise<boolean>}
+ */
+async function resolveEmailBounced(reservationId) {
+  const existing = await systemAlertsRepo.findUnresolvedByTypeAndEntity(
+    ALERT_TYPES.EMAIL_BOUNCED,
+    'reservation',
+    reservationId
+  );
+  if (!existing) {
+    return false;
+  }
+
+  const result = await systemAlertsRepo.resolveAlert(existing.id);
+  if (result.ok) {
+    logLine({
+      level: 'info',
+      tag: 'system_alert_resolved',
+      alertId: existing.id,
+      alertType: ALERT_TYPES.EMAIL_BOUNCED,
+      auto: false,
+    });
+  }
+  return result.ok;
+}
+
 module.exports = {
   ALERT_TYPES,
   createOpenAlert,
   createBillingDocumentCreationFailed,
   createReservationConfirmationEmailFailed,
+  createEmailBounced,
   createKrosWebhookMissing,
   createCronNotRunning,
   createStripePaymentNeedsReconciliation,
   createStripeReconciliationFailed,
   resolveCronNotRunning,
   resolveStripeReconciliationFailed,
+  resolveEmailBounced,
 };

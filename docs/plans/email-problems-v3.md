@@ -243,3 +243,86 @@ Backend detection first, frontend UX second, admin recovery last.
 - `src/lib/adminReservationDisplay.js` — `getAdminDetailById` / `mapAdminDetail`
 - `src/services/stripeReconciliationService.js` — `detectLocalPaymentIssue` (async bounce check), `evaluateLocalPaymentIssue` (new param)
 - `tests/phase5OperationalSafety.test.js` — new failure reason coverage
+
+---
+
+## Implementation completed
+
+> All phases 1–5 implemented in one pass (PR 1–4 scope). Phase 6 (confirm-email field) remains deferred.
+
+### PR 1 — Schema + Resend webhook
+
+| Item | Done |
+|------|------|
+| `email_sent_log` columns: `delivery_status`, `bounce_reason`, `bounced_at` | Yes — `src/db/migrations/001_initial.sql` |
+| Index on `provider_message_id` | Yes |
+| `docs/DB-SCHEMA.md` | Updated |
+| `RESEND_WEBHOOK_SECRET` in config + `.env.example` | Yes — `src/config/index.js` |
+| `emailSentLogRepo`: `findByProviderMessageId`, `markBounced`, `markDelivered`, `isBouncedForEntity`, `findLatestConfirmationLogForEntity`, `findLatestConfirmationLogForReservation` | Yes |
+| `src/routes/api/resend.js` — Svix verify, `email.bounced` / `email.complained` / `email.delivered` | Yes |
+| Webhook rate limit (KROS pattern) | Yes — 30 req/min |
+| `src/app.js` wiring (`/api/resend/webhook`, raw body, request id) | Yes |
+| `EMAIL_BOUNCED` alert + `createEmailBounced` | Yes — `src/services/systemAlertService.js` |
+| Tests | Yes — `tests/resendWebhook.test.js` (signature, fixture, `markBounced` idempotency when DB migrated) |
+| Docs | Yes — `docs/EMAILING.md`, `docs/API.md` |
+
+**Latest-log wins:** `isBouncedForEntity` and status lookups use `ORDER BY sent_at DESC, id DESC` on confirmation template ids (`reservation-confirmation`, `reservation-confirmation-resend`) so a successful admin resend supersedes an earlier bounce.
+
+### PR 2 — Status API + success page
+
+| Item | Done |
+|------|------|
+| `GET /api/payments/status` → `confirmationEmail` | Yes — `src/routes/api/payments.js` |
+| Status mapping helper | Yes — `src/lib/confirmationEmailStatus.js` (`maskRecipientEmail`, `resolveConfirmationEmailStatus`, `buildConfirmationEmailPayload`) |
+| `complained` → client `bounced` | Yes |
+| Success page polling after `completed` (~3 min) | Yes — `public/assets/js/success-page.js` |
+| Baseline masked email + fallback hint | Yes |
+| Warning copy on `bounced` / `failed` | Yes |
+| EJS DOM hooks | Yes — `#success-email-confirmation-default`, `#success-email-warning`, `#success-email-notice` in `booking-success.ejs` |
+| CSS warning style | Yes — `.success-next-step--warning` in `funnel.css` |
+| Tests | Yes — `tests/confirmationEmailStatus.test.js` |
+| `docs/API.md` status response | Updated |
+
+### PR 3 — Frontend safety net
+
+| Item | Done |
+|------|------|
+| Re-validate email on payment form submit | Yes — `public/assets/js/booking.js` |
+| Typo hint (`suggestDomainFix`, Levenshtein ≤2, common SK/CZ domains) | Yes — blur/input, non-blocking |
+| Slovak copy “Mysleli ste …?” + apply button | Yes — `src/views/partials/booking-content.ejs` |
+| Typo hint styles | Yes — `public/assets/css/site.css` |
+
+### PR 4 — Admin recovery + reconciliation
+
+| Item | Done |
+|------|------|
+| Admin detail: delivery status, bounce reason, timestamp | Yes — `reservation-detail.ejs`, `mapAdminDetail` + `mapConfirmationDelivery` in `adminReservationDisplay.js` |
+| `POST /admin/reservations/:id/resend-confirmation` | Yes — `src/routes/admin.js` |
+| Update `reservations.email` | Yes — `reservationsRepo.adminUpdateEmail` |
+| Resend via `reservation-confirmation-resend` template id (Option A) | Yes — `emailService.sendReservationConfirmation({ resend: true })`; reuses `reservation-confirmation.ejs` HTML |
+| Resolve `email_bounced` alert on successful resend | Yes — `systemAlertService.resolveEmailBounced` |
+| Reconciliation: `confirmation_email_bounced` | Yes — `detectLocalPaymentIssue` → `evaluateLocalPaymentIssue(payment, task, bounced)` |
+| Tests | Yes — `tests/phase5OperationalSafety.test.js` (`EMAIL_BOUNCED`, `confirmation_email_bounced`, `isBouncedForEntity`) |
+
+### Additional files (not in original list)
+
+- `src/lib/confirmationEmailStatus.js` — client-facing status mapping for `/api/payments/status`
+- `tests/resendWebhook.test.js` — webhook signature + bounce idempotency
+- `tests/confirmationEmailStatus.test.js` — status/masking unit tests
+- `src/db/repositories/reservationsRepo.js` — `adminUpdateEmail`
+- `src/services/emailService.js` — `resend` flag on `sendReservationConfirmation`
+
+### Not done (by design)
+
+| Item | Status |
+|------|--------|
+| Phase 6 — confirm-email field / A/B | Deferred |
+| Double opt-in before payment | Not planned |
+| Bounce logic in `stripe.js` | Not added (task-based flow unchanged) |
+
+### Ops checklist (manual, per environment)
+
+1. Recreate or migrate DB so `email_sent_log` has the new columns (`yarn db:reset` or equivalent pre-live workflow).
+2. Set `RESEND_WEBHOOK_SECRET` in env (Resend dashboard → Webhooks → signing secret).
+3. Register webhook URL: `https://<domain>/api/resend/webhook` — subscribe at least to `email.bounced`, `email.complained`, and optionally `email.delivered`.
+4. After deploy, send a test booking and verify webhook delivery in Resend + `delivery_status` on `email_sent_log`.

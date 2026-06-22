@@ -19,6 +19,9 @@ const { validateSlotId, validateEmail, validateLockToken } = require('../../midd
 const { slotPassesBookingWindow } = require('../../lib/slotBookingRules');
 const { checkoutExpiresAtFromNow, lockExpiresAtAfterCheckoutCancel } = require('../../config/checkoutHold');
 const paymentsRepo = require('../../db/repositories/paymentsRepo');
+const emailDeliveryTasksRepo = require('../../db/repositories/emailDeliveryTasksRepo');
+const emailSentLogRepo = require('../../db/repositories/emailSentLogRepo');
+const { buildConfirmationEmailPayload } = require('../../lib/confirmationEmailStatus');
 const { ensureEmailAvailableForBooking } = require('../../lib/bookingEmailAvailability');
 const { bookingCannotCompleteError } = require('../../lib/bookingApiMessages');
 const { handleCaptchaGate, ROUTE_PAYMENT_START } = require('../../lib/captcha');
@@ -174,6 +177,24 @@ router.get(
       }
     }
 
+    let confirmationEmail = null;
+    if (reservation?.id) {
+      const [resEmailRows] = await pool.execute('SELECT email FROM reservations WHERE id = ? LIMIT 1', [
+        reservation.id,
+      ]);
+      const task = await emailDeliveryTasksRepo.findByTemplateEntity(
+        emailDeliveryTasksRepo.RESERVATION_CONFIRMATION_TEMPLATE,
+        emailDeliveryTasksRepo.ENTITY_TYPE_RESERVATION,
+        reservation.id
+      );
+      const logRow = await emailSentLogRepo.findLatestConfirmationLogForReservation(reservation.id);
+      confirmationEmail = buildConfirmationEmailPayload(
+        task,
+        logRow,
+        resEmailRows[0]?.email ?? null
+      );
+    }
+
     res.json({
       ok: true,
       payment: {
@@ -200,6 +221,7 @@ router.get(
           }
         : null,
       meetingUrl: (process.env.SESSION_MEETING_URL || '').trim() || null,
+      confirmationEmail,
     });
   })
 );

@@ -3,7 +3,8 @@
 
   const TIMEZONE = 'Europe/Bratislava';
   const POLL_INTERVAL_MS = 2000;
-  const MAX_POLL_ATTEMPTS = 30; // ~1 minute
+  const MAX_POLL_ATTEMPTS = 30; // ~1 minute until payment completed
+  const CONFIRMED_POLL_MAX_MS = 3 * 60 * 1000; // keep polling after completed for late bounces
   const CALENDAR_EVENT_TITLE = 'Online sedenie | citimtedasom.sk';
   const CALENDAR_EVENT_DETAILS_FALLBACK =
     'Online sedenie cez Google Meet. Odkaz na pripojenie nájdeš v potvrdzujúcom e-maile.';
@@ -171,6 +172,32 @@
     if (ctaSection) ctaSection.hidden = !visible;
   }
 
+  function updateConfirmationEmailCopy(confirmationEmail) {
+    const defaultEl = document.getElementById('success-email-confirmation-default');
+    const warningEl = document.getElementById('success-email-warning');
+    const noticeEl = document.getElementById('success-email-notice');
+
+    const status = confirmationEmail?.status || null;
+    const masked = confirmationEmail?.recipientMasked || '';
+    const showWarning = status === 'bounced' || status === 'failed';
+
+    if (defaultEl) defaultEl.hidden = showWarning;
+    if (warningEl) warningEl.hidden = !showWarning;
+
+    if (noticeEl) {
+      if (masked) {
+        noticeEl.textContent =
+          'Potvrdenie posielame na ' +
+          masked +
+          '. Ak do pár minút nedorazí, skontroluj adresu alebo nás kontaktuj.';
+        noticeEl.hidden = false;
+      } else {
+        noticeEl.hidden = true;
+        noticeEl.textContent = '';
+      }
+    }
+  }
+
   function showState(state, data) {
     const titleEl = document.getElementById('success-main-title');
     const loadingEl = document.getElementById('success-loading');
@@ -232,6 +259,8 @@
         calendarEventData = nextCalendarEvent;
         wireCalendarActions(nextCalendarEvent);
       }
+
+      updateConfirmationEmailCopy(data.confirmationEmail);
     }
   }
 
@@ -267,6 +296,7 @@
 
     let attempts = 0;
     let lastStatus = null;
+    let confirmedAt = null;
 
     function poll() {
       attempts += 1;
@@ -277,6 +307,12 @@
 
           if (status === 'completed') {
             showState('confirmed', data);
+            if (!confirmedAt) {
+              confirmedAt = Date.now();
+            }
+            if (Date.now() - confirmedAt < CONFIRMED_POLL_MAX_MS) {
+              setTimeout(poll, POLL_INTERVAL_MS);
+            }
             return;
           }
 

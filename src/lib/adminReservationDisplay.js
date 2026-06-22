@@ -104,6 +104,45 @@ function slotStatusLabel(status) {
   }
 }
 
+function confirmationDeliveryStatusLabel(deliveryStatus) {
+  switch (deliveryStatus) {
+    case 'accepted':
+      return 'Prijaté (čaká sa na doručenie)';
+    case 'delivered':
+      return 'Doručené';
+    case 'bounced':
+      return 'Bounce';
+    case 'complained':
+      return 'Spam hlásenie';
+    default:
+      return deliveryStatus || '—';
+  }
+}
+
+/**
+ * @param {object|null} logRow - latest email_sent_log for confirmation templates
+ */
+function mapConfirmationDelivery(logRow) {
+  if (!logRow) {
+    return {
+      hasLog: false,
+      statusLabel: '—',
+      bounceReason: null,
+      bouncedAtLabel: '—',
+      canResend: false,
+    };
+  }
+
+  const bounced = logRow.delivery_status === 'bounced' || logRow.delivery_status === 'complained';
+  return {
+    hasLog: true,
+    statusLabel: confirmationDeliveryStatusLabel(logRow.delivery_status),
+    bounceReason: logRow.bounce_reason || null,
+    bouncedAtLabel: logRow.bounced_at ? formatTs(logRow.bounced_at) : '—',
+    canResend: bounced,
+  };
+}
+
 /** Reservation row: user's choice at booking (deposit = reservation fee only, full = full amount upfront). */
 function reservationBookingPaymentLabel(paymentType) {
   switch (paymentType) {
@@ -163,8 +202,9 @@ function formatTs(value) {
 
 /**
  * @param {{ reservation: object, slot: object, payments: object[] }} detail
+ * @param {object|null} [confirmationLog]
  */
-function mapAdminDetail(detail) {
+function mapAdminDetail(detail, confirmationLog = null) {
   const { reservation, slot, payments } = detail;
   const timeKey = timeKeyForGridIndex(Number(slot.grid_index));
   const localDate = mysqlLocalDateToYmd(slot.local_date);
@@ -224,6 +264,7 @@ function mapAdminDetail(detail) {
     funnelVideoIdLabel: funnelFieldLabel(reservation.funnel_video_id),
     paymentsForTable,
     actions: computeDetailActions(reservation.status),
+    confirmationDelivery: mapConfirmationDelivery(confirmationLog),
   };
 }
 

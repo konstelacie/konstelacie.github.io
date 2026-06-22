@@ -1529,6 +1529,74 @@
     return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email || '');
   }
 
+  const COMMON_EMAIL_DOMAINS = [
+    'gmail.com',
+    'outlook.com',
+    'azet.sk',
+    'centrum.sk',
+    'yahoo.com',
+    'icloud.com',
+    'zoznam.sk',
+    'hotmail.com',
+  ];
+
+  function levenshtein(a, b) {
+    const rows = a.length + 1;
+    const cols = b.length + 1;
+    const matrix = Array.from({ length: rows }, () => new Array(cols).fill(0));
+    for (let i = 0; i < rows; i += 1) matrix[i][0] = i;
+    for (let j = 0; j < cols; j += 1) matrix[0][j] = j;
+    for (let i = 1; i < rows; i += 1) {
+      for (let j = 1; j < cols; j += 1) {
+        const cost = a[i - 1] === b[j - 1] ? 0 : 1;
+        matrix[i][j] = Math.min(
+          matrix[i - 1][j] + 1,
+          matrix[i][j - 1] + 1,
+          matrix[i - 1][j - 1] + cost
+        );
+      }
+    }
+    return matrix[rows - 1][cols - 1];
+  }
+
+  function suggestDomainFix(email) {
+    const trimmed = String(email || '').trim();
+    const at = trimmed.indexOf('@');
+    if (at <= 0) return null;
+    const local = trimmed.slice(0, at);
+    const domain = trimmed.slice(at + 1).toLowerCase();
+    if (!domain) return null;
+    for (const candidate of COMMON_EMAIL_DOMAINS) {
+      if (domain !== candidate && levenshtein(domain, candidate) <= 2) {
+        return `${local}@${candidate}`;
+      }
+    }
+    return null;
+  }
+
+  function hideEmailTypoHint() {
+    const hint = $('booking-email-typo-hint');
+    const applyBtn = $('booking-email-typo-apply');
+    if (hint) hint.hidden = true;
+    if (applyBtn) applyBtn.textContent = '';
+  }
+
+  function updateEmailTypoHint() {
+    const emailInput = $('booking-email');
+    const hint = $('booking-email-typo-hint');
+    const applyBtn = $('booking-email-typo-apply');
+    if (!emailInput || !hint || !applyBtn) return;
+
+    const suggestion = suggestDomainFix(emailInput.value.trim());
+    if (!suggestion) {
+      hideEmailTypoHint();
+      return;
+    }
+
+    applyBtn.textContent = suggestion;
+    hint.hidden = false;
+  }
+
   function setCompanyFieldsVisible(visible) {
     const wrap = $('booking-company-fields');
     if (!wrap) return;
@@ -1924,6 +1992,14 @@
       paymentForm.addEventListener('submit', (e) => {
         e.preventDefault();
         const email = $('booking-email').value.trim();
+        if (!validateEmail(email)) {
+          const err = $('booking-email-error');
+          if (err) {
+            err.textContent = 'Zadaj platnú e-mailovú adresu.';
+            err.hidden = false;
+          }
+          return;
+        }
         const choice = getPaymentChoice();
         if (!choice) {
           const err = $('booking-payment-error');
@@ -2021,13 +2097,33 @@
     // so the booking-billing-* selector above does not cover it).
     const emailDraftInput = $('booking-email');
     if (emailDraftInput) {
-      emailDraftInput.addEventListener('input', () => scheduleBillingSnapshotSave());
-      emailDraftInput.addEventListener('change', () => scheduleBillingSnapshotSave());
+      emailDraftInput.addEventListener('input', () => {
+        updateEmailTypoHint();
+        scheduleBillingSnapshotSave();
+      });
+      emailDraftInput.addEventListener('change', () => {
+        updateEmailTypoHint();
+        scheduleBillingSnapshotSave();
+      });
       emailDraftInput.addEventListener('blur', () => {
+        updateEmailTypoHint();
         if (billingPersistTimer) {
           clearTimeout(billingPersistTimer);
           billingPersistTimer = null;
         }
+        if (lockToken) storeLock();
+      });
+    }
+
+    const emailTypoApply = $('booking-email-typo-apply');
+    if (emailTypoApply) {
+      emailTypoApply.addEventListener('click', () => {
+        const emailInput = $('booking-email');
+        const suggestion = suggestDomainFix(emailInput?.value.trim() || '');
+        if (!emailInput || !suggestion) return;
+        emailInput.value = suggestion;
+        hideEmailTypoHint();
+        scheduleBillingSnapshotSave();
         if (lockToken) storeLock();
       });
     }

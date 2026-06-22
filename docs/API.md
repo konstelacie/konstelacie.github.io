@@ -5,6 +5,7 @@
 - **JSON API base:** `/api` — all routes below use JSON request/response unless noted.
 - **Operator admin (HTML):** Session-based UI at `/admin` — not JSON; see [Admin (operator UI)](#admin-operator-ui) and `docs/ui-ux/admin-interface.md`.
 - **Stripe webhook:** `POST /api/stripe/webhook` is mounted **separately** in `src/app.js` (raw body for signatures). It does **not** go through the same middleware stack as `/api/*` from `src/routes/api/index.js`.
+- **Resend webhook:** `POST /api/resend/webhook` — same pattern (raw body, Svix signature). See [POST /api/resend/webhook](#post-apiresendwebhook).
 
 ---
 
@@ -320,9 +321,16 @@ Load payment and reservation state by **Stripe Checkout Session ID** (success pa
     "startAt": "2026-03-05T07:30:00.000Z",
     "endAt": "2026-03-05T09:00:00.000Z",
     "timezone": "Europe/Bratislava"
+  },
+  "meetingUrl": "https://meet.google.com/...",
+  "confirmationEmail": {
+    "status": "sent",
+    "recipientMasked": "a***@gmail.com"
   }
 }
 ```
+
+`confirmationEmail.status` is one of `pending`, `sent`, `bounced`, `failed`. Provider `complained` maps to `bounced`. Omitted when no confirmation task or log exists yet.
 
 While the webhook has not completed, `payment.status` may be `"pending"` and `paidAt` `null`.
 
@@ -402,6 +410,20 @@ Other `state` values: `not_available`, `already_completed`, `checkout_pending` �
 **Response:** `200` with `{ "received": true }` on success.
 
 Full flow: `docs/STRIPE-ARCHITECTURE.md`.
+
+---
+
+## POST /api/resend/webhook
+
+**Not** under `src/routes/api/index.js`. **Method:** `POST` only. **Body:** raw JSON (Svix-signed by Resend). **Headers:** `svix-id`, `svix-timestamp`, `svix-signature` required.
+
+**Env:** `RESEND_WEBHOOK_SECRET`
+
+**Handled events:** `email.bounced`, `email.complained` (updates `email_sent_log.delivery_status`; `email_bounced` admin alert for `reservation-confirmation` only), `email.delivered` (sets `delivery_status = delivered` when row is still `accepted`). Other event types are acknowledged with `200` and ignored.
+
+**Response:** `200` with `{ "received": true }` on success. **401** when signature invalid. **503** when webhook secret not configured.
+
+See `docs/EMAILING.md` and `src/routes/api/resend.js`.
 
 ---
 

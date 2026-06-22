@@ -70,7 +70,11 @@ test('system alert types include Phase 5 operational alerts', () => {
     'stripe_payment_needs_reconciliation'
   );
   assert.equal(ALERT_TYPES.STRIPE_RECONCILIATION_FAILED, 'stripe_reconciliation_failed');
+  assert.equal(ALERT_TYPES.EMAIL_BOUNCED, 'email_bounced');
   assert.match(systemAlertServiceSrc, /createCronNotRunning/);
+  assert.match(systemAlertServiceSrc, /createEmailBounced/);
+  assert.match(stripeReconciliationServiceSrc, /isBouncedForEntity/);
+  assert.match(stripeReconciliationServiceSrc, /confirmation_email_bounced/);
   assert.match(systemAlertServiceSrc, /createStripePaymentNeedsReconciliation/);
   assert.match(systemAlertServiceSrc, /createStripeReconciliationFailed/);
   assert.match(systemAlertServiceSrc, /resolveStripeReconciliationFailed/);
@@ -174,6 +178,14 @@ test('Test 5 — Broken local payment state: reservation or confirmation email i
       { status: 'sent', attempt_count: 1, max_attempts: 5 }
     ),
     null
+  );
+  assert.equal(
+    evaluateLocalPaymentIssue(
+      { reservation_id: 1, reservation_status: 'confirmed' },
+      { status: 'sent', attempt_count: 1, max_attempts: 5 },
+      true
+    )?.failureReason,
+    'confirmation_email_bounced'
   );
 });
 

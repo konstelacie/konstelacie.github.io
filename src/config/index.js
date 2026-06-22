@@ -43,6 +43,7 @@ module.exports = {
       apiKey: process.env.RESEND_API_KEY || '',
       fromEmail: process.env.RESEND_FROM_EMAIL || '',
       fromName: process.env.RESEND_FROM_NAME || 'citimtedasom.sk',
+      webhookSecret: (process.env.RESEND_WEBHOOK_SECRET || '').trim(),
     },
     /** Minutes before slot start to send session-before-start email (cron retries until start). */
     sessionBeforeStartMinutes: (() => {

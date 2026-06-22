@@ -164,6 +164,22 @@ async function adminSetNote(reservationId, note) {
 }
 
 /**
+ * @param {number} reservationId
+ * @param {string} email
+ * @returns {Promise<{ ok: true } | { ok: false, code: string }>}
+ */
+async function adminUpdateEmail(reservationId, email) {
+  const pool = getPool();
+  if (!pool) throw new Error('Database not configured');
+
+  const [rows] = await pool.execute('SELECT id FROM reservations WHERE id = ?', [reservationId]);
+  if (!rows[0]) return { ok: false, code: 'NOT_FOUND' };
+
+  await pool.execute('UPDATE reservations SET email = ? WHERE id = ?', [email, reservationId]);
+  return { ok: true };
+}
+
+/**
  * Hard-delete reservation and related payments/billing (dev/admin cleanup).
  * @returns {Promise<{ ok: true } | { ok: false, code: string }>}
  */
@@ -319,5 +335,6 @@ module.exports = {
   adminCancelReservation,
   adminAppendExternalNote,
   adminSetNote,
+  adminUpdateEmail,
   adminDeleteReservation,
 };

@@ -30,6 +30,13 @@
   <section class="admin-detail" aria-label="Údaje rezervácie">
     <dl class="admin-dl">
       <div class="admin-dl__row"><dt>E-mail</dt><dd><%= detail.email %></dd></div>
+      <% if (detail.confirmationDelivery && detail.confirmationDelivery.hasLog) { %>
+      <div class="admin-dl__row"><dt>Potvrdenie e-mailom</dt><dd><%= detail.confirmationDelivery.statusLabel %></dd></div>
+      <% if (detail.confirmationDelivery.bounceReason) { %>
+      <div class="admin-dl__row"><dt>Dôvod bounce</dt><dd><%= detail.confirmationDelivery.bounceReason %></dd></div>
+      <div class="admin-dl__row"><dt>Bounce prijatý</dt><dd><%= detail.confirmationDelivery.bouncedAtLabel %></dd></div>
+      <% } %>
+      <% } %>
       <div class="admin-dl__row"><dt>Funnel</dt><dd><%= detail.funnelNameLabel %></dd></div>
       <div class="admin-dl__row"><dt>Kampaň</dt><dd><%= detail.funnelCampaignLabel %></dd></div>
       <div class="admin-dl__row"><dt>Video ID</dt><dd><%= detail.funnelVideoIdLabel %></dd></div>
@@ -147,6 +154,22 @@
     <% } else if (balancePay.message) { %>
     <p class="admin-placeholder"><%= balancePay.message %></p>
     <% } %>
+  </section>
+  <% } %>
+
+  <% if (detail.reservationStatus === 'confirmed') { %>
+  <section class="admin-detail" aria-label="Potvrdenie e-mailom">
+    <h2 class="admin-detail__subtitle">Poslať potvrdenie znova</h2>
+    <p class="admin-bulk__hint">Oprav e-mailovú adresu a odošli potvrdenie rezervácie znova (napr. po bounce).</p>
+    <form method="post" action="/admin/reservations/<%= detail.id %>/resend-confirmation" class="admin-detail__form">
+      <div class="admin-field admin-field--full">
+        <label for="resend-confirmation-email">E-mail príjemcu</label>
+        <input type="email" id="resend-confirmation-email" name="email" value="<%= detail.email %>" required maxlength="255">
+      </div>
+      <div class="admin-detail__actions">
+        <button type="submit" class="admin-btn admin-btn--primary">Odoslať potvrdenie</button>
+      </div>
+    </form>
   </section>
   <% } %>
 

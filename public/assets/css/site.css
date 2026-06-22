@@ -451,6 +451,26 @@ a:hover {
   margin-top: var(--spacing-sm);
 }
 
+.booking-email-typo-hint {
+  margin: 0.35rem 0 var(--spacing-sm);
+  font-size: 0.95rem;
+}
+
+.booking-email-typo-apply {
+  margin: 0 0.15rem;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--color-primary);
+  font: inherit;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.booking-email-typo-apply:hover {
+  color: var(--color-text);
+}
+
 /* Email step — modal overlay (funnel booking) */
 .booking-modal {
   position: fixed;

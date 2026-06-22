@@ -85,11 +85,12 @@ const MAX_BALANCE_PAY_INVITE_MESSAGE_LEN = 8000;
  * @param {number} params.amountCents - Amount paid in cents
  * @param {string} [params.currency='eur'] - Currency code
  * @param {'deposit'|'full'} [params.bookingPaymentType='deposit'] - Reservation fee only vs full session upfront (from reservations.payment_type)
+ * @param {boolean} [params.resend=false] - Admin resend uses template id reservation-confirmation-resend
  * @param {object} [metadata] - Optional metadata for logging
  * @returns {Promise<{ok: boolean, skipped?: boolean, messageId?: string}>}
  */
 async function sendReservationConfirmation(
-  { to, slot, amountCents, currency = 'eur', bookingPaymentType = 'deposit' },
+  { to, slot, amountCents, currency = 'eur', bookingPaymentType = 'deposit', resend = false },
   metadata = {}
 ) {
   const tz = slot.timezone || 'Europe/Bratislava';
@@ -112,20 +113,24 @@ async function sendReservationConfirmation(
     }
   );
 
-  const subject = isFullPayment
-    ? 'Platba je dokončená — rezervácia potvrdená'
-    : 'Rezervácia je potvrdená';
+  const subject = resend
+    ? isFullPayment
+      ? 'Platba je dokončená — rezervácia potvrdená (znova)'
+      : 'Rezervácia je potvrdená (znova)'
+    : isFullPayment
+      ? 'Platba je dokončená — rezervácia potvrdená'
+      : 'Rezervácia je potvrdená';
 
   const result = await emailProvider.sendEmail(to, subject, html, metadata);
 
   if (result.ok && result.messageId) {
     await emailSentLogRepo.log({
       recipientEmail: to,
-      templateId: 'reservation-confirmation',
+      templateId: resend ? 'reservation-confirmation-resend' : 'reservation-confirmation',
       entityType: metadata.entity_type,
       entityId: metadata.entity_id,
       providerMessageId: result.messageId,
-      actorType: 'system',
+      actorType: metadata.actorType || 'system',
     });
   }
 
