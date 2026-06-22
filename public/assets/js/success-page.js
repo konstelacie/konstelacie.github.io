@@ -13,6 +13,11 @@
 
   /** @type {{ startAt: string, endAt: string, reservationId?: number, meetingUrl?: string | null } | null} */
   let calendarEventData = null;
+  /** @type {string} */
+  let checkoutSessionId = '';
+  /** @type {object|null} */
+  let lastConfirmedStatusData = null;
+  let emailDeliveryAlertWired = false;
 
   function getSessionId() {
     const params = new URLSearchParams(window.location.search);
@@ -186,31 +191,129 @@
     return `\n\nID rezervácie: ${reservationId}`;
   }
 
-  function wireEmailDeliveryAlertActions(reservationId) {
-    const fixEmailCta = document.getElementById('success-fix-email-cta');
+  function isValidEmail(email) {
+    return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email || '');
+  }
+
+  function wireSupportCta(reservationId) {
     const supportCta = document.getElementById('success-support-cta');
-    const context = buildSupportContextLines(reservationId);
+    if (!supportCta) return;
+    supportCta.href = buildMailtoLink(
+      SUPPORT_EMAIL,
+      'Podpora – potvrdenie rezervácie',
+      'Dobrý deň,\n\nmám problém s doručením potvrdenia rezervácie.' +
+        buildSupportContextLines(reservationId) +
+        '\n\nĎakujem.'
+    );
+  }
 
-    if (fixEmailCta) {
-      fixEmailCta.href = buildMailtoLink(
-        SUPPORT_EMAIL,
-        'Oprava e-mailu rezervácie',
-        'Dobrý deň,\n\npri rezervácii som zadal/a nesprávnu e-mailovú adresu. Prosím o opravu a znovuodoslanie potvrdenia.\n\nSprávna adresa: ' +
-          context +
-          '\n\nĎakujem.'
-      );
+  function wireMeetingLink(meetingUrl) {
+    const block = document.getElementById('success-meeting-link-block');
+    const link = document.getElementById('success-meeting-link');
+    const normalized = normalizeMeetingUrl(meetingUrl);
+    if (!block || !link) return;
+    if (!normalized) {
+      block.hidden = true;
+      link.removeAttribute('href');
+      return;
     }
+    block.hidden = false;
+    link.href = normalized;
+  }
 
-    if (supportCta) {
-      supportCta.href = buildMailtoLink(
-        SUPPORT_EMAIL,
-        'Podpora – potvrdenie rezervácie',
-        'Dobrý deň,\n\nmám problém s doručením potvrdenia rezervácie.' + context + '\n\nĎakujem.'
-      );
+  function setFixEmailPanelOpen(open) {
+    const panel = document.getElementById('success-fix-email-panel');
+    const toggle = document.getElementById('success-fix-email-toggle');
+    if (panel) panel.hidden = !open;
+    if (toggle) toggle.setAttribute('aria-expanded', open ? 'true' : 'false');
+    if (open) {
+      const input = document.getElementById('success-fix-email-input');
+      if (input) input.focus();
     }
   }
 
-  function updateConfirmationEmailCopy(confirmationEmail, reservationId) {
+  function setFixEmailFormMessage(kind, text) {
+    const errorEl = document.getElementById('success-fix-email-error');
+    const successEl = document.getElementById('success-fix-email-success');
+    if (errorEl) {
+      errorEl.hidden = kind !== 'error';
+      errorEl.textContent = kind === 'error' ? text : '';
+    }
+    if (successEl) {
+      successEl.hidden = kind !== 'success';
+      successEl.textContent = kind === 'success' ? text : '';
+    }
+  }
+
+  async function submitFixConfirmationEmail(email) {
+    const submitBtn = document.getElementById('success-fix-email-submit');
+    if (submitBtn) submitBtn.disabled = true;
+    setFixEmailFormMessage('error', '');
+    setFixEmailFormMessage('success', '');
+
+    try {
+      const res = await fetch('/api/payments/fix-confirmation-email', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ session_id: checkoutSessionId, email: email }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || !data.ok) {
+        throw new Error(
+          data.message || 'Odoslanie potvrdenia zlyhalo. Skús to prosím znova.'
+        );
+      }
+
+      if (lastConfirmedStatusData) {
+        lastConfirmedStatusData.confirmationEmail = data.confirmationEmail;
+        updateConfirmationEmailCopy(
+          data.confirmationEmail,
+          lastConfirmedStatusData.reservation?.id,
+          lastConfirmedStatusData.meetingUrl
+        );
+      }
+
+      setFixEmailFormMessage(
+        'success',
+        `Potvrdenie sme odoslali na ${email}. Skontroluj aj priečinok spam.`
+      );
+      setFixEmailPanelOpen(false);
+    } catch (err) {
+      setFixEmailFormMessage('error', err.message || 'Odoslanie potvrdenia zlyhalo.');
+    } finally {
+      if (submitBtn) submitBtn.disabled = false;
+    }
+  }
+
+  function wireEmailDeliveryAlertInteractions() {
+    if (emailDeliveryAlertWired) return;
+    emailDeliveryAlertWired = true;
+
+    const toggle = document.getElementById('success-fix-email-toggle');
+    const form = document.getElementById('success-fix-email-form');
+
+    if (toggle) {
+      toggle.addEventListener('click', function () {
+        const panel = document.getElementById('success-fix-email-panel');
+        setFixEmailPanelOpen(Boolean(panel?.hidden));
+      });
+    }
+
+    if (form) {
+      form.addEventListener('submit', function (event) {
+        event.preventDefault();
+        const input = document.getElementById('success-fix-email-input');
+        const email = input?.value.trim() || '';
+        if (!isValidEmail(email)) {
+          setFixEmailFormMessage('error', 'Zadaj platnú e-mailovú adresu.');
+          return;
+        }
+        submitFixConfirmationEmail(email);
+      });
+    }
+  }
+
+  function updateConfirmationEmailCopy(confirmationEmail, reservationId, meetingUrl) {
     const confirmedEl = document.getElementById('success-confirmed');
     const alertEl = document.getElementById('success-email-delivery-alert');
     const alertTextEl = document.getElementById('success-email-delivery-alert-text');
@@ -234,7 +337,16 @@
     }
 
     if (showWarning) {
-      wireEmailDeliveryAlertActions(reservationId);
+      wireEmailDeliveryAlertInteractions();
+      wireSupportCta(reservationId);
+      wireMeetingLink(meetingUrl);
+      setFixEmailPanelOpen(false);
+      setFixEmailFormMessage('error', '');
+      setFixEmailFormMessage('success', '');
+    } else {
+      setFixEmailPanelOpen(false);
+      const meetingBlock = document.getElementById('success-meeting-link-block');
+      if (meetingBlock) meetingBlock.hidden = true;
     }
 
     if (defaultEl) defaultEl.hidden = showWarning;
@@ -272,6 +384,7 @@
     } else if (state === 'error') {
       setTitle(titleEl, 'Nepodarilo sa načítať potvrdenie');
     } else if (state === 'confirmed' && data) {
+      lastConfirmedStatusData = data;
       const paymentType =
         data.reservation && data.reservation.paymentType === 'full' ? 'full' : 'deposit';
       const full = isFullPayment(paymentType);
@@ -313,7 +426,7 @@
         wireCalendarActions(nextCalendarEvent);
       }
 
-      updateConfirmationEmailCopy(data.confirmationEmail, data.reservation?.id);
+      updateConfirmationEmailCopy(data.confirmationEmail, data.reservation?.id, data.meetingUrl);
     }
   }
 
@@ -332,6 +445,7 @@
     } catch (_) {}
 
     const sessionId = getSessionId();
+    checkoutSessionId = sessionId;
     if (!sessionId || !sessionId.startsWith('cs_')) {
       showState('error');
       setErrorMessage('Neplatný údaj o platbe. Skúste to prosím znova.');

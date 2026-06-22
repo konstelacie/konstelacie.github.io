@@ -349,6 +349,66 @@ a.funnel-scroll-hint__arrow:focus-visible {
   color: var(--color-text-muted);
 }
 
+.success-delivery-alert__fix-panel {
+  margin-bottom: var(--spacing-md);
+  padding-top: var(--spacing-sm);
+  border-top: 1px solid rgba(245, 158, 11, 0.35);
+}
+
+.success-fix-email-form {
+  margin: var(--spacing-sm) 0 0;
+}
+
+.success-fix-email-form input {
+  max-width: none;
+}
+
+.success-fix-email-success {
+  margin: var(--spacing-xs) 0 0;
+  font-size: 0.9rem;
+  line-height: 1.5;
+  color: var(--color-booking-accent);
+  font-weight: 500;
+}
+
+.success-delivery-alert__meeting {
+  margin-bottom: var(--spacing-md);
+  padding: var(--spacing-sm) var(--spacing-md);
+  background: rgba(255, 255, 255, 0.65);
+  border: 1px solid rgba(245, 158, 11, 0.28);
+  border-radius: var(--radius-booking-slot);
+}
+
+.success-delivery-alert__meeting-label {
+  margin: 0 0 var(--spacing-xs);
+  font-size: 0.875rem;
+  line-height: 1.45;
+  color: var(--color-text);
+}
+
+.success-meeting-link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.55rem 1rem;
+  border-radius: var(--radius-pill);
+  background: var(--color-booking-accent);
+  color: #ffffff;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.success-meeting-link:hover {
+  background: var(--color-booking-accent-hover);
+  text-decoration: none;
+  color: #ffffff;
+}
+
+.success-meeting-link:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+}
+
 .success-confirmed--email-failed .success-section--summary {
   padding: var(--spacing-md);
   background: var(--color-booking-accent-softer);

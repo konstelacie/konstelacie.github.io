@@ -20,7 +20,7 @@ async function hasActiveReservationForSlot(slotId) {
   return rows.length > 0;
 }
 
-async function hasActiveReservationForEmail(email) {
+async function hasActiveReservationForEmail(email, exceptReservationId = null) {
   const pool = getPool();
   if (!pool) throw new Error('Database not configured');
 
@@ -28,7 +28,19 @@ async function hasActiveReservationForEmail(email) {
     typeof email === 'string' ? email.trim().toLowerCase() : String(email || '').trim().toLowerCase();
   if (!norm) return false;
 
+  const exceptId =
+    exceptReservationId != null && Number.isInteger(Number(exceptReservationId))
+      ? Number(exceptReservationId)
+      : null;
+
   const placeholders = EMAIL_BOOKING_BLOCK_STATUSES.map(() => '?').join(',');
+  const params = [norm, ...EMAIL_BOOKING_BLOCK_STATUSES];
+  let exceptSql = '';
+  if (exceptId != null) {
+    exceptSql = ' AND r.id != ?';
+    params.push(exceptId);
+  }
+
   const [rows] = await pool.execute(
     `SELECT r.id FROM reservations r
      INNER JOIN slots s ON s.id = r.slot_id
@@ -37,9 +49,9 @@ async function hasActiveReservationForEmail(email) {
        AND (
          r.status IN ('draft', 'pending_payment')
          OR (r.status = 'confirmed' AND s.start_at_utc >= NOW(3))
-       )
+       )${exceptSql}
      LIMIT 1`,
-    [norm, ...EMAIL_BOOKING_BLOCK_STATUSES]
+    params
   );
   return rows.length > 0;
 }

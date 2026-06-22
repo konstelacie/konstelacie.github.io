@@ -20,8 +20,40 @@
             <h2 class="success-delivery-alert__title">Nepodarilo sa doručiť potvrdenie</h2>
             <p id="success-email-delivery-alert-text" class="success-delivery-alert__text"></p>
             <div class="success-delivery-alert__actions">
-              <a id="success-fix-email-cta" class="cta" href="mailto:michal@citimtedasom.sk">Opraviť e-mail</a>
+              <button type="button" id="success-fix-email-toggle" class="cta" aria-expanded="false" aria-controls="success-fix-email-panel">Opraviť e-mail</button>
               <a id="success-support-cta" class="cta-secondary" href="mailto:michal@citimtedasom.sk">Napísať na podporu</a>
+            </div>
+            <div id="success-fix-email-panel" class="success-delivery-alert__fix-panel" hidden>
+              <form id="success-fix-email-form" class="booking-email-form success-fix-email-form" novalidate>
+                <label for="success-fix-email-input">Správna e-mailová adresa</label>
+                <input
+                  type="email"
+                  id="success-fix-email-input"
+                  name="email"
+                  autocomplete="email"
+                  inputmode="email"
+                  required
+                  maxlength="255"
+                  placeholder="tvoj@email.sk"
+                />
+                <button type="submit" id="success-fix-email-submit" class="cta">Odoslať potvrdenie znova</button>
+                <p id="success-fix-email-error" class="booking-error" role="alert" hidden></p>
+                <p id="success-fix-email-success" class="success-fix-email-success" role="status" hidden></p>
+              </form>
+            </div>
+            <div id="success-meeting-link-block" class="success-delivery-alert__meeting" hidden>
+              <p class="success-delivery-alert__meeting-label">
+                Odkaz na stretnutie (môžeš si ho uložiť aj bez e-mailu):
+              </p>
+              <a
+                id="success-meeting-link"
+                class="success-meeting-link"
+                href="#"
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                Pripojiť sa na sedenie
+              </a>
             </div>
             <p class="success-delivery-alert__contact">
               Kontakt:

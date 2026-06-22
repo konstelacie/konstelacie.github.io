@@ -90,6 +90,12 @@ const balancePayStartLimiter = rateLimit({
   max: 15,
 });
 
+/** POST /api/payments/fix-confirmation-email — client email correction after bounce. */
+const paymentFixConfirmationEmailLimiter = rateLimit({
+  ...limiterOptions,
+  max: 10,
+});
+
 /** GET /api/slots/:slotId/lock-challenge — cooldown-style cap per IP+slot. */
 const lockChallengeGetLimiter = rateLimit({
   ...limiterOptions,
@@ -114,4 +120,5 @@ module.exports = {
   cronLimiter,
   balancePayContextLimiter,
   balancePayStartLimiter,
+  paymentFixConfirmationEmailLimiter,
 };

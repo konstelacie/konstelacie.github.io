@@ -29,7 +29,11 @@ const {
   paymentsStatusLimiter,
   paymentsMutationLimiter,
   paymentStartEmailLimiter,
+  paymentFixConfirmationEmailLimiter,
 } = require('../../middleware/rateLimits');
+const {
+  fixConfirmationEmailForCheckoutSession,
+} = require('../../services/reservationConfirmationRecoveryService');
 
 const paymentBalanceRouter = require('./paymentBalance');
 
@@ -214,6 +218,30 @@ router.get(
           }
         : null,
       meetingUrl: (process.env.SESSION_MEETING_URL || '').trim() || null,
+      confirmationEmail,
+    });
+  })
+);
+
+router.post(
+  '/fix-confirmation-email',
+  paymentFixConfirmationEmailLimiter,
+  asyncHandler(async (req, res) => {
+    const body = req.body ?? {};
+    const sessionId = typeof body.session_id === 'string' ? body.session_id.trim() : '';
+    if (!sessionId.startsWith('cs_')) {
+      throw new ApiError(
+        'VALIDATION_ERROR',
+        'Chýba platný identifikátor platby.',
+        400
+      );
+    }
+
+    const email = validateEmail(body.email, true);
+    const { confirmationEmail } = await fixConfirmationEmailForCheckoutSession(sessionId, email);
+
+    res.json({
+      ok: true,
       confirmationEmail,
     });
   })

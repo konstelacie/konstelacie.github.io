@@ -336,6 +336,35 @@ While the webhook has not completed, `payment.status` may be `"pending"` and `pa
 
 **Errors:** 400 — missing/invalid `session_id` (body shape `{ "ok": false, "error": "..." }`). 404 — payment not found. **503** — database not configured.
 
+### POST /api/payments/fix-confirmation-email
+
+Client self-service after bounce or exhausted send failures. Requires the Stripe Checkout `session_id` from the success page URL.
+
+**Body (JSON):**
+
+```json
+{
+  "session_id": "cs_...",
+  "email": "correct@example.com"
+}
+```
+
+**Response 200:**
+
+```json
+{
+  "ok": true,
+  "confirmationEmail": {
+    "status": "sent",
+    "recipientMasked": "c***@example.com"
+  }
+}
+```
+
+Allowed only when `confirmationEmail.status` would be `bounced` or `failed` for that payment’s reservation. Updates `reservations.email` when changed, resends `reservation-confirmation-resend`, resolves `email_bounced` admin alert.
+
+**Errors:** 400 — invalid `session_id` or email. 404 — payment not found. 409 — payment not completed, reservation not confirmed, email already used by another reservation, or confirmation does not need correction. 502/503 — send failure / provider not configured. **429** — rate limited.
+
 ---
 
 ## Balance / doplatok (optional supplementary payment)
