@@ -11,6 +11,7 @@ module.exports = {
   async run() {
     const { healthy, stale, alerted, lastRunAt } = await cronHealthService.checkCronHealth();
     return {
+      due: 1,
       healthy,
       stale,
       alerted,

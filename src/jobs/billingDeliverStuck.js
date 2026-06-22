@@ -9,10 +9,11 @@ module.exports = {
   name: 'billing-deliver-stuck',
 
   async run() {
-    const { alerted, delayedEmailsQueued, delayedEmailsSent, skipped, errors } =
+    const { due, alerted, delayedEmailsQueued, delayedEmailsSent, skipped, errors } =
       await billingDeliveryService.processStuckKrosWebhookMissingBatch();
 
     return {
+      due,
       alerted,
       delayedEmailsQueued,
       delayedEmailsSent,

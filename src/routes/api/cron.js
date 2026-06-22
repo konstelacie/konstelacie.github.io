@@ -11,6 +11,7 @@ const config = require('../../config');
 const { runAll } = require('../../jobs');
 const { asyncHandler } = require('../../middleware/apiError');
 const { cronLimiter } = require('../../middleware/rateLimits');
+const { logLine } = require('../../lib/structuredLog');
 
 const router = express.Router();
 
@@ -36,39 +37,28 @@ function isAuthorized(req) {
   return isDevLocalhost(req) || hasValidSecret(req);
 }
 
-router.post(
-  '/run',
-  cronLimiter,
-  asyncHandler(async (req, res) => {
-    if (!isAuthorized(req)) {
-      return res.status(401).json({
-        ok: false,
-        error: 'UNAUTHORIZED',
-        message: 'Invalid or missing CRON_SECRET',
-      });
-    }
+async function handleCronRun(req, res) {
+  if (!isAuthorized(req)) {
+    logLine({
+      level: 'warn',
+      tag: 'cron_unauthorized',
+      requestId: req.id ?? null,
+      cronSecretConfigured: Boolean(config.cronSecret),
+    });
+    return res.status(401).json({
+      ok: false,
+      error: 'UNAUTHORIZED',
+      message: 'Invalid or missing CRON_SECRET',
+    });
+  }
 
-    const result = await runAll();
-    res.json(result);
-  })
-);
+  const result = await runAll({ requestId: req.id ?? null });
+  res.json(result);
+}
+
+router.post('/run', cronLimiter, asyncHandler(handleCronRun));
 
 // GET also supported for browser testing and alwaysdata (if it only supports GET)
-router.get(
-  '/run',
-  cronLimiter,
-  asyncHandler(async (req, res) => {
-    if (!isAuthorized(req)) {
-      return res.status(401).json({
-        ok: false,
-        error: 'UNAUTHORIZED',
-        message: 'Invalid or missing CRON_SECRET',
-      });
-    }
-
-    const result = await runAll();
-    res.json(result);
-  })
-);
+router.get('/run', cronLimiter, asyncHandler(handleCronRun));
 
 module.exports = router;

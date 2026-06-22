@@ -239,7 +239,7 @@ async function processDueTasks(limit = 50) {
     }
   }
 
-  return { sent, skipped, failed, errors };
+  return { due: due.length, sent, skipped, failed, errors };
 }
 
 module.exports = {

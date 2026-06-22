@@ -130,6 +130,11 @@ test('Test 2 — Cron stopped: stale last run exceeds threshold', () => {
   assert.match(adminBannerSrc, /checkCronHealth/);
 });
 
+test('jobs registry logs cron_run summary after runAll', () => {
+  assert.match(jobsIndexSrc, /tag: 'cron_run'/);
+  assert.match(jobsIndexSrc, /summarizeJob/);
+});
+
 test('Test 3 — Cron recovered: runAll resolves cron_not_running after success', () => {
   assert.match(jobsIndexSrc, /await cronHealthService\.recordSuccessfulCronRun\(\)/);
   assert.match(jobsIndexSrc, /await systemAlertService\.resolveCronNotRunning\(\)/);

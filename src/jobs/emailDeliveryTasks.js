@@ -9,8 +9,9 @@ module.exports = {
   name: 'email-delivery-tasks',
 
   async run() {
-    const { sent, skipped, failed, errors } = await emailDeliveryTaskService.processDueTasks();
+    const { due, sent, skipped, failed, errors } = await emailDeliveryTaskService.processDueTasks();
     return {
+      due,
       sent,
       skipped,
       failed,

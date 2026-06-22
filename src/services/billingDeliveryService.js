@@ -330,7 +330,7 @@ async function processStuckKrosWebhookMissingBatch() {
 
   const pool = getPool();
   if (!pool) {
-    return { alerted, delayedEmailsQueued, delayedEmailsSent, skipped, errors };
+    return { due: 0, alerted, delayedEmailsQueued, delayedEmailsSent, skipped, errors };
   }
 
   const thresholdMinutes = config.kros?.stuckThresholdMinutes ?? 30;
@@ -419,7 +419,14 @@ async function processStuckKrosWebhookMissingBatch() {
     }
   }
 
-  return { alerted, delayedEmailsQueued, delayedEmailsSent, skipped, errors };
+  return {
+    due: candidates.length,
+    alerted,
+    delayedEmailsQueued,
+    delayedEmailsSent,
+    skipped,
+    errors,
+  };
 }
 
 module.exports = {

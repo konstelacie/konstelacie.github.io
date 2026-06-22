@@ -37,7 +37,7 @@ async function runStripeReconciliation(now = new Date()) {
   const lastRunAt = await systemSettingsRepo.getDateValue(LAST_RUN_KEY);
   const intervalMs = config.stripeReconciliation.intervalHours * 60 * 60 * 1000;
   if (lastRunAt && now.getTime() - lastRunAt.getTime() < intervalMs) {
-    return { skipped: true, caseA: 0, caseB: 0, errors: [] };
+    return { skipped: true, due: 0, caseA: 0, caseB: 0, errors: [] };
   }
 
   const lookbackMs = config.stripeReconciliation.lookbackHours * 60 * 60 * 1000;
@@ -59,7 +59,7 @@ async function runStripeReconciliation(now = new Date()) {
       tag: 'stripe_reconciliation_list_failed',
       err: errorMessage,
     });
-    return { skipped: false, caseA: 0, caseB: 0, errors, detectorFailed: true };
+    return { skipped: false, due: 0, caseA: 0, caseB: 0, errors, detectorFailed: true };
   }
 
   for (const { session } of stripeSessions) {
@@ -115,7 +115,13 @@ async function runStripeReconciliation(now = new Date()) {
     localPaymentsChecked: localPayments.length,
   });
 
-  return { skipped: false, caseA, caseB, errors };
+  return {
+    skipped: false,
+    due: stripeSessions.length + localPayments.length,
+    caseA,
+    caseB,
+    errors,
+  };
 }
 
 /**

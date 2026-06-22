@@ -9,12 +9,15 @@ module.exports = {
   name: 'stripe-reconciliation',
 
   async run() {
-    const { skipped, caseA, caseB, errors } = await stripeReconciliationService.runStripeReconciliation();
+    const { skipped, due, caseA, caseB, errors, detectorFailed } =
+      await stripeReconciliationService.runStripeReconciliation();
     return {
+      due,
       skipped,
       caseA,
       caseB,
       errors,
+      detectorFailed: detectorFailed ?? false,
     };
   },
 };

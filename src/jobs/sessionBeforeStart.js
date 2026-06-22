@@ -52,6 +52,6 @@ module.exports = {
       }
     }
 
-    return { sent, skipped, errors };
+    return { due: due.length, sent, skipped, errors };
   },
 };
