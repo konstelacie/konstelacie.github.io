@@ -11,6 +11,7 @@ const slotsRouter = require('./slots');
 const reservationsRouter = require('./reservations');
 const paymentsRouter = require('./payments');
 const cronRouter = require('./cron');
+const supportRouter = require('./support');
 
 const router = express.Router();
 
@@ -37,5 +38,6 @@ router.use('/slots', slotsRouter);
 router.use('/reservations', reservationsRouter);
 router.use('/payments', paymentsRouter);
 router.use('/cron', cronRouter);
+router.use('/support', supportRouter);
 
 module.exports = router;

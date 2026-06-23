@@ -9,15 +9,25 @@
   const CALENDAR_EVENT_DETAILS_FALLBACK =
     'Online sedenie cez Google Meet. Odkaz na pripojenie nájdeš v potvrdzujúcom e-maile.';
   const CALENDAR_LOCATION_FALLBACK = 'Online (Google Meet)';
-  const SUPPORT_EMAIL = 'michal@citimtedasom.sk';
 
   /** @type {{ startAt: string, endAt: string, reservationId?: number, meetingUrl?: string | null } | null} */
   let calendarEventData = null;
   /** @type {string} */
   let checkoutSessionId = '';
+  /** @type {number|string|null} */
+  let lastReservationId = null;
+  /** @type {string} */
+  let lastRecipientMasked = '';
   /** @type {object|null} */
   let lastConfirmedStatusData = null;
   let emailDeliveryAlertWired = false;
+  let supportModalWired = false;
+  /** @type {HTMLElement|null} */
+  let lastFocusBeforeSupportModal = null;
+  /** @type {{ context: string, reservationId?: number|string|null, recipientMasked?: string }|null} */
+  let supportModalContext = null;
+  let supportSubmitFailureCount = 0;
+  let supportSuccessCloseTimer = null;
 
   function getSessionId() {
     const params = new URLSearchParams(window.location.search);
@@ -191,20 +201,319 @@
     return `\n\nID rezervácie: ${reservationId}`;
   }
 
-  function isValidEmail(email) {
-    return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email || '');
+  function getSupportEmail() {
+    const modal = document.getElementById('support-contact-modal');
+    const fromData = modal?.dataset?.supportEmail?.trim();
+    if (fromData) return fromData;
+    const mailtoLink = document.getElementById('success-support-mailto');
+    const href = mailtoLink?.getAttribute('href') || '';
+    if (href.startsWith('mailto:')) return href.slice(7).split('?')[0];
+    return '';
   }
 
-  function wireSupportCta(reservationId) {
+  function buildSupportMailtoBody(reservationId, context) {
+    let body = 'Dobrý deň,\n\nmám problém s potvrdením rezervácie.';
+    if (context === 'booking-success-bounced') {
+      body = 'Dobrý deň,\n\nmám problém s doručením potvrdenia rezervácie.';
+    }
+    body += buildSupportContextLines(reservationId);
+    if (checkoutSessionId) {
+      body += `\n\nStripe session: ${checkoutSessionId}`;
+    }
+    if (context) {
+      body += `\n\nKontext: ${context}`;
+    }
+    return body + '\n\nĎakujem.';
+  }
+
+  function updateSupportMailtoLinks(reservationId, context) {
+    const email = getSupportEmail();
+    if (!email) return;
+    const subject = 'Podpora – potvrdenie rezervácie';
+    const body = buildSupportMailtoBody(reservationId, context);
+    const href = buildMailtoLink(email, subject, body);
+    const ids = ['success-support-mailto', 'support-contact-mailto-link'];
+    ids.forEach(function (id) {
+      const el = document.getElementById(id);
+      if (el) el.href = href;
+    });
+    const footerLinks = document.querySelectorAll('.support-contact-modal__footer a[href^="mailto:"]');
+    footerLinks.forEach(function (el) {
+      el.href = buildMailtoLink(email, '', '');
+    });
+  }
+
+  function getSupportModalFocusables() {
+    const modal = document.getElementById('support-contact-modal');
+    if (!modal || modal.hidden) return [];
+    return Array.from(
+      modal.querySelectorAll(
+        'a[href], button:not([disabled]), textarea:not([disabled]), input:not([disabled]), select:not([disabled]), [tabindex]:not([tabindex="-1"])'
+      )
+    ).filter(function (el) {
+      return el.offsetParent !== null || el === document.activeElement;
+    });
+  }
+
+  function onSupportModalKeydown(e) {
+    if (e.key === 'Escape') {
+      e.preventDefault();
+      closeSupportModal();
+      return;
+    }
+    if (e.key !== 'Tab') return;
+    const focusables = getSupportModalFocusables();
+    if (!focusables.length) return;
+    const first = focusables[0];
+    const last = focusables[focusables.length - 1];
+    if (e.shiftKey && document.activeElement === first) {
+      e.preventDefault();
+      last.focus();
+    } else if (!e.shiftKey && document.activeElement === last) {
+      e.preventDefault();
+      first.focus();
+    }
+  }
+
+  function resetSupportFormView() {
+    const formView = document.getElementById('support-contact-form-view');
+    const successView = document.getElementById('support-contact-success-view');
+    const form = document.getElementById('support-contact-form');
+    const errorEl = document.getElementById('support-contact-error');
+    const mailtoFallback = document.getElementById('support-contact-mailto-fallback');
+    if (formView) formView.hidden = false;
+    if (successView) successView.hidden = true;
+    if (form) form.reset();
+    if (errorEl) {
+      errorEl.hidden = true;
+      errorEl.textContent = '';
+    }
+    if (mailtoFallback) mailtoFallback.hidden = true;
+    const submitBtn = document.getElementById('support-contact-submit');
+    if (submitBtn) {
+      submitBtn.disabled = false;
+      submitBtn.textContent = 'Odoslať';
+    }
+  }
+
+  function setSupportFormError(text) {
+    const errorEl = document.getElementById('support-contact-error');
+    if (!errorEl) return;
+    errorEl.hidden = !text;
+    errorEl.textContent = text || '';
+  }
+
+  function ensureSupportModalPortaledToBody() {
+    const modal = document.getElementById('support-contact-modal');
+    if (!modal || modal.dataset.supportModalPortaled === '1') return;
+    document.body.appendChild(modal);
+    modal.dataset.supportModalPortaled = '1';
+  }
+
+  function openSupportModal(options) {
+    const context = options?.context || 'unknown';
+    const reservationId = options?.reservationId ?? lastReservationId ?? null;
+    const recipientMasked = options?.recipientMasked ?? lastRecipientMasked ?? '';
+
+    supportModalContext = { context, reservationId, recipientMasked };
+    ensureSupportModalPortaledToBody();
+    resetSupportFormView();
+    updateSupportMailtoLinks(reservationId, context);
+
+    const modal = document.getElementById('support-contact-modal');
+    if (!modal) return;
+
+    if (supportSuccessCloseTimer) {
+      clearTimeout(supportSuccessCloseTimer);
+      supportSuccessCloseTimer = null;
+    }
+
+    lastFocusBeforeSupportModal = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    modal.hidden = false;
+    modal.removeAttribute('hidden');
+    document.body.style.overflow = 'hidden';
+    document.addEventListener('keydown', onSupportModalKeydown, true);
+
+    const messageInput = document.getElementById('support-contact-message');
+    if (messageInput) {
+      requestAnimationFrame(function () {
+        messageInput.focus();
+      });
+    }
+  }
+
+  function closeSupportModal() {
+    const modal = document.getElementById('support-contact-modal');
+    if (modal) {
+      modal.hidden = true;
+      modal.setAttribute('hidden', '');
+    }
+    document.body.style.overflow = '';
+    document.removeEventListener('keydown', onSupportModalKeydown, true);
+    if (supportSuccessCloseTimer) {
+      clearTimeout(supportSuccessCloseTimer);
+      supportSuccessCloseTimer = null;
+    }
+    resetSupportFormView();
+    supportModalContext = null;
+    if (lastFocusBeforeSupportModal && typeof lastFocusBeforeSupportModal.focus === 'function') {
+      try {
+        lastFocusBeforeSupportModal.focus();
+      } catch (_) {}
+    }
+    lastFocusBeforeSupportModal = null;
+  }
+
+  function showSupportFormSuccess() {
+    const formView = document.getElementById('support-contact-form-view');
+    const successView = document.getElementById('support-contact-success-view');
+    if (formView) formView.hidden = true;
+    if (successView) {
+      successView.hidden = false;
+      const closeBtn = successView.querySelector('[data-support-modal-dismiss]');
+      if (closeBtn) closeBtn.focus();
+    }
+    supportSuccessCloseTimer = setTimeout(function () {
+      closeSupportModal();
+    }, 5000);
+  }
+
+  async function submitSupportContact(message, phone) {
+    const submitBtn = document.getElementById('support-contact-submit');
+    if (submitBtn) {
+      submitBtn.disabled = true;
+      submitBtn.textContent = 'Odosielam…';
+    }
+    setSupportFormError('');
+
+    const payload = {
+      message: message,
+      phone: phone || undefined,
+      reservationId:
+        supportModalContext?.reservationId != null
+          ? String(supportModalContext.reservationId)
+          : undefined,
+      checkoutSessionId: checkoutSessionId || undefined,
+      context: supportModalContext?.context || undefined,
+      recipientMasked: supportModalContext?.recipientMasked || undefined,
+    };
+
+    try {
+      const res = await fetch('/api/support/contact', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || !data.ok) {
+        const errText =
+          data.message ||
+          (data.error === 'RATE_LIMITED'
+            ? 'Príliš veľa správ. Skús to prosím neskôr.'
+            : 'Odoslanie správy zlyhalo. Skús to prosím znova.');
+        throw new Error(errText);
+      }
+      supportSubmitFailureCount = 0;
+      showSupportFormSuccess();
+    } catch (err) {
+      supportSubmitFailureCount += 1;
+      setSupportFormError(err.message || 'Odoslanie správy zlyhalo.');
+      const mailtoFallback = document.getElementById('support-contact-mailto-fallback');
+      if (mailtoFallback && supportSubmitFailureCount >= 2) {
+        mailtoFallback.hidden = false;
+        updateSupportMailtoLinks(supportModalContext?.reservationId, supportModalContext?.context);
+      }
+    } finally {
+      if (submitBtn) {
+        submitBtn.disabled = false;
+        submitBtn.textContent = 'Odoslať';
+      }
+    }
+  }
+
+  function wireSupportModal() {
+    if (supportModalWired) return;
+    supportModalWired = true;
+
+    const modal = document.getElementById('support-contact-modal');
+    if (!modal) return;
+
+    modal.addEventListener('click', function (e) {
+      if (modal.hidden) return;
+      if (e.target.closest('[data-support-modal-dismiss]')) {
+        e.preventDefault();
+        closeSupportModal();
+      }
+    });
+
+    const closeBtn = document.getElementById('support-contact-modal-close');
+    if (closeBtn) {
+      closeBtn.addEventListener('click', function (e) {
+        e.preventDefault();
+        closeSupportModal();
+      });
+    }
+
+    const form = document.getElementById('support-contact-form');
+    if (form) {
+      form.addEventListener('submit', function (e) {
+        e.preventDefault();
+        const messageInput = document.getElementById('support-contact-message');
+        const phoneInput = document.getElementById('support-contact-phone');
+        const message = messageInput?.value.trim() || '';
+        const phone = phoneInput?.value.trim() || '';
+        if (message.length < 5) {
+          setSupportFormError('Správa musí mať aspoň 5 znakov.');
+          messageInput?.focus();
+          return;
+        }
+        submitSupportContact(message, phone);
+      });
+    }
+  }
+
+  function wireSupportCta(reservationId, recipientMasked) {
     const supportCta = document.getElementById('success-support-cta');
     if (!supportCta) return;
-    supportCta.href = buildMailtoLink(
-      SUPPORT_EMAIL,
-      'Podpora – potvrdenie rezervácie',
-      'Dobrý deň,\n\nmám problém s doručením potvrdenia rezervácie.' +
-        buildSupportContextLines(reservationId) +
-        '\n\nĎakujem.'
-    );
+    updateSupportMailtoLinks(reservationId, 'booking-success-bounced');
+    if (supportCta.dataset.supportWired === '1') return;
+    supportCta.dataset.supportWired = '1';
+    supportCta.addEventListener('click', function (e) {
+      e.preventDefault();
+      openSupportModal({
+        context: 'booking-success-bounced',
+        reservationId: reservationId,
+        recipientMasked: recipientMasked,
+      });
+    });
+  }
+
+  function wireErrorSupportCta(context) {
+    const wrap = document.getElementById('success-error-support');
+    const btn = document.getElementById('success-error-support-cta');
+    if (!wrap || !btn) return;
+    wrap.hidden = false;
+    if (btn.dataset.supportWired === '1') return;
+    btn.dataset.supportWired = '1';
+    btn.addEventListener('click', function (e) {
+      e.preventDefault();
+      openSupportModal({ context: context });
+    });
+  }
+
+  function showErrorWithSupport(message, supportContext) {
+    showState('error');
+    setErrorMessage(message);
+    if (supportContext) {
+      wireErrorSupportCta(supportContext);
+    } else {
+      const wrap = document.getElementById('success-error-support');
+      if (wrap) wrap.hidden = true;
+    }
+  }
+
+  function isValidEmail(email) {
+    return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email || '');
   }
 
   function copyMeetingUrl(url) {
@@ -382,7 +691,7 @@
 
     if (showWarning) {
       wireEmailDeliveryAlertInteractions();
-      wireSupportCta(reservationId);
+      wireSupportCta(reservationId, confirmationEmail?.recipientMasked || '');
       wireMeetingLink(meetingUrl);
     } else {
       setFixEmailPanelOpen(false);
@@ -481,6 +790,8 @@
   }
 
   function run() {
+    wireSupportModal();
+
     try {
       sessionStorage.removeItem('booking_stripe_redirect');
     } catch (_) {}
@@ -495,9 +806,9 @@
 
     const params = new URLSearchParams(window.location.search);
     if (params.get('payment_pending_timeout') === '1') {
-      showState('error');
-      setErrorMessage(
-        'Platba prebehla cez Stripe, ale pri našom spracovaní nastala technická chyba. Potvrdenie pošleme e-mailom. Ak ho nedostanete do niekoľkých minút, kontaktujte podporu.'
+      showErrorWithSupport(
+        'Platba prebehla cez Stripe, ale pri našom spracovaní nastala technická chyba. Potvrdenie pošleme e-mailom. Ak ho nedostanete do niekoľkých minút, kontaktujte podporu.',
+        'payment-timeout'
       );
       return;
     }
@@ -512,6 +823,12 @@
         .then(function (data) {
           const status = data?.payment?.status || null;
           lastStatus = status;
+          if (data?.reservation?.id != null) {
+            lastReservationId = data.reservation.id;
+          }
+          if (data?.confirmationEmail?.recipientMasked) {
+            lastRecipientMasked = data.confirmationEmail.recipientMasked;
+          }
 
           if (status === 'completed') {
             showState('confirmed', data);
@@ -525,9 +842,9 @@
           }
 
           if (status === 'failed') {
-            showState('error');
-            setErrorMessage(
-              'Platba prebehla cez Stripe, ale pri našom spracovaní nastala technická chyba. Potvrdenie pošleme e-mailom. Ak ho nedostanete do niekoľkých minút, kontaktujte podporu.'
+            showErrorWithSupport(
+              'Platba prebehla cez Stripe, ale pri našom spracovaní nastala technická chyba. Potvrdenie pošleme e-mailom. Ak ho nedostanete do niekoľkých minút, kontaktujte podporu.',
+              'payment-processing-failed'
             );
             return;
           }
@@ -539,8 +856,10 @@
           }
 
           if (status === 'refunded') {
-            showState('error');
-            setErrorMessage('Platba bola vrátená. Ak máte otázky, kontaktujte podporu.');
+            showErrorWithSupport(
+              'Platba bola vrátená. Ak máte otázky, kontaktujte podporu.',
+              'payment-refunded'
+            );
             return;
           }
 

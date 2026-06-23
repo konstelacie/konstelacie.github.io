@@ -285,6 +285,7 @@ router.get('/:segment/success', (req, res, next) => {
     showTestingBanner: funnelTestingBanner(funnelName),
     title: meta.successTitle || 'Platba dokončená',
     description: 'Ďakujeme, platba je dokončená.',
+    supportEmail: appConfig.site.supportEmail,
     homeUrl: '/',
     extraStyles: '<link rel="stylesheet" href="/assets/css/funnel.css">',
     extraScripts: '<script src="/assets/js/success-page.js"></script>',

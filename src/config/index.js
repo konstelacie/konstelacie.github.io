@@ -24,6 +24,13 @@ module.exports = {
       process.env.RESEND_FROM_EMAIL ||
       ''
     ).trim(),
+    /** Inbound support contact form (booking success page). */
+    supportEmail: (
+      process.env.SUPPORT_EMAIL ||
+      process.env.SITE_LEGAL_EMAIL ||
+      process.env.RESEND_FROM_EMAIL ||
+      'michal@citimtedasom.sk'
+    ).trim(),
     /**
      * Warning banner on test-mode surfaces. Set SITE_TESTING_BANNER=0 to hide globally.
      */

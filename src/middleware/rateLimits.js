@@ -107,6 +107,21 @@ const lockChallengeGetLimiter = rateLimit({
   },
 });
 
+/** POST /api/support/contact — public support form on booking success page. */
+const supportContactLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 5,
+  standardHeaders: true,
+  legacyHeaders: false,
+  handler: (req, res) => {
+    res.status(429).json({
+      ok: false,
+      error: 'RATE_LIMITED',
+      message: 'Príliš veľa správ. Skús to prosím neskôr.',
+    });
+  },
+});
+
 module.exports = {
   slotsListLimiter,
   bookingWriteLimiter,
@@ -121,4 +136,5 @@ module.exports = {
   balancePayContextLimiter,
   balancePayStartLimiter,
   paymentFixConfirmationEmailLimiter,
+  supportContactLimiter,
 };

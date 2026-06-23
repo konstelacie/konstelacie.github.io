@@ -676,6 +676,45 @@ a:hover {
   color: var(--color-text);
 }
 
+.support-contact-modal__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--spacing-sm);
+  margin-top: var(--spacing-sm);
+}
+
+.support-contact-optional {
+  font-weight: 400;
+  color: var(--color-text-muted);
+}
+
+.support-contact-modal__footer {
+  margin: 0;
+  font-size: 0.875rem;
+}
+
+.support-contact-mailto-fallback {
+  margin: var(--spacing-sm) 0 0;
+  font-size: 0.875rem;
+}
+
+.support-contact-modal textarea {
+  width: 100%;
+  max-width: 100%;
+  min-height: 7rem;
+  padding: 0.5rem 0.75rem;
+  border: 1px solid var(--color-border);
+  border-radius: 4px;
+  font-size: 1rem;
+  font-family: inherit;
+  line-height: 1.45;
+  resize: vertical;
+}
+
+.success-error-support {
+  margin-top: var(--spacing-md);
+}
+
 /* Payment step inside booking modal (tighter than full-page block) */
 .booking-modal__payment.booking-payment-choice {
   margin: 0 0 var(--spacing-md);

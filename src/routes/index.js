@@ -82,6 +82,7 @@ router.get('/success', (_req, res) => {
     showTestingBanner: homeTestingBanner(),
     title: 'Platba dokončená',
     description: 'Ďakujeme, platba je dokončená.',
+    supportEmail: appConfig.site.supportEmail,
     extraStyles: '<link rel="stylesheet" href="/assets/css/funnel.css">',
     extraScripts: '<script src="/assets/js/success-page.js"></script>',
   });

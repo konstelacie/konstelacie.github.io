@@ -21,7 +21,7 @@
             <p id="success-email-delivery-alert-text" class="success-delivery-alert__text"></p>
             <div class="success-delivery-alert__actions">
               <button type="button" id="success-fix-email-toggle" class="cta" aria-expanded="false" aria-controls="success-fix-email-panel">Opraviť e-mail</button>
-              <a id="success-support-cta" class="cta-secondary" href="mailto:michal@citimtedasom.sk">Napísať na podporu</a>
+              <button type="button" id="success-support-cta" class="cta-secondary">Napísať na podporu</button>
             </div>
             <div id="success-fix-email-panel" class="success-delivery-alert__fix-panel" hidden>
               <form id="success-fix-email-form" class="booking-email-form success-fix-email-form" novalidate>
@@ -52,8 +52,8 @@
               <p id="success-meeting-copy-msg" class="success-meeting-copy-msg muted" role="status" hidden>Skopírované.</p>
             </div>
             <p class="success-delivery-alert__contact">
-              Kontakt:
-              <a href="mailto:michal@citimtedasom.sk">michal@citimtedasom.sk</a>
+              Alebo nám napíšte priamo na
+              <a id="success-support-mailto" href="mailto:<%= supportEmail %>"><%= supportEmail %></a>
             </p>
           </div>
         </div>
@@ -118,6 +118,9 @@
       <div id="success-error" class="success-state" hidden>
         <p class="muted">Nepodarilo sa načítať potvrdenie platby.</p>
         <p id="success-error-message" class="muted"></p>
+        <p id="success-error-support" class="success-error-support" hidden>
+          <button type="button" id="success-error-support-cta" class="cta-secondary">Kontaktovať podporu</button>
+        </p>
       </div>
     </div>
   </section>
@@ -136,3 +139,69 @@
     </div>
   </section>
 </main>
+
+<div
+  id="support-contact-modal"
+  class="booking-modal support-contact-modal"
+  hidden
+  data-support-email="<%= supportEmail %>"
+>
+  <div class="booking-modal__backdrop" data-support-modal-dismiss role="presentation"></div>
+  <div
+    class="booking-modal__dialog"
+    role="dialog"
+    aria-modal="true"
+    aria-labelledby="support-contact-modal-title"
+  >
+    <button type="button" id="support-contact-modal-close" class="booking-modal__close" aria-label="Zavrieť">×</button>
+
+    <div id="support-contact-form-view">
+      <h2 id="support-contact-modal-title" class="booking-modal__title">Napísať na podporu</h2>
+      <p class="booking-modal__phase">Popíš nám problém a ozveme sa ti.</p>
+      <form id="support-contact-form" class="booking-email-form booking-modal__form" novalidate>
+        <label for="support-contact-message">Správa</label>
+        <textarea
+          id="support-contact-message"
+          name="message"
+          rows="5"
+          required
+          maxlength="2000"
+          placeholder="Popíšte váš problém…"
+        ></textarea>
+
+        <label for="support-contact-phone">Telefón <span class="support-contact-optional">(nepovinné)</span></label>
+        <input
+          type="tel"
+          id="support-contact-phone"
+          name="phone"
+          autocomplete="tel"
+          inputmode="tel"
+          maxlength="30"
+        />
+
+        <div class="support-contact-modal__actions">
+          <button type="submit" id="support-contact-submit" class="cta">Odoslať</button>
+          <button type="button" class="cta-secondary" data-support-modal-dismiss>Zrušiť</button>
+        </div>
+
+        <p id="support-contact-error" class="booking-error" role="alert" aria-live="polite" hidden></p>
+        <p id="support-contact-mailto-fallback" class="support-contact-mailto-fallback muted" hidden>
+          Ak sa odoslanie nepodarí, napíš nám priamo na
+          <a id="support-contact-mailto-link" href="mailto:<%= supportEmail %>"><%= supportEmail %></a>.
+        </p>
+      </form>
+      <p class="support-contact-modal__footer muted">
+        Alebo nám napíšte priamo na
+        <a href="mailto:<%= supportEmail %>"><%= supportEmail %></a>
+      </p>
+    </div>
+
+    <div id="support-contact-success-view" hidden>
+      <h2 class="booking-modal__title">Správa odoslaná</h2>
+      <p id="support-contact-success-text" class="booking-modal__phase" role="status" aria-live="polite">
+        Ďakujeme, správu sme prijali. Ozveme sa ti čo najskôr.
+      </p>
+      <button type="button" class="cta" data-support-modal-dismiss>Zavrieť</button>
+    </div>
+  </div>
+</div>
