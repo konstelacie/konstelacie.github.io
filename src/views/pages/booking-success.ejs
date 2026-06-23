@@ -45,15 +45,11 @@
               <p class="success-delivery-alert__meeting-label">
                 Odkaz na stretnutie (môžeš si ho uložiť aj bez e-mailu):
               </p>
-              <a
-                id="success-meeting-link"
-                class="success-meeting-link"
-                href="#"
-                target="_blank"
-                rel="noopener noreferrer"
-              >
-                Pripojiť sa na sedenie
-              </a>
+              <div class="success-meeting-url-row">
+                <span id="success-meeting-url" class="success-meeting-url"></span>
+                <button type="button" id="success-meeting-copy" class="cta-secondary">Kopírovať</button>
+              </div>
+              <p id="success-meeting-copy-msg" class="success-meeting-copy-msg muted" role="status" hidden>Skopírované.</p>
             </div>
             <p class="success-delivery-alert__contact">
               Kontakt:

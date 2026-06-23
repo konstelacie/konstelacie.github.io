@@ -386,27 +386,31 @@ a.funnel-scroll-hint__arrow:focus-visible {
   color: var(--color-text);
 }
 
-.success-meeting-link {
-  display: inline-flex;
+.success-meeting-url-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--spacing-sm);
   align-items: center;
-  justify-content: center;
-  padding: 0.55rem 1rem;
-  border-radius: var(--radius-pill);
-  background: var(--color-booking-accent);
-  color: #ffffff;
-  font-weight: 600;
-  text-decoration: none;
 }
 
-.success-meeting-link:hover {
-  background: var(--color-booking-accent-hover);
-  text-decoration: none;
-  color: #ffffff;
+.success-meeting-url {
+  flex: 1 1 12rem;
+  min-width: 0;
+  padding: 0.45rem 0.55rem;
+  border: 1px solid rgba(245, 158, 11, 0.35);
+  border-radius: var(--radius-booking-slot);
+  background: rgba(255, 255, 255, 0.9);
+  font-family: ui-monospace, monospace;
+  font-size: 0.8125rem;
+  line-height: 1.4;
+  word-break: break-all;
+  color: var(--color-text);
+  user-select: all;
 }
 
-.success-meeting-link:focus-visible {
-  outline: 2px solid var(--color-primary);
-  outline-offset: 2px;
+.success-meeting-copy-msg {
+  margin: var(--spacing-xs) 0 0;
+  font-size: 0.8125rem;
 }
 
 .success-confirmed--email-failed .success-section--summary {

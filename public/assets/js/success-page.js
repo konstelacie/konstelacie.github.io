@@ -207,18 +207,53 @@
     );
   }
 
+  function copyMeetingUrl(url) {
+    const msg = document.getElementById('success-meeting-copy-msg');
+    function showOk() {
+      if (msg) {
+        msg.hidden = false;
+        setTimeout(function () {
+          msg.hidden = true;
+        }, 2000);
+      }
+    }
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(url).then(showOk).catch(function () {
+        fallbackCopyMeetingUrl(url, showOk);
+      });
+    } else {
+      fallbackCopyMeetingUrl(url, showOk);
+    }
+  }
+
+  function fallbackCopyMeetingUrl(url, onOk) {
+    const urlEl = document.getElementById('success-meeting-url');
+    if (!urlEl) return;
+    const selection = window.getSelection();
+    const range = document.createRange();
+    range.selectNodeContents(urlEl);
+    selection?.removeAllRanges();
+    selection?.addRange(range);
+    try {
+      if (document.execCommand('copy')) onOk();
+    } catch (e) {
+      /* ignore */
+    }
+    selection?.removeAllRanges();
+  }
+
   function wireMeetingLink(meetingUrl) {
     const block = document.getElementById('success-meeting-link-block');
-    const link = document.getElementById('success-meeting-link');
+    const urlEl = document.getElementById('success-meeting-url');
     const normalized = normalizeMeetingUrl(meetingUrl);
-    if (!block || !link) return;
+    if (!block || !urlEl) return;
     if (!normalized) {
       block.hidden = true;
-      link.removeAttribute('href');
+      urlEl.textContent = '';
       return;
     }
     block.hidden = false;
-    link.href = normalized;
+    urlEl.textContent = normalized;
   }
 
   function setFixEmailPanelOpen(open) {
@@ -309,6 +344,15 @@
           return;
         }
         submitFixConfirmationEmail(email);
+      });
+    }
+
+    const meetingCopyBtn = document.getElementById('success-meeting-copy');
+    if (meetingCopyBtn) {
+      meetingCopyBtn.addEventListener('click', function () {
+        const urlEl = document.getElementById('success-meeting-url');
+        const url = urlEl?.textContent.trim() || '';
+        if (url) copyMeetingUrl(url);
       });
     }
   }
