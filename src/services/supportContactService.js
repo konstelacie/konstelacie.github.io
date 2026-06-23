@@ -144,10 +144,8 @@ async function resolveReservationIdForEmail(rawId) {
     if (row) return { verified: String(numericId), unverified: null };
     return { verified: null, unverified: null };
   } catch (err) {
-    if (err.message === 'Database not configured') {
-      return { verified: null, unverified: normalized };
-    }
-    throw err;
+    console.error('[support] reservation lookup failed, falling back to unverified', err);
+    return { verified: null, unverified: normalized };
   }
 }
 
@@ -155,10 +153,15 @@ async function resolveReservationIdForEmail(rawId) {
  * @returns {Promise<string|null>}
  */
 async function resolveCheckoutSessionIdForEmail(rawId) {
-  const validated = validateCheckoutSessionId(rawId);
-  if (!validated) return null;
-  const payment = await paymentsRepo.findByProviderRef(validated);
-  return payment ? validated : null;
+  const id = normalizeOptionalString(rawId, MAX_CHECKOUT_SESSION_ID_LEN);
+  if (!id || !id.startsWith('cs_')) return null;
+  try {
+    const payment = await paymentsRepo.findByProviderRef(id);
+    return payment ? id : null;
+  } catch (err) {
+    console.error('[support] checkout session lookup failed, omitting from email', err);
+    return null;
+  }
 }
 
 /**
@@ -220,6 +223,8 @@ async function sendSupportContact(input) {
 
 module.exports = {
   sendSupportContact,
+  resolveReservationIdForEmail,
+  resolveCheckoutSessionIdForEmail,
   validateMessage,
   validatePhone,
   validateCheckoutSessionId,

@@ -1,13 +1,31 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const { ApiError } = require('../src/middleware/apiError');
+const reservationsRepo = require('../src/db/repositories/reservationsRepo');
+const paymentsRepo = require('../src/db/repositories/paymentsRepo');
+const emailProvider = require('../src/email/provider');
 const {
+  sendSupportContact,
+  resolveReservationIdForEmail,
+  resolveCheckoutSessionIdForEmail,
   validateMessage,
   validatePhone,
   validateCheckoutSessionId,
   buildSupportEmailSubject,
   buildSupportEmailHtml,
 } = require('../src/services/supportContactService');
+
+const repoStubs = {
+  getById: reservationsRepo.getById,
+  findByProviderRef: paymentsRepo.findByProviderRef,
+  sendEmail: emailProvider.sendEmail,
+};
+
+test.afterEach(() => {
+  reservationsRepo.getById = repoStubs.getById;
+  paymentsRepo.findByProviderRef = repoStubs.findByProviderRef;
+  emailProvider.sendEmail = repoStubs.sendEmail;
+});
 
 test('validateMessage rejects empty string', () => {
   assert.throws(() => validateMessage(''), (err) => {
@@ -115,4 +133,121 @@ test('buildSupportEmailHtml labels unverified reservation id', () => {
   assert.match(html, /ID rezervácie \(neoverené\)/);
   assert.match(html, /99999/);
   assert.doesNotMatch(html, />ID rezervácie<\/td>/);
+});
+
+test('resolveReservationIdForEmail returns verified id when reservation exists', async () => {
+  reservationsRepo.getById = async (id) => (id === 42 ? { id: 42 } : null);
+
+  const result = await resolveReservationIdForEmail('42');
+
+  assert.deepEqual(result, { verified: '42', unverified: null });
+});
+
+test('resolveReservationIdForEmail drops numeric id when reservation does not exist', async () => {
+  reservationsRepo.getById = async () => null;
+
+  const result = await resolveReservationIdForEmail('99');
+
+  assert.deepEqual(result, { verified: null, unverified: null });
+});
+
+test('resolveReservationIdForEmail labels non-numeric id as unverified without repo lookup', async () => {
+  let called = false;
+  reservationsRepo.getById = async () => {
+    called = true;
+    return { id: 1 };
+  };
+
+  const result = await resolveReservationIdForEmail('abc');
+
+  assert.deepEqual(result, { verified: null, unverified: 'abc' });
+  assert.equal(called, false);
+});
+
+test('resolveReservationIdForEmail falls back to unverified when repo lookup throws', async () => {
+  reservationsRepo.getById = async () => {
+    throw new Error('connection timeout');
+  };
+
+  const result = await resolveReservationIdForEmail('7');
+
+  assert.deepEqual(result, { verified: null, unverified: '7' });
+});
+
+test('resolveCheckoutSessionIdForEmail returns id when payment exists', async () => {
+  const sessionId = 'cs_test_abc123';
+  paymentsRepo.findByProviderRef = async (ref) => (ref === sessionId ? { id: 1 } : null);
+
+  const result = await resolveCheckoutSessionIdForEmail(sessionId);
+
+  assert.equal(result, sessionId);
+});
+
+test('resolveCheckoutSessionIdForEmail returns null when payment not found', async () => {
+  paymentsRepo.findByProviderRef = async () => null;
+
+  const result = await resolveCheckoutSessionIdForEmail('cs_test_missing');
+
+  assert.equal(result, null);
+});
+
+test('resolveCheckoutSessionIdForEmail returns null for invalid format without repo lookup', async () => {
+  let called = false;
+  paymentsRepo.findByProviderRef = async () => {
+    called = true;
+    return { id: 1 };
+  };
+
+  const result = await resolveCheckoutSessionIdForEmail('pi_abc123');
+
+  assert.equal(result, null);
+  assert.equal(called, false);
+});
+
+test('resolveCheckoutSessionIdForEmail returns null when repo lookup throws', async () => {
+  paymentsRepo.findByProviderRef = async () => {
+    throw new Error('Database not configured');
+  };
+
+  const result = await resolveCheckoutSessionIdForEmail('cs_test_err');
+
+  assert.equal(result, null);
+});
+
+test('sendSupportContact still sends email when reservation lookup throws', async () => {
+  let sendCalled = false;
+  reservationsRepo.getById = async () => {
+    throw new Error('connection timeout');
+  };
+  emailProvider.sendEmail = async () => {
+    sendCalled = true;
+    return { ok: true };
+  };
+
+  const result = await sendSupportContact({
+    message: 'Potrebujem pomoc s platbou.',
+    reservationId: '12',
+  });
+
+  assert.deepEqual(result, { ok: true });
+  assert.equal(sendCalled, true);
+});
+
+test('sendSupportContact still sends email when checkout session lookup throws', async () => {
+  let sendCalled = false;
+  paymentsRepo.findByProviderRef = async () => {
+    throw new Error('Database not configured');
+  };
+  emailProvider.sendEmail = async () => {
+    sendCalled = true;
+    return { ok: true };
+  };
+
+  const result = await sendSupportContact({
+    message: 'Potrebujem pomoc s platbou.',
+    checkoutSessionId: 'cs_test_abc123',
+  });
+
+  assert.deepEqual(result, { ok: true });
+  assert.equal(sendCalled, true);
 });
