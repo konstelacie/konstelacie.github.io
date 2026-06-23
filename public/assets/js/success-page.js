@@ -384,9 +384,6 @@
       wireEmailDeliveryAlertInteractions();
       wireSupportCta(reservationId);
       wireMeetingLink(meetingUrl);
-      setFixEmailPanelOpen(false);
-      setFixEmailFormMessage('error', '');
-      setFixEmailFormMessage('success', '');
     } else {
       setFixEmailPanelOpen(false);
       const meetingBlock = document.getElementById('success-meeting-link-block');
