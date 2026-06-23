@@ -1,6 +1,8 @@
 const config = require('../config');
 const emailProvider = require('../email/provider');
 const { ApiError } = require('../middleware/apiError');
+const reservationsRepo = require('../db/repositories/reservationsRepo');
+const paymentsRepo = require('../db/repositories/paymentsRepo');
 
 const MAX_MESSAGE_LEN = 2000;
 const MIN_MESSAGE_LEN = 5;
@@ -85,23 +87,33 @@ function buildSupportEmailSubject(reservationId) {
   return reservationId ? `${base} [${reservationId}]` : base;
 }
 
-function buildSupportEmailHtml({ message, phone, reservationId, checkoutSessionId, context, recipientMasked }) {
+function buildSupportEmailHtml({
+  message,
+  phone,
+  reservationId,
+  reservationIdUnverified,
+  checkoutSessionId,
+  context,
+  recipientMasked,
+}) {
   const rows = [
     ['Správa od používateľa', plainTextToHtmlParagraphs(message)],
     phone ? ['Telefón', escapeHtml(phone)] : null,
     recipientMasked ? ['E-mail (maskovaný)', escapeHtml(recipientMasked)] : null,
     reservationId ? ['ID rezervácie', escapeHtml(reservationId)] : null,
+    reservationIdUnverified
+      ? ['ID rezervácie (neoverené)', escapeHtml(reservationIdUnverified)]
+      : null,
     checkoutSessionId ? ['Stripe checkout session', escapeHtml(checkoutSessionId)] : null,
     context ? ['Kontext (stránka)', escapeHtml(context)] : null,
   ].filter(Boolean);
 
   const bodyRows = rows
     .map(([label, value]) => {
-      const isBlock = label === 'Správa od používateľa';
       return (
         `<tr>` +
         `<td style="padding:8px 12px 8px 0;vertical-align:top;font-weight:600;color:#334155;white-space:nowrap;">${escapeHtml(label)}</td>` +
-        `<td style="padding:8px 0;vertical-align:top;color:#0f172a;">${isBlock ? value : value}</td>` +
+        `<td style="padding:8px 0;vertical-align:top;color:#0f172a;">${value}</td>` +
         `</tr>`
       );
     })
@@ -116,6 +128,40 @@ function buildSupportEmailHtml({ message, phone, reservationId, checkoutSessionI
 }
 
 /**
+ * @returns {Promise<{ verified: string|null, unverified: string|null }>}
+ */
+async function resolveReservationIdForEmail(rawId) {
+  const normalized = normalizeOptionalString(rawId, MAX_RESERVATION_ID_LEN);
+  if (!normalized) return { verified: null, unverified: null };
+
+  const numericId = Number(normalized);
+  if (!Number.isInteger(numericId) || numericId < 1) {
+    return { verified: null, unverified: normalized };
+  }
+
+  try {
+    const row = await reservationsRepo.getById(numericId);
+    if (row) return { verified: String(numericId), unverified: null };
+    return { verified: null, unverified: null };
+  } catch (err) {
+    if (err.message === 'Database not configured') {
+      return { verified: null, unverified: normalized };
+    }
+    throw err;
+  }
+}
+
+/**
+ * @returns {Promise<string|null>}
+ */
+async function resolveCheckoutSessionIdForEmail(rawId) {
+  const validated = validateCheckoutSessionId(rawId);
+  if (!validated) return null;
+  const payment = await paymentsRepo.findByProviderRef(validated);
+  return payment ? validated : null;
+}
+
+/**
  * @param {object} input
  * @param {string} input.message
  * @param {string} [input.phone]
@@ -127,8 +173,9 @@ function buildSupportEmailHtml({ message, phone, reservationId, checkoutSessionI
 async function sendSupportContact(input) {
   const message = validateMessage(input?.message);
   const phone = validatePhone(input?.phone);
-  const reservationId = normalizeOptionalString(input?.reservationId, MAX_RESERVATION_ID_LEN);
-  const checkoutSessionId = validateCheckoutSessionId(input?.checkoutSessionId);
+  const { verified: reservationId, unverified: reservationIdUnverified } =
+    await resolveReservationIdForEmail(input?.reservationId);
+  const checkoutSessionId = await resolveCheckoutSessionIdForEmail(input?.checkoutSessionId);
   const context = normalizeOptionalString(input?.context, MAX_CONTEXT_LEN);
   const recipientMasked = normalizeOptionalString(input?.recipientMasked, MAX_RECIPIENT_MASKED_LEN);
 
@@ -143,6 +190,7 @@ async function sendSupportContact(input) {
     message,
     phone,
     reservationId,
+    reservationIdUnverified,
     checkoutSessionId,
     context,
     recipientMasked,
@@ -170,4 +218,11 @@ async function sendSupportContact(input) {
   return { ok: true };
 }
 
-module.exports = { sendSupportContact };
+module.exports = {
+  sendSupportContact,
+  validateMessage,
+  validatePhone,
+  validateCheckoutSessionId,
+  buildSupportEmailSubject,
+  buildSupportEmailHtml,
+};
