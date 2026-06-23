@@ -73,10 +73,11 @@ function validatePhone(raw) {
   return phone;
 }
 
-function validateCheckoutSessionId(raw) {
+function validateCheckoutSessionId(raw, { throwOnInvalid = true } = {}) {
   const id = normalizeOptionalString(raw, MAX_CHECKOUT_SESSION_ID_LEN);
   if (!id) return null;
   if (!id.startsWith('cs_')) {
+    if (!throwOnInvalid) return null;
     throw new ApiError('VALIDATION_ERROR', 'Neplatný identifikátor platby.', 400);
   }
   return id;
@@ -153,8 +154,8 @@ async function resolveReservationIdForEmail(rawId) {
  * @returns {Promise<string|null>}
  */
 async function resolveCheckoutSessionIdForEmail(rawId) {
-  const id = normalizeOptionalString(rawId, MAX_CHECKOUT_SESSION_ID_LEN);
-  if (!id || !id.startsWith('cs_')) return null;
+  const id = validateCheckoutSessionId(rawId, { throwOnInvalid: false });
+  if (!id) return null;
   try {
     const payment = await paymentsRepo.findByProviderRef(id);
     return payment ? id : null;

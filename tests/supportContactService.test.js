@@ -92,6 +92,10 @@ test('validateCheckoutSessionId rejects other prefixes', () => {
   });
 });
 
+test('validateCheckoutSessionId returns null for invalid format when throwOnInvalid is false', () => {
+  assert.equal(validateCheckoutSessionId('pi_abc123', { throwOnInvalid: false }), null);
+});
+
 test('buildSupportEmailSubject without reservationId', () => {
   assert.equal(buildSupportEmailSubject(null), 'Podpora – potvrdenie rezervácie');
 });
