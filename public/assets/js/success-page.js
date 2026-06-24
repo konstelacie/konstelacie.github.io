@@ -31,6 +31,8 @@
   let statusPollTimerId = null;
   let paymentPollAttempts = 0;
   let confirmedPollStartedAt = null;
+  /** @type {{ status: string, recipientMasked: string }|null} */
+  let postRecoveryConfirmationEmail = null;
 
   function getSessionId() {
     const params = new URLSearchParams(window.location.search);
@@ -627,6 +629,28 @@
     scheduleStatusPoll(pollPaymentStatus, POLL_INTERVAL_MS);
   }
 
+  function maskEmailForDisplay(email) {
+    const raw = String(email || '').trim();
+    const at = raw.indexOf('@');
+    if (at <= 0) return '***';
+    const local = raw.slice(0, at);
+    const domain = raw.slice(at + 1);
+    if (!domain) return '***';
+    const maskedLocal = local.length <= 1 ? '*' : `${local[0]}***`;
+    return `${maskedLocal}@${domain}`;
+  }
+
+  function setDeliveryAlertVisible(visible) {
+    const alertEl = document.getElementById('success-email-delivery-alert');
+    if (!alertEl) return;
+    alertEl.hidden = !visible;
+    if (visible) {
+      alertEl.removeAttribute('hidden');
+    } else {
+      alertEl.setAttribute('hidden', '');
+    }
+  }
+
   function applyStatusPollData(data) {
     if (data?.reservation?.id != null) {
       lastReservationId = data.reservation.id;
@@ -634,6 +658,23 @@
     if (data?.confirmationEmail?.recipientMasked) {
       lastRecipientMasked = data.confirmationEmail.recipientMasked;
     }
+
+    if (postRecoveryConfirmationEmail && data?.confirmationEmail) {
+      const polledStatus = data.confirmationEmail.status;
+      const recoveredStatus = postRecoveryConfirmationEmail.status;
+      if (polledStatus === 'sent' || polledStatus === 'pending') {
+        postRecoveryConfirmationEmail = null;
+      } else if (
+        (polledStatus === 'bounced' || polledStatus === 'failed') &&
+        (recoveredStatus === 'sent' || recoveredStatus === 'pending')
+      ) {
+        data = {
+          ...data,
+          confirmationEmail: postRecoveryConfirmationEmail,
+        };
+      }
+    }
+
     showState('confirmed', data);
   }
 
@@ -660,14 +701,36 @@
         );
       }
 
-      if (lastConfirmedStatusData) {
-        lastConfirmedStatusData.confirmationEmail = data.confirmationEmail;
-        applyStatusPollData(lastConfirmedStatusData);
+      const recovered =
+        data.confirmationEmail ||
+        (email ? { status: 'sent', recipientMasked: maskEmailForDisplay(email) } : null);
+
+      if (recovered) {
+        postRecoveryConfirmationEmail = recovered;
+        if (lastConfirmedStatusData) {
+          lastConfirmedStatusData.confirmationEmail = recovered;
+          applyStatusPollData(lastConfirmedStatusData);
+        } else {
+          fetchStatus(checkoutSessionId)
+            .then(function (statusData) {
+              statusData.confirmationEmail = recovered;
+              applyStatusPollData(statusData);
+              restartConfirmationEmailPolling();
+            })
+            .catch(function () {
+              applyStatusPollData({
+                confirmationEmail: recovered,
+                payment: { status: 'completed' },
+              });
+            });
+        }
       }
 
       if (input) input.value = '';
       setFixEmailPanelOpen(false);
-      restartConfirmationEmailPolling();
+      if (lastConfirmedStatusData) {
+        restartConfirmationEmailPolling();
+      }
     } catch (err) {
       setFixEmailFormMessage('error', err.message || 'Odoslanie potvrdenia zlyhalo.');
     } finally {
@@ -717,7 +780,6 @@
 
   function updateConfirmationEmailCopy(confirmationEmail, reservationId, meetingUrl) {
     const confirmedEl = document.getElementById('success-confirmed');
-    const alertEl = document.getElementById('success-email-delivery-alert');
     const alertTextEl = document.getElementById('success-email-delivery-alert-text');
     const defaultEl = document.getElementById('success-email-confirmation-default');
     const noticeEl = document.getElementById('success-email-notice');
@@ -730,7 +792,7 @@
       confirmedEl.classList.toggle('success-confirmed--email-failed', showWarning);
     }
 
-    if (alertEl) alertEl.hidden = !showWarning;
+    setDeliveryAlertVisible(showWarning);
 
     if (alertTextEl && showWarning) {
       alertTextEl.textContent = masked

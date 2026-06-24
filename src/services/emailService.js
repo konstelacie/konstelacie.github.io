@@ -123,13 +123,13 @@ async function sendReservationConfirmation(
 
   const result = await emailProvider.sendEmail(to, subject, html, metadata);
 
-  if (result.ok && result.messageId) {
+  if (result.ok) {
     await emailSentLogRepo.log({
       recipientEmail: to,
       templateId: resend ? 'reservation-confirmation-resend' : 'reservation-confirmation',
       entityType: metadata.entity_type,
       entityId: metadata.entity_id,
-      providerMessageId: result.messageId,
+      providerMessageId: result.messageId ?? null,
       actorType: metadata.actorType || 'system',
     });
   }

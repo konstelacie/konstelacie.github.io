@@ -305,6 +305,11 @@ a.funnel-scroll-hint__arrow:focus-visible {
   border-radius: var(--radius-booking-slot);
 }
 
+/* Author `display:flex` must not beat HTML `[hidden]` — same as `.booking-modal` in site.css */
+.success-delivery-alert[hidden] {
+  display: none !important;
+}
+
 .success-delivery-alert__icon {
   flex-shrink: 0;
   width: 1.75rem;

@@ -146,19 +146,41 @@ async function fixConfirmationEmailForCheckoutSession(sessionId, newEmail) {
     'anon'
   );
 
-  const logRow = await emailSentLogRepo.findLatestConfirmationLogForReservation(reservation.id);
+  const RESEND_TEMPLATE_ID = 'reservation-confirmation-resend';
+  let logRow = await emailSentLogRepo.findLatestConfirmationLogForReservation(reservation.id);
+
+  const resendLogMatchesSend = (row) =>
+    row?.template_id === RESEND_TEMPLATE_ID &&
+    (!result.messageId || row.provider_message_id === result.messageId);
+
+  let resendLogged = resendLogMatchesSend(logRow);
+
+  if (!resendLogged) {
+    const alreadyResend = await emailSentLogRepo.wasAlreadySent(
+      RESEND_TEMPLATE_ID,
+      'reservation',
+      reservation.id
+    );
+    if (!alreadyResend) {
+      await emailSentLogRepo.log({
+        recipientEmail: newEmail,
+        templateId: RESEND_TEMPLATE_ID,
+        entityType: 'reservation',
+        entityId: reservation.id,
+        providerMessageId: result.messageId ?? null,
+        actorType: 'system',
+      });
+    }
+    logRow = await emailSentLogRepo.findLatestConfirmationLogForReservation(reservation.id);
+    resendLogged = resendLogMatchesSend(logRow);
+  }
+
   let confirmationEmail = buildConfirmationEmailPayload(task, logRow, newEmail);
 
-  const resendLogged =
-    Boolean(result.messageId) &&
-    logRow?.provider_message_id &&
-    logRow.provider_message_id === result.messageId;
-
   if (
-    !resendLogged &&
-    (!confirmationEmail ||
-      confirmationEmail.status === 'bounced' ||
-      confirmationEmail.status === 'failed')
+    !confirmationEmail ||
+    confirmationEmail.status === 'bounced' ||
+    confirmationEmail.status === 'failed'
   ) {
     confirmationEmail = {
       status: 'sent',
