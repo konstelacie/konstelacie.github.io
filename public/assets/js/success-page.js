@@ -335,7 +335,12 @@
     document.addEventListener('keydown', onSupportModalKeydown, true);
 
     const messageInput = document.getElementById('support-contact-message');
-    if (messageInput) {
+    const emailInput = document.getElementById('support-contact-email');
+    if (emailInput) {
+      requestAnimationFrame(function () {
+        emailInput.focus();
+      });
+    } else if (messageInput) {
       requestAnimationFrame(function () {
         messageInput.focus();
       });
@@ -378,7 +383,7 @@
     }, 5000);
   }
 
-  async function submitSupportContact(message, phone) {
+  async function submitSupportContact(message, email, phone) {
     const submitBtn = document.getElementById('support-contact-submit');
     if (submitBtn) {
       submitBtn.disabled = true;
@@ -388,6 +393,7 @@
 
     const payload = {
       message: message,
+      email: email,
       phone: phone || undefined,
       reservationId:
         supportModalContext?.reservationId != null
@@ -459,15 +465,27 @@
       form.addEventListener('submit', function (e) {
         e.preventDefault();
         const messageInput = document.getElementById('support-contact-message');
+        const emailInput = document.getElementById('support-contact-email');
         const phoneInput = document.getElementById('support-contact-phone');
         const message = messageInput?.value.trim() || '';
+        const email = emailInput?.value.trim() || '';
         const phone = phoneInput?.value.trim() || '';
+        if (!email) {
+          setSupportFormError('E-mail je povinný.');
+          emailInput?.focus();
+          return;
+        }
+        if (!isValidEmail(email)) {
+          setSupportFormError('E-mail má neplatný formát.');
+          emailInput?.focus();
+          return;
+        }
         if (message.length < 5) {
           setSupportFormError('Správa musí mať aspoň 5 znakov.');
           messageInput?.focus();
           return;
         }
-        submitSupportContact(message, phone);
+        submitSupportContact(message, email, phone);
       });
     }
   }

@@ -6,7 +6,9 @@ const paymentsRepo = require('../db/repositories/paymentsRepo');
 
 const MAX_MESSAGE_LEN = 2000;
 const MIN_MESSAGE_LEN = 5;
+const MAX_EMAIL_LEN = 255;
 const MAX_PHONE_LEN = 30;
+const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const MAX_CONTEXT_LEN = 64;
 const MAX_RESERVATION_ID_LEN = 32;
 const MAX_CHECKOUT_SESSION_ID_LEN = 128;
@@ -60,6 +62,20 @@ function validateMessage(raw) {
   return message;
 }
 
+function validateContactEmail(raw) {
+  const email = typeof raw === 'string' ? raw.trim() : '';
+  if (!email) {
+    throw new ApiError('VALIDATION_ERROR', 'E-mail je povinný.', 400);
+  }
+  if (email.length > MAX_EMAIL_LEN) {
+    throw new ApiError('VALIDATION_ERROR', 'E-mail môže mať najviac 255 znakov.', 400);
+  }
+  if (!EMAIL_PATTERN.test(email)) {
+    throw new ApiError('VALIDATION_ERROR', 'E-mail má neplatný formát.', 400);
+  }
+  return email;
+}
+
 function validatePhone(raw) {
   const phone = normalizeOptionalString(raw, MAX_PHONE_LEN);
   if (!phone) return null;
@@ -90,6 +106,7 @@ function buildSupportEmailSubject(reservationId) {
 
 function buildSupportEmailHtml({
   message,
+  email,
   phone,
   reservationId,
   reservationIdUnverified,
@@ -99,6 +116,7 @@ function buildSupportEmailHtml({
 }) {
   const rows = [
     ['Správa od používateľa', plainTextToHtmlParagraphs(message)],
+    ['Váš e-mail', escapeHtml(email)],
     phone ? ['Telefón', escapeHtml(phone)] : null,
     recipientMasked ? ['E-mail (maskovaný)', escapeHtml(recipientMasked)] : null,
     reservationId ? ['ID rezervácie', escapeHtml(reservationId)] : null,
@@ -168,6 +186,7 @@ async function resolveCheckoutSessionIdForEmail(rawId) {
 /**
  * @param {object} input
  * @param {string} input.message
+ * @param {string} input.email
  * @param {string} [input.phone]
  * @param {string} [input.reservationId]
  * @param {string} [input.checkoutSessionId]
@@ -176,6 +195,7 @@ async function resolveCheckoutSessionIdForEmail(rawId) {
  */
 async function sendSupportContact(input) {
   const message = validateMessage(input?.message);
+  const email = validateContactEmail(input?.email);
   const phone = validatePhone(input?.phone);
   const { verified: reservationId, unverified: reservationIdUnverified } =
     await resolveReservationIdForEmail(input?.reservationId);
@@ -192,6 +212,7 @@ async function sendSupportContact(input) {
   const subject = buildSupportEmailSubject(reservationId);
   const html = buildSupportEmailHtml({
     message,
+    email,
     phone,
     reservationId,
     reservationIdUnverified,
@@ -227,6 +248,7 @@ module.exports = {
   resolveReservationIdForEmail,
   resolveCheckoutSessionIdForEmail,
   validateMessage,
+  validateContactEmail,
   validatePhone,
   validateCheckoutSessionId,
   buildSupportEmailSubject,

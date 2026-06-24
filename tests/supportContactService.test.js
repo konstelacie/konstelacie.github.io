@@ -9,6 +9,7 @@ const {
   resolveReservationIdForEmail,
   resolveCheckoutSessionIdForEmail,
   validateMessage,
+  validateContactEmail,
   validatePhone,
   validateCheckoutSessionId,
   buildSupportEmailSubject,
@@ -55,6 +56,25 @@ test('validateMessage rejects more than 2000 characters', () => {
 
 test('validateMessage accepts a normal message', () => {
   assert.equal(validateMessage('  Potrebujem pomoc s platbou.  '), 'Potrebujem pomoc s platbou.');
+});
+
+test('validateContactEmail rejects empty string', () => {
+  assert.throws(() => validateContactEmail(''), (err) => {
+    assert.ok(err instanceof ApiError);
+    assert.equal(err.message, 'E-mail je povinný.');
+    return true;
+  });
+});
+
+test('validateContactEmail rejects invalid format', () => {
+  assert.throws(() => validateContactEmail('not-an-email'), (err) => {
+    assert.equal(err.message, 'E-mail má neplatný formát.');
+    return true;
+  });
+});
+
+test('validateContactEmail accepts a normal email', () => {
+  assert.equal(validateContactEmail('  user@example.com  '), 'user@example.com');
 });
 
 test('validatePhone accepts null and empty as optional', () => {
@@ -107,6 +127,7 @@ test('buildSupportEmailSubject with reservationId', () => {
 test('buildSupportEmailHtml renders message as paragraphs and phone as plain text', () => {
   const html = buildSupportEmailHtml({
     message: 'Riadok jedna\n\nRiadok dva',
+    email: 'user@example.com',
     phone: '+421 901 234 567',
     reservationId: null,
     reservationIdUnverified: null,
@@ -118,6 +139,8 @@ test('buildSupportEmailHtml renders message as paragraphs and phone as plain tex
   assert.match(html, /Správa od používateľa/);
   assert.match(html, /<p style="margin:0 0 12px;">Riadok jedna<\/p>/);
   assert.match(html, /Riadok dva/);
+  assert.match(html, /Váš e-mail/);
+  assert.match(html, /user@example.com/);
   assert.match(html, /Telefón/);
   assert.match(html, /\+421 901 234 567/);
   assert.doesNotMatch(html, /<p style="margin:0 0 12px;">\+421/);
@@ -126,6 +149,7 @@ test('buildSupportEmailHtml renders message as paragraphs and phone as plain tex
 test('buildSupportEmailHtml labels unverified reservation id', () => {
   const html = buildSupportEmailHtml({
     message: 'Potrebujem pomoc.',
+    email: 'user@example.com',
     phone: null,
     reservationId: null,
     reservationIdUnverified: '99999',
@@ -230,6 +254,7 @@ test('sendSupportContact still sends email when reservation lookup throws', asyn
 
   const result = await sendSupportContact({
     message: 'Potrebujem pomoc s platbou.',
+    email: 'user@example.com',
     reservationId: '12',
   });
 
@@ -249,6 +274,7 @@ test('sendSupportContact still sends email when checkout session lookup throws',
 
   const result = await sendSupportContact({
     message: 'Potrebujem pomoc s platbou.',
+    email: 'user@example.com',
     checkoutSessionId: 'cs_test_abc123',
   });
 

@@ -159,6 +159,17 @@
       <h2 id="support-contact-modal-title" class="booking-modal__title">Napísať na podporu</h2>
       <p class="booking-modal__phase">Popíš nám problém a ozveme sa ti.</p>
       <form id="support-contact-form" class="booking-email-form booking-modal__form" novalidate>
+        <label for="support-contact-email">E-mail</label>
+        <input
+          type="email"
+          id="support-contact-email"
+          name="email"
+          required
+          autocomplete="email"
+          inputmode="email"
+          maxlength="255"
+        />
+
         <label for="support-contact-message">Správa</label>
         <textarea
           id="support-contact-message"

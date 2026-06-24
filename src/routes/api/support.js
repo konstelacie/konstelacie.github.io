@@ -12,6 +12,7 @@ router.post(
     const body = req.body ?? {};
     await sendSupportContact({
       message: body.message,
+      email: body.email,
       phone: body.phone,
       reservationId: body.reservationId,
       checkoutSessionId: body.checkoutSessionId,
