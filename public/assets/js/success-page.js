@@ -28,6 +28,9 @@
   let supportModalContext = null;
   let supportSubmitFailureCount = 0;
   let supportSuccessCloseTimer = null;
+  let statusPollTimerId = null;
+  let paymentPollAttempts = 0;
+  let confirmedPollStartedAt = null;
 
   function getSessionId() {
     const params = new URLSearchParams(window.location.search);
@@ -607,9 +610,40 @@
     }
   }
 
+  function clearStatusPoll() {
+    if (statusPollTimerId) {
+      clearTimeout(statusPollTimerId);
+      statusPollTimerId = null;
+    }
+  }
+
+  function scheduleStatusPoll(fn, delay) {
+    clearStatusPoll();
+    statusPollTimerId = setTimeout(fn, delay);
+  }
+
+  function restartConfirmationEmailPolling() {
+    confirmedPollStartedAt = Date.now();
+    scheduleStatusPoll(pollPaymentStatus, POLL_INTERVAL_MS);
+  }
+
+  function applyStatusPollData(data) {
+    if (data?.reservation?.id != null) {
+      lastReservationId = data.reservation.id;
+    }
+    if (data?.confirmationEmail?.recipientMasked) {
+      lastRecipientMasked = data.confirmationEmail.recipientMasked;
+    }
+    showState('confirmed', data);
+  }
+
   async function submitFixConfirmationEmail(email) {
     const submitBtn = document.getElementById('success-fix-email-submit');
-    if (submitBtn) submitBtn.disabled = true;
+    const input = document.getElementById('success-fix-email-input');
+    if (submitBtn) {
+      submitBtn.disabled = true;
+      submitBtn.textContent = 'Odosielam…';
+    }
     setFixEmailFormMessage('error', '');
     setFixEmailFormMessage('success', '');
 
@@ -628,22 +662,19 @@
 
       if (lastConfirmedStatusData) {
         lastConfirmedStatusData.confirmationEmail = data.confirmationEmail;
-        updateConfirmationEmailCopy(
-          data.confirmationEmail,
-          lastConfirmedStatusData.reservation?.id,
-          lastConfirmedStatusData.meetingUrl
-        );
+        applyStatusPollData(lastConfirmedStatusData);
       }
 
-      setFixEmailFormMessage(
-        'success',
-        `Potvrdenie sme odoslali na ${email}. Skontroluj aj priečinok spam.`
-      );
+      if (input) input.value = '';
       setFixEmailPanelOpen(false);
+      restartConfirmationEmailPolling();
     } catch (err) {
       setFixEmailFormMessage('error', err.message || 'Odoslanie potvrdenia zlyhalo.');
     } finally {
-      if (submitBtn) submitBtn.disabled = false;
+      if (submitBtn) {
+        submitBtn.disabled = false;
+        submitBtn.textContent = 'Odoslať potvrdenie znova';
+      }
     }
   }
 
@@ -807,6 +838,79 @@
     return res.json();
   }
 
+  let paymentPollLastStatus = null;
+
+  function pollPaymentStatus() {
+    if (!checkoutSessionId) return;
+
+    paymentPollAttempts += 1;
+    fetchStatus(checkoutSessionId)
+      .then(function (data) {
+        const status = data?.payment?.status || null;
+        paymentPollLastStatus = status;
+
+        if (status === 'completed') {
+          applyStatusPollData(data);
+          if (!confirmedPollStartedAt) {
+            confirmedPollStartedAt = Date.now();
+          }
+          if (Date.now() - confirmedPollStartedAt < CONFIRMED_POLL_MAX_MS) {
+            scheduleStatusPoll(pollPaymentStatus, POLL_INTERVAL_MS);
+          }
+          return;
+        }
+
+        if (status === 'failed') {
+          clearStatusPoll();
+          showErrorWithSupport(
+            'Platba prebehla cez Stripe, ale pri našom spracovaní nastala technická chyba. Potvrdenie pošleme e-mailom. Ak ho nedostanete do niekoľkých minút, kontaktujte podporu.',
+            'payment-processing-failed'
+          );
+          return;
+        }
+
+        if (status === 'expired') {
+          clearStatusPoll();
+          showState('error');
+          setErrorMessage('Platnosť platby vypršala. Skúste prosím znovu.');
+          return;
+        }
+
+        if (status === 'refunded') {
+          clearStatusPoll();
+          showErrorWithSupport(
+            'Platba bola vrátená. Ak máte otázky, kontaktujte podporu.',
+            'payment-refunded'
+          );
+          return;
+        }
+
+        if (paymentPollAttempts >= MAX_POLL_ATTEMPTS) {
+          clearStatusPoll();
+          showState('error');
+          if (paymentPollLastStatus && paymentPollLastStatus !== 'pending') {
+            setErrorMessage(
+              'Nepodarilo sa potvrdiť platbu. Stav: ' +
+                paymentPollLastStatus +
+                '. Skúste to prosím znova.'
+            );
+          } else {
+            setErrorMessage(
+              'Nepodarilo sa potvrdiť platbu. Chvíľu sme to čakali na webhook, no nepotvrdilo sa to. Skúste to prosím znova.'
+            );
+          }
+          return;
+        }
+        showState('loading');
+        scheduleStatusPoll(pollPaymentStatus, POLL_INTERVAL_MS);
+      })
+      .catch(function (err) {
+        clearStatusPoll();
+        showState('error');
+        setErrorMessage(err.message);
+      });
+  }
+
   function run() {
     wireSupportModal();
 
@@ -831,76 +935,13 @@
       return;
     }
 
-    let attempts = 0;
-    let lastStatus = null;
-    let confirmedAt = null;
-
-    function poll() {
-      attempts += 1;
-      fetchStatus(sessionId)
-        .then(function (data) {
-          const status = data?.payment?.status || null;
-          lastStatus = status;
-          if (data?.reservation?.id != null) {
-            lastReservationId = data.reservation.id;
-          }
-          if (data?.confirmationEmail?.recipientMasked) {
-            lastRecipientMasked = data.confirmationEmail.recipientMasked;
-          }
-
-          if (status === 'completed') {
-            showState('confirmed', data);
-            if (!confirmedAt) {
-              confirmedAt = Date.now();
-            }
-            if (Date.now() - confirmedAt < CONFIRMED_POLL_MAX_MS) {
-              setTimeout(poll, POLL_INTERVAL_MS);
-            }
-            return;
-          }
-
-          if (status === 'failed') {
-            showErrorWithSupport(
-              'Platba prebehla cez Stripe, ale pri našom spracovaní nastala technická chyba. Potvrdenie pošleme e-mailom. Ak ho nedostanete do niekoľkých minút, kontaktujte podporu.',
-              'payment-processing-failed'
-            );
-            return;
-          }
-
-          if (status === 'expired') {
-            showState('error');
-            setErrorMessage('Platnosť platby vypršala. Skúste prosím znovu.');
-            return;
-          }
-
-          if (status === 'refunded') {
-            showErrorWithSupport(
-              'Platba bola vrátená. Ak máte otázky, kontaktujte podporu.',
-              'payment-refunded'
-            );
-            return;
-          }
-
-          if (attempts >= MAX_POLL_ATTEMPTS) {
-            showState('error');
-            if (lastStatus && lastStatus !== 'pending') {
-              setErrorMessage('Nepodarilo sa potvrdiť platbu. Stav: ' + lastStatus + '. Skúste to prosím znova.');
-            } else {
-              setErrorMessage('Nepodarilo sa potvrdiť platbu. Chvíľu sme to čakali na webhook, no nepotvrdilo sa to. Skúste to prosím znova.');
-            }
-            return;
-          }
-          showState('loading');
-          setTimeout(poll, POLL_INTERVAL_MS);
-        })
-        .catch(function (err) {
-          showState('error');
-          setErrorMessage(err.message);
-        });
-    }
+    paymentPollAttempts = 0;
+    paymentPollLastStatus = null;
+    confirmedPollStartedAt = null;
+    clearStatusPoll();
 
     showState('loading');
-    poll();
+    pollPaymentStatus();
   }
 
   if (document.readyState === 'loading') {
