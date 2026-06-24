@@ -62,6 +62,14 @@
   /** Calendar day columns visible before "more dates" expand. */
   const INITIAL_VISIBLE_FUNNEL_DAYS = 3;
   const POLL_MS = 5000;
+  /** Max delay between poll ticks after repeated 429 responses. */
+  const POLL_BACKOFF_MAX_MS = 60000;
+  /** Coalesce rapid silent loadSlots triggers (poll + cross-tab) into one fetch. */
+  const LOAD_SLOTS_COALESCE_MS = 400;
+  /** Merge storage + BroadcastChannel signals for the same localStorage write. */
+  const CROSS_TAB_APPLY_DEBOUNCE_MS = 50;
+  /** Skip duplicate cross-tab apply when blob unchanged within this window. */
+  const CROSS_TAB_APPLY_DEDUPE_MS = 500;
   const LEAD_MS = 24 * 60 * 60 * 1000;
 
   /** Fallback until GET /api/slots returns `grid.times` (same order as server `src/config/slotGrid.js`). */
@@ -94,6 +102,12 @@
   let lastFocusBeforeModal = null;
   let loadSeq = 0;
   let pollTimer = null;
+  let pollBackoffMs = POLL_MS;
+  let pollScheduledTimer = null;
+  let loadSlotsCoalesceTimer = null;
+  let crossTabApplyTimer = null;
+  let lastAppliedCrossTabHash = '';
+  let lastAppliedCrossTabAt = 0;
   let calendarDaysExpanded = false;
   /**
    * Collapsed (minified) strip only: dates that were ever shown in the main column this session.
@@ -429,48 +443,53 @@
     }
   }
 
+  function buildLockSnapshotJson() {
+    let lockedSlotDate = '';
+    if (lockedSlotId) {
+      const s = slotsRaw.find((x) => x.id === lockedSlotId);
+      if (s) {
+        lockedSlotDate =
+          s.localDate ||
+          (s.startAt
+            ? new Intl.DateTimeFormat('en-CA', { timeZone: TIMEZONE }).format(new Date(s.startAt))
+            : '');
+      }
+    }
+    let paymentForm = null;
+    // Persist payment choice even when the UI is in "edit email" mode (payment step hidden),
+    // because the radios still exist in the DOM.
+    if (lockToken && lockPhase === 'payment') paymentForm = readPaymentFormStateFromDom();
+
+    // Persist billing inputs so reload doesn't wipe partially-entered details.
+    const billing = lockToken ? readBillingForm() : null;
+    // Persist the email input too — before extend-lock it lives only in the DOM (lockedEmail is
+    // set after a successful submit), so without this a reload loses the typed email.
+    const emailDraft = lockToken ? ($('booking-email')?.value || '').trim() : '';
+    // Always include expiresAt key (null if missing) — JSON.stringify drops `undefined`, and
+    // getStoredLock used to reject when the key was absent.
+    return JSON.stringify({
+      lockToken,
+      lockedSlotId,
+      expiresAt: expiresAt != null ? expiresAt : null,
+      lockedSlotDate,
+      phase: lockPhase,
+      email: lockedEmail || undefined,
+      emailDraft: emailDraft || undefined,
+      modalVisible,
+      modalUiStep,
+      modalEmailEdit,
+      paymentForm,
+      billing: billing || undefined,
+    });
+  }
+
   function storeLock() {
     if (suppressCrossTabApply > 0) return;
     try {
-      let lockedSlotDate = '';
-      if (lockedSlotId) {
-        const s = slotsRaw.find((x) => x.id === lockedSlotId);
-        if (s) {
-          lockedSlotDate =
-            s.localDate ||
-            (s.startAt
-              ? new Intl.DateTimeFormat('en-CA', { timeZone: TIMEZONE }).format(new Date(s.startAt))
-              : '');
-        }
-      }
-      let paymentForm = null;
-      // Persist payment choice even when the UI is in "edit email" mode (payment step hidden),
-      // because the radios still exist in the DOM.
-      if (lockToken && lockPhase === 'payment') paymentForm = readPaymentFormStateFromDom();
-
-      // Persist billing inputs so reload doesn't wipe partially-entered details.
-      const billing = lockToken ? readBillingForm() : null;
-      // Persist the email input too — before extend-lock it lives only in the DOM (lockedEmail is
-      // set after a successful submit), so without this a reload loses the typed email.
-      const emailDraft = lockToken ? ($('booking-email')?.value || '').trim() : '';
-      // Always include expiresAt key (null if missing) — JSON.stringify drops `undefined`, and
-      // getStoredLock used to reject when the key was absent.
-      persistLockBlob(
-        JSON.stringify({
-          lockToken,
-          lockedSlotId,
-          expiresAt: expiresAt != null ? expiresAt : null,
-          lockedSlotDate,
-          phase: lockPhase,
-          email: lockedEmail || undefined,
-          emailDraft: emailDraft || undefined,
-          modalVisible,
-          modalUiStep,
-          modalEmailEdit,
-          paymentForm,
-          billing: billing || undefined,
-        })
-      );
+      const json = buildLockSnapshotJson();
+      const existing = readLockBlob();
+      if (existing === json) return;
+      persistLockBlob(json);
       broadcastBookingLockToOtherTabs();
     } catch (e) {
       logStorageError('storeLock', e);
@@ -905,7 +924,12 @@
       const res = await fetch(url, { signal: ctrl.signal });
       clearTimeout(tid);
       if (externalSignal) externalSignal.removeEventListener('abort', onExternalAbort);
-      const data = await res.json();
+      const data = await res.json().catch(() => ({}));
+      if (res.status === 429) {
+        const err = new Error('RATE_LIMITED');
+        err.code = 'RATE_LIMITED';
+        throw err;
+      }
       if (!res.ok) throw new Error(data.error || 'API_ERROR');
       return data;
     } catch (e) {
@@ -1256,6 +1280,69 @@
 
   let loadAbortController = null;
 
+  function isRateLimitedError(e) {
+    return !!(e && (e.code === 'RATE_LIMITED' || e.message === 'RATE_LIMITED'));
+  }
+
+  function bumpPollBackoff() {
+    pollBackoffMs = Math.min(
+      pollBackoffMs === POLL_MS ? POLL_MS * 2 : pollBackoffMs * 2,
+      POLL_BACKOFF_MAX_MS
+    );
+  }
+
+  function resetPollBackoff() {
+    pollBackoffMs = POLL_MS;
+  }
+
+  /**
+   * Coalesce rapid silent refreshes (poll tick + cross-tab sync) into one fetch.
+   * Non-silent calls run immediately (user actions, init, revoke).
+   */
+  function requestLoadSlots(options) {
+    const opts = options || {};
+    if (!opts.silent) {
+      if (loadSlotsCoalesceTimer) {
+        clearTimeout(loadSlotsCoalesceTimer);
+        loadSlotsCoalesceTimer = null;
+      }
+      return loadSlots(opts);
+    }
+    if (loadSlotsCoalesceTimer) return;
+    loadSlotsCoalesceTimer = setTimeout(() => {
+      loadSlotsCoalesceTimer = null;
+      void loadSlots({ silent: true });
+    }, LOAD_SLOTS_COALESCE_MS);
+  }
+
+  function crossTabStateHash() {
+    try {
+      return readLockBlob() || '__cleared__';
+    } catch (_) {
+      return '__error__';
+    }
+  }
+
+  function scheduleCrossTabApply(source) {
+    dbg('cross-tab scheduled', { source });
+    if (crossTabApplyTimer) clearTimeout(crossTabApplyTimer);
+    crossTabApplyTimer = setTimeout(() => {
+      crossTabApplyTimer = null;
+      const hash = crossTabStateHash();
+      const now = Date.now();
+      if (
+        hash === lastAppliedCrossTabHash &&
+        now - lastAppliedCrossTabAt < CROSS_TAB_APPLY_DEDUPE_MS
+      ) {
+        dbg('cross-tab dedupe skip', { source });
+        return;
+      }
+      lastAppliedCrossTabHash = hash;
+      lastAppliedCrossTabAt = now;
+      applyBookingStateFromOtherTabs();
+    }, CROSS_TAB_APPLY_DEBOUNCE_MS);
+  }
+
   /**
    * After GET /api/slots: drop stale client locks and align expiresAt with server (fixes refresh / clock skew).
    * If the locked slot is missing from this response, keep the client lock — the list query can omit
@@ -1273,8 +1360,9 @@
       return;
     }
     if (slot.lockExpiresAt) {
+      const prevExpiresAt = expiresAt;
       expiresAt = slot.lockExpiresAt;
-      storeLock();
+      if (prevExpiresAt !== expiresAt) storeLock();
       if (countdownInterval) updateCountdown();
     }
     if (isEmailModalOpen()) updateBookingModalSelectedSlotDisplay();
@@ -1313,12 +1401,23 @@
         gridTimes = data.grid.times;
       }
       slotsRaw = data.slots || [];
+      resetPollBackoff();
       syncLockStateWithSlots();
       renderCalendar();
       if (lockToken && isEmailModalOpen()) updateBookingModalSelectedSlotDisplay();
     } catch (e) {
       if (e.name === 'AbortError' || signal.aborted) return;
       if (mySeq !== loadSeq) return;
+      if (isRateLimitedError(e)) {
+        bumpPollBackoff();
+        dbg('loadSlots rate limited', { pollBackoffMs });
+        if (!silent) {
+          showGlobalError(ERROR_MESSAGES.RATE_LIMITED);
+          if (innerEl) innerEl.hidden = true;
+          if (loadingEl) loadingEl.hidden = true;
+        }
+        return;
+      }
       if (!silent) {
         slotsRaw = [];
         if (innerEl) innerEl.hidden = true;
@@ -1374,7 +1473,7 @@
       } finally {
         suppressCrossTabApply--;
       }
-      void loadSlots({ silent: true });
+      void requestLoadSlots({ silent: true });
       return;
     }
 
@@ -1386,14 +1485,14 @@
     } finally {
       suppressCrossTabApply--;
     }
-    void loadSlots({ silent: true });
+    requestLoadSlots({ silent: true });
   }
 
   function registerCrossTabSync() {
     window.addEventListener('storage', (e) => {
       if (e.key !== STORAGE_KEY || e.storageArea !== localStorage) return;
       dbg('cross-tab storage', { key: e.key });
-      applyBookingStateFromOtherTabs();
+      scheduleCrossTabApply('storage');
     });
     if (typeof BroadcastChannel === 'undefined') return;
     try {
@@ -1401,7 +1500,7 @@
       bookingCrossTabChannel.onmessage = (e) => {
         if (e.data && e.data.tabId === BOOKING_TAB_BROADCAST_ID) return;
         dbg('cross-tab BroadcastChannel message');
-        applyBookingStateFromOtherTabs();
+        scheduleCrossTabApply('broadcast');
       };
     } catch (e) {
       logStorageError('registerCrossTabSync: BroadcastChannel', e);
@@ -1925,12 +2024,33 @@
     }
   }
 
-  function startPoll() {
-    if (pollTimer) clearInterval(pollTimer);
-    pollTimer = setInterval(() => {
+  function stopPoll() {
+    if (pollScheduledTimer) {
+      clearTimeout(pollScheduledTimer);
+      pollScheduledTimer = null;
+    }
+    if (pollTimer) {
+      clearInterval(pollTimer);
+      pollTimer = null;
+    }
+  }
+
+  function schedulePollTick() {
+    if (pollScheduledTimer) clearTimeout(pollScheduledTimer);
+    pollScheduledTimer = null;
+    if (document.hidden) return;
+    pollScheduledTimer = setTimeout(() => {
+      pollScheduledTimer = null;
       if (document.hidden) return;
-      loadSlots({ silent: true });
-    }, POLL_MS);
+      void loadSlots({ silent: true }).finally(() => {
+        schedulePollTick();
+      });
+    }, pollBackoffMs);
+  }
+
+  function startPoll() {
+    stopPoll();
+    schedulePollTick();
   }
 
   /** Register once before any restored modal opens (capture-phase cancel survives overlays). */
@@ -2212,7 +2332,12 @@
     }
 
     document.addEventListener('visibilitychange', () => {
-      if (!document.hidden) loadSlots({ silent: true });
+      if (document.hidden) {
+        stopPoll();
+        return;
+      }
+      startPoll();
+      requestLoadSlots({ silent: true });
     });
   }
 
