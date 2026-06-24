@@ -666,7 +666,8 @@
     LOCK_EXPIRED: 'Vypršal čas podržania. Vyber termín znova.',
     SLOT_RESERVED: 'Termín už nie je voľný.',
     SLOT_ALREADY_RESERVED: 'Termín už nie je voľný.',
-    EMAIL_HAS_LOCK: 'Tento e-mail už drží iný termín. Zadaj iný e-mail.',
+    EMAIL_HAS_LOCK:
+      'Tento e-mail už drží iný termín. Dokonči rezerváciu tam, alebo počkaj, kým vyprší podržanie termínu.',
     EMAIL_HAS_RESERVATION: 'Na tento e-mail už existuje rezervácia. Zadaj iný e-mail.',
     INTERNAL_ERROR: 'Niečo sa pokazilo. Skús neskôr.',
     STRIPE_ERROR: 'Platobná brána je dočasne nedostupná. Skús neskôr.',
@@ -677,6 +678,44 @@
 
   function userMessage(code) {
     return ERROR_MESSAGES[code] || ERROR_MESSAGES.INTERNAL_ERROR;
+  }
+
+  function formatLockExpiresAtSk(iso) {
+    if (!iso) return '';
+    try {
+      return new Intl.DateTimeFormat('sk-SK', {
+        timeZone: TIMEZONE,
+        day: 'numeric',
+        month: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+      }).format(new Date(iso));
+    } catch (_) {
+      return '';
+    }
+  }
+
+  /** Build copy when API returns EMAIL_HAS_LOCK with slot + hold expiry in `details`. */
+  function formatEmailHasLockMessage(details) {
+    if (!details || typeof details !== 'object') return ERROR_MESSAGES.EMAIL_HAS_LOCK;
+    const slotLine = formatModalSelectedSlotLine({
+      localDate: details.slotLocalDate,
+      timeKey: details.slotTimeKey,
+    });
+    if (!slotLine) return ERROR_MESSAGES.EMAIL_HAS_LOCK;
+    const expiresPart = formatLockExpiresAtSk(details.lockExpiresAt);
+    if (!expiresPart) {
+      return `Na tento e-mail už držíme iný termín (${slotLine}). Dokonči rezerváciu tam, alebo počkaj, kým vyprší podržanie termínu.`;
+    }
+    return `Na tento e-mail už držíme iný termín (${slotLine}). Dokonči rezerváciu tam, alebo počkaj, kým vyprší podržanie termínu o ${expiresPart}.`;
+  }
+
+  function userMessageFromApi(data) {
+    const code = data && data.error;
+    if (code === 'EMAIL_HAS_LOCK') {
+      return formatEmailHasLockMessage(data.details);
+    }
+    return userMessage(code);
   }
 
   function isEmailModalOpen() {
@@ -811,7 +850,7 @@
     });
     const data = await res.json().catch(() => ({}));
     if (!res.ok) {
-      return { ok: false, error: userMessage(data.error) || 'Nepodarilo sa pokračovať.' };
+      return { ok: false, error: userMessageFromApi(data) || 'Nepodarilo sa pokračovať.' };
     }
     if (data.expiresAt) expiresAt = data.expiresAt;
     lockedEmail = email;
@@ -1493,7 +1532,7 @@
           const min = Math.ceil(data.details.retryAfterSeconds / 60);
           showGlobalError(`Termín je práve podržaný. Skús znova o ${min} min.`);
         } else {
-          showGlobalError(userMessage(data.error));
+          showGlobalError(userMessageFromApi(data));
         }
         return;
       }
@@ -1784,7 +1823,7 @@
     }
 
     if (!payRes.ok) {
-      return { ok: false, error: userMessage(payData.error) || 'Platba sa nepodarila spustiť. Skús znova.' };
+      return { ok: false, error: userMessageFromApi(payData) || 'Platba sa nepodarila spustiť. Skús znova.' };
     }
     if (!payData.url) {
       return { ok: false, error: 'Platba sa nepodarila spustiť. Skús znova.' };

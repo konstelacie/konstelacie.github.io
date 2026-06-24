@@ -1,3 +1,5 @@
+const { timeKeyForGridIndex } = require('../../config/slotGrid');
+const { mysqlLocalDateToYmd } = require('../../lib/slotApiMap');
 const { getPool } = require('../index');
 
 async function getActiveLockForSlot(slotId) {
@@ -12,44 +14,70 @@ async function getActiveLockForSlot(slotId) {
 }
 
 /**
- * True if `email` is set on another non-expired lock (not the excepted slot/token pair).
+ * Active lock on another slot for this email (excludes current hold). For client-facing conflict copy.
+ * @returns {Promise<null | { slotLocalDate: string, slotTimeKey: string, lockExpiresAt: string }>}
  */
-async function hasActiveLockForEmailExcept(email, exceptSlotId, exceptLockToken) {
+async function findActiveLockForEmailExcept(email, exceptSlotId, exceptLockToken) {
   const pool = getPool();
   if (!pool) throw new Error('Database not configured');
 
   const norm =
     typeof email === 'string' ? email.trim().toLowerCase() : String(email || '').trim().toLowerCase();
-  if (!norm) return false;
+  if (!norm) return null;
 
   const hasExcept =
     exceptSlotId != null &&
     exceptLockToken != null &&
     String(exceptLockToken).trim().length === 36;
 
+  const selectSql = `SELECT sl.expires_at AS lock_expires_at, s.local_date, s.grid_index
+     FROM slot_locks sl
+     INNER JOIN slots s ON s.id = sl.slot_id
+     WHERE sl.expires_at > NOW(3)
+       AND sl.email IS NOT NULL
+       AND LOWER(TRIM(sl.email)) = ?`;
+
+  let rows;
   if (hasExcept) {
     const token = String(exceptLockToken).trim();
-    const [rows] = await pool.execute(
-      `SELECT id FROM slot_locks
-       WHERE expires_at > NOW(3)
-         AND email IS NOT NULL
-         AND LOWER(TRIM(email)) = ?
-         AND NOT (slot_id = ? AND lock_token = ?)
+    [rows] = await pool.execute(
+      `${selectSql}
+         AND NOT (sl.slot_id = ? AND sl.lock_token = ?)
        LIMIT 1`,
       [norm, Number(exceptSlotId), token]
     );
-    return rows.length > 0;
+  } else {
+    [rows] = await pool.execute(`${selectSql} LIMIT 1`, [norm]);
   }
 
-  const [rows] = await pool.execute(
-    `SELECT id FROM slot_locks
-     WHERE expires_at > NOW(3)
-       AND email IS NOT NULL
-       AND LOWER(TRIM(email)) = ?
-     LIMIT 1`,
-    [norm]
-  );
-  return rows.length > 0;
+  const row = rows[0];
+  if (!row) return null;
+
+  const gridIndex = Number(row.grid_index);
+  let slotTimeKey;
+  try {
+    slotTimeKey = timeKeyForGridIndex(gridIndex);
+  } catch {
+    return null;
+  }
+
+  const exp = row.lock_expires_at;
+  const expDate = exp instanceof Date ? exp : new Date(exp);
+  if (Number.isNaN(expDate.getTime())) return null;
+
+  return {
+    slotLocalDate: mysqlLocalDateToYmd(row.local_date),
+    slotTimeKey,
+    lockExpiresAt: expDate.toISOString(),
+  };
+}
+
+/**
+ * True if `email` is set on another non-expired lock (not the excepted slot/token pair).
+ */
+async function hasActiveLockForEmailExcept(email, exceptSlotId, exceptLockToken) {
+  const conflict = await findActiveLockForEmailExcept(email, exceptSlotId, exceptLockToken);
+  return conflict != null;
 }
 
 async function createLock(slotId, lockToken, expiresAt, email = null) {
@@ -169,6 +197,7 @@ async function deleteExpiredSlotLocksBatch(batchSize) {
 
 module.exports = {
   getActiveLockForSlot,
+  findActiveLockForEmailExcept,
   hasActiveLockForEmailExcept,
   createLock,
   findValidLock,

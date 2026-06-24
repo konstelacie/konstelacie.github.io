@@ -16,10 +16,13 @@ async function ensureEmailAvailableForBooking(email, opts = {}) {
     );
   }
   const { exceptSlotId, exceptLockToken } = opts;
-  if (
-    await locksRepo.hasActiveLockForEmailExcept(email, exceptSlotId ?? null, exceptLockToken ?? null)
-  ) {
-    throw new ApiError('EMAIL_HAS_LOCK', 'Email already holds another slot', 409);
+  const lockConflict = await locksRepo.findActiveLockForEmailExcept(
+    email,
+    exceptSlotId ?? null,
+    exceptLockToken ?? null
+  );
+  if (lockConflict) {
+    throw new ApiError('EMAIL_HAS_LOCK', 'Email already holds another slot', 409, lockConflict);
   }
 }
 
