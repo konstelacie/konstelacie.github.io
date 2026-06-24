@@ -133,7 +133,7 @@ test('buildSupportEmailHtml renders message as paragraphs and phone as plain tex
     reservationIdUnverified: null,
     checkoutSessionId: null,
     context: null,
-    recipientMasked: null,
+    originalRecipientEmail: null,
   });
 
   assert.match(html, /Správa od používateľa/);
@@ -155,7 +155,7 @@ test('buildSupportEmailHtml labels unverified reservation id', () => {
     reservationIdUnverified: '99999',
     checkoutSessionId: null,
     context: null,
-    recipientMasked: null,
+    originalRecipientEmail: null,
   });
 
   assert.match(html, /ID rezervácie \(neoverené\)/);
@@ -163,12 +163,34 @@ test('buildSupportEmailHtml labels unverified reservation id', () => {
   assert.doesNotMatch(html, />ID rezervácie<\/td>/);
 });
 
+test('buildSupportEmailHtml shows unmasked original booking email', () => {
+  const html = buildSupportEmailHtml({
+    message: 'Potrebujem pomoc.',
+    email: 'contact@example.com',
+    phone: null,
+    reservationId: '42',
+    reservationIdUnverified: null,
+    checkoutSessionId: null,
+    context: null,
+    originalRecipientEmail: 'booking@example.com',
+  });
+
+  assert.match(html, /E-mail od - pôvodný/);
+  assert.match(html, /booking@example.com/);
+  assert.doesNotMatch(html, /b\*\*\*@example\.com/);
+});
+
 test('resolveReservationIdForEmail returns verified id when reservation exists', async () => {
-  reservationsRepo.getById = async (id) => (id === 42 ? { id: 42 } : null);
+  reservationsRepo.getById = async (id) =>
+    id === 42 ? { id: 42, email: 'guest@example.com' } : null;
 
   const result = await resolveReservationIdForEmail('42');
 
-  assert.deepEqual(result, { verified: '42', unverified: null });
+  assert.deepEqual(result, {
+    verified: '42',
+    unverified: null,
+    reservationEmail: 'guest@example.com',
+  });
 });
 
 test('resolveReservationIdForEmail drops numeric id when reservation does not exist', async () => {
@@ -176,7 +198,7 @@ test('resolveReservationIdForEmail drops numeric id when reservation does not ex
 
   const result = await resolveReservationIdForEmail('99');
 
-  assert.deepEqual(result, { verified: null, unverified: null });
+  assert.deepEqual(result, { verified: null, unverified: null, reservationEmail: null });
 });
 
 test('resolveReservationIdForEmail labels non-numeric id as unverified without repo lookup', async () => {
@@ -188,7 +210,7 @@ test('resolveReservationIdForEmail labels non-numeric id as unverified without r
 
   const result = await resolveReservationIdForEmail('abc');
 
-  assert.deepEqual(result, { verified: null, unverified: 'abc' });
+  assert.deepEqual(result, { verified: null, unverified: 'abc', reservationEmail: null });
   assert.equal(called, false);
 });
 
@@ -199,16 +221,22 @@ test('resolveReservationIdForEmail falls back to unverified when repo lookup thr
 
   const result = await resolveReservationIdForEmail('7');
 
-  assert.deepEqual(result, { verified: null, unverified: '7' });
+  assert.deepEqual(result, { verified: null, unverified: '7', reservationEmail: null });
 });
 
-test('resolveCheckoutSessionIdForEmail returns id when payment exists', async () => {
+test('resolveCheckoutSessionIdForEmail returns id and reservation email when payment exists', async () => {
   const sessionId = 'cs_test_abc123';
-  paymentsRepo.findByProviderRef = async (ref) => (ref === sessionId ? { id: 1 } : null);
+  paymentsRepo.findByProviderRef = async (ref) =>
+    ref === sessionId ? { id: 1, reservation_id: 42 } : null;
+  reservationsRepo.getById = async (id) =>
+    id === 42 ? { id: 42, email: 'guest@example.com' } : null;
 
   const result = await resolveCheckoutSessionIdForEmail(sessionId);
 
-  assert.equal(result, sessionId);
+  assert.deepEqual(result, {
+    checkoutSessionId: sessionId,
+    reservationEmail: 'guest@example.com',
+  });
 });
 
 test('resolveCheckoutSessionIdForEmail returns null when payment not found', async () => {
@@ -216,7 +244,7 @@ test('resolveCheckoutSessionIdForEmail returns null when payment not found', asy
 
   const result = await resolveCheckoutSessionIdForEmail('cs_test_missing');
 
-  assert.equal(result, null);
+  assert.deepEqual(result, { checkoutSessionId: null, reservationEmail: null });
 });
 
 test('resolveCheckoutSessionIdForEmail returns null for invalid format without repo lookup', async () => {
@@ -228,7 +256,7 @@ test('resolveCheckoutSessionIdForEmail returns null for invalid format without r
 
   const result = await resolveCheckoutSessionIdForEmail('pi_abc123');
 
-  assert.equal(result, null);
+  assert.deepEqual(result, { checkoutSessionId: null, reservationEmail: null });
   assert.equal(called, false);
 });
 
@@ -239,7 +267,7 @@ test('resolveCheckoutSessionIdForEmail returns null when repo lookup throws', as
 
   const result = await resolveCheckoutSessionIdForEmail('cs_test_err');
 
-  assert.equal(result, null);
+  assert.deepEqual(result, { checkoutSessionId: null, reservationEmail: null });
 });
 
 test('sendSupportContact still sends email when reservation lookup throws', async () => {

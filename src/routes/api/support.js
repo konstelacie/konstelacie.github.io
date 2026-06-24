@@ -17,7 +17,6 @@ router.post(
       reservationId: body.reservationId,
       checkoutSessionId: body.checkoutSessionId,
       context: body.context,
-      recipientMasked: body.recipientMasked,
     });
     res.json({ ok: true });
   })

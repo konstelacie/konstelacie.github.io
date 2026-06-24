@@ -12,8 +12,6 @@ const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const MAX_CONTEXT_LEN = 64;
 const MAX_RESERVATION_ID_LEN = 32;
 const MAX_CHECKOUT_SESSION_ID_LEN = 128;
-const MAX_RECIPIENT_MASKED_LEN = 120;
-
 const PHONE_PATTERN = /^[\d\s+()\-./]+$/;
 
 function escapeHtml(s) {
@@ -112,12 +110,14 @@ function buildSupportEmailHtml({
   reservationIdUnverified,
   checkoutSessionId,
   context,
-  recipientMasked,
+  originalRecipientEmail,
 }) {
   const rows = [
     ['Správa od používateľa', plainTextToHtmlParagraphs(message)],
     ['Email od', escapeHtml(email)],
-    recipientMasked ? ['E-mail od - pôvodný', escapeHtml(recipientMasked)] : null,
+    originalRecipientEmail
+      ? ['E-mail od - pôvodný', escapeHtml(originalRecipientEmail)]
+      : null,
     phone ? ['Telefón', escapeHtml(phone)] : null,
     reservationId ? ['ID rezervácie', escapeHtml(reservationId)] : null,
     reservationIdUnverified
@@ -147,39 +147,56 @@ function buildSupportEmailHtml({
 }
 
 /**
- * @returns {Promise<{ verified: string|null, unverified: string|null }>}
+ * @returns {Promise<{ verified: string|null, unverified: string|null, reservationEmail: string|null }>}
  */
 async function resolveReservationIdForEmail(rawId) {
   const normalized = normalizeOptionalString(rawId, MAX_RESERVATION_ID_LEN);
-  if (!normalized) return { verified: null, unverified: null };
+  if (!normalized) return { verified: null, unverified: null, reservationEmail: null };
 
   const numericId = Number(normalized);
   if (!Number.isInteger(numericId) || numericId < 1) {
-    return { verified: null, unverified: normalized };
+    return { verified: null, unverified: normalized, reservationEmail: null };
   }
 
   try {
     const row = await reservationsRepo.getById(numericId);
-    if (row) return { verified: String(numericId), unverified: null };
-    return { verified: null, unverified: null };
+    if (row) {
+      return {
+        verified: String(numericId),
+        unverified: null,
+        reservationEmail: normalizeOptionalString(row.email, MAX_EMAIL_LEN),
+      };
+    }
+    return { verified: null, unverified: null, reservationEmail: null };
   } catch (err) {
     console.error('[support] reservation lookup failed, falling back to unverified', err);
-    return { verified: null, unverified: normalized };
+    return { verified: null, unverified: normalized, reservationEmail: null };
   }
 }
 
 /**
- * @returns {Promise<string|null>}
+ * @returns {Promise<{ checkoutSessionId: string|null, reservationEmail: string|null }>}
  */
 async function resolveCheckoutSessionIdForEmail(rawId) {
   const id = validateCheckoutSessionId(rawId, { throwOnInvalid: false });
-  if (!id) return null;
+  if (!id) return { checkoutSessionId: null, reservationEmail: null };
   try {
     const payment = await paymentsRepo.findByProviderRef(id);
-    return payment ? id : null;
+    if (!payment) return { checkoutSessionId: null, reservationEmail: null };
+
+    let reservationEmail = null;
+    if (payment.reservation_id) {
+      try {
+        const row = await reservationsRepo.getById(payment.reservation_id);
+        reservationEmail = normalizeOptionalString(row?.email, MAX_EMAIL_LEN);
+      } catch (err) {
+        console.error('[support] reservation email lookup via payment failed', err);
+      }
+    }
+    return { checkoutSessionId: id, reservationEmail };
   } catch (err) {
     console.error('[support] checkout session lookup failed, omitting from email', err);
-    return null;
+    return { checkoutSessionId: null, reservationEmail: null };
   }
 }
 
@@ -191,17 +208,20 @@ async function resolveCheckoutSessionIdForEmail(rawId) {
  * @param {string} [input.reservationId]
  * @param {string} [input.checkoutSessionId]
  * @param {string} [input.context]
- * @param {string} [input.recipientMasked]
  */
 async function sendSupportContact(input) {
   const message = validateMessage(input?.message);
   const email = validateContactEmail(input?.email);
   const phone = validatePhone(input?.phone);
-  const { verified: reservationId, unverified: reservationIdUnverified } =
-    await resolveReservationIdForEmail(input?.reservationId);
-  const checkoutSessionId = await resolveCheckoutSessionIdForEmail(input?.checkoutSessionId);
+  const {
+    verified: reservationId,
+    unverified: reservationIdUnverified,
+    reservationEmail,
+  } = await resolveReservationIdForEmail(input?.reservationId);
+  const { checkoutSessionId, reservationEmail: checkoutReservationEmail } =
+    await resolveCheckoutSessionIdForEmail(input?.checkoutSessionId);
   const context = normalizeOptionalString(input?.context, MAX_CONTEXT_LEN);
-  const recipientMasked = normalizeOptionalString(input?.recipientMasked, MAX_RECIPIENT_MASKED_LEN);
+  const originalRecipientEmail = reservationEmail || checkoutReservationEmail || null;
 
   const to = config.site?.supportEmail;
   if (!to) {
@@ -218,7 +238,7 @@ async function sendSupportContact(input) {
     reservationIdUnverified,
     checkoutSessionId,
     context,
-    recipientMasked,
+    originalRecipientEmail,
   });
 
   const result = await emailProvider.sendEmail(to, subject, html, {
