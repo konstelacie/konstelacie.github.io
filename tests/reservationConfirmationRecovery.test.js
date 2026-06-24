@@ -23,6 +23,11 @@ test('recovery service excludes current reservation from email duplicate check',
   assert.match(reservationsRepoSrc, /exceptReservationId/);
 });
 
+test('recovery service passes showAsResend false for bounce/failed fix', () => {
+  assert.match(recoverySrc, /resend:\s*true/);
+  assert.match(recoverySrc, /showAsResend:\s*false/);
+});
+
 test('payments router exposes fix-confirmation-email endpoint', () => {
   assert.match(paymentsSrc, /\/fix-confirmation-email/);
   assert.match(paymentsSrc, /fixConfirmationEmailForCheckoutSession/);

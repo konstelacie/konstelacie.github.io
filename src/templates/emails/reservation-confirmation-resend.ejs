@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="sk">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title><%= isFullPayment ? 'Platba je dokončená (znova)' : 'Rezervácia je potvrdená (znova)' %></title>
+</head>
+<body style="margin: 0; padding: 0; font-family: system-ui, -apple-system, 'Segoe UI', sans-serif; font-size: 16px; line-height: 1.6; color: #0f172a; background-color: #f8fafc;">
+  <div style="max-width: 600px; margin: 0 auto; padding: 24px;">
+<% if (isFullPayment) { %>
+    <h1 style="margin: 0 0 24px; font-size: 1.5rem; font-weight: 600;">Platba je dokončená (znova)</h1>
+
+    <p style="margin: 0 0 16px;">Ahoj,</p>
+    <p style="margin: 0 0 16px;">Posielame ti znova potvrdenie rezervácie (na žiadosť administrátora alebo opätovné doručenie).</p>
+    <p style="margin: 0 0 24px;">Tvoja platba prebehla v poriadku a termín máš rezervovaný.</p>
+<% } else { %>
+    <h1 style="margin: 0 0 24px; font-size: 1.5rem; font-weight: 600;">Rezervácia je potvrdená (znova)</h1>
+
+    <p style="margin: 0 0 16px;">Ahoj,</p>
+    <p style="margin: 0 0 16px;">Posielame ti znova potvrdenie rezervácie (na žiadosť administrátora alebo opätovné doručenie).</p>
+    <p style="margin: 0 0 24px;">Teším sa, že všetko prebehlo v poriadku a rezerváciu Ti môžem potvrdiť.</p>
+<% } %>
+
+    <div style="background: #ffffff; border: 1px solid #e2e8f0; border-radius: 8px; padding: 20px; margin-bottom: 24px;">
+      <p style="margin: 0 0 8px; font-weight: 600;">Termín</p>
+      <p style="margin: 0 0 16px; color: #334155;"><%= slotDateFormatted %> o <%= slotTimeFormatted %> (<%= timezone %>)</p>
+      <p style="margin: 0 0 8px; font-weight: 600;"><%= isFullPayment ? 'Zaplatená suma' : 'Zaplatená rezervačná suma' %></p>
+      <p style="margin: 0; color: #334155;"><%= amountFormatted %></p>
+    </div>
+
+    <div style="background: #ffffff; border: 1px solid #e2e8f0; border-radius: 8px; padding: 20px; margin-bottom: 24px;">
+      <p style="margin: 0 0 8px; font-weight: 600;">Odkaz na stretnutie</p>
+<% if (meetingUrl) { %>
+      <p style="margin: 0 0 12px;"><a href="<%= meetingUrl %>" style="color: #2563eb; word-break: break-all;"><%= meetingUrl %></a></p>
+<% } else { %>
+      <p style="margin: 0 0 12px; color: #334155;">[SEM DÁŠ LINK]</p>
+<% } %>
+      <p style="margin: 0; color: #334155;">Stačí sa pripojiť v dohodnutom čase cez tento odkaz.</p>
+    </div>
+
+<% if (isFullPayment) { %>
+    <p style="margin: 0 0 16px;">Pred termínom ti môže prísť ešte pripomienka.</p>
+    <p style="margin: 0 0 24px; color: #64748b; font-size: 0.9rem;">Ak máš otázky, pokojne mi odpíš na tento e-mail.</p>
+<% } else { %>
+    <p style="margin: 0 0 16px;">Pred termínom ti môže prísť ešte pripomienka.</p>
+    <p style="margin: 0 0 24px; color: #64748b; font-size: 0.9rem;">Ak máš otázky, pokojne mi odpíš na tento e-mail.</p>
+<% } %>
+
+    <p style="margin: 0; color: #64748b; font-size: 0.875rem;">Tesím sa na sedenie,<br>Michal</p>
+  </div>
+</body>
+</html>

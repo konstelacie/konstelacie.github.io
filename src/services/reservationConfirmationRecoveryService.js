@@ -117,6 +117,7 @@ async function fixConfirmationEmailForCheckoutSession(sessionId, newEmail) {
       currency: payment.currency,
       bookingPaymentType: reservation.reservation_payment_type === 'full' ? 'full' : 'deposit',
       resend: true,
+      showAsResend: false,
     },
     { entity_type: 'reservation', entity_id: reservation.id, actorType: 'system' }
   );

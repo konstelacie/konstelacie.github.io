@@ -85,12 +85,21 @@ const MAX_BALANCE_PAY_INVITE_MESSAGE_LEN = 8000;
  * @param {number} params.amountCents - Amount paid in cents
  * @param {string} [params.currency='eur'] - Currency code
  * @param {'deposit'|'full'} [params.bookingPaymentType='deposit'] - Reservation fee only vs full session upfront (from reservations.payment_type)
- * @param {boolean} [params.resend=false] - Admin resend uses template id reservation-confirmation-resend
+ * @param {boolean} [params.resend=false] - Technical resend (logging: reservation-confirmation-resend)
+ * @param {boolean} [params.showAsResend=false] - Customer-facing resend copy and "(znova)" in subject
  * @param {object} [metadata] - Optional metadata for logging
  * @returns {Promise<{ok: boolean, skipped?: boolean, messageId?: string}>}
  */
 async function sendReservationConfirmation(
-  { to, slot, amountCents, currency = 'eur', bookingPaymentType = 'deposit', resend = false },
+  {
+    to,
+    slot,
+    amountCents,
+    currency = 'eur',
+    bookingPaymentType = 'deposit',
+    resend = false,
+    showAsResend = false,
+  },
   metadata = {}
 ) {
   const tz = slot.timezone || 'Europe/Bratislava';
@@ -101,19 +110,20 @@ async function sendReservationConfirmation(
 
   const meetingUrl = (process.env.SESSION_MEETING_URL || '').trim() || null;
 
-  const html = await ejs.renderFile(
-    path.join(EMAIL_TEMPLATES_DIR, 'reservation-confirmation.ejs'),
-    {
-      slotDateFormatted,
-      slotTimeFormatted,
-      timezone: tz,
-      amountFormatted,
-      isFullPayment,
-      meetingUrl,
-    }
-  );
+  const templateFile = showAsResend
+    ? 'reservation-confirmation-resend.ejs'
+    : 'reservation-confirmation.ejs';
 
-  const subject = resend
+  const html = await ejs.renderFile(path.join(EMAIL_TEMPLATES_DIR, templateFile), {
+    slotDateFormatted,
+    slotTimeFormatted,
+    timezone: tz,
+    amountFormatted,
+    isFullPayment,
+    meetingUrl,
+  });
+
+  const subject = showAsResend
     ? isFullPayment
       ? 'Platba je dokončená — rezervácia potvrdená (znova)'
       : 'Rezervácia je potvrdená (znova)'

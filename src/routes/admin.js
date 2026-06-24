@@ -1153,6 +1153,7 @@ router.post('/reservations/:id/resend-confirmation', requireAdmin, async (req, r
         currency: completedPayment.currency,
         bookingPaymentType: raw.reservation.payment_type === 'full' ? 'full' : 'deposit',
         resend: true,
+        showAsResend: true,
       },
       { entity_type: 'reservation', entity_id: id, actorType: 'admin' }
     );
