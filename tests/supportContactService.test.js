@@ -139,7 +139,7 @@ test('buildSupportEmailHtml renders message as paragraphs and phone as plain tex
   assert.match(html, /Správa od používateľa/);
   assert.match(html, /<p style="margin:0 0 12px;">Riadok jedna<\/p>/);
   assert.match(html, /Riadok dva/);
-  assert.match(html, /Váš e-mail/);
+  assert.match(html, /Email od/);
   assert.match(html, /user@example.com/);
   assert.match(html, /Telefón/);
   assert.match(html, /\+421 901 234 567/);

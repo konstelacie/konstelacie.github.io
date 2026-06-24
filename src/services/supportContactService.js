@@ -116,9 +116,9 @@ function buildSupportEmailHtml({
 }) {
   const rows = [
     ['Správa od používateľa', plainTextToHtmlParagraphs(message)],
-    ['Váš e-mail', escapeHtml(email)],
+    ['Email od', escapeHtml(email)],
+    recipientMasked ? ['E-mail od - pôvodný', escapeHtml(recipientMasked)] : null,
     phone ? ['Telefón', escapeHtml(phone)] : null,
-    recipientMasked ? ['E-mail (maskovaný)', escapeHtml(recipientMasked)] : null,
     reservationId ? ['ID rezervácie', escapeHtml(reservationId)] : null,
     reservationIdUnverified
       ? ['ID rezervácie (neoverené)', escapeHtml(reservationIdUnverified)]
