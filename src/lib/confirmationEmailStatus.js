@@ -25,8 +25,13 @@ function maskRecipientEmail(email) {
  * @returns {'pending'|'sent'|'bounced'|'failed'}
  */
 function resolveConfirmationEmailStatus(task, logRow) {
-  if (logRow && BOUNCED_STATUSES.has(logRow.delivery_status)) {
-    return 'bounced';
+  if (logRow) {
+    if (BOUNCED_STATUSES.has(logRow.delivery_status)) {
+      return 'bounced';
+    }
+    // Latest non-bounced log (including reservation-confirmation-resend) wins over an
+    // exhausted delivery task or an earlier bounce on a prior send attempt.
+    return 'sent';
   }
 
   if (task) {
@@ -35,17 +40,10 @@ function resolveConfirmationEmailStatus(task, logRow) {
     if (exhausted) {
       return 'failed';
     }
-    if (logRow) {
-      return 'sent';
-    }
     if (task.status === 'sent') {
       return 'sent';
     }
     return 'pending';
-  }
-
-  if (logRow) {
-    return 'sent';
   }
 
   return 'pending';

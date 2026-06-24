@@ -45,6 +45,26 @@ test('resolveConfirmationEmailStatus returns failed when task exhausted', () => 
   );
 });
 
+test('resolveConfirmationEmailStatus returns sent when resend log supersedes exhausted task', () => {
+  assert.equal(
+    resolveConfirmationEmailStatus(
+      { status: 'failed', attempt_count: 5, max_attempts: 5 },
+      { delivery_status: 'accepted', template_id: 'reservation-confirmation-resend' }
+    ),
+    'sent'
+  );
+});
+
+test('resolveConfirmationEmailStatus returns sent when resend log supersedes earlier bounce', () => {
+  assert.equal(
+    resolveConfirmationEmailStatus(
+      { status: 'sent', attempt_count: 1, max_attempts: 5 },
+      { delivery_status: 'delivered', template_id: 'reservation-confirmation-resend' }
+    ),
+    'sent'
+  );
+});
+
 test('buildConfirmationEmailPayload returns null without task or log', () => {
   assert.equal(buildConfirmationEmailPayload(null, null), null);
 });

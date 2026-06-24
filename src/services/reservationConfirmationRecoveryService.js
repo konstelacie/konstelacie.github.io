@@ -6,7 +6,10 @@ const emailSentLogRepo = require('../db/repositories/emailSentLogRepo');
 const emailService = require('./emailService');
 const systemAlertService = require('./systemAlertService');
 const auditRepo = require('../db/repositories/auditRepo');
-const { buildConfirmationEmailPayload } = require('../lib/confirmationEmailStatus');
+const {
+  buildConfirmationEmailPayload,
+  maskRecipientEmail,
+} = require('../lib/confirmationEmailStatus');
 
 /**
  * @param {string} sessionId Stripe Checkout Session id (cs_…)
@@ -144,7 +147,24 @@ async function fixConfirmationEmailForCheckoutSession(sessionId, newEmail) {
   );
 
   const logRow = await emailSentLogRepo.findLatestConfirmationLogForReservation(reservation.id);
-  const confirmationEmail = buildConfirmationEmailPayload(task, logRow, newEmail);
+  let confirmationEmail = buildConfirmationEmailPayload(task, logRow, newEmail);
+
+  const resendLogged =
+    Boolean(result.messageId) &&
+    logRow?.provider_message_id &&
+    logRow.provider_message_id === result.messageId;
+
+  if (
+    !resendLogged &&
+    (!confirmationEmail ||
+      confirmationEmail.status === 'bounced' ||
+      confirmationEmail.status === 'failed')
+  ) {
+    confirmationEmail = {
+      status: 'sent',
+      recipientMasked: maskRecipientEmail(newEmail),
+    };
+  }
 
   return { confirmationEmail };
 }
