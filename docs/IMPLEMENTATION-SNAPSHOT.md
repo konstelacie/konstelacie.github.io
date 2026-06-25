@@ -134,7 +134,7 @@ All JSON APIs use `requestId` middleware. Base: `src/routes/api/index.js`.
 
 ## Database schema (MySQL)
 
-**Source of truth:** `src/db/migrations/001_initial.sql`.
+**Source of truth:** `src/db/migrations/001_initial.sql` (frozen baseline at go-live) plus newer numbered migrations. See `docs/DB-MIGRATIONS.md`.
 
 **Database name:** `citim_teda_som` (created in migration).
 

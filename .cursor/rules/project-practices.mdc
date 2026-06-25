@@ -24,13 +24,14 @@ alwaysApply: true
 
 **Naming:** File names in English; user-facing (URLs, copy) in Slovak; dev/code in English.
 
-## Dev Phase: Data & Schema
+## Live: Data & Schema
 
-We are **not live yet**. No legacy data to protect.
+**We are live** (since 2026-06). Production data must be preserved.
 
-- **Refactors:** Do hard dev refactors without legacy support. No backward compatibility for old data.
-- **Database:** Use **drop/create** for schema changes and **delete/insert** for data. Avoid `ALTER`, `UPDATE`, or migration scripts until we go live.
-- **Migration file:** When schema changes, always edit `src/db/migrations/001_initial.sql`. Do not add new migration files—we always recreate the database while not live; git tracks history.
+- **No DB replacement:** Never run `yarn db:reset` on production. Do not drop/recreate the database or tables for schema changes.
+- **Schema changes:** Add a **new** numbered migration file in `src/db/migrations/` (e.g. `002_add_foo.sql`). Each script must be **idempotent** and safe to run on the live DB (`IF NOT EXISTS`, guarded `ALTER`, etc.). Apply with `yarn db:migrate` only.
+- **Baseline:** `001_initial.sql` is frozen—it was applied at go-live. Do not edit it for new changes; git history + new files carry forward.
+- **Data changes:** Use normal `UPDATE` / `INSERT` as needed; avoid destructive bulk deletes without operator intent.
 
 ## Migration infra (do not touch)
 

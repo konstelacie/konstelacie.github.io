@@ -2,6 +2,16 @@
 
 How to run database migrations for citimtedasom.sk. For schema structure, tables, and relationships, see `docs/DB-SCHEMA.md`. For env usage across the app (including when the DB pool is disabled), see `docs/IMPLEMENTATION-SNAPSHOT.md`.
 
+## Live phase (since 2026-06)
+
+**Production is live.** From this point:
+
+- **Do not** drop/recreate the database or run `yarn db:reset` on production—that destroys live data.
+- **`001_initial.sql`** is the frozen baseline (already applied at go-live). Do **not** edit it for new schema changes.
+- **New schema changes:** add the next numbered file in `src/db/migrations/` (e.g. `002_add_columns.sql`). Write **idempotent** SQL safe to run on the live DB (`CREATE TABLE IF NOT EXISTS`, guarded `ALTER TABLE`, etc.). The runner skips files already recorded in `schema_migrations`.
+- **Apply:** `yarn db:migrate` on each environment after backup (production) or locally.
+- **Local-only reset:** `yarn db:reset` remains for empty local databases only; it refuses when `NODE_ENV=production`.
+
 ## Required env vars
 
 Set in `.env` (or environment). Copy from `.env.example` at the repo root.
@@ -53,7 +63,7 @@ yarn db:status
 1. **SSH:** Deploy code, then run `yarn db:migrate` in the app directory.
 2. **Admin SQL console:** If you prefer, run migration SQL manually from `src/db/migrations/` in order.
 
-Broader production setup (security env, cron, Stripe, verification checklist) is in **`docs/DEPLOY-ALWAYSDATA.md`** (for go-live; we are not on prod yet).
+Broader production setup (security env, cron, Stripe, verification checklist) is in **`docs/DEPLOY-ALWAYSDATA.md`**.
 
 ## Billing PDF storage (after migrate)
 
@@ -68,5 +78,6 @@ Do not treat PDFs as disposable cache on production unless you accept broken “
 ## Safety notes
 
 - **Backup before applying on production.** Use alwaysdata backup or `mysqldump` before running migrations.
-- Migrations are idempotent: running twice does nothing (already-applied migrations are skipped).
+- **Never `yarn db:reset` on production**—only for wiping a local/dev database.
+- Each **new** migration file must be idempotent on its own (safe if re-run manually during debugging) **and** the runner skips already-applied files.
 - On error, the runner stops and exits with a nonzero code.

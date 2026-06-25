@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 /**
  * DB migration runner for citimtedasom.sk
+ * Live (since 2026-06): add new numbered .sql files with idempotent SQL; never db:reset prod.
  * Uses mysql2/promise and env vars: DB_HOST, DB_PORT, DB_USER, DB_PASSWORD, DB_NAME
  * Run: yarn db:migrate | yarn db:status
  */

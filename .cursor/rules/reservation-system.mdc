@@ -14,4 +14,4 @@ When implementing booking, slots, reservations, or payments:
 - Slot lock = 15 min; validate lock before create reservation
 - Payment confirmation = webhook only (see `docs/STRIPE-ARCHITECTURE.md`)
 - Pricing rules from `docs/SESSION-PRICING.md`
-- **Dev phase:** Schema = drop/create; data = delete/insert. No ALTER/UPDATE until live.
+- **Live:** Schema via new idempotent migration files + `yarn db:migrate`; never `db:reset` on production (see `docs/DB-MIGRATIONS.md`).

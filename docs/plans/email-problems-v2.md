@@ -1,5 +1,7 @@
 # Implementation Plan: Handling Mistyped / Bounced Emails (v2)
 
+> **Historical (pre-live):** Schema steps below assumed editing `001_initial.sql` + `db:reset`. Since go-live (2026-06), add idempotent `002_*.sql` migrations instead — see `docs/DB-MIGRATIONS.md`.
+
 > Revision incorporating Cursor's review. Corrections from the first pass are folded in directly rather than listed as a diff — this is the version to hand to an agent for implementation.
 
 ## Context

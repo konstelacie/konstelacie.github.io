@@ -13,4 +13,4 @@ globs: ["scripts/db-migrate.js", "src/db/migrations/*.sql"]
 
 You may **suggest** changes but must **not apply** them. The migration infra is intentionally minimal.
 
-**Allowed:** Editing `001_initial.sql` to add or change application tables (users, slots, etc.) per project practices. After schema changes, update `docs/DB-SCHEMA.md` to match.
+**Live (since 2026-06):** `001_initial.sql` is frozen baseline—do not edit for new schema. Add new numbered migration files (`002_*.sql`, …) with **idempotent** SQL safe on production; apply via `yarn db:migrate`. Never `yarn db:reset` on production. After schema changes, update `docs/DB-SCHEMA.md`.

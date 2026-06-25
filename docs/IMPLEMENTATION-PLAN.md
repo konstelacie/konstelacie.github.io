@@ -4,7 +4,7 @@
 
 **How to use:** Pick an item; implement; update this file, `IMPLEMENTATION-SNAPSHOT.md`, and affected docs (`API.md`, `DB-SCHEMA.md`, integration docs) in the same effort.
 
-**Phase:** Early dev — no legacy data constraints (see `docs/PRACTICES.md`).
+**Phase:** Live — preserve production data; schema via new idempotent migrations (see `docs/PRACTICES.md`, `docs/DB-MIGRATIONS.md`).
 
 ---
 

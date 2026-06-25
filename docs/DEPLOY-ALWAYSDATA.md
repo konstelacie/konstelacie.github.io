@@ -1,6 +1,6 @@
 # Production deployment on alwaysdata
 
-**Status:** This guide is for **when we go live** on alwaysdata. **We are not in production yet**—use it as a checklist and reference; values and URLs are placeholders until launch.
+**Status:** Production runs on alwaysdata (live since 2026-06). Use this as the deployment and operations checklist.
 
 **Hosting:** The site runs on [alwaysdata](https://www.alwaysdata.com/) (not GitHub Pages). See also `docs/PRACTICES.md`.
 

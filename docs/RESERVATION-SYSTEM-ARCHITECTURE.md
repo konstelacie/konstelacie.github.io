@@ -302,7 +302,7 @@ Index: `(action, created_at)`, `(entity_type, entity_id)`.
 - **Slot creation:** Operator UI at `/admin/slots` (single + bulk); see `docs/ui-ux/admin-interface.md`.
 - **DB hygiene:** `/admin/maintenance` — purge expired `slot_locks`; purge past slots with no reservations (see §6 Lock expiry).
 - **Monitoring:** Health check for DB; log webhook failures; optional alert on repeated 5xx.
-- **Migrations:** Single source file `src/db/migrations/001_initial.sql` (recreate DB while not live); see project practices.
+- **Migrations:** Baseline `src/db/migrations/001_initial.sql` (frozen at go-live); new idempotent files + `yarn db:migrate` on live DB—see `docs/DB-MIGRATIONS.md`.
 
 ---
 

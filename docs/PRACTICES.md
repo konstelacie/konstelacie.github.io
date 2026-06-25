@@ -2,24 +2,25 @@
 
 **For AI assistants (Cursor, Copilot, etc.):** Follow these rules when editing this codebase. Apply them consistently.
 
-**Deployment:** We deploy on alwaysdata (not GitHub Pages). Production checklist (env, cron, Stripe)—for when we go live: `docs/DEPLOY-ALWAYSDATA.md`. Page visibility and dual Stripe/KROS backends: `docs/PAGE-VISIBILITY.md`.
+**Deployment:** We deploy on alwaysdata (not GitHub Pages). Production checklist (env, cron, Stripe): `docs/DEPLOY-ALWAYSDATA.md`. Page visibility and dual Stripe/KROS backends: `docs/PAGE-VISIBILITY.md`.
 
-**Phase:** We are in **early dev phase**—not live yet. Testing and release flows are in `docs/STRIPE-ARCHITECTURE.md` (Section 10).
+**Phase:** **Live** since 2026-06. Stripe testing and release flows: `docs/STRIPE-ARCHITECTURE.md` (Section 10).
 
 ---
 
-## Dev Phase: Data & Schema
+## Live: Data & Schema
 
-**We are in early dev phase.** We are not live yet. There is no legacy data to protect.
+**We are live.** Production data must be preserved.
 
 | Rule | Meaning |
 |------|---------|
-| **Hard refactors** | Do dev refactors without legacy support. No backward compatibility for old data structures. |
-| **Schema changes** | Use **drop/create** (drop table, create table). No `ALTER TABLE` or migration scripts. |
-| **Data changes** | Use **delete/insert** (delete rows, insert new). Avoid `UPDATE` for structural changes. |
-| **Migration file** | Always edit `src/db/migrations/001_initial.sql` when the schema changes. Do not add new migration files—we always recreate the database while not live; git tracks history. |
+| **No DB replacement** | Never run `yarn db:reset` on production. Do not drop/recreate the database or tables for schema changes. |
+| **Schema changes** | Add a **new** numbered file in `src/db/migrations/` (e.g. `002_add_foo.sql`). Each script must be **idempotent** and safe on the live DB. Apply with `yarn db:migrate`. |
+| **Baseline frozen** | `001_initial.sql` was applied at go-live—do **not** edit it for new changes. |
+| **Data changes** | Use normal `UPDATE` / `INSERT` as needed; avoid destructive bulk deletes without operator intent. |
+| **Docs** | After schema changes, update `docs/DB-SCHEMA.md` to match. |
 
-When we go live, we will introduce proper migrations and ALTER/UPDATE flows. Until then, keep schema and data changes simple and destructive.
+See `docs/DB-MIGRATIONS.md` for commands and safety notes.
 
 ---
 

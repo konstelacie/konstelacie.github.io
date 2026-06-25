@@ -304,7 +304,7 @@ audit_logs (standalone)
 | Doc | Content |
 |-----|---------|
 | `docs/IMPLEMENTATION-SNAPSHOT.md` | Code-first schema summary and env behavior |
-| `docs/DB-MIGRATIONS.md` | Migration commands, env vars, recreate workflow |
+| `docs/DB-MIGRATIONS.md` | Migration commands, env vars, live idempotent migration workflow |
 | `docs/RESERVATION-SYSTEM-ARCHITECTURE.md` | Booking flows, slots, locks, reservations |
 | `docs/STRIPE-ARCHITECTURE.md` | Payments, webhooks, Checkout Sessions |
 | `docs/SESSION-PRICING.md` | Amounts, deposit vs full payment |

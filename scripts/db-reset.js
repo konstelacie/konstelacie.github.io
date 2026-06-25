@@ -1,11 +1,18 @@
 #!/usr/bin/env node
 /**
- * Full DB reset: drop database, run migrations.
+ * LOCAL DEV ONLY — drops and recreates the database, then runs migrations.
+ * LIVE (since 2026-06): never run on production; use yarn db:migrate with new
+ * idempotent migration files instead. See docs/DB-MIGRATIONS.md.
  * Slots are created via the admin UI (no automatic seed).
- * Uses same DB config as db-migrate.js.
  * Run: yarn db:reset
  */
 require('dotenv').config();
+
+if (process.env.NODE_ENV === 'production') {
+  console.error('Error: db:reset must not run in production (NODE_ENV=production).');
+  console.error('Use yarn db:migrate with a new idempotent migration file instead.');
+  process.exit(1);
+}
 const mysql = require('mysql2/promise');
 const { execSync } = require('child_process');
 
@@ -23,7 +30,7 @@ async function run() {
     process.exit(1);
   }
 
-  // Connect without database to drop/create
+  // LOCAL ONLY: drop/create empty database
   const connConfig = { ...config, database: undefined };
   let conn;
   try {
