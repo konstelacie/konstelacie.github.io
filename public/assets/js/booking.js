@@ -1285,10 +1285,7 @@
   }
 
   function bumpPollBackoff() {
-    pollBackoffMs = Math.min(
-      pollBackoffMs === POLL_MS ? POLL_MS * 2 : pollBackoffMs * 2,
-      POLL_BACKOFF_MAX_MS
-    );
+    pollBackoffMs = Math.min(pollBackoffMs * 2, POLL_BACKOFF_MAX_MS);
   }
 
   function resetPollBackoff() {
@@ -1485,7 +1482,7 @@
     } finally {
       suppressCrossTabApply--;
     }
-    requestLoadSlots({ silent: true });
+    void requestLoadSlots({ silent: true });
   }
 
   function registerCrossTabSync() {
@@ -2336,8 +2333,9 @@
         stopPoll();
         return;
       }
+      resetPollBackoff();
       startPoll();
-      requestLoadSlots({ silent: true });
+      void requestLoadSlots({ silent: true });
     });
   }
 
