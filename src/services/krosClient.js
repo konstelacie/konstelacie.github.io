@@ -109,6 +109,35 @@ async function postInvoices(payload) {
   }
 }
 
+/**
+ * GET /api/invoices — list invoices filtered by query (used to resolve document id after async POST).
+ * @param {{ issueDateFrom?: string, issueDateTo?: string, numberingSequence?: string, top?: number, skip?: number }} query
+ */
+async function listInvoices(query = {}) {
+  try {
+    const params = new URLSearchParams();
+    if (query.issueDateFrom) params.set('IssueDateFrom', query.issueDateFrom);
+    if (query.issueDateTo) params.set('IssueDateTo', query.issueDateTo);
+    if (query.numberingSequence) params.set('NumberingSequence', query.numberingSequence);
+    params.set('Top', String(query.top != null ? query.top : 100));
+    params.set('Skip', String(query.skip != null ? query.skip : 0));
+    const url = `${KROS_BASE_URL}/invoices?${params.toString()}`;
+    return await fetchJson(url, {
+      method: 'GET',
+      headers: {
+        Authorization: authHeader(),
+      },
+    });
+  } catch (err) {
+    logLine({
+      level: 'error',
+      tag: 'kros_client_list_invoices_error',
+      error: err?.message || String(err),
+    });
+    throw err;
+  }
+}
+
 async function getInvoice(documentId) {
   try {
     return await fetchJson(`${KROS_BASE_URL}/invoices/${encodeURIComponent(String(documentId))}`, {
@@ -233,6 +262,7 @@ async function downloadInvoicePdf(documentId) {
 module.exports = {
   postInvoices,
   postPaymentsBatch,
+  listInvoices,
   getInvoice,
   getInvoiceVariableSymbol,
   downloadInvoicePdf,

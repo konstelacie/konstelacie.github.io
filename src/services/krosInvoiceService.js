@@ -21,10 +21,6 @@ function asIsoDate(value) {
   return null;
 }
 
-function nowMinusMinutes(minutes) {
-  return Date.now() - minutes * 60 * 1000;
-}
-
 function stringifyJson(value) {
   try {
     return JSON.stringify(value);
@@ -93,6 +89,16 @@ async function stampPdfWithLogo(pdfBuffer) {
 
 /** Printed on KROS invoice before / after line items (úvodný / záverečný text). */
 const KROS_INVOICE_OPENING_CLOSING_TEXT = '[UHRADENÉ]';
+
+/** Spôsob úhrady — same string on invoice POST and payment batch. */
+const KROS_PAYMENT_TYPE = 'Online platba';
+
+const KROS_DOCUMENT_RESOLVE_MAX_ATTEMPTS = 15;
+const KROS_DOCUMENT_RESOLVE_INTERVAL_MS = 2_000;
+
+function sleep(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
 
 /** Číselný rad faktúr: OF (prod), or e.g. T-OF when KROS_SEQUENCE_PREFIX_TEST=T. */
 function resolveNumberingSequence(prefix) {
@@ -168,7 +174,7 @@ function buildKrosPayload(row, backend) {
       issueDate: asIsoDate(row.issue_date),
       dueDate: asIsoDate(row.due_date),
       deliveryDate: asIsoDate(row.delivery_date),
-      paymentType: 'Online platba',
+      paymentType: KROS_PAYMENT_TYPE,
       bankAccount: {
         iban: row.supplier_iban || '',
         swift: row.supplier_swift || '',
@@ -184,9 +190,7 @@ function buildKrosPayload(row, backend) {
   };
 }
 
-/** KROS Payment.paymentType — CardPayment = 2 (Stripe / online card). */
-const KROS_PAYMENT_TYPE_CARD = 2;
-
+/** KROS Payment.paymentType — same label as invoice `paymentType`. */
 async function loadBillingDocumentForPaymentSync(pool, billingDocumentId) {
   const [rows] = await pool.execute(
     `SELECT id, payment_id, reservation_id, kros_external_id, kros_document_id,
@@ -213,7 +217,7 @@ function buildKrosPaymentPayload(row, variableSymbol) {
   const payment = {
     dateOfPayment: asIsoDate(row.paid_at),
     sumOfPayment: normalizeMoneyFromCents(row.amount_gross_cents),
-    paymentType: KROS_PAYMENT_TYPE_CARD,
+    paymentType: KROS_PAYMENT_TYPE,
   };
   if (vs) payment.variableSymbol = vs;
   if (externalId) payment.externalId = externalId;
@@ -254,6 +258,113 @@ async function resolveVariableSymbolForPayment(row) {
   const krosId = row.kros_document_id != null ? String(row.kros_document_id).trim() : '';
   if (!krosId) return null;
   return krosClient.getInvoiceVariableSymbol(krosId);
+}
+
+function findInvoiceByExternalId(body, externalId) {
+  const target = String(externalId || '').trim();
+  if (!target) return null;
+  const list = body && typeof body === 'object' && Array.isArray(body.data) ? body.data : [];
+  return (
+    list.find((item) => item && String(item.externalId || '').trim() === target) ||
+    null
+  );
+}
+
+/**
+ * Poll KROS until the invoice created via POST is queryable; persist `kros_document_id` locally.
+ * @returns {Promise<string|null>} KROS document id or null when not resolved in time
+ */
+async function resolveKrosDocumentId(
+  billingDocumentId,
+  { externalId, issueDate, numberingSequence } = {}
+) {
+  const pool = db.getPool();
+  if (!pool) return null;
+
+  const [existingRows] = await pool.execute(
+    'SELECT kros_document_id FROM billing_documents WHERE id = ? LIMIT 1',
+    [billingDocumentId]
+  );
+  const existingId =
+    existingRows[0]?.kros_document_id != null
+      ? String(existingRows[0].kros_document_id).trim()
+      : '';
+  if (existingId) {
+    return existingId;
+  }
+
+  const ext = String(externalId || '').trim();
+  if (!ext) return null;
+
+  logLine({
+    level: 'info',
+    tag: 'kros_document_resolve_start',
+    billingDocumentId,
+    externalId: ext,
+  });
+
+  for (let attempt = 1; attempt <= KROS_DOCUMENT_RESOLVE_MAX_ATTEMPTS; attempt += 1) {
+    const response = await krosClient.listInvoices({
+      issueDateFrom: issueDate,
+      issueDateTo: issueDate,
+      numberingSequence,
+      top: 100,
+    });
+
+    if (response.ok) {
+      const match = findInvoiceByExternalId(response.body, ext);
+      const documentId = match?.id != null ? String(match.id).trim() : '';
+      if (documentId) {
+        const variableSymbol =
+          match.variableSymbol != null ? String(match.variableSymbol).trim().slice(0, 20) : null;
+        await pool.execute(
+          `UPDATE billing_documents
+           SET kros_document_id = ?,
+               variable_symbol = COALESCE(?, variable_symbol)
+           WHERE id = ?
+             AND kros_document_id IS NULL`,
+          [documentId.slice(0, 50), variableSymbol, billingDocumentId]
+        );
+        logLine({
+          level: 'info',
+          tag: 'kros_document_resolve_success',
+          billingDocumentId,
+          krosDocumentId: documentId,
+          attempt,
+        });
+        return documentId;
+      }
+    } else {
+      logLine({
+        level: 'warn',
+        tag: 'kros_document_resolve_http',
+        billingDocumentId,
+        attempt,
+        status: response.status,
+      });
+    }
+
+    if (attempt < KROS_DOCUMENT_RESOLVE_MAX_ATTEMPTS) {
+      await sleep(KROS_DOCUMENT_RESOLVE_INTERVAL_MS);
+    }
+  }
+
+  logLine({
+    level: 'warn',
+    tag: 'kros_document_resolve_timeout',
+    billingDocumentId,
+    externalId: ext,
+    maxAttempts: KROS_DOCUMENT_RESOLVE_MAX_ATTEMPTS,
+  });
+  return null;
+}
+
+function invoiceSubmittedToKros(krosStatus) {
+  return krosStatus === 'accepted' || krosStatus === 'webhook_received';
+}
+
+function canPostInvoiceToKros(krosStatus) {
+  return !krosStatus || krosStatus === 'pending' || krosStatus === 'failed';
 }
 
 /**
@@ -436,7 +547,6 @@ async function syncPaymentToKros(billingDocumentId, { backend = 'prod' } = {}) {
       krosDocumentId,
       errorMessage,
     });
-    throw err;
   }
 }
 
@@ -474,79 +584,112 @@ async function syncToKros(billingDocumentId, { backend = 'prod' } = {}) {
     return;
   }
 
-  const row = await loadBillingDocumentContext(pool, billingDocumentId);
+  let row = await loadBillingDocumentContext(pool, billingDocumentId);
   if (!row) {
     logLine({ level: 'warn', tag: 'kros_sync_skipped', billingDocumentId, reason: 'doc_not_found' });
     return;
   }
-  if (
-    row.kros_status === 'webhook_received' &&
-    row.kros_webhook_received_at &&
-    new Date(row.kros_webhook_received_at).getTime() > nowMinusMinutes(10)
-  ) {
-    logLine({ level: 'info', tag: 'kros_sync_skipped', billingDocumentId, reason: 'webhook_received_recently' });
+
+  const numberingSequence = resolveNumberingSequence(paymentBackend.krosSequencePrefix(backend));
+  let externalId = row.kros_external_id != null ? String(row.kros_external_id).trim() : '';
+
+  if (canPostInvoiceToKros(row.kros_status)) {
+    const payload = buildKrosPayload(row, backend);
+    externalId = payload.data.externalId;
+
+    logDebug({
+      tag: 'kros_payload_preview',
+      billingDocumentId,
+      payload,
+    });
+
+    try {
+      const response = await krosClient.postInvoices(payload);
+      if (response.status === 202) {
+        await pool.execute(
+          `UPDATE billing_documents
+           SET kros_status = 'accepted',
+               kros_payload_json = ?,
+               kros_external_id = ?,
+               kros_last_error = NULL
+           WHERE id = ?`,
+          [stringifyJson(payload), externalId, billingDocumentId]
+        );
+        logLine({
+          level: 'info',
+          tag: 'kros_sync_accepted',
+          billingDocumentId,
+          status: response.status,
+        });
+        row.kros_status = 'accepted';
+        row.kros_external_id = externalId;
+      } else {
+        const failurePayload = { status: response.status, body: response.body };
+        await markFailed(
+          pool,
+          billingDocumentId,
+          krosHttpFailureMessage(response.status, response.body),
+          failurePayload
+        );
+        logLine({
+          level: 'error',
+          tag: 'kros_sync_failed',
+          billingDocumentId,
+          status: response.status,
+          responseBody: response.body ?? null,
+        });
+        logLine({
+          level: 'warn',
+          tag: 'kros_sync_failed_status',
+          billingDocumentId,
+          status: response.status,
+        });
+        return;
+      }
+    } catch (err) {
+      await markFailed(pool, billingDocumentId, err?.message || String(err));
+      logLine({
+        level: 'error',
+        tag: 'kros_sync_failed_exception',
+        billingDocumentId,
+        error: err?.message || String(err),
+      });
+      throw err;
+    }
+  }
+
+  if (!invoiceSubmittedToKros(row.kros_status)) {
     return;
   }
 
-  const payload = buildKrosPayload(row, backend);
-  const externalId = payload.data.externalId;
-
-  logDebug({
-    tag: 'kros_payload_preview',
-    billingDocumentId,
-    payload,
-  });
+  if (!externalId) {
+    externalId = row.kros_external_id != null ? String(row.kros_external_id).trim() : '';
+  }
 
   try {
-    const response = await krosClient.postInvoices(payload);
-    if (response.status === 202) {
-      await pool.execute(
-        `UPDATE billing_documents
-         SET kros_status = 'accepted',
-             kros_payload_json = ?,
-             kros_external_id = ?,
-             kros_last_error = NULL
-         WHERE id = ?`,
-        [stringifyJson(payload), externalId, billingDocumentId]
-      );
-      logLine({
-        level: 'info',
-        tag: 'kros_sync_accepted',
-        billingDocumentId,
-        status: response.status,
-      });
-      return;
-    }
-
-    const failurePayload = { status: response.status, body: response.body };
-    await markFailed(
-      pool,
-      billingDocumentId,
-      krosHttpFailureMessage(response.status, response.body),
-      failurePayload
-    );
-    logLine({
-      level: 'error',
-      tag: 'kros_sync_failed',
-      billingDocumentId,
-      status: response.status,
-      responseBody: response.body ?? null,
-    });
-    logLine({
-      level: 'warn',
-      tag: 'kros_sync_failed_status',
-      billingDocumentId,
-      status: response.status,
+    await resolveKrosDocumentId(billingDocumentId, {
+      externalId,
+      issueDate: asIsoDate(row.issue_date),
+      numberingSequence,
     });
   } catch (err) {
-    await markFailed(pool, billingDocumentId, err?.message || String(err));
     logLine({
       level: 'error',
-      tag: 'kros_sync_failed_exception',
+      tag: 'kros_document_resolve_failed',
       billingDocumentId,
       error: err?.message || String(err),
     });
-    throw err;
+  }
+
+  try {
+    await syncPaymentToKros(billingDocumentId, { backend });
+  } catch (err) {
+    logLine({
+      level: 'error',
+      tag: 'kros_payment_sync',
+      billingDocumentId,
+      err: err?.message || String(err),
+    });
   }
 }
 
@@ -625,9 +768,11 @@ async function downloadAndCacheKrosInvoicePdf(billingDocumentId) {
 }
 
 module.exports = {
+  KROS_PAYMENT_TYPE,
   buildKrosPayload,
   buildKrosPaymentPayload,
   krosPaymentExternalId,
+  resolveKrosDocumentId,
   syncToKros,
   syncPaymentToKros,
   downloadAndCacheKrosInvoicePdf,

@@ -4,6 +4,7 @@ const krosClient = require('../src/services/krosClient');
 const db = require('../src/db');
 const systemAlertService = require('../src/services/systemAlertService');
 const {
+  KROS_PAYMENT_TYPE,
   buildKrosPaymentPayload,
   krosPaymentExternalId,
   syncPaymentToKros,
@@ -45,7 +46,8 @@ test('buildKrosPaymentPayload maps paid Stripe amount, date, VS, and card paymen
   assert.equal(payment.dateOfPayment, '2026-06-19');
   assert.equal(payment.sumOfPayment, 45);
   assert.equal(payment.variableSymbol, '20260069');
-  assert.equal(payment.paymentType, 2);
+  assert.equal(payment.paymentType, KROS_PAYMENT_TYPE);
+  assert.equal(payment.paymentType, 'Online platba');
   assert.equal(payment.externalId, krosPaymentExternalId(basePaymentRow.kros_external_id));
   assert.equal(payment.paymentReference, 'cs_test_abc123');
   assert.equal(payment.partnerName, 'Ján Novák');

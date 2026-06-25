@@ -1,6 +1,6 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { buildKrosPayload } = require('../src/services/krosInvoiceService');
+const { buildKrosPayload, buildKrosPaymentPayload, KROS_PAYMENT_TYPE } = require('../src/services/krosInvoiceService');
 
 const baseRow = {
   customer_name: 'Ján Novák',
@@ -18,6 +18,26 @@ const baseRow = {
   supplier_iban: 'SK123',
   supplier_swift: 'TATRSKBX',
 };
+
+test('buildKrosPayload uses Online platba payment type', () => {
+  const payload = buildKrosPayload({ ...baseRow, customer_is_company: 0 }, 'prod');
+  assert.equal(payload.data.paymentType, KROS_PAYMENT_TYPE);
+  assert.equal(payload.data.paymentType, 'Online platba');
+});
+
+test('buildKrosPaymentPayload reuses the same payment type as invoice', () => {
+  const payment = buildKrosPaymentPayload(
+    {
+      kros_external_id: '11111111-2222-3333-4444-555555555555',
+      amount_gross_cents: 4500,
+      paid_at: '2026-06-19',
+      stripe_checkout_session_id: 'cs_test',
+      customer_name: 'Test',
+    },
+    '20260001'
+  );
+  assert.equal(payment.data[0].paymentType, KROS_PAYMENT_TYPE);
+});
 
 test('buildKrosPayload omits country for individual bookings', () => {
   const payload = buildKrosPayload({ ...baseRow, customer_is_company: 0 }, 'prod');
