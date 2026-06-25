@@ -901,6 +901,25 @@
   }
 
   let paymentPollLastStatus = null;
+  let purchaseTracked = false;
+
+  function trackPurchaseOnce(data) {
+    if (purchaseTracked || !window.citimPixel) return;
+    const amountCents = data?.payment?.amountCents;
+    if (typeof amountCents !== 'number') return;
+    purchaseTracked = true;
+    window.citimPixel.track(
+      'Purchase',
+      {
+        value: amountCents / 100,
+        currency: 'EUR',
+        content_type: 'session',
+      },
+      {
+        eventID: checkoutSessionId,
+      }
+    );
+  }
 
   function pollPaymentStatus() {
     if (!checkoutSessionId) return;
@@ -912,6 +931,7 @@
         paymentPollLastStatus = status;
 
         if (status === 'completed') {
+          trackPurchaseOnce(data);
           applyStatusPollData(data);
           if (!confirmedPollStartedAt) {
             confirmedPollStartedAt = Date.now();

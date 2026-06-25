@@ -47,6 +47,11 @@
     })(window, document, 'script', 'https://connect.facebook.net/en_US/fbevents.js');
     window.fbq('init', pixelId);
     window.fbq('track', 'PageView');
+    try {
+      window.dispatchEvent(new CustomEvent('citim:marketing-consent-granted'));
+    } catch (e) {
+      /* ignore */
+    }
   }
 
   var stored = getStored();

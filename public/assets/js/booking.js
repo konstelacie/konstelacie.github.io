@@ -2128,6 +2128,16 @@
         try {
           sessionStorage.setItem(STRIPE_REDIRECT_FLAG, '1');
         } catch (_) {}
+        if (window.citimPixel) {
+          const { reservationDepositEur, fullPaymentCheckoutEur } = readCheckoutAmountsFromBookingSection();
+          const checkoutValue =
+            paymentType === 'deposit' ? reservationDepositEur : fullPaymentCheckoutEur;
+          window.citimPixel.track('InitiateCheckout', {
+            value: checkoutValue,
+            currency: 'EUR',
+            num_items: 1,
+          });
+        }
         window.location.href = result.url;
         return;
       }
@@ -2280,6 +2290,9 @@
             errEl.hidden = false;
           }
           return;
+        }
+        if (window.citimPixel) {
+          window.citimPixel.track('Lead', { reservation_started: true });
         }
         showPaymentChoice();
       });
@@ -2437,6 +2450,16 @@
           try {
             sessionStorage.setItem(STRIPE_REDIRECT_FLAG, '1');
           } catch (_) {}
+          if (window.citimPixel) {
+            const { reservationDepositEur, fullPaymentCheckoutEur } = readCheckoutAmountsFromBookingSection();
+            const checkoutValue =
+              pending.paymentType === 'deposit' ? reservationDepositEur : fullPaymentCheckoutEur;
+            window.citimPixel.track('InitiateCheckout', {
+              value: checkoutValue,
+              currency: 'EUR',
+              num_items: 1,
+            });
+          }
           window.location.href = result.url;
           return;
         }

@@ -464,14 +464,33 @@
     });
   }
 
+  var viewContentTracked = false;
+
+  function trackFunnelViewContent() {
+    if (viewContentTracked || !window.citimPixel || !window.citimPixel.isReady()) return;
+    viewContentTracked = true;
+    var ctx = window.citimPixel.funnelContext();
+    window.citimPixel.track('ViewContent', {
+      content_name: ctx.funnel_name,
+      content_category: 'funnel_lp',
+    });
+  }
+
+  function initMetaPixelViewContent() {
+    trackFunnelViewContent();
+    window.addEventListener('citim:marketing-consent-granted', trackFunnelViewContent);
+  }
+
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', function () {
       initScrollBridgeArrow();
       initLowerContentReveal();
+      initMetaPixelViewContent();
     });
   } else {
     initScrollBridgeArrow();
     initLowerContentReveal();
+    initMetaPixelViewContent();
   }
 
   window.funnel = { video: video, cta: cta };
