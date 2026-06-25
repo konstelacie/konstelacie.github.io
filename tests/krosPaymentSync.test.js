@@ -4,7 +4,7 @@ const krosClient = require('../src/services/krosClient');
 const db = require('../src/db');
 const systemAlertService = require('../src/services/systemAlertService');
 const {
-  KROS_PAYMENT_TYPE,
+  KROS_PAYMENT_BATCH_PAYMENT_TYPE,
   buildKrosPaymentPayload,
   krosPaymentExternalId,
   syncPaymentToKros,
@@ -46,8 +46,8 @@ test('buildKrosPaymentPayload maps paid Stripe amount, date, VS, and card paymen
   assert.equal(payment.dateOfPayment, '2026-06-19');
   assert.equal(payment.sumOfPayment, 45);
   assert.equal(payment.variableSymbol, '20260069');
-  assert.equal(payment.paymentType, KROS_PAYMENT_TYPE);
-  assert.equal(payment.paymentType, 'Online platba');
+  assert.equal(payment.paymentType, KROS_PAYMENT_BATCH_PAYMENT_TYPE);
+  assert.equal(payment.paymentType, 2);
   assert.equal(payment.externalId, krosPaymentExternalId(basePaymentRow.kros_external_id));
   assert.equal(payment.paymentReference, 'cs_test_abc123');
   assert.equal(payment.partnerName, 'Ján Novák');
@@ -101,6 +101,7 @@ test('syncPaymentToKros registers payment after invoice identifiers are known', 
   krosClient.postPaymentsBatch = async (payload) => {
     assert.equal(payload.data[0].sumOfPayment, 45);
     assert.equal(payload.data[0].variableSymbol, '20260069');
+    assert.equal(payload.data[0].paymentType, KROS_PAYMENT_BATCH_PAYMENT_TYPE);
     return { status: 202, ok: true, body: { requestId: 'req-1' } };
   };
   systemAlertService.createKrosPaymentSyncFailed = async () => {

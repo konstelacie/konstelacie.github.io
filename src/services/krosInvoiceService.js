@@ -90,8 +90,11 @@ async function stampPdfWithLogo(pdfBuffer) {
 /** Printed on KROS invoice before / after line items (úvodný / záverečný text). */
 const KROS_INVOICE_OPENING_CLOSING_TEXT = '[UHRADENÉ]';
 
-/** Spôsob úhrady — same string on invoice POST and payment batch. */
+/** Spôsob úhrady label on invoice POST (`POST /api/invoices`). */
 const KROS_PAYMENT_TYPE = 'Online platba';
+
+/** KROS `Payment.paymentType` for `POST /api/payments/batch` — BankTransfer=1, CardPayment=2. */
+const KROS_PAYMENT_BATCH_PAYMENT_TYPE = 2;
 
 const KROS_DOCUMENT_RESOLVE_MAX_ATTEMPTS = 15;
 const KROS_DOCUMENT_RESOLVE_INTERVAL_MS = 2_000;
@@ -190,7 +193,6 @@ function buildKrosPayload(row, backend) {
   };
 }
 
-/** KROS Payment.paymentType — same label as invoice `paymentType`. */
 async function loadBillingDocumentForPaymentSync(pool, billingDocumentId) {
   const [rows] = await pool.execute(
     `SELECT id, payment_id, reservation_id, kros_external_id, kros_document_id,
@@ -217,7 +219,7 @@ function buildKrosPaymentPayload(row, variableSymbol) {
   const payment = {
     dateOfPayment: asIsoDate(row.paid_at),
     sumOfPayment: normalizeMoneyFromCents(row.amount_gross_cents),
-    paymentType: KROS_PAYMENT_TYPE,
+    paymentType: KROS_PAYMENT_BATCH_PAYMENT_TYPE,
   };
   if (vs) payment.variableSymbol = vs;
   if (externalId) payment.externalId = externalId;
@@ -769,6 +771,7 @@ async function downloadAndCacheKrosInvoicePdf(billingDocumentId) {
 
 module.exports = {
   KROS_PAYMENT_TYPE,
+  KROS_PAYMENT_BATCH_PAYMENT_TYPE,
   buildKrosPayload,
   buildKrosPaymentPayload,
   krosPaymentExternalId,
