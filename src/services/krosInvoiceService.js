@@ -3,11 +3,12 @@ const fs = require('fs').promises;
 const path = require('path');
 const { PDFDocument } = require('pdf-lib');
 const { DateTime } = require('luxon');
-const { getPool } = require('../db');
+const db = require('../db');
 const config = require('../config');
 const paymentBackend = require('../config/paymentBackend');
 const { logLine, logDebug } = require('../lib/structuredLog');
-const { postInvoices, downloadInvoicePdf } = require('./krosClient');
+const krosClient = require('./krosClient');
+const systemAlertService = require('./systemAlertService');
 const { lineItemNameForDocumentType } = require('./billingDocumentService');
 
 /** MySQL DATE → YYYY-MM-DD for KROS; same idea as mysqlLocalDateToYmd (avoid UTC day from toISOString). */
@@ -183,6 +184,262 @@ function buildKrosPayload(row, backend) {
   };
 }
 
+/** KROS Payment.paymentType — CardPayment = 2 (Stripe / online card). */
+const KROS_PAYMENT_TYPE_CARD = 2;
+
+async function loadBillingDocumentForPaymentSync(pool, billingDocumentId) {
+  const [rows] = await pool.execute(
+    `SELECT id, payment_id, reservation_id, kros_external_id, kros_document_id,
+            kros_payment_status, kros_payment_synced_at, variable_symbol,
+            amount_gross_cents, paid_at, stripe_checkout_session_id, customer_name
+     FROM billing_documents
+     WHERE id = ?
+     LIMIT 1`,
+    [billingDocumentId]
+  );
+  return rows[0] || null;
+}
+
+function krosPaymentExternalId(krosExternalId) {
+  const base = String(krosExternalId || '').trim();
+  if (!base) return null;
+  const suffix = '-payment';
+  return `${base}${suffix}`.slice(0, 255);
+}
+
+function buildKrosPaymentPayload(row, variableSymbol) {
+  const externalId = krosPaymentExternalId(row.kros_external_id);
+  const vs = variableSymbol != null ? String(variableSymbol).trim().slice(0, 10) : '';
+  const payment = {
+    dateOfPayment: asIsoDate(row.paid_at),
+    sumOfPayment: normalizeMoneyFromCents(row.amount_gross_cents),
+    paymentType: KROS_PAYMENT_TYPE_CARD,
+  };
+  if (vs) payment.variableSymbol = vs;
+  if (externalId) payment.externalId = externalId;
+  const sessionRef =
+    row.stripe_checkout_session_id != null ? String(row.stripe_checkout_session_id).trim() : '';
+  if (sessionRef) payment.paymentReference = sessionRef.slice(0, 255);
+  const partnerName = row.customer_name != null ? String(row.customer_name).trim() : '';
+  if (partnerName) payment.partnerName = partnerName.slice(0, 255);
+  return { data: [payment] };
+}
+
+async function markPaymentFailed(pool, id, errorMessage) {
+  await pool.execute(
+    `UPDATE billing_documents
+     SET kros_payment_status = 'failed',
+         kros_payment_error = ?
+     WHERE id = ?`,
+    [String(errorMessage || 'KROS payment sync failed').slice(0, 4000), id]
+  );
+}
+
+async function markPaymentSynced(pool, id, variableSymbol = null) {
+  const vs = variableSymbol != null ? String(variableSymbol).trim().slice(0, 20) || null : null;
+  await pool.execute(
+    `UPDATE billing_documents
+     SET kros_payment_status = 'synced',
+         kros_payment_synced_at = NOW(3),
+         kros_payment_error = NULL,
+         variable_symbol = COALESCE(?, variable_symbol)
+     WHERE id = ?`,
+    [vs, id]
+  );
+}
+
+async function resolveVariableSymbolForPayment(row) {
+  const stored = row.variable_symbol != null ? String(row.variable_symbol).trim() : '';
+  if (stored) return stored;
+  const krosId = row.kros_document_id != null ? String(row.kros_document_id).trim() : '';
+  if (!krosId) return null;
+  return krosClient.getInvoiceVariableSymbol(krosId);
+}
+
+/**
+ * Register invoice payment in KROS (POST /api/payments/batch).
+ * Idempotent: skips when kros_payment_status is already synced.
+ * @param {number} billingDocumentId
+ * @param {{ backend?: 'test'|'prod' }} [options]
+ */
+async function syncPaymentToKros(billingDocumentId, { backend = 'prod' } = {}) {
+  const enabled = String(process.env.KROS_ENABLED || '').toLowerCase() === 'true';
+  if (!enabled) {
+    logLine({
+      level: 'info',
+      tag: 'kros_payment_sync_skipped',
+      billingDocumentId,
+      reason: 'kros_disabled',
+    });
+    return;
+  }
+
+  const pool = db.getPool();
+  if (!pool) {
+    logLine({
+      level: 'warn',
+      tag: 'kros_payment_sync_skipped',
+      billingDocumentId,
+      reason: 'db_not_configured',
+    });
+    return;
+  }
+
+  const row = await loadBillingDocumentForPaymentSync(pool, billingDocumentId);
+  if (!row) {
+    logLine({
+      level: 'warn',
+      tag: 'kros_payment_sync_skipped',
+      billingDocumentId,
+      reason: 'doc_not_found',
+    });
+    return;
+  }
+
+  if (row.kros_payment_status === 'synced' || row.kros_payment_synced_at) {
+    logLine({
+      level: 'info',
+      tag: 'kros_payment_sync_skipped',
+      billingDocumentId,
+      reason: 'already_synced',
+    });
+    return;
+  }
+
+  const krosDocumentId = row.kros_document_id != null ? String(row.kros_document_id).trim() : '';
+  if (!krosDocumentId) {
+    logLine({
+      level: 'info',
+      tag: 'kros_payment_sync_skipped',
+      billingDocumentId,
+      reason: 'kros_document_id_missing',
+    });
+    return;
+  }
+
+  if (!row.paid_at) {
+    logLine({
+      level: 'warn',
+      tag: 'kros_payment_sync_skipped',
+      billingDocumentId,
+      reason: 'paid_at_missing',
+    });
+    return;
+  }
+
+  logLine({
+    level: 'info',
+    tag: 'kros_payment_sync_start',
+    billingDocumentId,
+    krosDocumentId,
+    backend,
+  });
+
+  let variableSymbol;
+  try {
+    variableSymbol = await resolveVariableSymbolForPayment(row);
+  } catch (err) {
+    const errorMessage = err?.message || String(err);
+    await markPaymentFailed(pool, billingDocumentId, errorMessage);
+    logLine({
+      level: 'error',
+      tag: 'kros_payment_sync_failed',
+      billingDocumentId,
+      phase: 'variable_symbol',
+      error: errorMessage,
+    });
+    await systemAlertService.createKrosPaymentSyncFailed({
+      billingDocumentId,
+      paymentId: row.payment_id,
+      reservationId: row.reservation_id,
+      krosDocumentId,
+      errorMessage,
+    });
+    return;
+  }
+
+  if (!variableSymbol) {
+    const errorMessage = 'KROS variable symbol unavailable for payment matching';
+    await markPaymentFailed(pool, billingDocumentId, errorMessage);
+    logLine({
+      level: 'error',
+      tag: 'kros_payment_sync_failed',
+      billingDocumentId,
+      phase: 'variable_symbol',
+      error: errorMessage,
+    });
+    await systemAlertService.createKrosPaymentSyncFailed({
+      billingDocumentId,
+      paymentId: row.payment_id,
+      reservationId: row.reservation_id,
+      krosDocumentId,
+      errorMessage,
+    });
+    return;
+  }
+
+  const payload = buildKrosPaymentPayload(row, variableSymbol);
+
+  logDebug({
+    tag: 'kros_payment_payload_preview',
+    billingDocumentId,
+    payload,
+  });
+
+  try {
+    const response = await krosClient.postPaymentsBatch(payload);
+    if (response.status === 202) {
+      await markPaymentSynced(pool, billingDocumentId, variableSymbol);
+      logLine({
+        level: 'info',
+        tag: 'kros_payment_sync_success',
+        billingDocumentId,
+        krosDocumentId,
+        status: response.status,
+        variableSymbol,
+      });
+      return;
+    }
+
+    const failureMessage = krosHttpFailureMessage(response.status, response.body);
+    await markPaymentFailed(pool, billingDocumentId, failureMessage);
+    logLine({
+      level: 'error',
+      tag: 'kros_payment_sync_failed',
+      billingDocumentId,
+      krosDocumentId,
+      status: response.status,
+      responseBody: response.body ?? null,
+    });
+    await systemAlertService.createKrosPaymentSyncFailed({
+      billingDocumentId,
+      paymentId: row.payment_id,
+      reservationId: row.reservation_id,
+      krosDocumentId,
+      errorMessage: failureMessage,
+      httpStatus: response.status,
+    });
+  } catch (err) {
+    const errorMessage = err?.message || String(err);
+    await markPaymentFailed(pool, billingDocumentId, errorMessage);
+    logLine({
+      level: 'error',
+      tag: 'kros_payment_sync_failed',
+      billingDocumentId,
+      krosDocumentId,
+      error: errorMessage,
+    });
+    await systemAlertService.createKrosPaymentSyncFailed({
+      billingDocumentId,
+      paymentId: row.payment_id,
+      reservationId: row.reservation_id,
+      krosDocumentId,
+      errorMessage,
+    });
+    throw err;
+  }
+}
+
 async function markFailed(pool, id, errorMessage, rawResponse = null) {
   await pool.execute(
     `UPDATE billing_documents
@@ -206,7 +463,7 @@ async function syncToKros(billingDocumentId, { backend = 'prod' } = {}) {
     return;
   }
 
-  const pool = getPool();
+  const pool = db.getPool();
   if (!pool) {
     logLine({
       level: 'warn',
@@ -241,7 +498,7 @@ async function syncToKros(billingDocumentId, { backend = 'prod' } = {}) {
   });
 
   try {
-    const response = await postInvoices(payload);
+    const response = await krosClient.postInvoices(payload);
     if (response.status === 202) {
       await pool.execute(
         `UPDATE billing_documents
@@ -300,7 +557,7 @@ async function syncToKros(billingDocumentId, { backend = 'prod' } = {}) {
  * @returns {Promise<Buffer|null>}
  */
 async function downloadAndCacheKrosInvoicePdf(billingDocumentId) {
-  const pool = getPool();
+  const pool = db.getPool();
   if (!pool) {
     return null;
   }
@@ -324,7 +581,7 @@ async function downloadAndCacheKrosInvoicePdf(billingDocumentId) {
     return null;
   }
 
-  const result = await downloadInvoicePdf(krosId);
+  const result = await krosClient.downloadInvoicePdf(krosId);
   if (result.type !== 'pdf') {
     logLine({
       level: 'error',
@@ -369,6 +626,9 @@ async function downloadAndCacheKrosInvoicePdf(billingDocumentId) {
 
 module.exports = {
   buildKrosPayload,
+  buildKrosPaymentPayload,
+  krosPaymentExternalId,
   syncToKros,
+  syncPaymentToKros,
   downloadAndCacheKrosInvoicePdf,
 };

@@ -140,6 +140,16 @@ router.post(
         [krosDocumentId, krosDownloadUrl, payloadJson, externalId]
       );
 
+      krosInvoiceService.syncPaymentToKros(row.id).catch((err) => {
+        logLine({
+          level: 'error',
+          tag: 'kros_payment_sync',
+          billingDocumentId: row.id,
+          requestId: req.id,
+          err: err?.message || String(err),
+        });
+      });
+
       const krosEnabled = String(process.env.KROS_ENABLED || '').toLowerCase() === 'true';
       const sendInvoiceEmail = config.billing?.sendInvoiceEmail !== false;
       if (krosEnabled && sendInvoiceEmail && krosDownloadUrl) {

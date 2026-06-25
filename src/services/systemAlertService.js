@@ -6,6 +6,7 @@ const ALERT_TYPES = {
   RESERVATION_CONFIRMATION_EMAIL_FAILED: 'reservation_confirmation_email_failed',
   EMAIL_BOUNCED: 'email_bounced',
   KROS_WEBHOOK_MISSING: 'kros_webhook_missing',
+  KROS_PAYMENT_SYNC_FAILED: 'kros_payment_sync_failed',
   CRON_NOT_RUNNING: 'cron_not_running',
   STRIPE_PAYMENT_NEEDS_RECONCILIATION: 'stripe_payment_needs_reconciliation',
   STRIPE_RECONCILIATION_FAILED: 'stripe_reconciliation_failed',
@@ -173,6 +174,41 @@ async function createKrosWebhookMissing({
       krosAcceptedAt: krosAcceptedAt ?? null,
       ageMinutes,
       customerEmail: customerEmail ?? null,
+    },
+  });
+}
+
+/**
+ * @param {object} params
+ * @param {number} params.billingDocumentId
+ * @param {number} params.paymentId
+ * @param {number|null} [params.reservationId]
+ * @param {string} [params.krosDocumentId]
+ * @param {string} params.errorMessage
+ * @param {number} [params.httpStatus]
+ */
+async function createKrosPaymentSyncFailed({
+  billingDocumentId,
+  paymentId,
+  reservationId,
+  krosDocumentId,
+  errorMessage,
+  httpStatus,
+}) {
+  return createOpenAlert({
+    type: ALERT_TYPES.KROS_PAYMENT_SYNC_FAILED,
+    entityType: 'billing_document',
+    entityId: billingDocumentId,
+    title: 'KROS úhrada faktúry sa nepodarila zaregistrovať',
+    message:
+      'Faktúra v KROS bola vytvorená, ale registrácia úhrady zlyhala. Zákazníkovi bol doklad odoslaný; účtovný stav v KROS treba skontrolovať alebo sync zopakovať.',
+    metadata: {
+      billingDocumentId,
+      paymentId,
+      reservationId: reservationId ?? null,
+      krosDocumentId: krosDocumentId ?? null,
+      errorMessage: errorMessage || 'unknown',
+      httpStatus: httpStatus ?? null,
     },
   });
 }
@@ -405,6 +441,7 @@ module.exports = {
   createReservationConfirmationEmailFailed,
   createEmailBounced,
   createKrosWebhookMissing,
+  createKrosPaymentSyncFailed,
   createCronNotRunning,
   createStripePaymentNeedsReconciliation,
   createStripeReconciliationFailed,

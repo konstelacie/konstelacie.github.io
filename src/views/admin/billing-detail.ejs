@@ -55,6 +55,9 @@
       <div class="admin-dl__row"><dt>KROS webhook prijatý</dt><dd><%= detail.kros_webhook_received_at ? detail.kros_webhook_received_at : '—' %></dd></div>
       <div class="admin-dl__row"><dt>KROS download URL</dt><dd class="admin-table__email"><%= detail.kros_download_url || '—' %></dd></div>
       <div class="admin-dl__row"><dt>KROS chyba</dt><dd><%= detail.kros_last_error || '—' %></dd></div>
+      <div class="admin-dl__row"><dt>KROS úhrada</dt><dd><%= detail.kros_payment_status || '—' %></dd></div>
+      <div class="admin-dl__row"><dt>KROS úhrada sync</dt><dd><%= detail.kros_payment_synced_at ? detail.kros_payment_synced_at : '—' %></dd></div>
+      <div class="admin-dl__row"><dt>KROS úhrada chyba</dt><dd><%= detail.kros_payment_error || '—' %></dd></div>
     </dl>
   </section>
 

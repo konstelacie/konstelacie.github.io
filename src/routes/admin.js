@@ -23,7 +23,7 @@ const { MIN_SESSION_TOTAL_EUR } = require('../lib/bookingCheckoutAmounts');
 const billingDocumentsRepo = require('../db/repositories/billingDocumentsRepo');
 const locksRepo = require('../db/repositories/locksRepo');
 const billingDeliveryService = require('../services/billingDeliveryService');
-const { syncToKros } = require('../services/krosInvoiceService');
+const { syncToKros, syncPaymentToKros } = require('../services/krosInvoiceService');
 const { mapBillingListRow, mapBillingDetailRow, csvEscape } = require('../lib/adminBillingDisplay');
 const { mysqlLocalDateToYmd } = require('../lib/slotApiMap');
 const { resolveBalancePayAdminLink } = require('../lib/balancePayAdminLink');
@@ -1481,6 +1481,7 @@ router.post('/billing/:id/sync-kros', requireAdmin, async (req, res) => {
       return res.redirect(redirect);
     }
     await syncToKros(id);
+    await syncPaymentToKros(id);
     await auditRepo.log('billing_kros_sync_manual', 'billing_document', id, null, 'admin');
     req.session.adminFlash = { level: 'success', message: 'Synchronizácia do KROS bola spustená.' };
     return res.redirect(redirect);

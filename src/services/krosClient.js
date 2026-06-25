@@ -166,6 +166,42 @@ async function getInvoiceVariableSymbol(documentId) {
   }
 }
 
+/** Payments — POST /api/payments/batch (register paid invoice in KROS). */
+async function postPaymentsBatch(payload) {
+  try {
+    const url = `${KROS_BASE_URL}/payments/batch`;
+    const headers = {
+      Authorization: authHeader(),
+      'Content-Type': 'application/json',
+    };
+    logLine({
+      level: 'info',
+      tag: 'kros_client_request',
+      request: {
+        method: 'POST',
+        url,
+        headers: {
+          ...headers,
+          Authorization: 'Bearer ***',
+        },
+        body: payload,
+      },
+    });
+    return await fetchJson(url, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify(payload),
+    });
+  } catch (err) {
+    logLine({
+      level: 'error',
+      tag: 'kros_client_post_payments_batch_error',
+      error: err?.message || String(err),
+    });
+    throw err;
+  }
+}
+
 async function downloadInvoicePdf(documentId) {
   await reserveRateSlot();
   const url = `${KROS_BASE_URL}/invoices/${encodeURIComponent(String(documentId))}/reports/19`;
@@ -196,6 +232,7 @@ async function downloadInvoicePdf(documentId) {
 
 module.exports = {
   postInvoices,
+  postPaymentsBatch,
   getInvoice,
   getInvoiceVariableSymbol,
   downloadInvoicePdf,
