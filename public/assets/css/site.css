@@ -1190,6 +1190,11 @@ a:hover {
   max-width: min(960px, 100%);
 }
 
+.admin-wrap--full {
+  max-width: none;
+  width: 100%;
+}
+
 .admin-create {
   margin-bottom: var(--spacing-section);
   padding: var(--spacing-md);

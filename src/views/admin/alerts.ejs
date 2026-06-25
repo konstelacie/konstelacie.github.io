@@ -1,4 +1,4 @@
-<div class="admin-wrap admin-wrap--wide">
+<div class="admin-wrap admin-wrap--full">
   <header class="admin-header admin-header--bar">
     <h1 class="admin-title">Systémové upozornenia</h1>
     <form method="post" action="/admin/logout">
@@ -20,7 +20,7 @@
 
   <% if (typeof dbConfigured !== 'undefined' && dbConfigured) { %>
     <% if (typeof alerts !== 'undefined' && alerts.length) { %>
-    <div class="admin-table-wrap admin-table-wrap--scroll">
+    <div class="admin-table-wrap">
       <table class="admin-table admin-table--alerts">
         <thead>
           <tr>
