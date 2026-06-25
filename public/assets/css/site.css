@@ -661,6 +661,13 @@ a:hover {
   max-width: 320px;
 }
 
+.booking-modal__revoke-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--spacing-sm);
+  align-items: center;
+}
+
 .booking-modal__revoke {
   margin: 0;
   padding: 0.5rem 0;

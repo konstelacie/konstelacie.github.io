@@ -93,12 +93,8 @@
   let modalEmailEdit = false;
   /** Payment radios/custom amount restored from storage after `openBookingModal({ step: 'payment' })`. */
   let pendingPaymentFormRestore = null;
-  /** Billing inputs restored from storage after page reload. */
-  let pendingBillingRestore = null;
-  /** Email input draft restored from storage after page reload (email step, before extend-lock). */
-  let pendingEmailDraftRestore = '';
-  /** Debounced billing edits → snapshot update in localStorage. */
-  let billingPersistTimer = null;
+  /** Debounced form draft edits → `booking_form_draft` in localStorage. */
+  let formDraftPersistTimer = null;
   let countdownInterval = null;
   let pendingSlotId = null;
   let lastFocusBeforeModal = null;
@@ -134,6 +130,13 @@
   }
 
   const STORAGE_KEY = 'booking_lock';
+  /**
+   * Long-lived booking form draft (name, email, company toggle + fields).
+   * Company fields are kept locally for UX (re-checking the box restores them) but must never
+   * be transmitted to the server unless `billingIsCompany` is true at submission — use
+   * `buildBillingPayloadForServer()` for every API payload.
+   */
+  const FORM_DRAFT_STORAGE_KEY = 'booking_form_draft';
   /** Set when redirecting to Stripe so GET /api/slots can treat the hold as mine if the lock row already expired. */
   const CHECKOUT_SESSION_STORAGE_KEY = 'booking_checkout_session';
   /** Set before redirect to Stripe; cleared after POST /api/payments/abandon-checkout or on success page. */
@@ -462,11 +465,6 @@
     // because the radios still exist in the DOM.
     if (lockToken && lockPhase === 'payment') paymentForm = readPaymentFormStateFromDom();
 
-    // Persist billing inputs so reload doesn't wipe partially-entered details.
-    const billing = lockToken ? readBillingForm() : null;
-    // Persist the email input too — before extend-lock it lives only in the DOM (lockedEmail is
-    // set after a successful submit), so without this a reload loses the typed email.
-    const emailDraft = lockToken ? ($('booking-email')?.value || '').trim() : '';
     // Always include expiresAt key (null if missing) — JSON.stringify drops `undefined`, and
     // getStoredLock used to reject when the key was absent.
     return JSON.stringify({
@@ -476,12 +474,10 @@
       lockedSlotDate,
       phase: lockPhase,
       email: lockedEmail || undefined,
-      emailDraft: emailDraft || undefined,
       modalVisible,
       modalUiStep,
       modalEmailEdit,
       paymentForm,
-      billing: billing || undefined,
     });
   }
 
@@ -543,14 +539,12 @@
       }
       const paymentFormParsed =
         data.paymentForm && typeof data.paymentForm === 'object' ? data.paymentForm : null;
-      const billingParsed = data.billing && typeof data.billing === 'object' ? data.billing : null;
       return {
         ...data,
         modalVisible: modalVisibleParsed,
         modalUiStep: modalUiStepParsed,
         modalEmailEdit: modalEmailEditParsed,
         paymentForm: paymentFormParsed,
-        billing: billingParsed,
       };
     } catch (e) {
       logStorageError('getStoredLock', e);
@@ -573,8 +567,6 @@
       modalEmailEdit = false;
     }
     pendingPaymentFormRestore = stored.paymentForm || null;
-    pendingBillingRestore = stored.billing || null;
-    pendingEmailDraftRestore = typeof stored.emailDraft === 'string' ? stored.emailDraft.trim() : '';
   }
 
   function getTodayLocal() {
@@ -1494,12 +1486,6 @@
     modalUiStep = 'email';
     modalEmailEdit = false;
     pendingPaymentFormRestore = null;
-    pendingBillingRestore = null;
-    pendingEmailDraftRestore = '';
-    if (billingPersistTimer) {
-      clearTimeout(billingPersistTimer);
-      billingPersistTimer = null;
-    }
     clearStoredLock();
     clearCheckoutSessionStorage();
     closeEmailModal();
@@ -1693,12 +1679,6 @@
       lockPhase = 'email';
       pendingSlotId = null;
 
-      // Clear the email input before storeLock() so the snapshot of this fresh lock
-      // doesn't carry over an email draft from a previous booking attempt.
-      const emailInput = $('booking-email');
-      const emailErr = $('booking-email-error');
-      if (emailInput) emailInput.value = '';
-      if (emailErr) emailErr.hidden = true;
       storeLock();
       const hold = $('booking-hold-banner');
       if (hold) hold.hidden = true;
@@ -1790,42 +1770,136 @@
     wrap.hidden = !visible;
   }
 
-  /** Apply a persisted billing snapshot (from the lock blob) back into the form inputs. */
-  function applyBillingSnapshotToForm(prefill) {
-    if (!prefill || typeof prefill !== 'object') return;
+  function readFormDraft() {
+    return {
+      billingName: ($('booking-billing-name')?.value || '').trim(),
+      email: ($('booking-email')?.value || '').trim(),
+      billingIsCompany: !!$('booking-billing-is-company')?.checked,
+      company: {
+        name: ($('booking-billing-company-name')?.value || '').trim(),
+        ico: ($('booking-billing-ico')?.value || '').trim(),
+        dic: ($('booking-billing-dic')?.value || '').trim(),
+        icDph: ($('booking-billing-ic-dph')?.value || '').trim(),
+        street: ($('booking-billing-street')?.value || '').trim(),
+        city: ($('booking-billing-city')?.value || '').trim(),
+        psc: ($('booking-billing-post-code')?.value || '').trim(),
+        country: (($('booking-billing-country')?.value || 'SK').trim() || 'SK').toUpperCase(),
+      },
+    };
+  }
+
+  function applyFormDraftToForm(draft) {
+    if (!draft || typeof draft !== 'object') return;
+    const company = draft.company && typeof draft.company === 'object' ? draft.company : {};
     const map = [
-      ['booking-billing-name', prefill.billingName || ''],
-      ['booking-billing-company-name', prefill.billingCompanyName || ''],
-      ['booking-billing-ico', prefill.billingIco || ''],
-      ['booking-billing-dic', prefill.billingDic || ''],
-      ['booking-billing-ic-dph', prefill.billingIcDph || ''],
-      ['booking-billing-street', prefill.billingStreet || ''],
-      ['booking-billing-city', prefill.billingCity || ''],
-      ['booking-billing-post-code', prefill.billingPostCode || ''],
-      ['booking-billing-country', prefill.billingCountry || 'SK'],
+      ['booking-billing-name', draft.billingName || ''],
+      ['booking-email', draft.email || ''],
+      ['booking-billing-company-name', company.name || ''],
+      ['booking-billing-ico', company.ico || ''],
+      ['booking-billing-dic', company.dic || ''],
+      ['booking-billing-ic-dph', company.icDph || ''],
+      ['booking-billing-street', company.street || ''],
+      ['booking-billing-city', company.city || ''],
+      ['booking-billing-post-code', company.psc || ''],
+      ['booking-billing-country', company.country || 'SK'],
     ];
     map.forEach(([id, value]) => {
       const el = $(id);
       if (el) el.value = value;
     });
     const toggle = $('booking-billing-is-company');
-    const company = !!prefill.billingIsCompany;
-    if (toggle) toggle.checked = company;
-    setCompanyFieldsVisible(company);
+    const isCompany = !!draft.billingIsCompany;
+    if (toggle) toggle.checked = isCompany;
+    setCompanyFieldsVisible(isCompany);
+    updateEmailTypoHint();
   }
 
-  function readBillingForm() {
+  function saveFormDraft() {
+    try {
+      const draft = readFormDraft();
+      localStorage.setItem(FORM_DRAFT_STORAGE_KEY, JSON.stringify(draft));
+    } catch (e) {
+      logStorageError('saveFormDraft', e);
+    }
+  }
+
+  function scheduleFormDraftSave() {
+    if (formDraftPersistTimer) clearTimeout(formDraftPersistTimer);
+    formDraftPersistTimer = setTimeout(() => {
+      formDraftPersistTimer = null;
+      saveFormDraft();
+    }, 150);
+  }
+
+  function flushFormDraftSave() {
+    if (formDraftPersistTimer) {
+      clearTimeout(formDraftPersistTimer);
+      formDraftPersistTimer = null;
+    }
+    saveFormDraft();
+  }
+
+  function restoreFormDraft() {
+    try {
+      const raw = localStorage.getItem(FORM_DRAFT_STORAGE_KEY);
+      if (!raw) return;
+      const draft = JSON.parse(raw);
+      if (!draft || typeof draft !== 'object') return;
+      applyFormDraftToForm(draft);
+    } catch (e) {
+      logStorageError('restoreFormDraft', e);
+    }
+  }
+
+  function clearFormDraft() {
+    try {
+      localStorage.removeItem(FORM_DRAFT_STORAGE_KEY);
+    } catch (e) {
+      logStorageError('clearFormDraft', e);
+    }
+    const emptyDraft = {
+      billingName: '',
+      email: '',
+      billingIsCompany: false,
+      company: {
+        name: '',
+        ico: '',
+        dic: '',
+        icDph: '',
+        street: '',
+        city: '',
+        psc: '',
+        country: 'SK',
+      },
+    };
+    applyFormDraftToForm(emptyDraft);
+    hideEmailTypoHint();
+    const emailErr = $('booking-email-error');
+    if (emailErr) emailErr.hidden = true;
+  }
+
+  /**
+   * Server-safe billing payload from a form draft.
+   * Company fields are omitted when the company checkbox is off — never send stale draft data.
+   */
+  function buildBillingPayloadForServer(draft) {
+    const billingName = (draft.billingName || '').trim();
+    const billingIsCompany = !!draft.billingIsCompany;
+    if (!billingIsCompany) {
+      return { billingName, billingIsCompany: false };
+    }
+    const c = draft.company && typeof draft.company === 'object' ? draft.company : {};
     return {
-      billingName: ($('booking-billing-name')?.value || '').trim(),
-      billingIsCompany: !!$('booking-billing-is-company')?.checked,
-      billingCompanyName: ($('booking-billing-company-name')?.value || '').trim(),
-      billingIco: ($('booking-billing-ico')?.value || '').trim(),
-      billingDic: ($('booking-billing-dic')?.value || '').trim(),
-      billingIcDph: ($('booking-billing-ic-dph')?.value || '').trim(),
-      billingStreet: ($('booking-billing-street')?.value || '').trim(),
-      billingCity: ($('booking-billing-city')?.value || '').trim(),
-      billingPostCode: ($('booking-billing-post-code')?.value || '').trim(),
-      billingCountry: (($('booking-billing-country')?.value || 'SK').trim() || 'SK').toUpperCase(),
+      billingName,
+      billingIsCompany: true,
+      billingCompanyName: (c.name || '').trim(),
+      billingIco: (c.ico || '').trim(),
+      billingDic: (c.dic || '').trim(),
+      billingIcDph: (c.icDph || '').trim(),
+      billingStreet: (c.street || '').trim(),
+      billingCity: (c.city || '').trim(),
+      billingPostCode: (c.psc || '').trim(),
+      billingCountry: ((c.country || 'SK').trim() || 'SK').toUpperCase(),
     };
   }
 
@@ -1936,7 +2010,11 @@
       (window.location.pathname || '/') +
       (window.location.search || '') +
       (window.location.hash || '');
-    const payBody = { slotId, lockToken, email, paymentType, returnPath, cancelReturn, ...billing };
+    const billingPayload =
+      billing && typeof billing.company === 'object'
+        ? buildBillingPayloadForServer(billing)
+        : billing;
+    const payBody = { slotId, lockToken, email, paymentType, returnPath, cancelReturn, ...billingPayload };
     if (paymentType === 'full') payBody.amount = amount;
     if (funnelCtx.funnelName) {
       payBody.funnelName = funnelCtx.funnelName;
@@ -2111,6 +2189,18 @@
         revokeSlot();
         return;
       }
+      if (e.target.closest('#booking-modal-clear-form')) {
+        e.preventDefault();
+        if (
+          !confirm(
+            'Naozaj chcete vymazať uložené údaje z formulára? Túto akciu nie je možné vrátiť späť.'
+          )
+        ) {
+          return;
+        }
+        clearFormDraft();
+        return;
+      }
       if (e.target.closest('#booking-modal-close') || e.target.closest('#booking-modal-revoke')) {
         if (!modal || modal.hidden) return;
         e.preventDefault();
@@ -2158,8 +2248,9 @@
     if (emailForm) {
       emailForm.addEventListener('submit', async (e) => {
         e.preventDefault();
-        const email = $('booking-email').value.trim();
-        const billing = readBillingForm();
+        const draft = readFormDraft();
+        const email = draft.email;
+        const billing = buildBillingPayloadForServer(draft);
         if (!validateEmail(email)) {
           const err = $('booking-email-error');
           if (err) {
@@ -2199,7 +2290,8 @@
     if (paymentForm) {
       paymentForm.addEventListener('submit', (e) => {
         e.preventDefault();
-        const email = $('booking-email').value.trim();
+        const draft = readFormDraft();
+        const email = draft.email;
         if (!validateEmail(email)) {
           const err = $('booking-email-error');
           if (err) {
@@ -2217,7 +2309,7 @@
           return;
         }
         const { paymentType, amount } = choice;
-        const billing = readBillingForm();
+        const billing = buildBillingPayloadForServer(draft);
         const billingError = validateBillingForm(billing);
         if (billingError) {
           const err = $('booking-payment-error');
@@ -2256,21 +2348,11 @@
       });
     }
 
-    function scheduleBillingSnapshotSave() {
-      if (suppressCrossTabApply > 0) return;
-      if (!lockToken) return;
-      if (billingPersistTimer) clearTimeout(billingPersistTimer);
-      billingPersistTimer = setTimeout(() => {
-        billingPersistTimer = null;
-        storeLock();
-      }, 150);
-    }
-
     const companyToggle = $('booking-billing-is-company');
     if (companyToggle) {
       companyToggle.addEventListener('change', () => {
         setCompanyFieldsVisible(!!companyToggle.checked);
-        scheduleBillingSnapshotSave();
+        scheduleFormDraftSave();
       });
       setCompanyFieldsVisible(!!companyToggle.checked);
     }
@@ -2280,7 +2362,7 @@
       .querySelectorAll('[id^="booking-billing-"]:not(#booking-billing-is-company)')
       .forEach((el) => {
         if (!el || !(el instanceof HTMLElement)) return;
-        const onEdit = () => scheduleBillingSnapshotSave();
+        const onEdit = () => scheduleFormDraftSave();
         const tag = el.tagName;
         if (tag === 'SELECT') {
           el.addEventListener('change', onEdit);
@@ -2289,37 +2371,25 @@
         if (tag === 'INPUT' || tag === 'TEXTAREA') {
           el.addEventListener('input', onEdit);
           el.addEventListener('change', onEdit);
-          el.addEventListener('blur', () => {
-            if (billingPersistTimer) {
-              clearTimeout(billingPersistTimer);
-              billingPersistTimer = null;
-            }
-            if (lockToken) storeLock();
-          });
+          el.addEventListener('blur', flushFormDraftSave);
         } else {
           el.addEventListener('change', onEdit);
         }
       });
 
-    // Persist the email input draft the same way as billing fields (it has its own id,
-    // so the booking-billing-* selector above does not cover it).
     const emailDraftInput = $('booking-email');
     if (emailDraftInput) {
       emailDraftInput.addEventListener('input', () => {
         updateEmailTypoHint();
-        scheduleBillingSnapshotSave();
+        scheduleFormDraftSave();
       });
       emailDraftInput.addEventListener('change', () => {
         updateEmailTypoHint();
-        scheduleBillingSnapshotSave();
+        scheduleFormDraftSave();
       });
       emailDraftInput.addEventListener('blur', () => {
         updateEmailTypoHint();
-        if (billingPersistTimer) {
-          clearTimeout(billingPersistTimer);
-          billingPersistTimer = null;
-        }
-        if (lockToken) storeLock();
+        flushFormDraftSave();
       });
     }
 
@@ -2331,8 +2401,7 @@
         if (!emailInput || !suggestion) return;
         emailInput.value = suggestion;
         hideEmailTypoHint();
-        scheduleBillingSnapshotSave();
-        if (lockToken) storeLock();
+        flushFormDraftSave();
       });
     }
 
@@ -2401,11 +2470,6 @@
     if (emailErr) emailErr.hidden = true;
     const hold = $('booking-hold-banner');
 
-    if (pendingBillingRestore) {
-      applyBillingSnapshotToForm(pendingBillingRestore);
-      pendingBillingRestore = null;
-    }
-
     if (!modalVisible) {
       if (hold) hold.hidden = false;
       updateCountdown();
@@ -2452,8 +2516,6 @@
       return;
     }
     if (!isEmailModalOpen()) {
-      const emailInputOpen = $('booking-email');
-      if (emailInputOpen) emailInputOpen.value = pendingEmailDraftRestore || '';
       openEmailModal(false);
     }
     updateCountdown();
@@ -2538,6 +2600,8 @@
           modalEmailEdit,
         });
       }
+
+      restoreFormDraft();
 
       const paymentReturn = parseStripePaymentReturnUrl();
       if (paymentReturn) {
