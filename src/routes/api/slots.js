@@ -75,6 +75,30 @@ router.get(
   })
 );
 
+/** Lightweight lock check when the slot row is absent from GET /api/slots (e.g. 24h window). */
+router.get(
+  '/:slotId/lock-status',
+  slotsListLimiter,
+  asyncHandler(async (req, res) => {
+    const slotId = validateSlotId(req.params.slotId);
+    const lockToken = validateLockToken(req.query?.lockToken);
+
+    const row = await locksRepo.findValidLock(slotId, lockToken);
+    if (!row) {
+      res.json({ ok: true, valid: false });
+      return;
+    }
+
+    const exp = row.expires_at;
+    const expDate = exp instanceof Date ? exp : new Date(exp);
+    res.json({
+      ok: true,
+      valid: true,
+      expiresAt: expDate.toISOString(),
+    });
+  })
+);
+
 /**
  * Capability pre-step for POST /slots/:slotId/lock (see docs/security/booking.md Phase 2).
  */

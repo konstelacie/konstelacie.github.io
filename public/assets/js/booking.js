@@ -71,6 +71,8 @@
   /** Skip duplicate cross-tab apply when blob unchanged within this window. */
   const CROSS_TAB_APPLY_DEDUPE_MS = 500;
   const LEAD_MS = 24 * 60 * 60 * 1000;
+  /** Client-side stale-lock grace when server time may differ slightly from the browser clock. */
+  const LOCK_CLIENT_EXPIRY_GRACE_MS = 2 * 60 * 1000;
 
   /** Fallback until GET /api/slots returns `grid.times` (same order as server `src/config/slotGrid.js`). */
   const DEFAULT_GRID_TIMES = ['08:30', '10:00', '11:30', '13:00', '14:30'];
@@ -1340,29 +1342,79 @@
     }, CROSS_TAB_APPLY_DEBOUNCE_MS);
   }
 
+  function isClientLockClearlyExpired() {
+    if (!expiresAt) return false;
+    const exp = new Date(expiresAt).getTime();
+    if (Number.isNaN(exp)) return true;
+    return exp + LOCK_CLIENT_EXPIRY_GRACE_MS < Date.now();
+  }
+
+  async function fetchLockStatus(slotId, token) {
+    try {
+      const res = await fetch(
+        `/api/slots/${slotId}/lock-status?lockToken=${encodeURIComponent(token)}`
+      );
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || !data.ok) return { valid: false, expiresAt: null, checkFailed: true };
+      return {
+        valid: !!data.valid,
+        expiresAt: typeof data.expiresAt === 'string' ? data.expiresAt : null,
+        checkFailed: false,
+      };
+    } catch (_) {
+      return { valid: false, expiresAt: null, checkFailed: true };
+    }
+  }
+
   /**
    * After GET /api/slots: drop stale client locks and align expiresAt with server (fixes refresh / clock skew).
-   * If the locked slot is missing from this response, keep the client lock — the list query can omit
-   * rows (e.g. 24h window) while the lock row still exists; clearing here made reload drop stored lock.
+   * When the locked slot is missing from the list (24h window, past dates), verify the lock on the server
+   * during non-silent loads; clear if expired on the client or invalid on the server.
    */
-  function syncLockStateWithSlots() {
+  async function syncLockStateWithSlots(options) {
     if (!lockToken || lockedSlotId == null) return;
-    if (!slotsRaw || slotsRaw.length === 0) return;
-    const slot = slotsRaw.find(
-      (s) => s.id === lockedSlotId || String(s.id) === String(lockedSlotId)
-    );
-    if (!slot) return;
-    if (!slot.isMyLock) {
+    const serverVerifyLock = !!(options && options.serverVerifyLock);
+
+    const slot =
+      slotsRaw && slotsRaw.length > 0
+        ? slotsRaw.find(
+            (s) => s.id === lockedSlotId || String(s.id) === String(lockedSlotId)
+          )
+        : null;
+
+    if (slot) {
+      if (!slot.isMyLock) {
+        clearLockClientState();
+        return;
+      }
+      if (slot.lockExpiresAt) {
+        const prevExpiresAt = expiresAt;
+        expiresAt = slot.lockExpiresAt;
+        if (prevExpiresAt !== expiresAt) storeLock();
+        if (countdownInterval) updateCountdown();
+      }
+      if (isEmailModalOpen()) updateBookingModalSelectedSlotDisplay();
+      return;
+    }
+
+    if (isClientLockClearlyExpired()) {
       clearLockClientState();
       return;
     }
-    if (slot.lockExpiresAt) {
+    if (!serverVerifyLock) return;
+
+    const status = await fetchLockStatus(lockedSlotId, lockToken);
+    if (status.checkFailed) return;
+    if (!status.valid) {
+      clearLockClientState();
+      return;
+    }
+    if (status.expiresAt) {
       const prevExpiresAt = expiresAt;
-      expiresAt = slot.lockExpiresAt;
+      expiresAt = status.expiresAt;
       if (prevExpiresAt !== expiresAt) storeLock();
       if (countdownInterval) updateCountdown();
     }
-    if (isEmailModalOpen()) updateBookingModalSelectedSlotDisplay();
   }
 
   async function loadSlots(options) {
@@ -1399,7 +1451,7 @@
       }
       slotsRaw = data.slots || [];
       resetPollBackoff();
-      syncLockStateWithSlots();
+      await syncLockStateWithSlots({ serverVerifyLock: !silent });
       renderCalendar();
       if (lockToken && isEmailModalOpen()) updateBookingModalSelectedSlotDisplay();
     } catch (e) {
@@ -2341,6 +2393,10 @@
 
   function showRestoredLockUiIfNeeded() {
     if (!lockToken) return;
+    if (isClientLockClearlyExpired()) {
+      clearLockClientState();
+      return;
+    }
     const emailErr = $('booking-email-error');
     if (emailErr) emailErr.hidden = true;
     const hold = $('booking-hold-banner');
