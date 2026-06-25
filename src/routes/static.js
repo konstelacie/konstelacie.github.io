@@ -1,8 +1,10 @@
+const path = require('path');
 const express = require('express');
 const pageVisibility = require('../config/pageVisibility');
 const { FUNNEL_PAGE_INSTANCES } = require('../config/funnelInstances');
 
 const router = express.Router();
+const projectRoot = path.join(__dirname, '..', '..');
 
 const SITE_ORIGIN = 'https://citimtedasom.sk';
 
@@ -16,6 +18,10 @@ function funnelDisallowLines() {
   }
   return lines;
 }
+
+router.get('/favicon.ico', (_req, res) => {
+  res.sendFile(path.join(projectRoot, 'public', 'assets', 'favicon', 'favicon.ico'));
+});
 
 router.get('/robots.txt', (_req, res) => {
   res.type('text/plain');
