@@ -10,6 +10,8 @@ router.get('/ochrana-udajov', (req, res) => {
     description:
       'Informácie o spracúvaní osobných údajov, cookies a službách tretích strán (Meta Pixel, platby).',
     legalEntity: config.site.legalEntity,
+    legalCompanyName: config.site.legalCompanyName,
+    legalIco: config.site.legalIco,
     legalEmail: config.site.legalEmail,
   });
 });
@@ -20,6 +22,8 @@ router.get('/obchodne-podmienky', (req, res) => {
     title: 'Obchodné podmienky · citimtedasom.sk',
     description: 'Obchodné podmienky rezervácie a úhrady služieb cez citimtedasom.sk.',
     legalEntity: config.site.legalEntity,
+    legalCompanyName: config.site.legalCompanyName,
+    legalIco: config.site.legalIco,
     legalEmail: config.site.legalEmail,
   });
 });

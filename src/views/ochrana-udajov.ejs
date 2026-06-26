@@ -11,6 +11,11 @@
   <h2>1. Prevádzkovateľ</h2>
   <% if (typeof legalEntity !== 'undefined' && legalEntity) { %>
   <p><%= legalEntity %></p>
+  <% } else if (typeof legalCompanyName !== 'undefined' && legalCompanyName) { %>
+  <p><strong>Obchodné meno:</strong> <%= legalCompanyName %></p>
+  <% if (typeof legalIco !== 'undefined' && legalIco) { %>
+  <p><strong>IČO:</strong> <%= legalIco %></p>
+  <% } %>
   <% } else { %>
   <p>
     Prevádzkovateľom webu je poskytovateľ služieb prezentovaný pod značkou citimtedasom.sk. Presné
@@ -20,8 +25,8 @@
   <% } %>
   <% if (typeof legalEmail !== 'undefined' && legalEmail) { %>
   <p>
-    Kontakt k ochrane údajov:
-    <a href="mailto:<%= legalEmail %>"><%= legalEmail %></a>
+    <strong>Kontakt</strong><br>
+    <strong>Email:</strong> <a href="mailto:<%= legalEmail %>"><%= legalEmail %></a>
   </p>
   <% } %>
 

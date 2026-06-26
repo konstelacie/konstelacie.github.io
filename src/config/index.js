@@ -16,20 +16,23 @@ module.exports = {
   pageVisibility: require('./pageVisibility'),
   paymentBackend: require('./paymentBackend'),
   site: {
-    /** Optional imprint line, e.g. "Ján Novák, Žilina, IČO …" */
+    /** Optional imprint override (single paragraph); overrides structured company fields when set */
     legalEntity: (process.env.SITE_LEGAL_ENTITY || '').trim(),
-    /** Contact for privacy/terms; falls back to transactional from-email if set */
+    legalCompanyName: (
+      process.env.SITE_LEGAL_COMPANY_NAME || 'enlightening.sk s.r.o.'
+    ).trim(),
+    legalIco: (process.env.SITE_LEGAL_ICO || '54864895').trim(),
+    /** Contact for privacy/terms and support surfaces */
     legalEmail: (
       process.env.SITE_LEGAL_EMAIL ||
-      process.env.RESEND_FROM_EMAIL ||
-      ''
+      process.env.SUPPORT_EMAIL ||
+      'michal@enlightening.sk'
     ).trim(),
     /** Inbound support contact form (booking success page). */
     supportEmail: (
       process.env.SUPPORT_EMAIL ||
       process.env.SITE_LEGAL_EMAIL ||
-      process.env.RESEND_FROM_EMAIL ||
-      'michal@citimtedasom.sk'
+      'michal@enlightening.sk'
     ).trim(),
     /**
      * Warning banner on test-mode surfaces. Set SITE_TESTING_BANNER=0 to hide globally.

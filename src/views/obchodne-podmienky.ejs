@@ -10,6 +10,11 @@
   <h2>1. Zmluvná strana</h2>
   <% if (typeof legalEntity !== 'undefined' && legalEntity) { %>
   <p><%= legalEntity %></p>
+  <% } else if (typeof legalCompanyName !== 'undefined' && legalCompanyName) { %>
+  <p><strong>Obchodné meno:</strong> <%= legalCompanyName %></p>
+  <% if (typeof legalIco !== 'undefined' && legalIco) { %>
+  <p><strong>IČO:</strong> <%= legalIco %></p>
+  <% } %>
   <% } else { %>
   <p>
     Predávajúcim / poskytovateľom služby je prevádzkovateľ webu citimtedasom.sk; identifikačné údaje doplníme
@@ -18,8 +23,8 @@
   <% } %>
   <% if (typeof legalEmail !== 'undefined' && legalEmail) { %>
   <p>
-    Kontakt:
-    <a href="mailto:<%= legalEmail %>"><%= legalEmail %></a>
+    <strong>Kontakt</strong><br>
+    <strong>Email:</strong> <a href="mailto:<%= legalEmail %>"><%= legalEmail %></a>
   </p>
   <% } %>
 
