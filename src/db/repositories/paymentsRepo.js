@@ -1,4 +1,6 @@
 const { getPool } = require('../index');
+const { scheduleLeadEvent } = require('./leadEventsRepo');
+const { centsToLeadAmount } = require('../../lib/leadEventContext');
 
 /**
  * Mark funnel Stripe checkouts whose session window has passed as expired and purge expired slot_lock rows.
@@ -8,17 +10,70 @@ const { getPool } = require('../index');
  */
 async function reconcileExpiredStripeCheckouts(executor, opts = {}) {
   const slotId = opts.slotId;
-  let sql = `UPDATE payments SET status = 'expired'
+
+  let paymentsSql = `SELECT p.id, p.slot_id, p.amount_cents, p.currency, u.email AS user_email
+     FROM payments p
+     LEFT JOIN users u ON u.id = p.user_id
+     WHERE p.status = 'pending' AND p.provider = 'stripe'
+     AND p.slot_id IS NOT NULL
+     AND p.checkout_expires_at <= NOW(3)`;
+  const paymentsParams = [];
+  if (slotId != null) {
+    paymentsSql += ' AND p.slot_id = ?';
+    paymentsParams.push(slotId);
+  }
+
+  let locksSql = `SELECT sl.slot_id, sl.email, sl.created_at
+     FROM slot_locks sl
+     WHERE sl.expires_at < NOW(3)
+       AND sl.email IS NOT NULL
+       AND NOT EXISTS (
+         SELECT 1 FROM payments p
+         WHERE p.slot_id = sl.slot_id
+           AND p.provider = 'stripe'
+           AND p.created_at >= sl.created_at
+       )`;
+  const locksParams = [];
+  if (slotId != null) {
+    locksSql += ' AND sl.slot_id = ?';
+    locksParams.push(slotId);
+  }
+
+  const [paymentsToExpire] = await executor.execute(paymentsSql, paymentsParams);
+  const [locksToExpire] = await executor.execute(locksSql, locksParams);
+
+  let expireSql = `UPDATE payments SET status = 'expired'
      WHERE status = 'pending' AND provider = 'stripe'
      AND slot_id IS NOT NULL
      AND checkout_expires_at <= NOW(3)`;
-  const params = [];
+  const expireParams = [];
   if (slotId != null) {
-    sql += ' AND slot_id = ?';
-    params.push(slotId);
+    expireSql += ' AND slot_id = ?';
+    expireParams.push(slotId);
   }
-  await executor.execute(sql, params);
+  await executor.execute(expireSql, expireParams);
   await executor.execute('DELETE FROM slot_locks WHERE expires_at < NOW(3)');
+
+  for (const row of paymentsToExpire) {
+    const email = row.user_email ? String(row.user_email).trim() : '';
+    if (!email) continue;
+    scheduleLeadEvent('checkout_expired', {
+      email,
+      slotId: row.slot_id != null ? Number(row.slot_id) : null,
+      paymentId: row.id != null ? Number(row.id) : null,
+      amount: centsToLeadAmount(row.amount_cents),
+      currency: row.currency || 'eur',
+    });
+  }
+
+  for (const row of locksToExpire) {
+    const email = row.email ? String(row.email).trim() : '';
+    if (!email) continue;
+    scheduleLeadEvent('lock_expired', {
+      email,
+      slotId: row.slot_id != null ? Number(row.slot_id) : null,
+    });
+  }
 }
 
 async function listByReservationId(reservationId) {

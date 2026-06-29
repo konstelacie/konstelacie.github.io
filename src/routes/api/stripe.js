@@ -7,6 +7,12 @@ const { getPool } = require('../../db');
 const checkoutPostCommitService = require('../../services/checkoutPostCommitService');
 const emailDeliveryTaskService = require('../../services/emailDeliveryTaskService');
 const { constructStripeEvent } = require('../../lib/stripeWebhook');
+const { scheduleLeadEvent } = require('../../db/repositories/leadEventsRepo');
+const { centsToLeadAmount } = require('../../lib/leadEventContext');
+const {
+  resolvePaymentRowForPaymentIntent,
+  emailFromPaymentRow,
+} = require('../../lib/stripeLeadEventLookup');
 
 const router = express.Router();
 
@@ -266,6 +272,26 @@ router.post(
             sessionId: session.id,
           });
 
+          const purchaseEmail =
+            (session.customer_email && String(session.customer_email).trim()) ||
+            (session.customer_details && session.customer_details.email) ||
+            payment.user_email ||
+            '';
+          scheduleLeadEvent('purchase', {
+            email: purchaseEmail,
+            slotId: payment.slot_id != null ? Number(payment.slot_id) : null,
+            reservationId: reservationIdForEmail ?? payment.reservation_id ?? null,
+            paymentId: payment.id != null ? Number(payment.id) : null,
+            amount: centsToLeadAmount(payment.amount_cents),
+            currency: payment.currency || 'eur',
+            providerEventId: event.id,
+            formId: md.funnelName ? String(md.funnelName).trim() || null : null,
+            metadata: {
+              funnelCampaign: md.funnelCampaign || null,
+              sessionId: session.id,
+            },
+          });
+
           await checkoutPostCommitService.runCheckoutPostCommit({
             paymentId: payment.id,
             reservationId: reservationIdForEmail ?? payment.reservation_id ?? null,
@@ -304,11 +330,16 @@ router.post(
           lockTokenRaw = '';
         }
         const conn = await pool.getConnection();
+        let expiredPaymentId = null;
+        let expiredSlotId = null;
         try {
           await conn.beginTransaction();
 
           const [paymentRows] = await conn.execute(
-            'SELECT id, slot_id FROM payments WHERE provider_ref = ? AND status = ? LIMIT 1',
+            `SELECT p.id, p.slot_id, p.amount_cents, p.currency, u.email AS user_email
+             FROM payments p
+             LEFT JOIN users u ON u.id = p.user_id
+             WHERE p.provider_ref = ? AND p.status = ? LIMIT 1`,
             [session.id, 'pending']
           );
           const payment = paymentRows[0];
@@ -319,6 +350,8 @@ router.post(
 
           let didExpirePayment = false;
           if (payment) {
+            expiredPaymentId = payment.id;
+            expiredSlotId = payment.slot_id;
             const [upd] = await conn.execute(
               'UPDATE payments SET status = ? WHERE id = ? AND status = ?',
               ['expired', payment.id, 'pending']
@@ -335,11 +368,73 @@ router.post(
 
           await conn.execute('INSERT INTO webhook_events (stripe_event_id) VALUES (?)', [event.id]);
           await conn.commit();
+
+          if (didExpirePayment && payment) {
+            const email =
+              (payment.user_email && String(payment.user_email).trim()) ||
+              (session.customer_email && String(session.customer_email).trim()) ||
+              '';
+            if (email) {
+              scheduleLeadEvent('checkout_expired', {
+                email,
+                slotId: expiredSlotId != null ? Number(expiredSlotId) : null,
+                paymentId: expiredPaymentId != null ? Number(expiredPaymentId) : null,
+                amount: centsToLeadAmount(payment.amount_cents),
+                currency: payment.currency || 'eur',
+                providerEventId: event.id,
+                formId: md.funnelName ? String(md.funnelName).trim() || null : null,
+                metadata: { sessionId: session.id },
+              });
+            }
+          }
         } catch (err) {
           await conn.rollback();
           throw err;
         } finally {
           conn.release();
+        }
+        break;
+      }
+      case 'payment_intent.payment_failed': {
+        const pi = event.data.object;
+        const piId = pi?.id;
+        if (piId) {
+          const paymentRow = await resolvePaymentRowForPaymentIntent(pool, piId, paymentBackendName);
+          const email = emailFromPaymentRow(paymentRow);
+          if (email) {
+            scheduleLeadEvent('payment_failed', {
+              email,
+              slotId: paymentRow?.slot_id != null ? Number(paymentRow.slot_id) : null,
+              reservationId: paymentRow?.reservation_id != null ? Number(paymentRow.reservation_id) : null,
+              paymentId: paymentRow?.id != null ? Number(paymentRow.id) : null,
+              amount: centsToLeadAmount(paymentRow?.amount_cents),
+              currency: paymentRow?.currency || 'eur',
+              providerEventId: event.id,
+              metadata: { paymentIntentId: piId },
+            });
+          }
+        }
+        break;
+      }
+      case 'charge.refunded': {
+        const charge = event.data.object;
+        const piId =
+          typeof charge.payment_intent === 'string' ? charge.payment_intent : charge.payment_intent?.id;
+        if (piId) {
+          const paymentRow = await resolvePaymentRowForPaymentIntent(pool, piId, paymentBackendName);
+          const email = emailFromPaymentRow(paymentRow);
+          if (email) {
+            scheduleLeadEvent('payment_refunded', {
+              email,
+              slotId: paymentRow?.slot_id != null ? Number(paymentRow.slot_id) : null,
+              reservationId: paymentRow?.reservation_id != null ? Number(paymentRow.reservation_id) : null,
+              paymentId: paymentRow?.id != null ? Number(paymentRow.id) : null,
+              amount: centsToLeadAmount(paymentRow?.amount_cents),
+              currency: paymentRow?.currency || 'eur',
+              providerEventId: event.id,
+              metadata: { chargeId: charge.id, paymentIntentId: piId },
+            });
+          }
         }
         break;
       }

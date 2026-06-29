@@ -14,6 +14,8 @@ const lockChallengesRepo = require('../../db/repositories/lockChallengesRepo');
 const reservationsRepo = require('../../db/repositories/reservationsRepo');
 const paymentsRepo = require('../../db/repositories/paymentsRepo');
 const auditRepo = require('../../db/repositories/auditRepo');
+const { scheduleLeadEvent } = require('../../db/repositories/leadEventsRepo');
+const { leadContextFromRequest } = require('../../lib/leadEventContext');
 const { getPool } = require('../../db');
 const { slotPassesBookingWindow } = require('../../lib/slotBookingRules');
 const { mapSlotRowToApi, gridMetadata } = require('../../lib/slotApiMap');
@@ -288,11 +290,26 @@ router.post(
     const updated = await locksRepo.extendLockExpiration(slotId, lockToken, email, expiresAt);
     if (!updated) {
       await auditRepo.log('lock_extend_failed', 'slot', slotId, { reason: 'not_found_or_expired' });
+      const leadCtx = leadContextFromRequest(req);
+      scheduleLeadEvent('lock_extend_failed', {
+        email,
+        slotId,
+        formId: leadCtx.formId,
+        sourceUrl: leadCtx.sourceUrl,
+      });
       throw bookingCannotCompleteError(409);
     }
 
     await auditRepo.log('lock_extended', 'slot', slotId, {
       lockToken: lockToken.slice(0, 8) + '...',
+    });
+
+    const leadCtx = leadContextFromRequest(req);
+    scheduleLeadEvent('email_entered', {
+      email,
+      slotId,
+      formId: leadCtx.formId,
+      sourceUrl: leadCtx.sourceUrl,
     });
 
     res.json({

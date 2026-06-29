@@ -19,6 +19,8 @@ const { validateSlotId, validateEmail, validateLockToken } = require('../../midd
 const { slotPassesBookingWindow } = require('../../lib/slotBookingRules');
 const { checkoutExpiresAtFromNow, lockExpiresAtAfterCheckoutCancel } = require('../../config/checkoutHold');
 const paymentsRepo = require('../../db/repositories/paymentsRepo');
+const { scheduleLeadEvent } = require('../../db/repositories/leadEventsRepo');
+const { leadContextFromRequest, centsToLeadAmount } = require('../../lib/leadEventContext');
 const emailDeliveryTasksRepo = require('../../db/repositories/emailDeliveryTasksRepo');
 const emailSentLogRepo = require('../../db/repositories/emailSentLogRepo');
 const { buildConfirmationEmailPayload } = require('../../lib/confirmationEmailStatus');
@@ -490,6 +492,22 @@ router.post(
           ? idempotentLockExpiresAt
           : new Date(idempotentLockExpiresAt)
         : checkoutExpiresAt;
+
+      const leadCtx = leadContextFromRequest(req);
+      scheduleLeadEvent('payment_retry', {
+        email,
+        slotId,
+        formId: funnel.funnelName || leadCtx.formId,
+        sourceUrl: leadCtx.sourceUrl,
+        amount: centsToLeadAmount(cents),
+        currency: 'eur',
+        metadata: {
+          checkoutSessionId: idempotentProviderRef,
+          paymentType: paymentTypeForDb,
+          funnelCampaign: funnel.funnelCampaign,
+        },
+      });
+
       return res.status(200).json({
         ok: true,
         url: existingSession.url,
@@ -590,6 +608,23 @@ router.post(
             ? lockExp
             : new Date(lockExp)
           : checkoutExpiresAt;
+
+        const leadCtx = leadContextFromRequest(req);
+        scheduleLeadEvent('payment_retry', {
+          email,
+          slotId,
+          formId: funnel.funnelName || leadCtx.formId,
+          sourceUrl: leadCtx.sourceUrl,
+          amount: centsToLeadAmount(cents),
+          currency: 'eur',
+          metadata: {
+            checkoutSessionId: firstRef,
+            paymentType: paymentTypeForDb,
+            funnelCampaign: funnel.funnelCampaign,
+            reason: 'race_duplicate',
+          },
+        });
+
         return res.status(200).json({
           ok: true,
           url: existingSession.url,
@@ -629,6 +664,22 @@ router.post(
     } catch (auditErr) {
       console.error('[payments/start] auditRepo.log failed (payment still ok)', auditErr);
     }
+
+    const leadCtx = leadContextFromRequest(req);
+    scheduleLeadEvent('initiate_checkout', {
+      email,
+      slotId,
+      formId: funnel.funnelName || leadCtx.formId,
+      sourceUrl: leadCtx.sourceUrl,
+      amount: centsToLeadAmount(cents),
+      currency: 'eur',
+      metadata: {
+        checkoutSessionId: session.id,
+        paymentType: paymentTypeForDb,
+        funnelCampaign: funnel.funnelCampaign,
+        funnelVideoId: funnel.funnelVideoId,
+      },
+    });
 
     res.status(200).json({
       ok: true,
