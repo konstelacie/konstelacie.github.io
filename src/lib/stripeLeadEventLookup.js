@@ -45,8 +45,17 @@ async function findPaymentRowByPaymentIntentId(pool, paymentIntentId) {
  * @param {'test'|'prod'} paymentBackendName
  */
 async function resolvePaymentRowForPaymentIntent(pool, paymentIntentId, paymentBackendName) {
-  const fromBilling = await findPaymentRowByPaymentIntentId(pool, paymentIntentId);
-  if (fromBilling) return fromBilling;
+  try {
+    const fromBilling = await findPaymentRowByPaymentIntentId(pool, paymentIntentId);
+    if (fromBilling) return fromBilling;
+  } catch (err) {
+    logLine({
+      level: 'warn',
+      tag: 'lead_events_db_lookup_failed',
+      paymentIntentId,
+      error: err?.message || String(err),
+    });
+  }
 
   try {
     const stripeSecret = paymentBackend.requireStripeSecret(paymentBackendName);
@@ -54,7 +63,7 @@ async function resolvePaymentRowForPaymentIntent(pool, paymentIntentId, paymentB
     const sessions = await stripe.checkout.sessions.list({ payment_intent: paymentIntentId, limit: 1 });
     const sessionId = sessions.data[0]?.id;
     if (sessionId) {
-      return findPaymentRowByProviderRef(pool, sessionId);
+      return await findPaymentRowByProviderRef(pool, sessionId);
     }
   } catch (err) {
     logLine({

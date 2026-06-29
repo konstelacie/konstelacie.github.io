@@ -37,7 +37,16 @@ function centsToLeadAmount(amountCents) {
   return Math.round(Number(amountCents)) / 100;
 }
 
+/**
+ * Idempotency key shared by reconcile job and Stripe checkout.session.expired webhook.
+ * @param {number|string} paymentId
+ */
+function checkoutExpiredProviderEventId(paymentId) {
+  return `payment_expired:${paymentId}`;
+}
+
 module.exports = {
   leadContextFromRequest,
   centsToLeadAmount,
+  checkoutExpiredProviderEventId,
 };

@@ -1,6 +1,7 @@
 const { getPool } = require('../index');
 const { scheduleLeadEvent } = require('./leadEventsRepo');
-const { centsToLeadAmount } = require('../../lib/leadEventContext');
+const { centsToLeadAmount, checkoutExpiredProviderEventId } = require('../../lib/leadEventContext');
+const { logLine } = require('../../lib/structuredLog');
 
 /**
  * Mark funnel Stripe checkouts whose session window has passed as expired and purge expired slot_lock rows.
@@ -39,8 +40,31 @@ async function reconcileExpiredStripeCheckouts(executor, opts = {}) {
     locksParams.push(slotId);
   }
 
-  const [paymentsToExpire] = await executor.execute(paymentsSql, paymentsParams);
-  const [locksToExpire] = await executor.execute(locksSql, locksParams);
+  let paymentsToExpire = [];
+  try {
+    const [rows] = await executor.execute(paymentsSql, paymentsParams);
+    paymentsToExpire = rows;
+  } catch (err) {
+    logLine({
+      level: 'warn',
+      tag: 'lead_events_reconcile_lookup_failed',
+      query: 'paymentsToExpire',
+      error: err?.message || String(err),
+    });
+  }
+
+  let locksToExpire = [];
+  try {
+    const [rows] = await executor.execute(locksSql, locksParams);
+    locksToExpire = rows;
+  } catch (err) {
+    logLine({
+      level: 'warn',
+      tag: 'lead_events_reconcile_lookup_failed',
+      query: 'locksToExpire',
+      error: err?.message || String(err),
+    });
+  }
 
   let expireSql = `UPDATE payments SET status = 'expired'
      WHERE status = 'pending' AND provider = 'stripe'
@@ -63,6 +87,7 @@ async function reconcileExpiredStripeCheckouts(executor, opts = {}) {
       paymentId: row.id != null ? Number(row.id) : null,
       amount: centsToLeadAmount(row.amount_cents),
       currency: row.currency || 'eur',
+      providerEventId: checkoutExpiredProviderEventId(row.id),
     });
   }
 

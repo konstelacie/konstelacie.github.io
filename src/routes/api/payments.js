@@ -102,6 +102,27 @@ function buildStripeSuccessUrl(baseUrl, funnelName) {
   return `${baseUrl}${publicPath}?${qs}`;
 }
 
+function schedulePaymentRetryLeadEvent(
+  req,
+  { email, slotId, funnel, cents, paymentTypeForDb, providerRef, reason }
+) {
+  const leadCtx = leadContextFromRequest(req);
+  scheduleLeadEvent('payment_retry', {
+    email,
+    slotId,
+    formId: funnel.funnelName || leadCtx.formId,
+    sourceUrl: leadCtx.sourceUrl,
+    amount: centsToLeadAmount(cents),
+    currency: 'eur',
+    metadata: {
+      checkoutSessionId: providerRef,
+      paymentType: paymentTypeForDb,
+      funnelCampaign: funnel.funnelCampaign,
+      ...(reason ? { reason } : {}),
+    },
+  });
+}
+
 function normalizeOptionalText(raw, maxLen) {
   if (raw == null) return null;
   const s = String(raw).trim();
@@ -493,19 +514,13 @@ router.post(
           : new Date(idempotentLockExpiresAt)
         : checkoutExpiresAt;
 
-      const leadCtx = leadContextFromRequest(req);
-      scheduleLeadEvent('payment_retry', {
+      schedulePaymentRetryLeadEvent(req, {
         email,
         slotId,
-        formId: funnel.funnelName || leadCtx.formId,
-        sourceUrl: leadCtx.sourceUrl,
-        amount: centsToLeadAmount(cents),
-        currency: 'eur',
-        metadata: {
-          checkoutSessionId: idempotentProviderRef,
-          paymentType: paymentTypeForDb,
-          funnelCampaign: funnel.funnelCampaign,
-        },
+        funnel,
+        cents,
+        paymentTypeForDb,
+        providerRef: idempotentProviderRef,
       });
 
       return res.status(200).json({
@@ -609,20 +624,14 @@ router.post(
             : new Date(lockExp)
           : checkoutExpiresAt;
 
-        const leadCtx = leadContextFromRequest(req);
-        scheduleLeadEvent('payment_retry', {
+        schedulePaymentRetryLeadEvent(req, {
           email,
           slotId,
-          formId: funnel.funnelName || leadCtx.formId,
-          sourceUrl: leadCtx.sourceUrl,
-          amount: centsToLeadAmount(cents),
-          currency: 'eur',
-          metadata: {
-            checkoutSessionId: firstRef,
-            paymentType: paymentTypeForDb,
-            funnelCampaign: funnel.funnelCampaign,
-            reason: 'race_duplicate',
-          },
+          funnel,
+          cents,
+          paymentTypeForDb,
+          providerRef: firstRef,
+          reason: 'race_duplicate',
         });
 
         return res.status(200).json({

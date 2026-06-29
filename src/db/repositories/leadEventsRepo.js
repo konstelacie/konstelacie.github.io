@@ -20,19 +20,19 @@ const { logLine } = require('../../lib/structuredLog');
 /**
  * Insert a lead event on a separate pool connection. Never throws — failures are logged and swallowed.
  * @param {string} eventType
- * @param {LeadEventPayload} payload
+ * @param {LeadEventPayload} [payload]
  * @returns {Promise<void>}
  */
 async function recordLeadEvent(eventType, payload) {
-  const pool = getPool();
-  if (!pool) return;
-
-  const email = String(payload?.email ?? '')
-    .trim()
-    .toLowerCase();
-  if (!email) return;
-
   try {
+    const pool = getPool();
+    if (!pool) return;
+
+    const email = String(payload?.email ?? '')
+      .trim()
+      .toLowerCase();
+    if (!email) return;
+
     const metadataJson = payload.metadata != null ? JSON.stringify(payload.metadata) : null;
     const occurredAt =
       payload.occurredAt instanceof Date
@@ -69,7 +69,7 @@ async function recordLeadEvent(eventType, payload) {
       level: 'warn',
       tag: 'lead_events_insert_failed',
       eventType,
-      email,
+      email: payload?.email,
       error: err?.message || String(err),
     });
   }
@@ -78,10 +78,19 @@ async function recordLeadEvent(eventType, payload) {
 /**
  * Fire-and-forget lead event write (non-blocking for request handlers).
  * @param {string} eventType
- * @param {LeadEventPayload} payload
+ * @param {LeadEventPayload} [payload]
  */
 function scheduleLeadEvent(eventType, payload) {
-  void recordLeadEvent(eventType, payload);
+  try {
+    void recordLeadEvent(eventType, payload);
+  } catch (err) {
+    logLine({
+      level: 'warn',
+      tag: 'lead_events_schedule_failed',
+      eventType,
+      error: err?.message || String(err),
+    });
+  }
 }
 
 module.exports = {

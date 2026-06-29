@@ -8,7 +8,7 @@ const checkoutPostCommitService = require('../../services/checkoutPostCommitServ
 const emailDeliveryTaskService = require('../../services/emailDeliveryTaskService');
 const { constructStripeEvent } = require('../../lib/stripeWebhook');
 const { scheduleLeadEvent } = require('../../db/repositories/leadEventsRepo');
-const { centsToLeadAmount } = require('../../lib/leadEventContext');
+const { centsToLeadAmount, checkoutExpiredProviderEventId } = require('../../lib/leadEventContext');
 const {
   resolvePaymentRowForPaymentIntent,
   emailFromPaymentRow,
@@ -381,9 +381,9 @@ router.post(
                 paymentId: expiredPaymentId != null ? Number(expiredPaymentId) : null,
                 amount: centsToLeadAmount(payment.amount_cents),
                 currency: payment.currency || 'eur',
-                providerEventId: event.id,
+                providerEventId: checkoutExpiredProviderEventId(expiredPaymentId),
                 formId: md.funnelName ? String(md.funnelName).trim() || null : null,
-                metadata: { sessionId: session.id },
+                metadata: { sessionId: session.id, stripeEventId: event.id },
               });
             }
           }
@@ -396,45 +396,63 @@ router.post(
         break;
       }
       case 'payment_intent.payment_failed': {
-        const pi = event.data.object;
-        const piId = pi?.id;
-        if (piId) {
-          const paymentRow = await resolvePaymentRowForPaymentIntent(pool, piId, paymentBackendName);
-          const email = emailFromPaymentRow(paymentRow);
-          if (email) {
-            scheduleLeadEvent('payment_failed', {
-              email,
-              slotId: paymentRow?.slot_id != null ? Number(paymentRow.slot_id) : null,
-              reservationId: paymentRow?.reservation_id != null ? Number(paymentRow.reservation_id) : null,
-              paymentId: paymentRow?.id != null ? Number(paymentRow.id) : null,
-              amount: centsToLeadAmount(paymentRow?.amount_cents),
-              currency: paymentRow?.currency || 'eur',
-              providerEventId: event.id,
-              metadata: { paymentIntentId: piId },
-            });
+        try {
+          const pi = event.data.object;
+          const piId = pi?.id;
+          if (piId) {
+            const paymentRow = await resolvePaymentRowForPaymentIntent(pool, piId, paymentBackendName);
+            const email = emailFromPaymentRow(paymentRow);
+            if (email) {
+              scheduleLeadEvent('payment_failed', {
+                email,
+                slotId: paymentRow?.slot_id != null ? Number(paymentRow.slot_id) : null,
+                reservationId: paymentRow?.reservation_id != null ? Number(paymentRow.reservation_id) : null,
+                paymentId: paymentRow?.id != null ? Number(paymentRow.id) : null,
+                amount: centsToLeadAmount(paymentRow?.amount_cents),
+                currency: paymentRow?.currency || 'eur',
+                providerEventId: event.id,
+                metadata: { paymentIntentId: piId },
+              });
+            }
           }
+        } catch (err) {
+          logLine({
+            level: 'warn',
+            tag: 'lead_events_webhook_lookup_failed',
+            eventType: 'payment_intent.payment_failed',
+            error: err?.message || String(err),
+          });
         }
         break;
       }
       case 'charge.refunded': {
-        const charge = event.data.object;
-        const piId =
-          typeof charge.payment_intent === 'string' ? charge.payment_intent : charge.payment_intent?.id;
-        if (piId) {
-          const paymentRow = await resolvePaymentRowForPaymentIntent(pool, piId, paymentBackendName);
-          const email = emailFromPaymentRow(paymentRow);
-          if (email) {
-            scheduleLeadEvent('payment_refunded', {
-              email,
-              slotId: paymentRow?.slot_id != null ? Number(paymentRow.slot_id) : null,
-              reservationId: paymentRow?.reservation_id != null ? Number(paymentRow.reservation_id) : null,
-              paymentId: paymentRow?.id != null ? Number(paymentRow.id) : null,
-              amount: centsToLeadAmount(paymentRow?.amount_cents),
-              currency: paymentRow?.currency || 'eur',
-              providerEventId: event.id,
-              metadata: { chargeId: charge.id, paymentIntentId: piId },
-            });
+        try {
+          const charge = event.data.object;
+          const piId =
+            typeof charge.payment_intent === 'string' ? charge.payment_intent : charge.payment_intent?.id;
+          if (piId) {
+            const paymentRow = await resolvePaymentRowForPaymentIntent(pool, piId, paymentBackendName);
+            const email = emailFromPaymentRow(paymentRow);
+            if (email) {
+              scheduleLeadEvent('payment_refunded', {
+                email,
+                slotId: paymentRow?.slot_id != null ? Number(paymentRow.slot_id) : null,
+                reservationId: paymentRow?.reservation_id != null ? Number(paymentRow.reservation_id) : null,
+                paymentId: paymentRow?.id != null ? Number(paymentRow.id) : null,
+                amount: centsToLeadAmount(paymentRow?.amount_cents),
+                currency: paymentRow?.currency || 'eur',
+                providerEventId: event.id,
+                metadata: { chargeId: charge.id, paymentIntentId: piId },
+              });
+            }
           }
+        } catch (err) {
+          logLine({
+            level: 'warn',
+            tag: 'lead_events_webhook_lookup_failed',
+            eventType: 'charge.refunded',
+            error: err?.message || String(err),
+          });
         }
         break;
       }
