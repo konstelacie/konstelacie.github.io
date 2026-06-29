@@ -81,16 +81,7 @@ async function recordLeadEvent(eventType, payload) {
  * @param {LeadEventPayload} [payload]
  */
 function scheduleLeadEvent(eventType, payload) {
-  try {
-    void recordLeadEvent(eventType, payload);
-  } catch (err) {
-    logLine({
-      level: 'warn',
-      tag: 'lead_events_schedule_failed',
-      eventType,
-      error: err?.message || String(err),
-    });
-  }
+  void recordLeadEvent(eventType, payload);
 }
 
 module.exports = {

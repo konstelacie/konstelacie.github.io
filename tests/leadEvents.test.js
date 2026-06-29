@@ -231,10 +231,13 @@ function walkJsFiles(dir, out = []) {
 
 function seededLeadEventTypeCodes(migrationSql) {
   const codes = new Set();
-  const re = /\(\s*'([a-z_]+)'\s*,\s*'acquisition'/g;
-  let m;
-  while ((m = re.exec(migrationSql)) !== null) {
-    codes.add(m[1]);
+  const inserts = migrationSql.match(/INSERT INTO lead_event_types[^;]+;/gs) || [];
+  const tupleRe = /\(\s*'([a-z_]+)'\s*,/g;
+  for (const block of inserts) {
+    let m;
+    while ((m = tupleRe.exec(block)) !== null) {
+      codes.add(m[1]);
+    }
   }
   return codes;
 }
@@ -266,11 +269,68 @@ test('every scheduleLeadEvent type is seeded in migration', () => {
   );
 });
 
-test('checkout_expired uses payment-scoped providerEventId in reconcile and webhook', () => {
-  const paymentsRepoSrc = fs.readFileSync(PAYMENTS_REPO_PATH, 'utf8');
-  const stripeSrc = fs.readFileSync(STRIPE_ROUTER_PATH, 'utf8');
-  assert.match(paymentsRepoSrc, /checkoutExpiredProviderEventId/);
-  assert.match(stripeSrc, /checkoutExpiredProviderEventId/);
+test('checkoutExpiredProviderEventId produces the same key regardless of caller', () => {
+  const { checkoutExpiredProviderEventId } = require('../src/lib/leadEventContext');
+  const paymentId = 12345;
+  const fromJob = checkoutExpiredProviderEventId(paymentId);
+  const fromWebhook = checkoutExpiredProviderEventId(Number(paymentId));
+  assert.equal(fromJob, fromWebhook);
+  assert.equal(fromJob, 'payment_expired:12345');
+});
+
+test('reconcileExpiredStripeCheckouts emits providerEventId matching checkoutExpiredProviderEventId', async () => {
+  delete require.cache[PAYMENTS_REPO_PATH];
+  delete require.cache[REPO_PATH];
+
+  const { checkoutExpiredProviderEventId } = require('../src/lib/leadEventContext');
+  const leadEventsRepo = require(REPO_PATH);
+  const origSchedule = leadEventsRepo.scheduleLeadEvent;
+  const captured = [];
+  leadEventsRepo.scheduleLeadEvent = (type, payload) => captured.push({ type, payload });
+
+  try {
+    const { reconcileExpiredStripeCheckouts } = require(PAYMENTS_REPO_PATH);
+    const executor = {
+      execute: async (sql) => {
+        const s = String(sql);
+        if (s.includes('FROM payments p') && s.includes('user_email')) {
+          return [[{ id: 999, slot_id: 1, amount_cents: 4500, currency: 'eur', user_email: 'a@b.com' }]];
+        }
+        if (s.includes('FROM slot_locks sl')) return [[]];
+        return [{ affectedRows: 1 }];
+      },
+    };
+
+    await reconcileExpiredStripeCheckouts(executor, {});
+
+    const expiredEvent = captured.find((e) => e.type === 'checkout_expired');
+    assert.ok(expiredEvent);
+    assert.equal(expiredEvent.payload.providerEventId, checkoutExpiredProviderEventId(999));
+  } finally {
+    leadEventsRepo.scheduleLeadEvent = origSchedule;
+    delete require.cache[PAYMENTS_REPO_PATH];
+    delete require.cache[REPO_PATH];
+  }
+});
+
+test('core routes do not await scheduleLeadEvent on the critical path', () => {
+  const slotsSrc = fs.readFileSync(path.join(__dirname, '../src/routes/api/slots.js'), 'utf8');
+  assert.equal(slotsSrc.includes('await scheduleLeadEvent'), false);
+  assert.equal(slotsSrc.includes('await recordLeadEvent'), false);
+
+  const paymentsSrc = fs.readFileSync(path.join(__dirname, '../src/routes/api/payments.js'), 'utf8');
+  assert.equal(paymentsSrc.includes('await scheduleLeadEvent'), false);
+  assert.equal(paymentsSrc.includes('await recordLeadEvent'), false);
+});
+
+test('migration defines lead_events tables and seeds idempotently', () => {
+  const migrationPath = path.join(__dirname, '../src/db/migrations/002_lead_events.sql');
+  const sql = fs.readFileSync(migrationPath, 'utf8');
+  assert.match(sql, /CREATE TABLE IF NOT EXISTS lead_event_types/);
+  assert.match(sql, /CREATE TABLE IF NOT EXISTS lead_events/);
+  assert.match(sql, /ON DUPLICATE KEY UPDATE/);
+  assert.match(sql, /'purchase'/);
+  assert.match(sql, /'payment_path_selected'[\s\S]*,\s*0\)/);
 });
 
 test('centsToLeadAmount converts payment cents to euros', () => {
