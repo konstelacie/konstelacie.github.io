@@ -1,0 +1,122 @@
+<div class="admin-wrap admin-wrap--wide">
+  <header class="admin-header admin-header--bar">
+    <h1 class="admin-title">Udalosti</h1>
+    <form method="post" action="/admin/logout">
+      <button type="submit" class="admin-btn admin-btn--ghost">Odhlásiť sa</button>
+    </form>
+  </header>
+
+  <% if (typeof flash !== 'undefined' && flash) { %>
+    <p class="admin-flash admin-flash--<%= flash.level %>" role="status"><%= flash.message %></p>
+  <% } %>
+
+  <% if (typeof loadError !== 'undefined' && loadError) { %>
+    <p class="admin-error" role="alert">Nepodarilo sa načítať udalosti. Skúste znova neskôr.</p>
+  <% } %>
+
+  <% if (typeof dbConfigured !== 'undefined' && !dbConfigured) { %>
+    <p class="admin-error" role="alert">Databáza nie je nakonfigurovaná.</p>
+  <% } %>
+
+  <% if (typeof dbConfigured !== 'undefined' && dbConfigured) { %>
+  <%- include('../partials/admin-reservations-subnav', { reservationsTab: 'events' }) %>
+
+  <form method="get" action="/admin/reservations/events" class="admin-create__form admin-create__form--filter">
+    <% const d = typeof daysFilter !== 'undefined' ? daysFilter : '30'; %>
+    <input type="hidden" name="days" value="<%= d %>">
+    <div class="admin-create__row">
+      <div class="admin-field">
+        <label for="events-email">E-mail</label>
+        <input type="search" id="events-email" name="email" value="<%= typeof emailQ !== 'undefined' ? emailQ : '' %>" placeholder="napr. meno@domena.sk" autocomplete="off">
+      </div>
+      <div class="admin-field">
+        <label for="events-type">Typ udalosti</label>
+        <select id="events-type" name="type">
+          <option value="">Všetky</option>
+          <% if (typeof eventTypes !== 'undefined') { %>
+            <% for (const opt of eventTypes) { %>
+              <option value="<%= opt.code %>" <%= typeof typeFilter !== 'undefined' && typeFilter === opt.code ? 'selected' : '' %>><%= opt.label %></option>
+            <% } %>
+          <% } %>
+        </select>
+      </div>
+      <div class="admin-field">
+        <label>Obdobie</label>
+        <div class="admin-filters">
+          <a class="admin-btn admin-btn--small <%= d === '7' ? 'admin-btn--primary' : 'admin-btn--ghost' %>" href="<%= typeof daysFilterHref !== 'undefined' ? daysFilterHref('7') : '#' %>">7 dní</a>
+          <a class="admin-btn admin-btn--small <%= d === '30' ? 'admin-btn--primary' : 'admin-btn--ghost' %>" href="<%= typeof daysFilterHref !== 'undefined' ? daysFilterHref('30') : '#' %>">30 dní</a>
+          <a class="admin-btn admin-btn--small <%= d === '90' ? 'admin-btn--primary' : 'admin-btn--ghost' %>" href="<%= typeof daysFilterHref !== 'undefined' ? daysFilterHref('90') : '#' %>">90 dní</a>
+          <a class="admin-btn admin-btn--small <%= d === 'all' ? 'admin-btn--primary' : 'admin-btn--ghost' %>" href="<%= typeof daysFilterHref !== 'undefined' ? daysFilterHref('all') : '#' %>">Všetko</a>
+        </div>
+      </div>
+      <div class="admin-field admin-field--checkbox admin-field--row-actions">
+        <button type="submit" class="admin-btn admin-btn--primary">Filtrovať</button>
+      </div>
+    </div>
+  </form>
+
+  <% if (typeof events !== 'undefined' && events.length) { %>
+  <p class="admin-bulk__hint">Zobrazených <%= events.length %><% if (typeof listLimit !== 'undefined') { %> (max. <%= listLimit %>)<% } %> · zoradené od najnovších</p>
+  <div class="admin-table-wrap">
+    <table class="admin-table admin-table--alerts">
+      <thead>
+        <tr>
+          <th scope="col">Čas</th>
+          <th scope="col">Udalosť</th>
+          <th scope="col">E-mail</th>
+          <th scope="col">Termín</th>
+          <th scope="col">Suma</th>
+          <th scope="col">Funnel</th>
+          <th scope="col">Detail</th>
+        </tr>
+      </thead>
+      <tbody>
+        <% for (const row of events) { %>
+        <tr>
+          <td><%= row.occurredAtLabel %></td>
+          <td><span class="admin-status admin-status--<%= row.eventType %>"><%= row.eventTypeLabel %></span></td>
+          <td class="admin-table__email"><%= row.email %></td>
+          <td>
+            <% if (row.slotId != null) { %>
+              <a href="/admin/slots/<%= row.slotId %>"><%= row.sessionLabel %></a>
+            <% } else { %>
+              —
+            <% } %>
+          </td>
+          <td><%= row.amountLabel %></td>
+          <td class="admin-table__funnel-path"><%= row.funnelPathLabel %></td>
+          <td><%= row.detailSummary %></td>
+        </tr>
+        <tr class="admin-table__detail-row">
+          <td colspan="7">
+            <div class="admin-alert-detail">
+              <% if (row.reservationId != null || row.paymentId != null) { %>
+              <p class="admin-alert-detail__meta">
+                <% if (row.reservationId != null) { %>
+                  <strong>Rezervácia:</strong> <a href="/admin/reservations/<%= row.reservationId %>">#<%= row.reservationId %></a>
+                <% } %>
+                <% if (row.paymentId != null) { %>
+                  <% if (row.reservationId != null) { %> · <% } %>
+                  <strong>Platba:</strong> #<%= row.paymentId %>
+                <% } %>
+              </p>
+              <% } %>
+              <% if (row.sourceUrl) { %>
+              <p class="admin-alert-detail__meta"><strong>Zdroj:</strong> <%= row.sourceUrl %></p>
+              <% } %>
+              <div class="admin-alert-detail__metadata">
+                <strong>Metadata:</strong>
+                <pre class="admin-pre"><%= row.metadataFormatted %></pre>
+              </div>
+            </div>
+          </td>
+        </tr>
+        <% } %>
+      </tbody>
+    </table>
+  </div>
+  <% } else { %>
+  <p class="admin-placeholder">Žiadne udalosti pre tento filter.</p>
+  <% } %>
+  <% } %>
+</div>

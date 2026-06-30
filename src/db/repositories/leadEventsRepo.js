@@ -84,7 +84,103 @@ function scheduleLeadEvent(eventType, payload) {
   void recordLeadEvent(eventType, payload);
 }
 
+const ADMIN_LIST_LIMIT_DEFAULT = 200;
+const ADMIN_LIST_LIMIT_MAX = 500;
+const ADMIN_DAY_FILTERS = { 7: 7, 30: 30, 90: 90 };
+
+/**
+ * Paginated lead events for admin UI.
+ * @param {{ days?: string, eventType?: string, email?: string, limit?: number, offset?: number }} [opts]
+ */
+async function listForAdmin(opts = {}) {
+  const pool = getPool();
+  if (!pool) throw new Error('Database not configured');
+
+  const limitRaw = Number.parseInt(opts.limit, 10);
+  const limit = Number.isFinite(limitRaw)
+    ? Math.min(Math.max(limitRaw, 1), ADMIN_LIST_LIMIT_MAX)
+    : ADMIN_LIST_LIMIT_DEFAULT;
+  const offsetRaw = Number.parseInt(opts.offset, 10);
+  const offset = Number.isFinite(offsetRaw) ? Math.max(offsetRaw, 0) : 0;
+
+  const conditions = [];
+  const params = [];
+
+  const daysKey = opts.days != null ? String(opts.days) : '30';
+  if (daysKey !== 'all') {
+    const days = ADMIN_DAY_FILTERS[Number(daysKey)];
+    if (days) {
+      conditions.push('le.occurred_at >= DATE_SUB(NOW(3), INTERVAL ? DAY)');
+      params.push(days);
+    }
+  }
+
+  if (opts.eventType) {
+    const eventType = String(opts.eventType).trim();
+    if (eventType) {
+      conditions.push('le.event_type = ?');
+      params.push(eventType);
+    }
+  }
+
+  if (opts.email) {
+    const email = String(opts.email).trim().toLowerCase();
+    if (email) {
+      conditions.push('le.email LIKE ?');
+      params.push(`%${email}%`);
+    }
+  }
+
+  const where = conditions.length ? `WHERE ${conditions.join(' AND ')}` : '';
+
+  const [rows] = await pool.execute(
+    `SELECT
+      le.id,
+      le.email,
+      le.event_type,
+      le.form_id,
+      le.source_url,
+      le.amount,
+      le.currency,
+      le.slot_id,
+      le.reservation_id,
+      le.payment_id,
+      le.occurred_at,
+      le.metadata,
+      s.local_date,
+      s.grid_index,
+      s.start_at_utc,
+      s.timezone
+    FROM lead_events le
+    LEFT JOIN slots s ON s.id = le.slot_id
+    ${where}
+    ORDER BY le.occurred_at DESC, le.id DESC
+    LIMIT ? OFFSET ?`,
+    [...params, limit, offset]
+  );
+
+  return rows;
+}
+
+/** Active event types for admin filter dropdown. */
+async function listActiveEventTypes() {
+  const pool = getPool();
+  if (!pool) throw new Error('Database not configured');
+
+  const [rows] = await pool.execute(
+    `SELECT code, description
+     FROM lead_event_types
+     WHERE is_active = 1
+     ORDER BY code`
+  );
+  return rows;
+}
+
 module.exports = {
   recordLeadEvent,
   scheduleLeadEvent,
+  listForAdmin,
+  listActiveEventTypes,
+  ADMIN_LIST_LIMIT_DEFAULT,
+  ADMIN_LIST_LIMIT_MAX,
 };

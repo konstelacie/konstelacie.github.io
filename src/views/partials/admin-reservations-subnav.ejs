@@ -1,0 +1,5 @@
+<nav class="admin-filters" aria-label="Sekcia rezervácií">
+  <% const tab = typeof reservationsTab !== 'undefined' ? reservationsTab : 'list'; %>
+  <a class="admin-btn admin-btn--small <%= tab === 'list' ? 'admin-btn--primary' : 'admin-btn--ghost' %>" href="/admin/reservations">Zoznam</a>
+  <a class="admin-btn admin-btn--small <%= tab === 'events' ? 'admin-btn--primary' : 'admin-btn--ghost' %>" href="/admin/reservations/events">Udalosti</a>
+</nav>

@@ -33,7 +33,12 @@ const systemAlertService = require('../services/systemAlertService');
 const { validateEmail } = require('../middleware/validators');
 const { logLine } = require('../lib/structuredLog');
 const systemAlertsRepo = require('../db/repositories/systemAlertsRepo');
+const leadEventsRepo = require('../db/repositories/leadEventsRepo');
 const { mapAdminAlertRow } = require('../lib/adminAlertDisplay');
+const {
+  mapAdminLeadEventRow,
+  mapAdminLeadEventTypeOption,
+} = require('../lib/adminLeadEventDisplay');
 const { adminAlertBanner } = require('../middleware/adminAlertBanner');
 
 const router = express.Router();
@@ -41,6 +46,7 @@ const router = express.Router();
 router.use(adminAlertBanner);
 
 const ADMIN_RESERVATION_FILTERS = ['today', 'upcoming', 'unpaid', 'confirmed', 'expired'];
+const ADMIN_LEAD_EVENT_DAY_FILTERS = ['7', '30', '90', 'all'];
 
 function constantTimePasswordEq(input, expected) {
   if (typeof input !== 'string' || typeof expected !== 'string') return false;
@@ -486,6 +492,22 @@ function parseReservationIdParam(raw) {
   return id;
 }
 
+function normalizeLeadEventsDaysFilter(raw, sessionValue) {
+  const fromQuery = typeof raw === 'string' ? raw : '';
+  if (ADMIN_LEAD_EVENT_DAY_FILTERS.includes(fromQuery)) return fromQuery;
+  if (ADMIN_LEAD_EVENT_DAY_FILTERS.includes(sessionValue)) return sessionValue;
+  return '30';
+}
+
+function buildLeadEventsFilterHref({ days, typeFilter, emailQ }) {
+  const params = new URLSearchParams();
+  if (days && days !== '30') params.set('days', days);
+  if (typeFilter) params.set('type', typeFilter);
+  if (emailQ) params.set('email', emailQ);
+  const qs = params.toString();
+  return `/admin/reservations/events${qs ? `?${qs}` : ''}`;
+}
+
 function parseBillingIdParam(raw) {
   const id = parseInt(raw, 10);
   if (!Number.isInteger(id) || id <= 0) return null;
@@ -862,6 +884,77 @@ router.get('/reservations', requireAdmin, async (req, res) => {
       flash,
       filter,
       reservations: [],
+    });
+  }
+});
+
+router.get('/reservations/events', requireAdmin, async (req, res) => {
+  const flash = req.session.adminFlash;
+  if (flash) {
+    delete req.session.adminFlash;
+  }
+
+  const rawDays = typeof req.query.days === 'string' ? req.query.days : '';
+  const daysFilter = normalizeLeadEventsDaysFilter(rawDays, req.session.adminLeadEventsDays);
+  req.session.adminLeadEventsDays = daysFilter;
+
+  const typeFilter = typeof req.query.type === 'string' ? req.query.type.trim() : '';
+  const emailQ = typeof req.query.email === 'string' ? req.query.email.trim() : '';
+
+  const daysFilterHref = (days) =>
+    buildLeadEventsFilterHref({ days, typeFilter, emailQ });
+
+  const renderOpts = {
+    layout: 'layouts/admin',
+    title: 'Udalosti — administrácia',
+    adminSection: 'reservations',
+    flash,
+    daysFilter,
+    typeFilter,
+    emailQ,
+    daysFilterHref,
+    listLimit: leadEventsRepo.ADMIN_LIST_LIMIT_DEFAULT,
+  };
+
+  try {
+    const pool = getPool();
+    if (!pool) {
+      return res.render('admin/events', {
+        ...renderOpts,
+        dbConfigured: false,
+        loadError: false,
+        eventTypes: [],
+        events: [],
+      });
+    }
+
+    const [typeRows, eventRows] = await Promise.all([
+      leadEventsRepo.listActiveEventTypes(),
+      leadEventsRepo.listForAdmin({
+        days: daysFilter,
+        eventType: typeFilter || undefined,
+        email: emailQ || undefined,
+      }),
+    ]);
+
+    const eventTypes = typeRows.map((row) => mapAdminLeadEventTypeOption(row));
+    const events = eventRows.map((row) => mapAdminLeadEventRow(row));
+
+    return res.render('admin/events', {
+      ...renderOpts,
+      dbConfigured: true,
+      loadError: false,
+      eventTypes,
+      events,
+    });
+  } catch (err) {
+    console.error('[admin/reservations/events]', err);
+    return res.status(500).render('admin/events', {
+      ...renderOpts,
+      dbConfigured: !!getPool(),
+      loadError: true,
+      eventTypes: [],
+      events: [],
     });
   }
 });
