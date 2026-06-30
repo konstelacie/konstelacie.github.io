@@ -1,5 +1,6 @@
 const { getPool } = require('../index');
 const { logLine } = require('../../lib/structuredLog');
+const leadEventsGate = require('../../lib/leadEventsGate');
 
 /**
  * @typedef {Object} LeadEventPayload
@@ -18,20 +19,14 @@ const { logLine } = require('../../lib/structuredLog');
  */
 
 /**
- * Insert a lead event on a separate pool connection. Never throws — failures are logged and swallowed.
+ * Low-level insert — assumes payload already sanitized. Never throws.
  * @param {string} eventType
- * @param {LeadEventPayload} [payload]
- * @returns {Promise<void>}
+ * @param {LeadEventPayload} payload
  */
-async function recordLeadEvent(eventType, payload) {
+async function insertLeadEvent(eventType, payload) {
   try {
     const pool = getPool();
     if (!pool) return;
-
-    const email = String(payload?.email ?? '')
-      .trim()
-      .toLowerCase();
-    if (!email) return;
 
     const metadataJson = payload.metadata != null ? JSON.stringify(payload.metadata) : null;
     const occurredAt =
@@ -49,7 +44,7 @@ async function recordLeadEvent(eventType, payload) {
       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       ON DUPLICATE KEY UPDATE id = id`,
       [
-        email,
+        payload.email,
         eventType,
         payload.formId ?? null,
         payload.sourceUrl ?? null,
@@ -76,12 +71,50 @@ async function recordLeadEvent(eventType, payload) {
 }
 
 /**
+ * @param {string} eventType
+ * @param {LeadEventPayload} [payload]
+ */
+async function scheduleLeadEventAsync(eventType, payload) {
+  try {
+    if (!leadEventsGate.shouldScheduleWrite(eventType)) return;
+
+    const pool = getPool();
+    if (!pool) return;
+
+    const readiness = await leadEventsGate.getReadiness(pool);
+    if (!readiness.table || !readiness.coreMigration) return;
+    if (leadEventsGate.requiresActivationMigration(eventType) && !readiness.activationMigration) {
+      return;
+    }
+
+    const sanitized = leadEventsGate.sanitizePayload(eventType, payload);
+    if (!sanitized) return;
+
+    await insertLeadEvent(eventType, sanitized);
+  } catch (err) {
+    logLine({
+      level: 'warn',
+      tag: 'lead_events_schedule_failed',
+      eventType,
+      error: err?.message || String(err),
+    });
+  }
+}
+
+/**
  * Fire-and-forget lead event write (non-blocking for request handlers).
  * @param {string} eventType
  * @param {LeadEventPayload} [payload]
  */
 function scheduleLeadEvent(eventType, payload) {
-  void recordLeadEvent(eventType, payload);
+  void scheduleLeadEventAsync(eventType, payload);
+}
+
+/** @deprecated alias for tests — prefer scheduleLeadEvent in application code. */
+async function recordLeadEvent(eventType, payload) {
+  const sanitized = leadEventsGate.sanitizePayload(eventType, payload);
+  if (!sanitized) return;
+  await insertLeadEvent(eventType, sanitized);
 }
 
 const ADMIN_LIST_LIMIT_DEFAULT = 200;
@@ -120,7 +153,7 @@ function appendUnpaidSegmentCondition(conditions, params, daysKey) {
 
 /**
  * @param {import('mysql2/promise').Pool} pool
- * @param {{ days?: string, eventType?: string, email?: string, segment?: string, limit?: number, offset?: number }} [opts]
+ * @param {object} opts
  */
 async function queryLeadEventsForAdmin(pool, opts = {}) {
   const maxLimit = opts.maxLimit ?? ADMIN_LIST_LIMIT_MAX;
@@ -128,8 +161,7 @@ async function queryLeadEventsForAdmin(pool, opts = {}) {
   const limit = Number.isFinite(limitRaw)
     ? Math.min(Math.max(limitRaw, 1), maxLimit)
     : ADMIN_LIST_LIMIT_DEFAULT;
-  const offsetRaw = Number.parseInt(opts.offset, 10);
-  const offset = Number.isFinite(offsetRaw) ? Math.max(offsetRaw, 0) : 0;
+  const offset = Number.isFinite(opts.offset) && opts.offset > 0 ? opts.offset : 0;
   const fetchLimit = limit + 1;
 
   const conditions = [];
@@ -149,19 +181,13 @@ async function queryLeadEventsForAdmin(pool, opts = {}) {
   }
 
   if (opts.eventType) {
-    const eventType = String(opts.eventType).trim();
-    if (eventType) {
-      conditions.push('le.event_type = ?');
-      params.push(eventType);
-    }
+    conditions.push('le.event_type = ?');
+    params.push(opts.eventType);
   }
 
-  if (opts.email) {
-    const email = String(opts.email).trim().toLowerCase();
-    if (email) {
-      conditions.push('le.email LIKE ?');
-      params.push(`%${email}%`);
-    }
+  if (opts.emailLike) {
+    conditions.push("le.email LIKE ? ESCAPE '\\\\'");
+    params.push(opts.emailLike);
   }
 
   const where = conditions.length ? `WHERE ${conditions.join(' AND ')}` : '';
@@ -201,29 +227,46 @@ async function queryLeadEventsForAdmin(pool, opts = {}) {
   };
 }
 
+function buildAdminQueryOpts(rawOpts = {}) {
+  const { opts, warnings, emailLikePattern } = leadEventsGate.sanitizeAdminListOpts(rawOpts);
+  return {
+    queryOpts: {
+      days: opts.days,
+      segment: opts.segment,
+      eventType: opts.eventType,
+      emailLike: emailLikePattern,
+      offset: opts.offset,
+      limit: opts.limit,
+      maxLimit: opts.maxLimit,
+    },
+    warnings,
+  };
+}
+
 /**
  * Paginated lead events for admin UI.
- * @param {{ days?: string, eventType?: string, email?: string, segment?: string, limit?: number, offset?: number }} [opts]
  */
-async function listForAdmin(opts = {}) {
+async function listForAdmin(rawOpts = {}) {
   const pool = getPool();
   if (!pool) throw new Error('Database not configured');
-  return queryLeadEventsForAdmin(pool, opts);
+  const { queryOpts, warnings } = buildAdminQueryOpts(rawOpts);
+  const result = await queryLeadEventsForAdmin(pool, queryOpts);
+  return { ...result, warnings };
 }
 
 /**
  * Lead events for admin CSV export (same filters, higher cap).
- * @param {{ days?: string, eventType?: string, email?: string, segment?: string }} [opts]
  */
-async function listForAdminExport(opts = {}) {
+async function listForAdminExport(rawOpts = {}) {
   const pool = getPool();
   if (!pool) throw new Error('Database not configured');
-  const result = await queryLeadEventsForAdmin(pool, {
-    ...opts,
+  const { queryOpts } = buildAdminQueryOpts({
+    ...rawOpts,
     limit: ADMIN_EXPORT_LIMIT_MAX,
     maxLimit: ADMIN_EXPORT_LIMIT_MAX,
     offset: 0,
   });
+  const result = await queryLeadEventsForAdmin(pool, queryOpts);
   return result.rows;
 }
 
@@ -232,21 +275,26 @@ async function listActiveEventTypes() {
   const pool = getPool();
   if (!pool) throw new Error('Database not configured');
 
+  const allowed = [...leadEventsGate.WIRED_EVENT_TYPES];
+  const placeholders = allowed.map(() => '?').join(', ');
   const [rows] = await pool.execute(
     `SELECT code, description
      FROM lead_event_types
-     WHERE is_active = 1
-     ORDER BY code`
+     WHERE is_active = 1 AND code IN (${placeholders})
+     ORDER BY code`,
+    allowed
   );
   return rows;
 }
 
 module.exports = {
+  insertLeadEvent,
   recordLeadEvent,
   scheduleLeadEvent,
   listForAdmin,
   listForAdminExport,
   listActiveEventTypes,
+  buildAdminQueryOpts,
   ADMIN_LIST_LIMIT_DEFAULT,
   ADMIN_LIST_LIMIT_MAX,
   ADMIN_EXPORT_LIMIT_MAX,

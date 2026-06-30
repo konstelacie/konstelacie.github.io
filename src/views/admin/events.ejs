@@ -21,7 +21,13 @@
     <p class="admin-error" role="alert">Databáza nie je nakonfigurovaná.</p>
   <% } %>
 
-  <% if (typeof dbConfigured !== 'undefined' && dbConfigured) { %>
+  <% if (typeof filterWarning !== 'undefined' && filterWarning) { %>
+    <p class="admin-bulk__hint" role="status"><%= filterWarning %></p>
+  <% } %>
+
+  <% if (typeof leadEventsNotReady !== 'undefined' && leadEventsNotReady) { %>
+    <p class="admin-error" role="alert"><%= leadEventsNotReady %></p>
+  <% } else if (typeof dbConfigured !== 'undefined' && dbConfigured) { %>
   <%- include('../partials/admin-reservations-subnav', { reservationsTab: 'events' }) %>
 
   <nav class="admin-filters" aria-label="Predvoľby udalostí">

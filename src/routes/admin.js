@@ -34,6 +34,7 @@ const { validateEmail } = require('../middleware/validators');
 const { logLine } = require('../lib/structuredLog');
 const systemAlertsRepo = require('../db/repositories/systemAlertsRepo');
 const leadEventsRepo = require('../db/repositories/leadEventsRepo');
+const leadEventsGate = require('../lib/leadEventsGate');
 const { mapAdminAlertRow } = require('../lib/adminAlertDisplay');
 const {
   mapAdminLeadEventRow,
@@ -523,7 +524,56 @@ function normalizeLeadEventsViewMode(raw) {
 
 function parseLeadEventsOffset(raw) {
   const n = Number.parseInt(raw, 10);
-  return Number.isFinite(n) && n > 0 ? n : 0;
+  if (!Number.isFinite(n) || n <= 0) return 0;
+  return Math.min(n, leadEventsGate.ADMIN_MAX_OFFSET);
+}
+
+function leadEventsNotReadyMessage(reason) {
+  switch (reason) {
+    case 'disabled':
+      return 'Zobrazenie udalostí je vypnuté (LEAD_EVENTS_ADMIN_ENABLED).';
+    case 'migration':
+      return 'Tabuľka lead_events nie je pripravená. Spustite yarn db:migrate (migrácie 002 a 003).';
+    case 'no_db':
+      return 'Databáza nie je dostupná.';
+    default:
+      return 'Udalosti nie sú dostupné.';
+  }
+}
+
+function leadEventsFilterWarningsMessage(warnings) {
+  if (!warnings?.length) return null;
+  if (warnings.includes('unpaid_days_clamped')) {
+    return `Filter Nezaplatené: obdobie bolo obmedzené na ${leadEventsGate.ADMIN_UNPAID_CLAMPED_DAYS} dní (úplná história by bola príliš náročná).`;
+  }
+  return null;
+}
+
+function buildAdminLeadEventsListQuery(req, session, listOffset) {
+  const rawDays = typeof req.query.days === 'string' ? req.query.days : '';
+  const daysFilter = normalizeLeadEventsDaysFilter(rawDays, session.adminLeadEventsDays);
+  const typeFilter = typeof req.query.type === 'string' ? req.query.type.trim() : '';
+  const emailQ = typeof req.query.email === 'string' ? req.query.email.trim() : '';
+  const segmentFilter = normalizeLeadEventsSegmentFilter(
+    typeof req.query.segment === 'string' ? req.query.segment : ''
+  );
+
+  const { queryOpts, warnings } = leadEventsRepo.buildAdminQueryOpts({
+    days: daysFilter,
+    eventType: typeFilter || undefined,
+    email: emailQ || undefined,
+    segment: segmentFilter || undefined,
+    offset: listOffset,
+  });
+
+  return {
+    daysFilter: queryOpts.days,
+    typeFilter: queryOpts.eventType || '',
+    emailQ,
+    segmentFilter: queryOpts.segment ? 'unpaid' : '',
+    listQuery: queryOpts,
+    warnings,
+  };
 }
 
 function buildLeadEventsExportHref({ days, typeFilter, emailQ, segmentFilter }) {
@@ -942,21 +992,19 @@ router.get('/reservations/events/export.csv', requireAdmin, async (req, res) => 
       return res.status(503).type('text/plain').send('Database not configured');
     }
 
-    const daysFilter = normalizeLeadEventsDaysFilter(
-      typeof req.query.days === 'string' ? req.query.days : '',
-      req.session.adminLeadEventsDays
-    );
-    const typeFilter = typeof req.query.type === 'string' ? req.query.type.trim() : '';
-    const emailQ = typeof req.query.email === 'string' ? req.query.email.trim() : '';
-    const segmentFilter = normalizeLeadEventsSegmentFilter(
-      typeof req.query.segment === 'string' ? req.query.segment : ''
-    );
+    const adminReady = await leadEventsGate.assertAdminReady(pool);
+    if (!adminReady.ok) {
+      return res.status(503).type('text/plain').send(leadEventsNotReadyMessage(adminReady.reason));
+    }
+
+    const listOffset = 0;
+    const parsed = buildAdminLeadEventsListQuery(req, req.session, listOffset);
 
     const rows = await leadEventsRepo.listForAdminExport({
-      days: daysFilter,
-      eventType: typeFilter || undefined,
-      email: emailQ || undefined,
-      segment: segmentFilter || undefined,
+      days: parsed.daysFilter,
+      eventType: parsed.typeFilter || undefined,
+      email: parsed.emailQ || undefined,
+      segment: parsed.segmentFilter || undefined,
     });
 
     const headers = [
@@ -998,15 +1046,22 @@ router.get('/reservations/events', requireAdmin, async (req, res) => {
   const daysFilter = normalizeLeadEventsDaysFilter(rawDays, req.session.adminLeadEventsDays);
   req.session.adminLeadEventsDays = daysFilter;
 
-  const typeFilter = typeof req.query.type === 'string' ? req.query.type.trim() : '';
-  const emailQ = typeof req.query.email === 'string' ? req.query.email.trim() : '';
-  const segmentFilter = normalizeLeadEventsSegmentFilter(
-    typeof req.query.segment === 'string' ? req.query.segment : ''
-  );
   const viewMode = normalizeLeadEventsViewMode(typeof req.query.view === 'string' ? req.query.view : '');
   const listOffset = parseLeadEventsOffset(req.query.offset);
+  const parsed = buildAdminLeadEventsListQuery(req, req.session, listOffset);
+  const typeFilter = parsed.typeFilter;
+  const emailQ = parsed.emailQ;
+  const segmentFilter = parsed.segmentFilter;
+  const effectiveDaysFilter = parsed.daysFilter;
+  const filterWarning = leadEventsFilterWarningsMessage(parsed.warnings);
 
-  const filterState = { days: daysFilter, typeFilter, emailQ, segmentFilter, viewMode };
+  const filterState = {
+    days: effectiveDaysFilter,
+    typeFilter,
+    emailQ,
+    segmentFilter,
+    viewMode,
+  };
   const daysFilterHref = (days) => buildLeadEventsFilterHref({ ...filterState, days, offset: 0 });
   const segmentFilterHref = (segment) =>
     buildLeadEventsFilterHref({ ...filterState, segmentFilter: segment, offset: 0 });
@@ -1016,7 +1071,7 @@ router.get('/reservations/events', requireAdmin, async (req, res) => {
     offset: listOffset + leadEventsRepo.ADMIN_LIST_LIMIT_DEFAULT,
   });
   const exportHref = buildLeadEventsExportHref({
-    days: daysFilter,
+    days: effectiveDaysFilter,
     typeFilter,
     emailQ,
     segmentFilter,
@@ -1027,7 +1082,7 @@ router.get('/reservations/events', requireAdmin, async (req, res) => {
     title: 'Udalosti — administrácia',
     adminSection: 'reservations',
     flash,
-    daysFilter,
+    daysFilter: effectiveDaysFilter,
     typeFilter,
     emailQ,
     segmentFilter,
@@ -1042,6 +1097,8 @@ router.get('/reservations/events', requireAdmin, async (req, res) => {
     hasMore: false,
     eventGroups: [],
     events: [],
+    leadEventsNotReady: null,
+    filterWarning,
   };
 
   try {
@@ -1055,20 +1112,33 @@ router.get('/reservations/events', requireAdmin, async (req, res) => {
       });
     }
 
+    const adminReady = await leadEventsGate.assertAdminReady(pool);
+    if (!adminReady.ok) {
+      return res.render('admin/events', {
+        ...renderOpts,
+        dbConfigured: true,
+        loadError: false,
+        eventTypes: [],
+        leadEventsNotReady: leadEventsNotReadyMessage(adminReady.reason),
+      });
+    }
+
     const [typeRows, listResult] = await Promise.all([
       leadEventsRepo.listActiveEventTypes(),
       leadEventsRepo.listForAdmin({
-        days: daysFilter,
-        eventType: typeFilter || undefined,
-        email: emailQ || undefined,
-        segment: segmentFilter || undefined,
-        offset: listOffset,
+        days: parsed.daysFilter,
+        eventType: parsed.typeFilter || undefined,
+        email: parsed.emailQ || undefined,
+        segment: parsed.segmentFilter || undefined,
+        offset: parsed.listQuery.offset,
       }),
     ]);
 
     const eventTypes = typeRows.map((row) => mapAdminLeadEventTypeOption(row));
     const events = listResult.rows.map((row) => mapAdminLeadEventRow(row));
     const eventGroups = viewMode === 'grouped' ? groupLeadEventsByEmail(events) : [];
+    const mergedFilterWarning =
+      leadEventsFilterWarningsMessage(listResult.warnings) || filterWarning;
 
     return res.render('admin/events', {
       ...renderOpts,
@@ -1078,6 +1148,7 @@ router.get('/reservations/events', requireAdmin, async (req, res) => {
       events,
       eventGroups,
       hasMore: listResult.hasMore,
+      filterWarning: mergedFilterWarning,
     });
   } catch (err) {
     console.error('[admin/reservations/events]', err);

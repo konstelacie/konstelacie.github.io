@@ -185,4 +185,17 @@ module.exports = {
       return Boolean(this.username && this.password);
     },
   },
+  /**
+   * Funnel lead_events analytics (002+ migrations). Writes are non-blocking and must never
+   * break booking. Set LEAD_EVENTS_ENABLED=0 to disable inserts; LEAD_EVENTS_ADMIN_ENABLED=0
+   * to hide admin UI queries.
+   */
+  leadEvents: {
+    writesEnabled:
+      process.env.LEAD_EVENTS_ENABLED !== '0' &&
+      String(process.env.LEAD_EVENTS_ENABLED || 'true').toLowerCase() !== 'false',
+    adminEnabled:
+      process.env.LEAD_EVENTS_ADMIN_ENABLED !== '0' &&
+      String(process.env.LEAD_EVENTS_ADMIN_ENABLED || 'true').toLowerCase() !== 'false',
+  },
 };

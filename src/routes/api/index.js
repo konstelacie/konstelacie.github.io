@@ -7,6 +7,7 @@ const { validateSlotId, validateLockToken } = require('../../middleware/validato
 const locksRepo = require('../../db/repositories/locksRepo');
 const auditRepo = require('../../db/repositories/auditRepo');
 const { scheduleLeadEvent } = require('../../db/repositories/leadEventsRepo');
+const leadEventsGate = require('../../lib/leadEventsGate');
 const { leadContextFromRequest } = require('../../lib/leadEventContext');
 
 const slotsRouter = require('./slots');
@@ -27,14 +28,19 @@ router.post(
     const slotId = validateSlotId(req.body?.slotId ?? req.query?.slotId);
     const lockToken = validateLockToken(req.body?.lockToken ?? req.query?.lockToken ?? req.get('X-Lock-Token'));
 
-    const lock = await locksRepo.findLockByToken(slotId, lockToken);
+    let lockEmail = null;
+    if (leadEventsGate.shouldScheduleWrite('lock_revoked')) {
+      const lock = await locksRepo.findLockByToken(slotId, lockToken);
+      lockEmail = lock?.email ?? null;
+    }
+
     const deleted = await locksRepo.deleteLock(slotId, lockToken);
     if (deleted) {
       await auditRepo.log('lock_revoked', 'slot', slotId, { lockToken: lockToken.slice(0, 8) + '...' });
-      if (lock?.email) {
+      if (lockEmail) {
         const leadCtx = leadContextFromRequest(req);
         scheduleLeadEvent('lock_revoked', {
-          email: lock.email,
+          email: lockEmail,
           slotId,
           formId: leadCtx.formId,
           sourceUrl: leadCtx.sourceUrl,
