@@ -264,6 +264,7 @@ router.post(
 
     await auditRepo.log('lock_created', 'slot', slotId, {
       lockToken: lockToken.slice(0, 8) + '...',
+      ...(email ? { email } : {}),
     });
 
     res.json({

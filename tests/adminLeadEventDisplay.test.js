@@ -49,15 +49,16 @@ test('mapAdminLeadEventRow formats slot and checkout metadata', () => {
 test('groupLeadEventsByEmail groups events preserving order', () => {
   const { groupLeadEventsByEmail } = require('../src/lib/adminLeadEventDisplay');
   const events = [
-    { email: 'b@x.com', occurredAtLabel: '2' },
-    { email: 'a@x.com', occurredAtLabel: '3' },
-    { email: 'a@x.com', occurredAtLabel: '1' },
+    { email: 'b@x.com', emailIsMissing: false, occurredAtLabel: '2' },
+    { email: '—', emailIsMissing: true, occurredAtLabel: '0' },
+    { email: 'a@x.com', emailIsMissing: false, occurredAtLabel: '3' },
+    { email: 'a@x.com', emailIsMissing: false, occurredAtLabel: '1' },
   ];
   const groups = groupLeadEventsByEmail(events);
-  assert.equal(groups.length, 2);
+  assert.equal(groups.length, 3);
   assert.equal(groups[0].email, 'b@x.com');
-  assert.equal(groups[1].email, 'a@x.com');
-  assert.equal(groups[1].eventCount, 2);
+  assert.equal(groups[1].email, '—');
+  assert.equal(groups[2].eventCount, 2);
 });
 
 test('leadEventTypeLabel includes new instrumentation types', () => {

@@ -3,7 +3,13 @@
   <td><%= row.occurredAtLabel %></td>
   <td><span class="admin-status admin-status--<%= row.eventType %>"><%= row.eventTypeLabel %></span></td>
   <% if (typeof showEmailColumn === 'undefined' || showEmailColumn) { %>
-  <td class="admin-table__email"><%= row.email %></td>
+  <td class="admin-table__email">
+    <% if (row.emailIsMissing) { %>
+      <span class="admin-bulk__hint" title="E-mail ešte nebol zadaný">—</span>
+    <% } else { %>
+      <%= row.email %>
+    <% } %>
+  </td>
   <% } %>
   <td>
     <% if (row.slotId != null) { %>
@@ -19,6 +25,9 @@
 <tr class="admin-table__detail-row">
   <td colspan="<%= typeof showEmailColumn === 'undefined' || showEmailColumn ? 7 : 6 %>">
     <div class="admin-alert-detail">
+      <% if (row.timelineSource === 'audit') { %>
+      <p class="admin-alert-detail__meta"><strong>Zdroj:</strong> audit log (technické)</p>
+      <% } %>
       <% if (row.reservationId != null || row.paymentId != null) { %>
       <p class="admin-alert-detail__meta">
         <% if (row.reservationId != null) { %>

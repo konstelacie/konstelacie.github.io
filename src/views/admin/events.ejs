@@ -2,7 +2,10 @@
   <header class="admin-header admin-header--bar">
     <h1 class="admin-title">Udalosti</h1>
     <div class="admin-header__actions">
+      <% const scExport = typeof scopeFilter !== 'undefined' ? scopeFilter : 'funnel'; %>
+      <% if (scExport === 'funnel') { %>
       <a class="admin-btn admin-btn--ghost admin-btn--small" href="<%= typeof exportHref !== 'undefined' ? exportHref : '/admin/reservations/events/export.csv' %>">Export CSV</a>
+      <% } %>
       <form method="post" action="/admin/logout">
         <button type="submit" class="admin-btn admin-btn--ghost">Odhlásiť sa</button>
       </form>
@@ -27,13 +30,28 @@
 
   <% if (typeof leadEventsNotReady !== 'undefined' && leadEventsNotReady) { %>
     <p class="admin-error" role="alert"><%= leadEventsNotReady %></p>
-  <% } else if (typeof dbConfigured !== 'undefined' && dbConfigured) { %>
+    <% const scHint = typeof scopeFilter !== 'undefined' ? scopeFilter : 'funnel'; %>
+    <% if (scHint === 'funnel' || scHint === 'full') { %>
+    <p class="admin-bulk__hint">Kroky pred zadaním e-mailu môžete sledovať v záložke <a href="<%= typeof scopeFilterHref !== 'undefined' ? scopeFilterHref('pre_email') : '/admin/reservations/events?scope=pre_email' %>">Pred e-mailom</a> (audit log).</p>
+    <% } %>
+  <% } %>
+  <% if (typeof dbConfigured !== 'undefined' && dbConfigured && !(typeof leadEventsNotReady !== 'undefined' && leadEventsNotReady && (typeof scopeFilter === 'undefined' || scopeFilter === 'funnel' || scopeFilter === 'full'))) { %>
   <%- include('../partials/admin-reservations-subnav', { reservationsTab: 'events' }) %>
+
+  <% const sc = typeof scopeFilter !== 'undefined' ? scopeFilter : 'funnel'; %>
+  <nav class="admin-filters" aria-label="Zdroj udalostí">
+    <a class="admin-btn admin-btn--small <%= sc === 'funnel' ? 'admin-btn--primary' : 'admin-btn--ghost' %>" href="<%= typeof scopeFilterHref !== 'undefined' ? scopeFilterHref('funnel') : '/admin/reservations/events' %>">Funnel</a>
+    <a class="admin-btn admin-btn--small <%= sc === 'pre_email' ? 'admin-btn--primary' : 'admin-btn--ghost' %>" href="<%= typeof scopeFilterHref !== 'undefined' ? scopeFilterHref('pre_email') : '#' %>">Pred e-mailom</a>
+    <a class="admin-btn admin-btn--small <%= sc === 'technical' ? 'admin-btn--primary' : 'admin-btn--ghost' %>" href="<%= typeof scopeFilterHref !== 'undefined' ? scopeFilterHref('technical') : '#' %>">Technické</a>
+    <a class="admin-btn admin-btn--small <%= sc === 'full' ? 'admin-btn--primary' : 'admin-btn--ghost' %>" href="<%= typeof scopeFilterHref !== 'undefined' ? scopeFilterHref('full') : '#' %>">Spolu</a>
+  </nav>
 
   <nav class="admin-filters" aria-label="Predvoľby udalostí">
     <% const seg = typeof segmentFilter !== 'undefined' ? segmentFilter : ''; %>
+    <% if (sc === 'funnel' || sc === 'full') { %>
     <a class="admin-btn admin-btn--small <%= !seg ? 'admin-btn--primary' : 'admin-btn--ghost' %>" href="<%= typeof segmentFilterHref !== 'undefined' ? segmentFilterHref('') : '/admin/reservations/events' %>">Všetky</a>
     <a class="admin-btn admin-btn--small <%= seg === 'unpaid' ? 'admin-btn--primary' : 'admin-btn--ghost' %>" href="<%= typeof segmentFilterHref !== 'undefined' ? segmentFilterHref('unpaid') : '#' %>">Nezaplatené</a>
+    <% } %>
     <% const vm = typeof viewMode !== 'undefined' ? viewMode : 'list'; %>
     <a class="admin-btn admin-btn--small <%= vm === 'list' ? 'admin-btn--primary' : 'admin-btn--ghost' %>" href="<%= typeof viewModeHref !== 'undefined' ? viewModeHref('list') : '#' %>">Zoznam</a>
     <a class="admin-btn admin-btn--small <%= vm === 'grouped' ? 'admin-btn--primary' : 'admin-btn--ghost' %>" href="<%= typeof viewModeHref !== 'undefined' ? viewModeHref('grouped') : '#' %>">Podľa e-mailu</a>
@@ -42,6 +60,7 @@
   <form method="get" action="/admin/reservations/events" class="admin-create__form admin-create__form--filter">
     <% const d = typeof daysFilter !== 'undefined' ? daysFilter : '30'; %>
     <input type="hidden" name="days" value="<%= d %>">
+    <% if (sc !== 'funnel') { %><input type="hidden" name="scope" value="<%= sc %>"><% } %>
     <% if (seg === 'unpaid') { %><input type="hidden" name="segment" value="unpaid"><% } %>
     <% if (vm === 'grouped') { %><input type="hidden" name="view" value="grouped"><% } %>
     <div class="admin-create__row">
@@ -77,6 +96,12 @@
 
   <% if (seg === 'unpaid') { %>
   <p class="admin-bulk__hint">Filter <strong>Nezaplatené</strong>: e-maily so zadaným e-mailom, zvolenou alebo spustenou platbou, bez udalosti <em>Zakúpené</em> v zvolenom období.</p>
+  <% } else if (sc === 'pre_email') { %>
+  <p class="admin-bulk__hint">Kroky zo <strong>audit logu</strong> pred zadaním e-mailu: zvolený termín, zrušený zámok, neúspešné predĺženie. E-mail sa zobrazí, ak bol v zámku alebo neskôr v leade na tom istom termíne.</p>
+  <% } else if (sc === 'technical') { %>
+  <p class="admin-bulk__hint">Technické záznamy rezervačného funnelu (audit log) — vrátane predĺženia zámku a spustenia platby.</p>
+  <% } else if (sc === 'full') { %>
+  <p class="admin-bulk__hint">Zlúčená časová os: funnel udalosti a technické kroky. Duplicitné zrušenie zámku (lead + audit) sa zlúči.</p>
   <% } %>
 
   <% if (typeof events !== 'undefined' && events.length) { %>
@@ -88,8 +113,8 @@
 
   <% if (vm === 'grouped' && typeof eventGroups !== 'undefined' && eventGroups.length) { %>
     <% for (const group of eventGroups) { %>
-    <section class="admin-detail" aria-label="Udalosti pre <%= group.email %>">
-      <h2 class="admin-detail__subtitle admin-table__email"><%= group.email %></h2>
+    <section class="admin-detail" aria-label="Udalosti pre <%= group.email === '—' ? 'bez e-mailu' : group.email %>">
+      <h2 class="admin-detail__subtitle admin-table__email"><%= group.email === '—' ? 'Bez e-mailu (pred zadaním)' : group.email %></h2>
       <p class="admin-bulk__hint"><%= group.eventCount %> udalostí · posledná <%= group.lastOccurredAtLabel %></p>
       <div class="admin-table-wrap">
         <table class="admin-table admin-table--alerts">

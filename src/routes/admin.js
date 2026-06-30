@@ -42,6 +42,12 @@ const {
   groupLeadEventsByEmail,
   leadEventTypeLabel,
 } = require('../lib/adminLeadEventDisplay');
+const {
+  mapAdminAuditFunnelRow,
+  listAuditActionOptions,
+  isBookingFunnelAuditAction,
+} = require('../lib/bookingFunnelAudit');
+const { listMergedTimelineForAdmin } = require('../lib/adminEventsTimeline');
 const { adminAlertBanner } = require('../middleware/adminAlertBanner');
 
 const router = express.Router();
@@ -503,16 +509,22 @@ function normalizeLeadEventsDaysFilter(raw, sessionValue) {
   return '30';
 }
 
-function buildLeadEventsFilterHref({ days, typeFilter, emailQ, segmentFilter, viewMode, offset }) {
+function buildLeadEventsFilterHref({ days, typeFilter, emailQ, segmentFilter, viewMode, scopeFilter, offset }) {
   const params = new URLSearchParams();
   if (days && days !== '30') params.set('days', days);
   if (typeFilter) params.set('type', typeFilter);
   if (emailQ) params.set('email', emailQ);
   if (segmentFilter === 'unpaid') params.set('segment', 'unpaid');
   if (viewMode === 'grouped') params.set('view', 'grouped');
+  if (scopeFilter && scopeFilter !== 'funnel') params.set('scope', scopeFilter);
   if (offset != null && Number(offset) > 0) params.set('offset', String(offset));
   const qs = params.toString();
   return `/admin/reservations/events${qs ? `?${qs}` : ''}`;
+}
+
+function normalizeLeadEventsScopeFilter(raw) {
+  if (raw === 'technical' || raw === 'pre_email' || raw === 'full') return raw;
+  return 'funnel';
 }
 
 function normalizeLeadEventsSegmentFilter(raw) {
@@ -577,9 +589,12 @@ function buildAdminLeadEventsListQuery(req, session, listOffset) {
     typeof req.query.segment === 'string' ? req.query.segment : ''
   );
 
+  const leadTypeForQuery =
+    typeFilter && leadEventsGate.isAllowedEventType(typeFilter) ? typeFilter : undefined;
+
   const { queryOpts, warnings } = leadEventsRepo.buildAdminQueryOpts({
     days: daysFilter,
-    eventType: typeFilter || undefined,
+    eventType: leadTypeForQuery,
     email: emailQ || undefined,
     segment: segmentFilter || undefined,
     offset: listOffset,
@@ -587,7 +602,7 @@ function buildAdminLeadEventsListQuery(req, session, listOffset) {
 
   return {
     daysFilter: queryOpts.days,
-    typeFilter: queryOpts.eventType || '',
+    typeFilter,
     emailQ,
     segmentFilter: queryOpts.segment ? 'unpaid' : '',
     listQuery: queryOpts,
@@ -595,12 +610,13 @@ function buildAdminLeadEventsListQuery(req, session, listOffset) {
   };
 }
 
-function buildLeadEventsExportHref({ days, typeFilter, emailQ, segmentFilter }) {
+function buildLeadEventsExportHref({ days, typeFilter, emailQ, segmentFilter, scopeFilter }) {
   const params = new URLSearchParams();
   if (days && days !== '30') params.set('days', days);
   if (typeFilter) params.set('type', typeFilter);
   if (emailQ) params.set('email', emailQ);
   if (segmentFilter === 'unpaid') params.set('segment', 'unpaid');
+  if (scopeFilter && scopeFilter !== 'funnel') params.set('scope', scopeFilter);
   const qs = params.toString();
   return `/admin/reservations/events/export.csv${qs ? `?${qs}` : ''}`;
 }
@@ -1066,13 +1082,15 @@ router.get('/reservations/events', requireAdmin, async (req, res) => {
   req.session.adminLeadEventsDays = daysFilter;
 
   const viewMode = normalizeLeadEventsViewMode(typeof req.query.view === 'string' ? req.query.view : '');
+  const scopeFilter = normalizeLeadEventsScopeFilter(typeof req.query.scope === 'string' ? req.query.scope : '');
   const listOffset = parseLeadEventsOffset(req.query.offset);
   const parsed = buildAdminLeadEventsListQuery(req, req.session, listOffset);
   const typeFilter = parsed.typeFilter;
   const emailQ = parsed.emailQ;
-  const segmentFilter = parsed.segmentFilter;
+  const segmentFilter = scopeFilter === 'funnel' || scopeFilter === 'full' ? parsed.segmentFilter : '';
   const effectiveDaysFilter = parsed.daysFilter;
   const filterWarning = leadEventsFilterWarningsMessage(parsed.warnings);
+  const emailLikePattern = parsed.listQuery.emailLike;
 
   const filterState = {
     days: effectiveDaysFilter,
@@ -1080,11 +1098,13 @@ router.get('/reservations/events', requireAdmin, async (req, res) => {
     emailQ,
     segmentFilter,
     viewMode,
+    scopeFilter,
   };
   const daysFilterHref = (days) => buildLeadEventsFilterHref({ ...filterState, days, offset: 0 });
   const segmentFilterHref = (segment) =>
     buildLeadEventsFilterHref({ ...filterState, segmentFilter: segment, offset: 0 });
   const viewModeHref = (view) => buildLeadEventsFilterHref({ ...filterState, viewMode: view, offset: 0 });
+  const scopeFilterHref = (scope) => buildLeadEventsFilterHref({ ...filterState, scopeFilter: scope, offset: 0 });
   const nextPageHref = buildLeadEventsFilterHref({
     ...filterState,
     offset: listOffset + leadEventsRepo.ADMIN_LIST_LIMIT_DEFAULT,
@@ -1094,6 +1114,7 @@ router.get('/reservations/events', requireAdmin, async (req, res) => {
     typeFilter,
     emailQ,
     segmentFilter,
+    scopeFilter,
   });
 
   const renderOpts = {
@@ -1105,11 +1126,13 @@ router.get('/reservations/events', requireAdmin, async (req, res) => {
     typeFilter,
     emailQ,
     segmentFilter,
+    scopeFilter,
     viewMode,
     listOffset,
     daysFilterHref,
     segmentFilterHref,
     viewModeHref,
+    scopeFilterHref,
     nextPageHref,
     exportHref,
     listLimit: leadEventsRepo.ADMIN_LIST_LIMIT_DEFAULT,
@@ -1131,33 +1154,77 @@ router.get('/reservations/events', requireAdmin, async (req, res) => {
       });
     }
 
-    const adminReady = await leadEventsGate.assertAdminReady(pool);
-    if (!adminReady.ok) {
-      return res.render('admin/events', {
-        ...renderOpts,
-        dbConfigured: true,
-        loadError: false,
-        eventTypes: [],
-        leadEventsNotReady: leadEventsNotReadyMessage(adminReady.reason),
+    const needsLeadEvents = scopeFilter === 'funnel' || scopeFilter === 'full';
+    if (needsLeadEvents) {
+      const adminReady = await leadEventsGate.assertAdminReady(pool);
+      if (!adminReady.ok) {
+        return res.render('admin/events', {
+          ...renderOpts,
+          dbConfigured: true,
+          loadError: false,
+          eventTypes: [],
+          leadEventsNotReady: leadEventsNotReadyMessage(adminReady.reason),
+        });
+      }
+    }
+    const auditActionFilter = isBookingFunnelAuditAction(typeFilter) ? typeFilter : undefined;
+    const leadTypeFilter =
+      scopeFilter === 'funnel' || scopeFilter === 'full'
+        ? typeFilter && leadEventsGate.isAllowedEventType(typeFilter)
+          ? typeFilter
+          : undefined
+        : undefined;
+
+    let events = [];
+    let hasMore = false;
+    let eventTypes = [];
+    let mergedFilterWarning = filterWarning;
+
+    if (scopeFilter === 'technical' || scopeFilter === 'pre_email') {
+      const auditResult = await auditRepo.listBookingFunnelForAdmin({
+        days: effectiveDaysFilter,
+        action: auditActionFilter,
+        emailLike: emailLikePattern,
+        preEmailOnly: scopeFilter === 'pre_email',
+        offset: listOffset,
       });
+      events = auditResult.rows.map((row) => mapAdminAuditFunnelRow(row));
+      hasMore = auditResult.hasMore;
+      eventTypes = listAuditActionOptions();
+    } else if (scopeFilter === 'full') {
+      const merged = await listMergedTimelineForAdmin({
+        days: effectiveDaysFilter,
+        segment: segmentFilter || undefined,
+        eventType: leadTypeFilter,
+        auditAction: auditActionFilter,
+        emailLike: emailLikePattern,
+        offset: listOffset,
+      });
+      events = merged.rows;
+      hasMore = merged.hasMore;
+      const typeRows = await leadEventsRepo.listActiveEventTypes();
+      eventTypes = [
+        ...typeRows.map((row) => mapAdminLeadEventTypeOption(row)),
+        ...listAuditActionOptions(),
+      ];
+    } else {
+      const [typeRows, listResult] = await Promise.all([
+        leadEventsRepo.listActiveEventTypes(),
+        leadEventsRepo.listForAdmin({
+          days: parsed.daysFilter,
+          eventType: leadTypeFilter,
+          email: parsed.emailQ || undefined,
+          segment: segmentFilter || undefined,
+          offset: parsed.listQuery.offset,
+        }),
+      ]);
+      eventTypes = typeRows.map((row) => mapAdminLeadEventTypeOption(row));
+      events = listResult.rows.map((row) => mapAdminLeadEventRow(row));
+      hasMore = listResult.hasMore;
+      mergedFilterWarning = leadEventsFilterWarningsMessage(listResult.warnings) || filterWarning;
     }
 
-    const [typeRows, listResult] = await Promise.all([
-      leadEventsRepo.listActiveEventTypes(),
-      leadEventsRepo.listForAdmin({
-        days: parsed.daysFilter,
-        eventType: parsed.typeFilter || undefined,
-        email: parsed.emailQ || undefined,
-        segment: parsed.segmentFilter || undefined,
-        offset: parsed.listQuery.offset,
-      }),
-    ]);
-
-    const eventTypes = typeRows.map((row) => mapAdminLeadEventTypeOption(row));
-    const events = listResult.rows.map((row) => mapAdminLeadEventRow(row));
     const eventGroups = viewMode === 'grouped' ? groupLeadEventsByEmail(events) : [];
-    const mergedFilterWarning =
-      leadEventsFilterWarningsMessage(listResult.warnings) || filterWarning;
 
     return res.render('admin/events', {
       ...renderOpts,
@@ -1166,7 +1233,7 @@ router.get('/reservations/events', requireAdmin, async (req, res) => {
       eventTypes,
       events,
       eventGroups,
-      hasMore: listResult.hasMore,
+      hasMore,
       filterWarning: mergedFilterWarning,
     });
   } catch (err) {

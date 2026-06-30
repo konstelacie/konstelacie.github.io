@@ -291,6 +291,7 @@ module.exports = {
   listForAdminExport,
   listActiveEventTypes,
   buildAdminQueryOpts,
+  queryLeadEventsForAdmin,
   ADMIN_LIST_LIMIT_DEFAULT,
   ADMIN_LIST_LIMIT_MAX,
   ADMIN_EXPORT_LIMIT_MAX,

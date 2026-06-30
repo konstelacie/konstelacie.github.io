@@ -101,6 +101,7 @@ function mapAdminLeadEventRow(row) {
   return {
     id: row.id,
     email: row.email,
+    emailIsMissing: false,
     eventType: row.event_type,
     eventTypeLabel: leadEventTypeLabel(row.event_type),
     occurredAtLabel: formatDateTimeSk(row.occurred_at),
@@ -113,6 +114,9 @@ function mapAdminLeadEventRow(row) {
     detailSummary: buildEventDetailSummary(row.event_type, row.metadata),
     metadataFormatted: formatMetadataJson(row.metadata),
     sourceUrl: row.source_url || null,
+    timelineSource: 'lead',
+    sortAt: row.occurred_at,
+    rawId: row.id,
   };
 }
 
@@ -131,10 +135,11 @@ function mapAdminLeadEventTypeOption(row) {
 function groupLeadEventsByEmail(events) {
   const map = new Map();
   for (const event of events) {
-    if (!map.has(event.email)) {
-      map.set(event.email, []);
+    const key = event.emailIsMissing ? '—' : event.email;
+    if (!map.has(key)) {
+      map.set(key, []);
     }
-    map.get(event.email).push(event);
+    map.get(key).push(event);
   }
   return [...map.entries()].map(([email, items]) => ({
     email,
@@ -147,6 +152,7 @@ function groupLeadEventsByEmail(events) {
 module.exports = {
   LEAD_EVENT_LABELS,
   leadEventTypeLabel,
+  formatDateTimeSkForAdmin: formatDateTimeSk,
   mapAdminLeadEventRow,
   mapAdminLeadEventTypeOption,
   groupLeadEventsByEmail,

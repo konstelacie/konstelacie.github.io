@@ -36,7 +36,10 @@ router.post(
 
     const deleted = await locksRepo.deleteLock(slotId, lockToken);
     if (deleted) {
-      await auditRepo.log('lock_revoked', 'slot', slotId, { lockToken: lockToken.slice(0, 8) + '...' });
+      await auditRepo.log('lock_revoked', 'slot', slotId, {
+        lockToken: lockToken.slice(0, 8) + '...',
+        ...(lockEmail ? { email: lockEmail } : {}),
+      });
       if (lockEmail) {
         const leadCtx = leadContextFromRequest(req);
         scheduleLeadEvent('lock_revoked', {
