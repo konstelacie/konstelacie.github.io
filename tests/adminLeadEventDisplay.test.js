@@ -45,3 +45,22 @@ test('mapAdminLeadEventRow formats slot and checkout metadata', () => {
   assert.match(row.detailSummary, /Záloha/);
   assert.match(row.metadataFormatted, /checkoutSessionId/);
 });
+
+test('groupLeadEventsByEmail groups events preserving order', () => {
+  const { groupLeadEventsByEmail } = require('../src/lib/adminLeadEventDisplay');
+  const events = [
+    { email: 'b@x.com', occurredAtLabel: '2' },
+    { email: 'a@x.com', occurredAtLabel: '3' },
+    { email: 'a@x.com', occurredAtLabel: '1' },
+  ];
+  const groups = groupLeadEventsByEmail(events);
+  assert.equal(groups.length, 2);
+  assert.equal(groups[0].email, 'b@x.com');
+  assert.equal(groups[1].email, 'a@x.com');
+  assert.equal(groups[1].eventCount, 2);
+});
+
+test('leadEventTypeLabel includes new instrumentation types', () => {
+  assert.equal(leadEventTypeLabel('payment_path_selected'), 'Zvolená platba');
+  assert.equal(leadEventTypeLabel('lock_revoked'), 'Zámok zrušený');
+});

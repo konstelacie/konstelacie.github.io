@@ -20,6 +20,8 @@ const LEAD_EVENT_LABELS = {
   checkout_expired: 'Platba expirovala',
   payment_failed: 'Platba zlyhala',
   payment_retry: 'Opakovaná platba',
+  payment_path_selected: 'Zvolená platba',
+  lock_revoked: 'Zámok zrušený',
   purchase: 'Zakúpené',
   payment_refunded: 'Platba vrátená',
 };
@@ -122,9 +124,30 @@ function mapAdminLeadEventTypeOption(row) {
   };
 }
 
+/**
+ * Group flat event rows (newest first) by email for timeline view.
+ * @param {ReturnType<typeof mapAdminLeadEventRow>[]} events
+ */
+function groupLeadEventsByEmail(events) {
+  const map = new Map();
+  for (const event of events) {
+    if (!map.has(event.email)) {
+      map.set(event.email, []);
+    }
+    map.get(event.email).push(event);
+  }
+  return [...map.entries()].map(([email, items]) => ({
+    email,
+    events: items,
+    lastOccurredAtLabel: items[0]?.occurredAtLabel || '—',
+    eventCount: items.length,
+  }));
+}
+
 module.exports = {
   LEAD_EVENT_LABELS,
   leadEventTypeLabel,
   mapAdminLeadEventRow,
   mapAdminLeadEventTypeOption,
+  groupLeadEventsByEmail,
 };

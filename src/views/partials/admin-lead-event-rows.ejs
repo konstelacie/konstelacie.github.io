@@ -1,0 +1,43 @@
+<% for (const row of rows) { %>
+<tr>
+  <td><%= row.occurredAtLabel %></td>
+  <td><span class="admin-status admin-status--<%= row.eventType %>"><%= row.eventTypeLabel %></span></td>
+  <% if (typeof showEmailColumn === 'undefined' || showEmailColumn) { %>
+  <td class="admin-table__email"><%= row.email %></td>
+  <% } %>
+  <td>
+    <% if (row.slotId != null) { %>
+      <a href="/admin/slots/<%= row.slotId %>"><%= row.sessionLabel %></a>
+    <% } else { %>
+      —
+    <% } %>
+  </td>
+  <td><%= row.amountLabel %></td>
+  <td class="admin-table__funnel-path"><%= row.funnelPathLabel %></td>
+  <td><%= row.detailSummary %></td>
+</tr>
+<tr class="admin-table__detail-row">
+  <td colspan="<%= typeof showEmailColumn === 'undefined' || showEmailColumn ? 7 : 6 %>">
+    <div class="admin-alert-detail">
+      <% if (row.reservationId != null || row.paymentId != null) { %>
+      <p class="admin-alert-detail__meta">
+        <% if (row.reservationId != null) { %>
+          <strong>Rezervácia:</strong> <a href="/admin/reservations/<%= row.reservationId %>">#<%= row.reservationId %></a>
+        <% } %>
+        <% if (row.paymentId != null) { %>
+          <% if (row.reservationId != null) { %> · <% } %>
+          <strong>Platba:</strong> #<%= row.paymentId %>
+        <% } %>
+      </p>
+      <% } %>
+      <% if (row.sourceUrl) { %>
+      <p class="admin-alert-detail__meta"><strong>Zdroj:</strong> <%= row.sourceUrl %></p>
+      <% } %>
+      <div class="admin-alert-detail__metadata">
+        <strong>Metadata:</strong>
+        <pre class="admin-pre"><%= row.metadataFormatted %></pre>
+      </div>
+    </div>
+  </td>
+</tr>
+<% } %>

@@ -6,6 +6,8 @@ const { asyncHandler } = require('../../middleware/apiError');
 const { validateSlotId, validateLockToken } = require('../../middleware/validators');
 const locksRepo = require('../../db/repositories/locksRepo');
 const auditRepo = require('../../db/repositories/auditRepo');
+const { scheduleLeadEvent } = require('../../db/repositories/leadEventsRepo');
+const { leadContextFromRequest } = require('../../lib/leadEventContext');
 
 const slotsRouter = require('./slots');
 const reservationsRouter = require('./reservations');
@@ -25,9 +27,19 @@ router.post(
     const slotId = validateSlotId(req.body?.slotId ?? req.query?.slotId);
     const lockToken = validateLockToken(req.body?.lockToken ?? req.query?.lockToken ?? req.get('X-Lock-Token'));
 
+    const lock = await locksRepo.findLockByToken(slotId, lockToken);
     const deleted = await locksRepo.deleteLock(slotId, lockToken);
     if (deleted) {
       await auditRepo.log('lock_revoked', 'slot', slotId, { lockToken: lockToken.slice(0, 8) + '...' });
+      if (lock?.email) {
+        const leadCtx = leadContextFromRequest(req);
+        scheduleLeadEvent('lock_revoked', {
+          email: lock.email,
+          slotId,
+          formId: leadCtx.formId,
+          sourceUrl: leadCtx.sourceUrl,
+        });
+      }
     }
 
     res.json({ ok: true, revoked: deleted });

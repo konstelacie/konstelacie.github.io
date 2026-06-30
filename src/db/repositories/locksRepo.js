@@ -104,6 +104,21 @@ async function findValidLock(slotId, lockToken) {
   return rows[0] ?? null;
 }
 
+/**
+ * Find lock by slot + token (any expiry). Used before revoke for lead-event email.
+ */
+async function findLockByToken(slotId, lockToken) {
+  const pool = getPool();
+  if (!pool) throw new Error('Database not configured');
+
+  const token = typeof lockToken === 'string' ? lockToken.trim() : String(lockToken || '').trim();
+  const [rows] = await pool.execute(
+    'SELECT id, slot_id, lock_token, email, expires_at FROM slot_locks WHERE slot_id = ? AND lock_token = ? LIMIT 1',
+    [Number(slotId), token]
+  );
+  return rows[0] ?? null;
+}
+
 async function deleteLock(slotId, lockToken) {
   const pool = getPool();
   if (!pool) throw new Error('Database not configured');
@@ -201,6 +216,7 @@ module.exports = {
   hasActiveLockForEmailExcept,
   createLock,
   findValidLock,
+  findLockByToken,
   deleteLock,
   extendLockExpiration,
   setLockCheckoutHoldConn,

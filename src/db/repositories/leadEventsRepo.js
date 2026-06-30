@@ -86,33 +86,66 @@ function scheduleLeadEvent(eventType, payload) {
 
 const ADMIN_LIST_LIMIT_DEFAULT = 200;
 const ADMIN_LIST_LIMIT_MAX = 500;
+const ADMIN_EXPORT_LIMIT_MAX = 5000;
 const ADMIN_DAY_FILTERS = { 7: 7, 30: 30, 90: 90 };
+const UNPAID_INTENT_EVENT_TYPES = ['email_entered', 'initiate_checkout', 'payment_path_selected'];
+
+function appendUnpaidSegmentCondition(conditions, params, daysKey) {
+  const intentPh = UNPAID_INTENT_EVENT_TYPES.map(() => '?').join(', ');
+  const subParams = [...UNPAID_INTENT_EVENT_TYPES];
+  let intentTime = '';
+  let purchaseTime = '';
+
+  if (daysKey !== 'all') {
+    const days = ADMIN_DAY_FILTERS[Number(daysKey)];
+    if (days) {
+      intentTime = 'AND e1.occurred_at >= DATE_SUB(NOW(3), INTERVAL ? DAY)';
+      purchaseTime = 'AND e2.occurred_at >= DATE_SUB(NOW(3), INTERVAL ? DAY)';
+      subParams.push(days, days);
+    }
+  }
+
+  conditions.push(`le.email IN (
+    SELECT DISTINCT e1.email FROM lead_events e1
+    WHERE e1.event_type IN (${intentPh})
+    ${intentTime}
+    AND NOT EXISTS (
+      SELECT 1 FROM lead_events e2
+      WHERE e2.email = e1.email AND e2.event_type = 'purchase'
+      ${purchaseTime}
+    )
+  )`);
+  params.push(...subParams);
+}
 
 /**
- * Paginated lead events for admin UI.
- * @param {{ days?: string, eventType?: string, email?: string, limit?: number, offset?: number }} [opts]
+ * @param {import('mysql2/promise').Pool} pool
+ * @param {{ days?: string, eventType?: string, email?: string, segment?: string, limit?: number, offset?: number }} [opts]
  */
-async function listForAdmin(opts = {}) {
-  const pool = getPool();
-  if (!pool) throw new Error('Database not configured');
-
+async function queryLeadEventsForAdmin(pool, opts = {}) {
+  const maxLimit = opts.maxLimit ?? ADMIN_LIST_LIMIT_MAX;
   const limitRaw = Number.parseInt(opts.limit, 10);
   const limit = Number.isFinite(limitRaw)
-    ? Math.min(Math.max(limitRaw, 1), ADMIN_LIST_LIMIT_MAX)
+    ? Math.min(Math.max(limitRaw, 1), maxLimit)
     : ADMIN_LIST_LIMIT_DEFAULT;
   const offsetRaw = Number.parseInt(opts.offset, 10);
   const offset = Number.isFinite(offsetRaw) ? Math.max(offsetRaw, 0) : 0;
+  const fetchLimit = limit + 1;
 
   const conditions = [];
   const params = [];
-
   const daysKey = opts.days != null ? String(opts.days) : '30';
+
   if (daysKey !== 'all') {
     const days = ADMIN_DAY_FILTERS[Number(daysKey)];
     if (days) {
       conditions.push('le.occurred_at >= DATE_SUB(NOW(3), INTERVAL ? DAY)');
       params.push(days);
     }
+  }
+
+  if (opts.segment === 'unpaid') {
+    appendUnpaidSegmentCondition(conditions, params, daysKey);
   }
 
   if (opts.eventType) {
@@ -156,10 +189,42 @@ async function listForAdmin(opts = {}) {
     ${where}
     ORDER BY le.occurred_at DESC, le.id DESC
     LIMIT ? OFFSET ?`,
-    [...params, limit, offset]
+    [...params, fetchLimit, offset]
   );
 
-  return rows;
+  const hasMore = rows.length > limit;
+  return {
+    rows: hasMore ? rows.slice(0, limit) : rows,
+    hasMore,
+    limit,
+    offset,
+  };
+}
+
+/**
+ * Paginated lead events for admin UI.
+ * @param {{ days?: string, eventType?: string, email?: string, segment?: string, limit?: number, offset?: number }} [opts]
+ */
+async function listForAdmin(opts = {}) {
+  const pool = getPool();
+  if (!pool) throw new Error('Database not configured');
+  return queryLeadEventsForAdmin(pool, opts);
+}
+
+/**
+ * Lead events for admin CSV export (same filters, higher cap).
+ * @param {{ days?: string, eventType?: string, email?: string, segment?: string }} [opts]
+ */
+async function listForAdminExport(opts = {}) {
+  const pool = getPool();
+  if (!pool) throw new Error('Database not configured');
+  const result = await queryLeadEventsForAdmin(pool, {
+    ...opts,
+    limit: ADMIN_EXPORT_LIMIT_MAX,
+    maxLimit: ADMIN_EXPORT_LIMIT_MAX,
+    offset: 0,
+  });
+  return result.rows;
 }
 
 /** Active event types for admin filter dropdown. */
@@ -180,7 +245,9 @@ module.exports = {
   recordLeadEvent,
   scheduleLeadEvent,
   listForAdmin,
+  listForAdminExport,
   listActiveEventTypes,
   ADMIN_LIST_LIMIT_DEFAULT,
   ADMIN_LIST_LIMIT_MAX,
+  ADMIN_EXPORT_LIMIT_MAX,
 };

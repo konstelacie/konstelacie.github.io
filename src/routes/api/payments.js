@@ -102,6 +102,23 @@ function buildStripeSuccessUrl(baseUrl, funnelName) {
   return `${baseUrl}${publicPath}?${qs}`;
 }
 
+function schedulePaymentPathSelectedLeadEvent(req, { email, slotId, funnel, cents, paymentTypeForDb }) {
+  const leadCtx = leadContextFromRequest(req);
+  scheduleLeadEvent('payment_path_selected', {
+    email,
+    slotId,
+    formId: funnel.funnelName || leadCtx.formId,
+    sourceUrl: leadCtx.sourceUrl,
+    amount: centsToLeadAmount(cents),
+    currency: 'eur',
+    metadata: {
+      paymentType: paymentTypeForDb,
+      funnelCampaign: funnel.funnelCampaign,
+      funnelVideoId: funnel.funnelVideoId,
+    },
+  });
+}
+
 function schedulePaymentRetryLeadEvent(
   req,
   { email, slotId, funnel, cents, paymentTypeForDb, providerRef, reason }
@@ -530,6 +547,14 @@ router.post(
         lockExpiresAt: lockExpiresAt.toISOString(),
       });
     }
+
+    schedulePaymentPathSelectedLeadEvent(req, {
+      email,
+      slotId,
+      funnel,
+      cents,
+      paymentTypeForDb,
+    });
 
     let session;
     try {
