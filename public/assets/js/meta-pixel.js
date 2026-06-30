@@ -2,6 +2,26 @@
   'use strict';
 
   var FUNNEL_CTX_STORAGE_KEY = 'booking_funnel_ctx';
+  var NOTRACK_STORAGE_KEY = 'citim_notrack';
+
+  function syncNoTrackFromUrl() {
+    try {
+      var flag = new URLSearchParams(window.location.search).get('notrack');
+      if (flag === '1') {
+        sessionStorage.setItem(NOTRACK_STORAGE_KEY, '1');
+        return true;
+      }
+      if (flag === '0') {
+        sessionStorage.removeItem(NOTRACK_STORAGE_KEY);
+        return false;
+      }
+      return sessionStorage.getItem(NOTRACK_STORAGE_KEY) === '1';
+    } catch (e) {
+      return false;
+    }
+  }
+
+  var noTrackActive = syncNoTrackFromUrl();
 
   function fromBookingElement() {
     var el = document.querySelector('#booking');
@@ -57,6 +77,7 @@
   }
 
   function isReady() {
+    if (noTrackActive) return false;
     return typeof window.fbq === 'function';
   }
 
@@ -77,6 +98,13 @@
     params = params && typeof params === 'object' ? params : {};
     options = options && typeof options === 'object' ? options : {};
 
+    if (noTrackActive) {
+      if (typeof console !== 'undefined' && typeof console.debug === 'function') {
+        console.debug('[citimPixel] skip (notrack):', eventName);
+      }
+      return;
+    }
+
     if (!isReady()) {
       if (typeof console !== 'undefined' && typeof console.debug === 'function') {
         console.debug('[citimPixel] skip (fbq not ready):', eventName);
@@ -92,6 +120,12 @@
     }
     window.fbq('track', eventName, merged);
   }
+
+  window.citimNoTrack = {
+    isActive: function () {
+      return noTrackActive;
+    },
+  };
 
   window.citimPixel = {
     isReady: isReady,

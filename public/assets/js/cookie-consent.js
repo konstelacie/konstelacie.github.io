@@ -7,6 +7,11 @@
   var pixelId = root.getAttribute('data-pixel-id');
   if (!pixelId) return;
 
+  if (window.citimNoTrack && window.citimNoTrack.isActive()) {
+    root.hidden = true;
+    return;
+  }
+
   function getStored() {
     try {
       var raw = localStorage.getItem(STORAGE_KEY);
