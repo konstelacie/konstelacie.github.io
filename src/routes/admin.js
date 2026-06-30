@@ -49,7 +49,6 @@ const router = express.Router();
 router.use(adminAlertBanner);
 
 const ADMIN_RESERVATION_FILTERS = ['today', 'upcoming', 'unpaid', 'confirmed', 'expired'];
-const ADMIN_LEAD_EVENT_DAY_FILTERS = ['7', '30', '90', 'all'];
 
 function constantTimePasswordEq(input, expected) {
   if (typeof input !== 'string' || typeof expected !== 'string') return false;
@@ -496,9 +495,11 @@ function parseReservationIdParam(raw) {
 }
 
 function normalizeLeadEventsDaysFilter(raw, sessionValue) {
-  const fromQuery = typeof raw === 'string' ? raw : '';
-  if (ADMIN_LEAD_EVENT_DAY_FILTERS.includes(fromQuery)) return fromQuery;
-  if (ADMIN_LEAD_EVENT_DAY_FILTERS.includes(sessionValue)) return sessionValue;
+  const allowed = ['7', '30', '90', 'all'];
+  const fromQuery = typeof raw === 'string' ? raw.trim() : '';
+  if (allowed.includes(fromQuery)) return fromQuery;
+  const fromSession = typeof sessionValue === 'string' ? sessionValue.trim() : '';
+  if (allowed.includes(fromSession)) return fromSession;
   return '30';
 }
 
@@ -543,10 +544,28 @@ function leadEventsNotReadyMessage(reason) {
 
 function leadEventsFilterWarningsMessage(warnings) {
   if (!warnings?.length) return null;
+  const parts = [];
   if (warnings.includes('unpaid_days_clamped')) {
-    return `Filter Nezaplatené: obdobie bolo obmedzené na ${leadEventsGate.ADMIN_UNPAID_CLAMPED_DAYS} dní (úplná história by bola príliš náročná).`;
+    parts.push(
+      `Filter Nezaplatené: obdobie bolo obmedzené na ${leadEventsGate.ADMIN_UNPAID_CLAMPED_DAYS} dní (úplná história by bola príliš náročná).`
+    );
   }
-  return null;
+  if (warnings.includes('invalid_days')) {
+    parts.push('Neplatné obdobie — použitých 30 dní.');
+  }
+  if (warnings.includes('invalid_segment')) {
+    parts.push('Neplatný segment — zobrazené všetky udalosti.');
+  }
+  if (warnings.includes('invalid_event_type') || warnings.includes('unknown_event_type')) {
+    parts.push('Neplatný typ udalosti — filter ignorovaný.');
+  }
+  if (warnings.includes('invalid_offset') || warnings.includes('offset_capped')) {
+    parts.push('Neplatný alebo príliš veľký offset — upravený na bezpečný rozsah.');
+  }
+  if (warnings.includes('email_truncated')) {
+    parts.push('Vyhľadávaný e-mail bol skrátený na maximálnu dĺžku.');
+  }
+  return parts.length ? parts.join(' ') : null;
 }
 
 function buildAdminLeadEventsListQuery(req, session, listOffset) {

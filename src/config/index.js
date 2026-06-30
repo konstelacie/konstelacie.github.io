@@ -186,16 +186,22 @@ module.exports = {
     },
   },
   /**
-   * Funnel lead_events analytics (002+ migrations). Writes are non-blocking and must never
-   * break booking. Set LEAD_EVENTS_ENABLED=0 to disable inserts; LEAD_EVENTS_ADMIN_ENABLED=0
-   * to hide admin UI queries.
+   * Funnel lead_events analytics (migrations 002+, 003 for new types).
+   * Defaults when unset or invalid: both true. See .env.example and src/lib/leadEventsGate.js.
    */
-  leadEvents: {
-    writesEnabled:
-      process.env.LEAD_EVENTS_ENABLED !== '0' &&
-      String(process.env.LEAD_EVENTS_ENABLED || 'true').toLowerCase() !== 'false',
-    adminEnabled:
-      process.env.LEAD_EVENTS_ADMIN_ENABLED !== '0' &&
-      String(process.env.LEAD_EVENTS_ADMIN_ENABLED || 'true').toLowerCase() !== 'false',
-  },
+  leadEvents: (() => {
+    const { parseEnvFlag } = require('../lib/envFlag');
+    const {
+      DEFAULT_WRITES_ENABLED,
+      DEFAULT_ADMIN_ENABLED,
+    } = require('../lib/leadEventsGate');
+    return {
+      writesEnabled: parseEnvFlag(process.env.LEAD_EVENTS_ENABLED, DEFAULT_WRITES_ENABLED),
+      adminEnabled: parseEnvFlag(process.env.LEAD_EVENTS_ADMIN_ENABLED, DEFAULT_ADMIN_ENABLED),
+      defaults: {
+        writesEnabled: DEFAULT_WRITES_ENABLED,
+        adminEnabled: DEFAULT_ADMIN_ENABLED,
+      },
+    };
+  })(),
 };

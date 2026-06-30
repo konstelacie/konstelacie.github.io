@@ -46,6 +46,25 @@ test('shouldScheduleWrite respects LEAD_EVENTS_ENABLED kill switch', () => {
   }
 });
 
+test('invalid LEAD_EVENTS_ENABLED falls back to default (true)', () => {
+  const typo = reloadGate({ LEAD_EVENTS_ENABLED: 'flase' });
+  try {
+    assert.equal(typo.gate.isWritesEnabled(), typo.gate.DEFAULT_WRITES_ENABLED);
+    assert.equal(typo.gate.isWritesEnabled(), true);
+  } finally {
+    typo.restore();
+  }
+});
+
+test('invalid LEAD_EVENTS_ADMIN_ENABLED falls back to default (true)', () => {
+  const typo = reloadGate({ LEAD_EVENTS_ADMIN_ENABLED: 'nope' });
+  try {
+    assert.equal(typo.gate.isAdminEnabled(), true);
+  } finally {
+    typo.restore();
+  }
+});
+
 test('shouldScheduleWrite rejects unknown event types', () => {
   const { gate, restore } = reloadGate({});
   try {
@@ -73,6 +92,22 @@ test('sanitizePayload rejects invalid email and oversized metadata', () => {
     });
     assert.equal(ok.email, 'user@example.com');
     assert.equal(ok.slotId, 12);
+  } finally {
+    restore();
+  }
+});
+
+test('sanitizeAdminListOpts rejects invalid days and segment', () => {
+  const { gate, restore } = reloadGate({});
+  try {
+    const { opts, warnings } = gate.sanitizeAdminListOpts({
+      days: '365',
+      segment: 'hacked',
+    });
+    assert.equal(opts.days, '30');
+    assert.equal(opts.segment, undefined);
+    assert.ok(warnings.includes('invalid_days'));
+    assert.ok(warnings.includes('invalid_segment'));
   } finally {
     restore();
   }

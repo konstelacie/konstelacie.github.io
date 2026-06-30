@@ -1,8 +1,12 @@
-const config = require('../config');
+const { parseEnvFlag } = require('./envFlag');
 
 /** Migration files required before lead_events writes / admin reads. */
 const MIGRATION_CORE = '002_lead_events.sql';
 const MIGRATION_TYPE_ACTIVATION = '003_lead_event_types_active.sql';
+
+/** Default when LEAD_EVENTS_* env is unset or invalid. */
+const DEFAULT_WRITES_ENABLED = true;
+const DEFAULT_ADMIN_ENABLED = true;
 
 /** Event types emitted from application code (must exist in lead_event_types seed). */
 const WIRED_EVENT_TYPES = new Set([
@@ -23,6 +27,9 @@ const WIRED_EVENT_TYPES = new Set([
 const TYPES_REQUIRING_ACTIVATION_MIGRATION = new Set(['payment_path_selected', 'lock_revoked']);
 
 const READINESS_CACHE_MS = 60_000;
+const ADMIN_LIST_LIMIT_DEFAULT = 200;
+const ADMIN_LIST_LIMIT_MAX = 500;
+const ADMIN_EXPORT_LIMIT_MAX = 5000;
 const ADMIN_MAX_OFFSET = 5000;
 const ADMIN_EMAIL_SEARCH_MAX_LEN = 255;
 const ADMIN_UNPAID_CLAMPED_DAYS = 90;
@@ -31,19 +38,12 @@ const METADATA_JSON_MAX_BYTES = 16_384;
 /** @type {{ checkedAt: number, table: boolean, coreMigration: boolean, activationMigration: boolean } | null} */
 let readinessCache = null;
 
-function envFlagEnabled(raw, defaultEnabled) {
-  if (raw === undefined || raw === null || String(raw).trim() === '') return defaultEnabled;
-  const s = String(raw).trim().toLowerCase();
-  if (s === '0' || s === 'false' || s === 'no' || s === 'off') return false;
-  return true;
-}
-
 function isWritesEnabled() {
-  return envFlagEnabled(process.env.LEAD_EVENTS_ENABLED, true);
+  return parseEnvFlag(process.env.LEAD_EVENTS_ENABLED, DEFAULT_WRITES_ENABLED);
 }
 
 function isAdminEnabled() {
-  return envFlagEnabled(process.env.LEAD_EVENTS_ADMIN_ENABLED, true);
+  return parseEnvFlag(process.env.LEAD_EVENTS_ADMIN_ENABLED, DEFAULT_ADMIN_ENABLED);
 }
 
 function isAllowedEventType(eventType) {
@@ -167,6 +167,7 @@ function sanitizeMetadata(metadata) {
  */
 function sanitizePayload(eventType, payload) {
   if (!payload || typeof payload !== 'object') return null;
+  if (!isAllowedEventType(eventType)) return null;
 
   const email = String(payload.email ?? '')
     .trim()
@@ -207,9 +208,16 @@ function escapeLikePattern(value) {
 function sanitizeAdminListOpts(raw = {}) {
   const warnings = [];
   const allowedDays = new Set(['7', '30', '90', 'all']);
-  let days = allowedDays.has(String(raw.days)) ? String(raw.days) : '30';
+  const daysRaw = raw.days != null ? String(raw.days).trim() : '';
+  let days = allowedDays.has(daysRaw) ? daysRaw : '30';
+  if (daysRaw && !allowedDays.has(daysRaw)) {
+    warnings.push('invalid_days');
+  }
 
   let segment = raw.segment === 'unpaid' ? 'unpaid' : '';
+  if (raw.segment != null && String(raw.segment).trim() !== '' && raw.segment !== 'unpaid') {
+    warnings.push('invalid_segment');
+  }
   if (segment === 'unpaid' && days === 'all') {
     days = String(ADMIN_UNPAID_CLAMPED_DAYS);
     warnings.push('unpaid_days_clamped');
@@ -233,9 +241,26 @@ function sanitizeAdminListOpts(raw = {}) {
 
   const offsetRaw = Number.parseInt(raw.offset, 10);
   let offset = Number.isFinite(offsetRaw) && offsetRaw > 0 ? offsetRaw : 0;
+  if (raw.offset != null && String(raw.offset).trim() !== '' && !Number.isFinite(offsetRaw)) {
+    warnings.push('invalid_offset');
+  }
   if (offset > ADMIN_MAX_OFFSET) {
     offset = ADMIN_MAX_OFFSET;
     warnings.push('offset_capped');
+  }
+
+  const maxLimitRaw = Number.parseInt(raw.maxLimit, 10);
+  const maxLimit =
+    Number.isFinite(maxLimitRaw) && maxLimitRaw > 0
+      ? Math.min(maxLimitRaw, ADMIN_EXPORT_LIMIT_MAX)
+      : ADMIN_LIST_LIMIT_MAX;
+  const limitRaw = Number.parseInt(raw.limit, 10);
+  const limit =
+    Number.isFinite(limitRaw) && limitRaw > 0
+      ? Math.min(limitRaw, maxLimit)
+      : ADMIN_LIST_LIMIT_DEFAULT;
+  if (raw.limit != null && String(raw.limit).trim() !== '' && !Number.isFinite(limitRaw)) {
+    warnings.push('invalid_limit');
   }
 
   return {
@@ -245,8 +270,8 @@ function sanitizeAdminListOpts(raw = {}) {
       eventType: eventType || undefined,
       email: email || undefined,
       offset,
-      limit: raw.limit,
-      maxLimit: raw.maxLimit,
+      limit,
+      maxLimit,
     },
     warnings,
     emailLikePattern: email ? `%${escapeLikePattern(email)}%` : undefined,
@@ -257,6 +282,11 @@ module.exports = {
   MIGRATION_CORE,
   MIGRATION_TYPE_ACTIVATION,
   WIRED_EVENT_TYPES,
+  DEFAULT_WRITES_ENABLED,
+  DEFAULT_ADMIN_ENABLED,
+  ADMIN_LIST_LIMIT_DEFAULT,
+  ADMIN_LIST_LIMIT_MAX,
+  ADMIN_EXPORT_LIMIT_MAX,
   ADMIN_MAX_OFFSET,
   ADMIN_UNPAID_CLAMPED_DAYS,
   isWritesEnabled,

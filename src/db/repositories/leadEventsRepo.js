@@ -117,9 +117,9 @@ async function recordLeadEvent(eventType, payload) {
   await insertLeadEvent(eventType, sanitized);
 }
 
-const ADMIN_LIST_LIMIT_DEFAULT = 200;
-const ADMIN_LIST_LIMIT_MAX = 500;
-const ADMIN_EXPORT_LIMIT_MAX = 5000;
+const ADMIN_LIST_LIMIT_DEFAULT = leadEventsGate.ADMIN_LIST_LIMIT_DEFAULT;
+const ADMIN_LIST_LIMIT_MAX = leadEventsGate.ADMIN_LIST_LIMIT_MAX;
+const ADMIN_EXPORT_LIMIT_MAX = leadEventsGate.ADMIN_EXPORT_LIMIT_MAX;
 const ADMIN_DAY_FILTERS = { 7: 7, 30: 30, 90: 90 };
 const UNPAID_INTENT_EVENT_TYPES = ['email_entered', 'initiate_checkout', 'payment_path_selected'];
 
@@ -156,12 +156,8 @@ function appendUnpaidSegmentCondition(conditions, params, daysKey) {
  * @param {object} opts
  */
 async function queryLeadEventsForAdmin(pool, opts = {}) {
-  const maxLimit = opts.maxLimit ?? ADMIN_LIST_LIMIT_MAX;
-  const limitRaw = Number.parseInt(opts.limit, 10);
-  const limit = Number.isFinite(limitRaw)
-    ? Math.min(Math.max(limitRaw, 1), maxLimit)
-    : ADMIN_LIST_LIMIT_DEFAULT;
-  const offset = Number.isFinite(opts.offset) && opts.offset > 0 ? opts.offset : 0;
+  const limit = opts.limit ?? ADMIN_LIST_LIMIT_DEFAULT;
+  const offset = opts.offset ?? 0;
   const fetchLimit = limit + 1;
 
   const conditions = [];
