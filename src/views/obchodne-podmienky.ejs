@@ -74,13 +74,10 @@
 
   <p>
     Ochrana osobných údajov:
-    <a href="/ochrana-udajov">Ochrana osobných údajov</a>.
+    <a href="/ochrana-udajov<%- typeof legalFromQuery !== 'undefined' ? legalFromQuery : '' %>">Ochrana osobných údajov</a>.
   </p>
 
   <p>
-    <a
-      href="/"
-      onclick="if (window.history.length > 1) { event.preventDefault(); window.history.back(); }"
-    >Späť</a>
+    <%- include('partials/site-back-link') %>
   </p>
 </article>

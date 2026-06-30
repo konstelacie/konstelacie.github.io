@@ -3,10 +3,7 @@
     <span class="brand">citimtedasom.sk</span>
     <nav class="nav">
       <% if (typeof home === 'undefined' || !home) { %>
-        <a
-          href="/"
-          onclick="if (window.history.length > 1) { event.preventDefault(); window.history.back(); }"
-        >Späť</a>
+        <%- include('site-back-link') %>
       <% } %>
     </nav>
   </div>
