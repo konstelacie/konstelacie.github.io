@@ -1,11 +1,57 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
+const fs = require('fs');
+const path = require('path');
 
 const META_ATTR_PATH = require.resolve('../src/lib/metaAttribution.js');
 const CAPI_SENDER_PATH = require.resolve('../src/services/capiSender.js');
 const CAPI_REPO_PATH = require.resolve('../src/db/repositories/capiSendLogRepo.js');
 const DB_PATH = require.resolve('../src/db/index');
 const CONFIG_PATH = require.resolve('../src/config/index.js');
+const STRUCTURED_LOG_PATH = require.resolve('../src/lib/structuredLog.js');
+const SYSTEM_ALERT_PATH = require.resolve('../src/services/systemAlertService.js');
+
+function mockStructuredLog() {
+  const calls = [];
+  require.cache[STRUCTURED_LOG_PATH] = {
+    id: STRUCTURED_LOG_PATH,
+    filename: STRUCTURED_LOG_PATH,
+    loaded: true,
+    exports: {
+      logLine: (obj) => calls.push(obj),
+    },
+  };
+  return calls;
+}
+
+function restoreStructuredLog() {
+  delete require.cache[STRUCTURED_LOG_PATH];
+  require(STRUCTURED_LOG_PATH);
+}
+
+function mockSystemAlertService(stubs = {}) {
+  const orig = require(SYSTEM_ALERT_PATH);
+  const defaults = {
+    createCapiAuthFailed: async () => null,
+    resolveCapiAuthFailed: async () => false,
+    createCapiPoolUnavailable: async () => null,
+    createCapiMisconfigured: async () => null,
+    resolveCapiMisconfigured: async () => false,
+    createCapiDeliveryDegraded: async () => null,
+    resolveCapiDeliveryDegraded: async () => false,
+  };
+  require.cache[SYSTEM_ALERT_PATH] = {
+    id: SYSTEM_ALERT_PATH,
+    filename: SYSTEM_ALERT_PATH,
+    loaded: true,
+    exports: { ...orig, ...defaults, ...stubs },
+  };
+}
+
+function restoreSystemAlertService() {
+  delete require.cache[SYSTEM_ALERT_PATH];
+  require(SYSTEM_ALERT_PATH);
+}
 
 function reloadModule(path, setup) {
   if (setup) setup();
@@ -314,6 +360,302 @@ test('duplicate webhook delivery — second insert blocked by UNIQUE', async () 
     global.fetch = origFetch;
     db.getPool = origGetPool;
     restoreConfig();
+    delete require.cache[CAPI_REPO_PATH];
+    delete require.cache[CAPI_SENDER_PATH];
+  }
+});
+
+test('sendCapiEvent — missing eventId logs and skips insert + Meta API', async () => {
+  const db = require(DB_PATH);
+  const origGetPool = db.getPool;
+  let insertCalled = false;
+  let fetchCalled = false;
+  const origFetch = global.fetch;
+  global.fetch = async () => {
+    fetchCalled = true;
+    return { ok: true, status: 200, json: async () => ({}) };
+  };
+  const logCalls = mockStructuredLog();
+
+  try {
+    mockConfig();
+    delete require.cache[CAPI_REPO_PATH];
+    delete require.cache[CAPI_SENDER_PATH];
+
+    db.getPool = () => ({
+      execute: async (sql) => {
+        if (String(sql).includes('INSERT INTO capi_send_log')) {
+          insertCalled = true;
+          return [{ insertId: 1 }];
+        }
+        return [{ affectedRows: 1 }];
+      },
+    });
+
+    const { sendCapiEvent } = require(CAPI_SENDER_PATH);
+    await sendCapiEvent({
+      eventName: 'Purchase',
+      eventId: '',
+      email: 'a@b.c',
+      payment: { marketing_consent: 1, suppressed_tracking: 0, payment_type: 'session' },
+    });
+
+    assert.equal(insertCalled, false);
+    assert.equal(fetchCalled, false);
+    assert.ok(logCalls.some((c) => c.tag === 'capi_missing_event_id' && c.eventName === 'Purchase'));
+  } finally {
+    global.fetch = origFetch;
+    db.getPool = origGetPool;
+    restoreConfig();
+    restoreStructuredLog();
+    delete require.cache[CAPI_REPO_PATH];
+    delete require.cache[CAPI_SENDER_PATH];
+  }
+});
+
+test('sendCapiEvent — null pool logs capi_pool_unavailable and creates alert best-effort', async () => {
+  const db = require(DB_PATH);
+  const origGetPool = db.getPool;
+  let poolAlertCalled = false;
+  const logCalls = mockStructuredLog();
+
+  try {
+    mockConfig();
+    mockSystemAlertService({
+      createCapiPoolUnavailable: async () => {
+        poolAlertCalled = true;
+        return 42;
+      },
+    });
+    delete require.cache[CAPI_REPO_PATH];
+    delete require.cache[CAPI_SENDER_PATH];
+
+    db.getPool = () => null;
+
+    const { sendCapiEvent } = require(CAPI_SENDER_PATH);
+    await assert.doesNotReject(async () => {
+      await sendCapiEvent({
+        eventName: 'Lead',
+        eventId: 'lead:abc',
+        email: 'x@y.z',
+        payment: { marketing_consent: 1, suppressed_tracking: 0 },
+      });
+    });
+
+    assert.equal(poolAlertCalled, true);
+    assert.ok(
+      logCalls.some((c) => c.tag === 'capi_pool_unavailable' && c.eventName === 'Lead' && c.eventId === 'lead:abc')
+    );
+  } finally {
+    db.getPool = origGetPool;
+    restoreConfig();
+    restoreStructuredLog();
+    restoreSystemAlertService();
+    delete require.cache[CAPI_REPO_PATH];
+    delete require.cache[CAPI_SENDER_PATH];
+  }
+});
+
+test('updateCapiLogResult — null pool logs and creates capi_pool_unavailable alert', async () => {
+  const db = require(DB_PATH);
+  const origGetPool = db.getPool;
+  let poolAlertCalled = false;
+  const logCalls = mockStructuredLog();
+
+  try {
+    mockSystemAlertService({
+      createCapiPoolUnavailable: async () => {
+        poolAlertCalled = true;
+        return 1;
+      },
+    });
+    delete require.cache[CAPI_REPO_PATH];
+    db.getPool = () => null;
+
+    const { updateCapiLogResult } = require(CAPI_REPO_PATH);
+    await assert.doesNotReject(async () => {
+      await updateCapiLogResult(99, { status: 'failed', sentAt: false });
+    });
+
+    assert.equal(poolAlertCalled, true);
+    assert.ok(logCalls.some((c) => c.tag === 'capi_pool_unavailable' && c.logId === 99));
+  } finally {
+    db.getPool = origGetPool;
+    restoreStructuredLog();
+    restoreSystemAlertService();
+    delete require.cache[CAPI_REPO_PATH];
+  }
+});
+
+test('payments/start uses logCapiError for meta attribution failures', () => {
+  const src = fs.readFileSync(path.join(__dirname, '../src/routes/api/payments.js'), 'utf8');
+  assert.match(src, /logCapiError\('meta_attribution_update_failed'/);
+  assert.doesNotMatch(src, /console\.error\('\[payments\/start\] meta attribution update/);
+});
+
+test('sendCapiEvent — 401 from Meta API creates capi_auth_failed alert', async () => {
+  const db = require(DB_PATH);
+  const origGetPool = db.getPool;
+  let authAlertParams = null;
+  const origFetch = global.fetch;
+  global.fetch = async () => ({
+    ok: false,
+    status: 401,
+    json: async () => ({ error: { message: 'Invalid OAuth access token' } }),
+  });
+
+  try {
+    mockConfig();
+    mockSystemAlertService({
+      createCapiAuthFailed: async (params) => {
+        authAlertParams = params;
+        return 7;
+      },
+    });
+    delete require.cache[CAPI_REPO_PATH];
+    delete require.cache[CAPI_SENDER_PATH];
+
+    db.getPool = () => ({
+      execute: async (sql) => {
+        if (String(sql).includes('INSERT INTO capi_send_log')) {
+          return [{ insertId: 11 }];
+        }
+        return [{ affectedRows: 1 }];
+      },
+    });
+
+    const { sendCapiEvent } = require(CAPI_SENDER_PATH);
+    await sendCapiEvent({
+      eventName: 'Purchase',
+      eventId: 'cs_auth_fail',
+      email: 'a@b.c',
+      payment: {
+        marketing_consent: 1,
+        suppressed_tracking: 0,
+        payment_type: 'session',
+        client_ip: '1.1.1.1',
+        client_user_agent: 'UA',
+      },
+    });
+
+    assert.ok(authAlertParams);
+    assert.equal(authAlertParams.httpStatus, 401);
+    assert.match(authAlertParams.errorMessage, /Invalid OAuth/i);
+  } finally {
+    global.fetch = origFetch;
+    db.getPool = origGetPool;
+    restoreConfig();
+    restoreSystemAlertService();
+    delete require.cache[CAPI_REPO_PATH];
+    delete require.cache[CAPI_SENDER_PATH];
+  }
+});
+
+test('sendCapiEvent — successful send resolves capi_auth_failed alert', async () => {
+  const db = require(DB_PATH);
+  const origGetPool = db.getPool;
+  let resolveCalled = false;
+  const origFetch = global.fetch;
+  global.fetch = async () => ({
+    ok: true,
+    status: 200,
+    json: async () => ({ events_received: 1 }),
+  });
+
+  try {
+    mockConfig();
+    mockSystemAlertService({
+      resolveCapiAuthFailed: async () => {
+        resolveCalled = true;
+        return true;
+      },
+    });
+    delete require.cache[CAPI_REPO_PATH];
+    delete require.cache[CAPI_SENDER_PATH];
+
+    db.getPool = () => ({
+      execute: async (sql) => {
+        if (String(sql).includes('INSERT INTO capi_send_log')) {
+          return [{ insertId: 12 }];
+        }
+        return [{ affectedRows: 1 }];
+      },
+    });
+
+    const { sendCapiEvent } = require(CAPI_SENDER_PATH);
+    await sendCapiEvent({
+      eventName: 'Lead',
+      eventId: 'lead:ok',
+      email: 'a@b.c',
+      payment: { marketing_consent: 1, suppressed_tracking: 0 },
+    });
+
+    assert.equal(resolveCalled, true);
+  } finally {
+    global.fetch = origFetch;
+    db.getPool = origGetPool;
+    restoreConfig();
+    restoreSystemAlertService();
+    delete require.cache[CAPI_REPO_PATH];
+    delete require.cache[CAPI_SENDER_PATH];
+  }
+});
+
+test('sendCapiEvent — no_consent does not call system alert helpers', async () => {
+  const db = require(DB_PATH);
+  const origGetPool = db.getPool;
+  let authAlertCalled = false;
+  let resolveCalled = false;
+  let poolAlertCalled = false;
+  const origFetch = global.fetch;
+  global.fetch = async () => {
+    throw new Error('fetch should not be called');
+  };
+
+  try {
+    mockConfig();
+    mockSystemAlertService({
+      createCapiAuthFailed: async () => {
+        authAlertCalled = true;
+        return null;
+      },
+      resolveCapiAuthFailed: async () => {
+        resolveCalled = true;
+        return false;
+      },
+      createCapiPoolUnavailable: async () => {
+        poolAlertCalled = true;
+        return null;
+      },
+    });
+    delete require.cache[CAPI_REPO_PATH];
+    delete require.cache[CAPI_SENDER_PATH];
+
+    db.getPool = () => ({
+      execute: async (sql) => {
+        if (String(sql).includes('INSERT INTO capi_send_log')) {
+          return [{ insertId: 1 }];
+        }
+        return [{ affectedRows: 1 }];
+      },
+    });
+
+    const { sendCapiEvent } = require(CAPI_SENDER_PATH);
+    await sendCapiEvent({
+      eventName: 'Lead',
+      eventId: 'lead:no-consent',
+      email: 'x@y.z',
+      payment: { marketing_consent: 0, suppressed_tracking: 0 },
+    });
+
+    assert.equal(authAlertCalled, false);
+    assert.equal(resolveCalled, false);
+    assert.equal(poolAlertCalled, false);
+  } finally {
+    global.fetch = origFetch;
+    db.getPool = origGetPool;
+    restoreConfig();
+    restoreSystemAlertService();
     delete require.cache[CAPI_REPO_PATH];
     delete require.cache[CAPI_SENDER_PATH];
   }

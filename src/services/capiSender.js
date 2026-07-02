@@ -8,7 +8,9 @@ const {
   tryInsertCapiLog,
   updateCapiLogResult,
   logCapiError,
+  handleCapiPoolUnavailable,
 } = require('../db/repositories/capiSendLogRepo');
+const systemAlertService = require('./systemAlertService');
 
 const REQUEST_TIMEOUT_MS = 10_000;
 const MAX_RETRIES = 2;
@@ -172,8 +174,16 @@ async function sendCapiEvent({
   customData = {},
   userDataOverrides = null,
 }) {
+  if (eventId == null || String(eventId).trim() === '') {
+    logCapiError('capi_missing_event_id', { eventName });
+    return;
+  }
+
   const pool = getPool();
-  if (!pool) return;
+  if (!pool) {
+    handleCapiPoolUnavailable({ eventName, eventId });
+    return;
+  }
 
   const skipReason = evaluateSkipReason(payment, skipContext, eventName);
 
@@ -237,6 +247,17 @@ async function sendCapiEvent({
       errorMessage: result.errorMessage,
       sentAt: result.ok,
     });
+
+    if (result.ok) {
+      void systemAlertService.resolveCapiAuthFailed().catch(() => {});
+    } else if (result.httpStatus === 401 || result.httpStatus === 403) {
+      void systemAlertService
+        .createCapiAuthFailed({
+          httpStatus: result.httpStatus,
+          errorMessage: result.errorMessage,
+        })
+        .catch(() => {});
+    }
 
     logLine({
       level: result.ok ? 'info' : 'warn',
@@ -366,7 +387,7 @@ function scheduleCapiPurchase(payment, session) {
 
   void sendCapiEvent({
     eventName: 'Purchase',
-    eventId: session.id,
+    eventId: session?.id,
     paymentId: payment.id != null ? Number(payment.id) : null,
     email: purchaseEmail,
     payment,

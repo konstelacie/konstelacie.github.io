@@ -1,5 +1,6 @@
 const { getPool } = require('../index');
 const { logLine } = require('../../lib/structuredLog');
+const systemAlertService = require('../../services/systemAlertService');
 
 /**
  * @param {import('mysql2/promise').Pool} pool
@@ -28,7 +29,10 @@ async function tryInsertCapiLog(pool, { eventName, eventId, paymentId = null, st
  */
 async function updateCapiLogResult(id, update) {
   const pool = getPool();
-  if (!pool) return;
+  if (!pool) {
+    handleCapiPoolUnavailable({ logId: id });
+    return;
+  }
 
   const sentAtClause = update.sentAt ? ', sent_at = NOW(3)' : '';
   await pool.execute(
@@ -58,9 +62,28 @@ function logCapiError(tag, fields) {
   logLine({ level: 'error', tag, ...fields });
 }
 
+/**
+ * Log pool unavailability and best-effort create system alert (never throws).
+ * @param {{ eventName?: string, eventId?: string, logId?: number }} [context]
+ */
+function handleCapiPoolUnavailable(context = {}) {
+  const { eventName, eventId, logId } = context;
+  logCapiError('capi_pool_unavailable', {
+    ...(eventName != null ? { eventName } : {}),
+    ...(eventId != null ? { eventId } : {}),
+    ...(logId != null ? { logId } : {}),
+  });
+  try {
+    void systemAlertService.createCapiPoolUnavailable().catch(() => {});
+  } catch {
+    // ignore — alert creation must not break caller
+  }
+}
+
 module.exports = {
   tryInsertCapiLog,
   updateCapiLogResult,
   markCapiLogSkipped,
   logCapiError,
+  handleCapiPoolUnavailable,
 };

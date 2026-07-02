@@ -23,6 +23,7 @@ const { scheduleLeadEvent } = require('../../db/repositories/leadEventsRepo');
 const { leadContextFromRequest, centsToLeadAmount } = require('../../lib/leadEventContext');
 const { extractMetaAttribution, updatePaymentMetaAttribution } = require('../../lib/metaAttribution');
 const { scheduleCapiInitiateCheckout } = require('../../services/capiSender');
+const { logCapiError } = require('../../db/repositories/capiSendLogRepo');
 const emailDeliveryTasksRepo = require('../../db/repositories/emailDeliveryTasksRepo');
 const emailSentLogRepo = require('../../db/repositories/emailSentLogRepo');
 const { buildConfirmationEmailPayload } = require('../../lib/confirmationEmailStatus');
@@ -560,7 +561,10 @@ router.post(
       try {
         await updatePaymentMetaAttribution(pool, idempotentProviderRef, metaAttribution);
       } catch (attrErr) {
-        console.error('[payments/start] meta attribution update (idempotent)', attrErr);
+        logCapiError('meta_attribution_update_failed', {
+          providerRef: idempotentProviderRef,
+          err: attrErr?.message || String(attrErr),
+        });
       }
 
       fireInitiateCheckoutCapi(req, {
@@ -696,7 +700,10 @@ router.post(
         try {
           await updatePaymentMetaAttribution(pool, firstRef, metaAttribution);
         } catch (attrErr) {
-          console.error('[payments/start] meta attribution update (race)', attrErr);
+          logCapiError('meta_attribution_update_failed', {
+            providerRef: firstRef,
+            err: attrErr?.message || String(attrErr),
+          });
         }
 
         fireInitiateCheckoutCapi(req, {

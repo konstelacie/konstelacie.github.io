@@ -10,6 +10,10 @@ const ALERT_TYPES = {
   CRON_NOT_RUNNING: 'cron_not_running',
   STRIPE_PAYMENT_NEEDS_RECONCILIATION: 'stripe_payment_needs_reconciliation',
   STRIPE_RECONCILIATION_FAILED: 'stripe_reconciliation_failed',
+  CAPI_MISCONFIGURED: 'capi_misconfigured',
+  CAPI_AUTH_FAILED: 'capi_auth_failed',
+  CAPI_DELIVERY_DEGRADED: 'capi_delivery_degraded',
+  CAPI_POOL_UNAVAILABLE: 'capi_pool_unavailable',
 };
 
 /**
@@ -411,6 +415,199 @@ async function resolveCronNotRunning() {
  * @param {number} reservationId
  * @returns {Promise<boolean>}
  */
+async function createCapiMisconfigured() {
+  const existing = await systemAlertsRepo.findUnresolvedByType(ALERT_TYPES.CAPI_MISCONFIGURED);
+  if (existing) {
+    return existing.id;
+  }
+
+  const id = await systemAlertsRepo.createOpen({
+    severity: 'critical',
+    type: ALERT_TYPES.CAPI_MISCONFIGURED,
+    entityType: null,
+    entityId: null,
+    title: 'Meta CAPI je nesprávne nakonfigurované',
+    message:
+      'Meta CAPI je zapnuté, ale chýba access token alebo pixel ID — server-side eventy sa neodosielajú.',
+    metadata: {
+      checkedAt: new Date().toISOString(),
+    },
+  });
+
+  logLine({
+    level: 'error',
+    tag: 'system_alert_created',
+    alertId: id,
+    alertType: ALERT_TYPES.CAPI_MISCONFIGURED,
+  });
+
+  return id;
+}
+
+/**
+ * @returns {Promise<boolean>}
+ */
+async function resolveCapiMisconfigured() {
+  const existing = await systemAlertsRepo.findUnresolvedByType(ALERT_TYPES.CAPI_MISCONFIGURED);
+  if (!existing) {
+    return false;
+  }
+
+  const result = await systemAlertsRepo.resolveAlert(existing.id);
+  if (result.ok) {
+    logLine({
+      level: 'info',
+      tag: 'system_alert_resolved',
+      alertId: existing.id,
+      alertType: ALERT_TYPES.CAPI_MISCONFIGURED,
+      auto: true,
+    });
+  }
+  return result.ok;
+}
+
+/**
+ * @param {{ httpStatus: number, errorMessage?: string|null }} params
+ */
+async function createCapiAuthFailed({ httpStatus, errorMessage }) {
+  const existing = await systemAlertsRepo.findUnresolvedByType(ALERT_TYPES.CAPI_AUTH_FAILED);
+  if (existing) {
+    return existing.id;
+  }
+
+  const id = await systemAlertsRepo.createOpen({
+    severity: 'critical',
+    type: ALERT_TYPES.CAPI_AUTH_FAILED,
+    entityType: null,
+    entityId: null,
+    title: 'Meta CAPI autentifikácia zlyhala',
+    message: `Meta CAPI odmieta požiadavky (${httpStatus}) — over META_CAPI_ACCESS_TOKEN v Events Manageri.`,
+    metadata: {
+      httpStatus,
+      errorMessage: errorMessage || 'unknown',
+      checkedAt: new Date().toISOString(),
+    },
+  });
+
+  logLine({
+    level: 'error',
+    tag: 'system_alert_created',
+    alertId: id,
+    alertType: ALERT_TYPES.CAPI_AUTH_FAILED,
+    httpStatus,
+  });
+
+  return id;
+}
+
+/**
+ * @returns {Promise<boolean>}
+ */
+async function resolveCapiAuthFailed() {
+  const existing = await systemAlertsRepo.findUnresolvedByType(ALERT_TYPES.CAPI_AUTH_FAILED);
+  if (!existing) {
+    return false;
+  }
+
+  const result = await systemAlertsRepo.resolveAlert(existing.id);
+  if (result.ok) {
+    logLine({
+      level: 'info',
+      tag: 'system_alert_resolved',
+      alertId: existing.id,
+      alertType: ALERT_TYPES.CAPI_AUTH_FAILED,
+      auto: true,
+    });
+  }
+  return result.ok;
+}
+
+/**
+ * @param {{ failedCount: number, threshold: number }} params
+ */
+async function createCapiDeliveryDegraded({ failedCount, threshold }) {
+  const existing = await systemAlertsRepo.findUnresolvedByType(ALERT_TYPES.CAPI_DELIVERY_DEGRADED);
+  if (existing) {
+    return existing.id;
+  }
+
+  const id = await systemAlertsRepo.createOpen({
+    severity: 'warning',
+    type: ALERT_TYPES.CAPI_DELIVERY_DEGRADED,
+    entityType: null,
+    entityId: null,
+    title: 'Meta CAPI doručovanie je degradované',
+    message: `V posledných 24 hodinách zlyhalo ${failedCount} CAPI eventov (prah: ${threshold}). Skontroluj capi_send_log a Meta konfiguráciu.`,
+    metadata: {
+      failedCount,
+      threshold,
+      checkedAt: new Date().toISOString(),
+    },
+  });
+
+  logLine({
+    level: 'error',
+    tag: 'system_alert_created',
+    alertId: id,
+    alertType: ALERT_TYPES.CAPI_DELIVERY_DEGRADED,
+    failedCount,
+    threshold,
+  });
+
+  return id;
+}
+
+/**
+ * @returns {Promise<boolean>}
+ */
+async function resolveCapiDeliveryDegraded() {
+  const existing = await systemAlertsRepo.findUnresolvedByType(ALERT_TYPES.CAPI_DELIVERY_DEGRADED);
+  if (!existing) {
+    return false;
+  }
+
+  const result = await systemAlertsRepo.resolveAlert(existing.id);
+  if (result.ok) {
+    logLine({
+      level: 'info',
+      tag: 'system_alert_resolved',
+      alertId: existing.id,
+      alertType: ALERT_TYPES.CAPI_DELIVERY_DEGRADED,
+      auto: true,
+    });
+  }
+  return result.ok;
+}
+
+async function createCapiPoolUnavailable() {
+  const existing = await systemAlertsRepo.findUnresolvedByType(ALERT_TYPES.CAPI_POOL_UNAVAILABLE);
+  if (existing) {
+    return existing.id;
+  }
+
+  const id = await systemAlertsRepo.createOpen({
+    severity: 'critical',
+    type: ALERT_TYPES.CAPI_POOL_UNAVAILABLE,
+    entityType: null,
+    entityId: null,
+    title: 'Meta CAPI — databázové spojenie nedostupné',
+    message:
+      'CAPI logovanie vyžaduje DB pool, ktorý nie je k dispozícii. Server-side Meta eventy sa nemusia zapisovať ani odosielať.',
+    metadata: {
+      checkedAt: new Date().toISOString(),
+    },
+  });
+
+  logLine({
+    level: 'error',
+    tag: 'system_alert_created',
+    alertId: id,
+    alertType: ALERT_TYPES.CAPI_POOL_UNAVAILABLE,
+  });
+
+  return id;
+}
+
 async function resolveEmailBounced(reservationId) {
   const existing = await systemAlertsRepo.findUnresolvedByTypeAndEntity(
     ALERT_TYPES.EMAIL_BOUNCED,
@@ -447,5 +644,12 @@ module.exports = {
   createStripeReconciliationFailed,
   resolveCronNotRunning,
   resolveStripeReconciliationFailed,
+  createCapiMisconfigured,
+  resolveCapiMisconfigured,
+  createCapiAuthFailed,
+  resolveCapiAuthFailed,
+  createCapiDeliveryDegraded,
+  resolveCapiDeliveryDegraded,
+  createCapiPoolUnavailable,
   resolveEmailBounced,
 };

@@ -1,5 +1,6 @@
 const systemAlertsRepo = require('../db/repositories/systemAlertsRepo');
 const cronHealthService = require('../services/cronHealthService');
+const capiHealthService = require('../services/capiHealthService');
 
 /**
  * Loads unresolved critical alert count (open + acknowledged) into res.locals for authenticated admin pages.
@@ -10,6 +11,7 @@ async function adminAlertBanner(req, res, next) {
   if (req.session && req.session.adminLoggedIn === true) {
     try {
       await cronHealthService.checkCronHealth();
+      await capiHealthService.checkCapiDeliveryHealth();
       res.locals.openCriticalAlertCount = await systemAlertsRepo.getOpenCriticalCount();
     } catch (err) {
       console.error('[admin/alert-banner]', err);
