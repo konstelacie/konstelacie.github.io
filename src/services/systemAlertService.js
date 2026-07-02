@@ -1,4 +1,5 @@
 const systemAlertsRepo = require('../db/repositories/systemAlertsRepo');
+const { getPool } = require('../db');
 const { logLine } = require('../lib/structuredLog');
 
 const ALERT_TYPES = {
@@ -580,32 +581,42 @@ async function resolveCapiDeliveryDegraded() {
 }
 
 async function createCapiPoolUnavailable() {
-  const existing = await systemAlertsRepo.findUnresolvedByType(ALERT_TYPES.CAPI_POOL_UNAVAILABLE);
-  if (existing) {
-    return existing.id;
+  if (!getPool()) {
+    return null;
   }
 
-  const id = await systemAlertsRepo.createOpen({
-    severity: 'critical',
-    type: ALERT_TYPES.CAPI_POOL_UNAVAILABLE,
-    entityType: null,
-    entityId: null,
-    title: 'Meta CAPI — databázové spojenie nedostupné',
-    message:
-      'CAPI logovanie vyžaduje DB pool, ktorý nie je k dispozícii. Server-side Meta eventy sa nemusia zapisovať ani odosielať.',
-    metadata: {
-      checkedAt: new Date().toISOString(),
-    },
-  });
+  try {
+    const existing = await systemAlertsRepo.findUnresolvedByType(ALERT_TYPES.CAPI_POOL_UNAVAILABLE);
+    if (existing) {
+      return existing.id;
+    }
 
-  logLine({
-    level: 'error',
-    tag: 'system_alert_created',
-    alertId: id,
-    alertType: ALERT_TYPES.CAPI_POOL_UNAVAILABLE,
-  });
+    const id = await systemAlertsRepo.createOpen({
+      severity: 'critical',
+      type: ALERT_TYPES.CAPI_POOL_UNAVAILABLE,
+      entityType: null,
+      entityId: null,
+      title: 'Meta CAPI — databázové spojenie nedostupné',
+      message:
+        'CAPI logovanie vyžaduje DB pool, ktorý nie je k dispozícii. Server-side Meta eventy sa nemusia zapisovať ani odosielať.',
+      metadata: {
+        checkedAt: new Date().toISOString(),
+      },
+    });
 
-  return id;
+    if (id != null) {
+      logLine({
+        level: 'error',
+        tag: 'system_alert_created',
+        alertId: id,
+        alertType: ALERT_TYPES.CAPI_POOL_UNAVAILABLE,
+      });
+    }
+
+    return id;
+  } catch {
+    return null;
+  }
 }
 
 async function resolveEmailBounced(reservationId) {

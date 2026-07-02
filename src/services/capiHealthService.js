@@ -5,6 +5,12 @@ const { logLine } = require('../lib/structuredLog');
 
 const FAILED_LOOKBACK_HOURS = 24;
 const FAILED_THRESHOLD = 8;
+/** Min interval between capi_send_log COUNT checks (admin banner path). */
+const DELIVERY_CHECK_INTERVAL_MS = 10 * 60 * 1000;
+
+let lastDeliveryCheckAt = 0;
+/** @type {{ healthy: boolean, skipped?: boolean, failedCount?: number, alerted?: boolean } | null} */
+let lastDeliveryCheckResult = null;
 
 /**
  * @param {import('mysql2/promise').Pool} pool
@@ -42,9 +48,10 @@ async function checkCapiConfigAtStartup() {
 
 /**
  * Threshold-based check for elevated CAPI delivery failures (last 24h).
+ * Throttled — at most one DB COUNT per DELIVERY_CHECK_INTERVAL_MS; otherwise returns cache.
  * @returns {Promise<{ healthy: boolean, skipped?: boolean, failedCount?: number, alerted?: boolean }>}
  */
-async function checkCapiDeliveryHealth() {
+async function runDeliveryHealthCheck() {
   const pool = getPool();
   if (!pool) {
     return { healthy: true, skipped: true };
@@ -70,10 +77,32 @@ async function checkCapiDeliveryHealth() {
   return { healthy: true, failedCount };
 }
 
+async function checkCapiDeliveryHealth(now = Date.now()) {
+  if (
+    lastDeliveryCheckResult != null &&
+    now - lastDeliveryCheckAt < DELIVERY_CHECK_INTERVAL_MS
+  ) {
+    return lastDeliveryCheckResult;
+  }
+
+  const result = await runDeliveryHealthCheck();
+  lastDeliveryCheckAt = now;
+  lastDeliveryCheckResult = result;
+  return result;
+}
+
+/** @internal Test helper — resets throttle cache between test cases. */
+function resetDeliveryHealthCacheForTests() {
+  lastDeliveryCheckAt = 0;
+  lastDeliveryCheckResult = null;
+}
+
 module.exports = {
   FAILED_LOOKBACK_HOURS,
   FAILED_THRESHOLD,
+  DELIVERY_CHECK_INTERVAL_MS,
   countRecentFailedCapiSends,
   checkCapiConfigAtStartup,
   checkCapiDeliveryHealth,
+  resetDeliveryHealthCacheForTests,
 };
