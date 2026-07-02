@@ -36,21 +36,21 @@
     <li><strong>Údaje o rezervácii</strong> — zvolený termín, stav rezervácie, súvisiaca komunikácia potrebná na poskytnutie služby.</li>
     <li><strong>Platobné údaje</strong> — pri platbe kartou spracúva platbu poskytovateľ platobných služieb (Stripe). My neukladáme úplné číslo karty; spracúvame informácie o platbe, ktoré nám Stripe poskytne na účely zúčtovania a podpory.</li>
     <li><strong>Technické údaje</strong> — napr. IP adresa, typ prehliadača, základné údaje o zariadení, údaje z logov servera v nevyhnutnom rozsahu na prevádzku a bezpečnosť.</li>
-    <li><strong>Cookies a podobné technológie</strong> — podľa tvojho rozhodnutia v cookie banneri pri marketingovom súhlase (Meta Pixel). Bližšie v časti Cookies.</li>
+    <li><strong>Cookies a podobné technológie</strong> — podľa tvojho rozhodnutia v cookie banneri pri marketingovom súhlase (Meta Pixel a prípadne serverové odoslanie udalostí cez Meta Conversions API). Bližšie v časti Cookies.</li>
   </ul>
 
   <h2>3. Na aký účel a na akom právnom základe</h2>
   <ul>
     <li><strong>Plnenie zmluvy / predzmluvné kroky</strong> — vybavenie rezervácie, potvrdenie termínu, komunikácia súvisiaca so službou, spracovanie platby.</li>
     <li><strong>Oprávnený záujem</strong> — zabezpečenie prevádzky webu, prevencia zneužitia, základná technická diagnostika, v primeranom rozsahu.</li>
-    <li><strong>Súhlas</strong> — ak povolíš v banneri cookies, spracovanie údajov v súvislosti s <strong>Meta Pixel</strong> na meranie a zlepšovanie reklamy (Facebook / Meta).</li>
+    <li><strong>Súhlas</strong> — ak povolíš v banneri marketingové cookies, spracovanie údajov v súvislosti s <strong>Meta Pixel</strong> a <strong>Meta Conversions API</strong> (server-to-server) na meranie a zlepšovanie reklamy (Facebook / Meta).</li>
   </ul>
 
   <h2>4. Príjemcovia a sprostredkovatelia</h2>
   <p>Údaje sprístupňujeme iba v rozsahu nevyhnutnom poskytovateľom služieb:</p>
   <ul>
     <li>
-      <strong>Meta Platforms Ireland Limited</strong> (reklamný Meta Pixel) — údaje môžu byť spracúvané v súlade s pravidlami Meta:
+      <strong>Meta Platforms Ireland Limited</strong> (reklamný Meta Pixel a Meta Conversions API) — údaje môžu byť spracúvané v súlade s pravidlami Meta:
       <a href="https://www.facebook.com/privacy/policy" rel="noopener noreferrer" target="_blank">Zásady ochrany súkromia Meta</a>.
     </li>
     <li>
@@ -95,6 +95,15 @@
     <li>
       <strong>Marketing / Meta Pixel</strong> — po tvojom súhlase v spodnom banneri; slúži na meranie návštevnosti z reklamy na Facebooku
       a prípravu štatistík pre kampane. Bez súhlasu sa Pixel nespúšťa.
+    </li>
+    <li>
+      <strong>Meta Conversions API (server-to-server)</strong> — pri súhlase s marketingovými cookies môže server pri rezervácii
+      a úspešnej platbe odoslať Meta (Facebook) obdobné udalosti ako Pixel: hashovaný e-mail (SHA-256), IP adresa, identifikátor
+      prehliadača (user agent), cookies <code>_fbp</code> / <code>_fbc</code> (ak sú dostupné) a hodnota nákupu. Účel: meranie
+      konverzií z reklamy a zlepšenie párovania udalostí medzi prehliadačom a serverom. Právny základ: tvoj súhlas s marketingovými
+      cookies (tier „všetky“ v banneri). Bez tohto súhlasu alebo pri parametri <code>?notrack=1</code> sa tieto serverové udalosti
+      neodosielajú. Spracovateľ / príjemca: Meta Platforms Ireland Limited —
+      <a href="https://www.facebook.com/privacy/policy/" rel="noopener noreferrer" target="_blank">Zásady ochrany osobných údajov Meta</a>.
     </li>
   </ul>
   <p>

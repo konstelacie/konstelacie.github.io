@@ -13,6 +13,19 @@ module.exports = {
   env: process.env.NODE_ENV || 'development',
   /** Meta / Facebook Pixel — loaded only after marketing cookie consent (see cookie-consent.js). */
   metaPixelId: (process.env.META_PIXEL_ID || '').trim(),
+  /** Meta Conversions API (server-side; hybrid with browser Pixel). Kill switch default off. */
+  metaCapi: (() => {
+    const { parseEnvFlag } = require('../lib/envFlag');
+    const enabled = parseEnvFlag(process.env.META_CAPI_ENABLED, false);
+    const apiVersionRaw = (process.env.META_CAPI_API_VERSION || 'v21.0').trim();
+    return {
+      enabled,
+      accessToken: (process.env.META_CAPI_ACCESS_TOKEN || '').trim(),
+      pixelId: (process.env.META_CAPI_PIXEL_ID || process.env.META_PIXEL_ID || '').trim(),
+      testEventCode: (process.env.META_CAPI_TEST_EVENT_CODE || '').trim(),
+      apiVersion: apiVersionRaw || 'v21.0',
+    };
+  })(),
   pageVisibility: require('./pageVisibility'),
   paymentBackend: require('./paymentBackend'),
   site: {

@@ -16,6 +16,8 @@ const paymentsRepo = require('../../db/repositories/paymentsRepo');
 const auditRepo = require('../../db/repositories/auditRepo');
 const { scheduleLeadEvent } = require('../../db/repositories/leadEventsRepo');
 const { leadContextFromRequest } = require('../../lib/leadEventContext');
+const { extractMetaAttribution } = require('../../lib/metaAttribution');
+const { scheduleCapiLead } = require('../../services/capiSender');
 const { getPool } = require('../../db');
 const { slotPassesBookingWindow } = require('../../lib/slotBookingRules');
 const { mapSlotRowToApi, gridMetadata } = require('../../lib/slotApiMap');
@@ -312,6 +314,17 @@ router.post(
       formId: leadCtx.formId,
       sourceUrl: leadCtx.sourceUrl,
     });
+
+    const metaAttribution = extractMetaAttribution(req, req.body ?? {});
+    scheduleCapiLead(
+      {
+        email,
+        lockToken,
+        sourceUrl: leadCtx.sourceUrl,
+        formId: leadCtx.formId,
+      },
+      metaAttribution
+    );
 
     res.json({
       ok: true,

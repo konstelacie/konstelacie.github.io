@@ -8,6 +8,7 @@ const checkoutPostCommitService = require('../../services/checkoutPostCommitServ
 const emailDeliveryTaskService = require('../../services/emailDeliveryTaskService');
 const { constructStripeEvent } = require('../../lib/stripeWebhook');
 const { scheduleLeadEvent } = require('../../db/repositories/leadEventsRepo');
+const { scheduleCapiPurchase } = require('../../services/capiSender');
 const { centsToLeadAmount, checkoutExpiredProviderEventId } = require('../../lib/leadEventContext');
 const {
   resolvePaymentRowForPaymentIntent,
@@ -206,6 +207,8 @@ router.post(
 
           const [paymentRows] = await conn.execute(
             `SELECT p.id, p.reservation_id, p.user_id, p.slot_id, p.payment_type, p.amount_cents, p.currency,
+                    p.provider_ref, p.meta_fbp, p.meta_fbc, p.marketing_consent, p.client_ip,
+                    p.client_user_agent, p.suppressed_tracking,
                     u.email AS user_email, u.name AS user_name
              FROM payments p
              LEFT JOIN users u ON u.id = p.user_id
@@ -291,6 +294,8 @@ router.post(
               sessionId: session.id,
             },
           });
+
+          scheduleCapiPurchase(payment, session);
 
           await checkoutPostCommitService.runCheckoutPostCommit({
             paymentId: payment.id,

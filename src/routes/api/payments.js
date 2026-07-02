@@ -21,6 +21,8 @@ const { checkoutExpiresAtFromNow, lockExpiresAtAfterCheckoutCancel } = require('
 const paymentsRepo = require('../../db/repositories/paymentsRepo');
 const { scheduleLeadEvent } = require('../../db/repositories/leadEventsRepo');
 const { leadContextFromRequest, centsToLeadAmount } = require('../../lib/leadEventContext');
+const { extractMetaAttribution, updatePaymentMetaAttribution } = require('../../lib/metaAttribution');
+const { scheduleCapiInitiateCheckout } = require('../../services/capiSender');
 const emailDeliveryTasksRepo = require('../../db/repositories/emailDeliveryTasksRepo');
 const emailSentLogRepo = require('../../db/repositories/emailSentLogRepo');
 const { buildConfirmationEmailPayload } = require('../../lib/confirmationEmailStatus');
@@ -41,7 +43,19 @@ const paymentBalanceRouter = require('./paymentBalance');
 
 const router = express.Router();
 
-const MAX_CANCEL_RETURN_LEN = 2048;
+function fireInitiateCheckoutCapi(req, { email, paymentId, providerRef, cents, paymentTypeForDb, funnel, attribution }) {
+  const leadCtx = leadContextFromRequest(req);
+  scheduleCapiInitiateCheckout({
+    email,
+    paymentId,
+    providerRef,
+    amountCents: cents,
+    paymentType: paymentTypeForDb,
+    funnel,
+    sourceUrl: leadCtx.sourceUrl,
+    attribution,
+  });
+}
 
 router.use('/balance', paymentBalanceRouter);
 
@@ -399,6 +413,7 @@ router.post(
     const amountCents = validateAmount(body.amount, paymentType);
     const funnel = parseFunnelAttribution(body);
     const funnelName = validateReturnPath(body.returnPath);
+    const metaAttribution = extractMetaAttribution(req, body);
     const paymentBackendName = paymentBackend.backendForFunnelName(funnelName);
     let stripeSecret;
     try {
@@ -431,6 +446,7 @@ router.post(
     const stripe = new Stripe(stripeSecret);
 
     let idempotentProviderRef = null;
+    let idempotentPaymentId = null;
     let idempotentLockExpiresAt = null;
     let userId;
 
@@ -472,6 +488,7 @@ router.post(
 
       if (idemRows.length > 0) {
         idempotentProviderRef = idemRows[0].provider_ref;
+        idempotentPaymentId = idemRows[0].id;
         const [lockExpRow] = await holdConn.execute(
           'SELECT expires_at FROM slot_locks WHERE slot_id = ? AND lock_token = ? LIMIT 1',
           [slotId, lockToken]
@@ -538,6 +555,22 @@ router.post(
         cents,
         paymentTypeForDb,
         providerRef: idempotentProviderRef,
+      });
+
+      try {
+        await updatePaymentMetaAttribution(pool, idempotentProviderRef, metaAttribution);
+      } catch (attrErr) {
+        console.error('[payments/start] meta attribution update (idempotent)', attrErr);
+      }
+
+      fireInitiateCheckoutCapi(req, {
+        email,
+        paymentId: idempotentPaymentId,
+        providerRef: idempotentProviderRef,
+        cents,
+        paymentTypeForDb,
+        funnel,
+        attribution: metaAttribution,
       });
 
       return res.status(200).json({
@@ -607,6 +640,7 @@ router.post(
     }
 
     const conn2 = await pool.getConnection();
+    let newPaymentId = null;
     try {
       await conn2.beginTransaction();
       await paymentsRepo.reconcileExpiredStripeCheckouts(conn2, { slotId });
@@ -659,6 +693,22 @@ router.post(
           reason: 'race_duplicate',
         });
 
+        try {
+          await updatePaymentMetaAttribution(pool, firstRef, metaAttribution);
+        } catch (attrErr) {
+          console.error('[payments/start] meta attribution update (race)', attrErr);
+        }
+
+        fireInitiateCheckoutCapi(req, {
+          email,
+          paymentId: dup[0].id,
+          providerRef: firstRef,
+          cents,
+          paymentTypeForDb,
+          funnel,
+          attribution: metaAttribution,
+        });
+
         return res.status(200).json({
           ok: true,
           url: existingSession.url,
@@ -667,11 +717,29 @@ router.post(
         });
       }
 
-      await conn2.execute(
-        `INSERT INTO payments (user_id, reservation_id, slot_id, provider, provider_ref, payment_type, amount_cents, currency, status, checkout_expires_at)
-         VALUES (?, NULL, ?, 'stripe', ?, ?, ?, 'eur', 'pending', ?)`,
-        [userId, slotId, session.id, paymentTypeForDb, cents, checkoutExpiresAt]
+      const [insertResult] = await conn2.execute(
+        `INSERT INTO payments (
+           user_id, reservation_id, slot_id, provider, provider_ref, payment_type,
+           amount_cents, currency, status, checkout_expires_at,
+           meta_fbp, meta_fbc, marketing_consent, client_ip, client_user_agent, suppressed_tracking
+         )
+         VALUES (?, NULL, ?, 'stripe', ?, ?, ?, 'eur', 'pending', ?, ?, ?, ?, ?, ?, ?)`,
+        [
+          userId,
+          slotId,
+          session.id,
+          paymentTypeForDb,
+          cents,
+          checkoutExpiresAt,
+          metaAttribution.metaFbp,
+          metaAttribution.metaFbc,
+          metaAttribution.marketingConsent ? 1 : 0,
+          metaAttribution.clientIp,
+          metaAttribution.clientUserAgent,
+          metaAttribution.suppressTracking ? 1 : 0,
+        ]
       );
+      newPaymentId = insertResult.insertId;
 
       await conn2.commit();
     } catch (e) {
@@ -713,6 +781,16 @@ router.post(
         funnelCampaign: funnel.funnelCampaign,
         funnelVideoId: funnel.funnelVideoId,
       },
+    });
+
+    fireInitiateCheckoutCapi(req, {
+      email,
+      paymentId: newPaymentId,
+      providerRef: session.id,
+      cents,
+      paymentTypeForDb,
+      funnel,
+      attribution: metaAttribution,
     });
 
     res.status(200).json({

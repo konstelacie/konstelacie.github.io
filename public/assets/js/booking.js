@@ -16,6 +16,30 @@
     console.error('[booking]', where, err);
   }
 
+  const COOKIE_CONSENT_STORAGE_KEY = 'citim_cookie_consent_v1';
+
+  function readMarketingConsent() {
+    try {
+      const raw = localStorage.getItem(COOKIE_CONSENT_STORAGE_KEY);
+      if (!raw) return false;
+      const parsed = JSON.parse(raw);
+      return !!(parsed && parsed.tier === 'all');
+    } catch (_) {
+      return false;
+    }
+  }
+
+  function readSuppressTracking() {
+    return !!(window.citimNoTrack && window.citimNoTrack.isActive());
+  }
+
+  function trackingPayloadForServer() {
+    return {
+      marketingConsent: readMarketingConsent(),
+      suppressTracking: readSuppressTracking(),
+    };
+  }
+
   let recaptchaScriptPromise = null;
 
   function getRecaptchaSiteKey() {
@@ -859,7 +883,8 @@
     const res = await fetch(`/api/slots/${lockedSlotId}/extend-lock`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ lockToken, email }),
+      credentials: 'same-origin',
+      body: JSON.stringify({ lockToken, email, ...trackingPayloadForServer() }),
     });
     const data = await res.json().catch(() => ({}));
     if (!res.ok) {
@@ -2014,7 +2039,16 @@
       billing && typeof billing.company === 'object'
         ? buildBillingPayloadForServer(billing)
         : billing;
-    const payBody = { slotId, lockToken, email, paymentType, returnPath, cancelReturn, ...billingPayload };
+    const payBody = {
+      slotId,
+      lockToken,
+      email,
+      paymentType,
+      returnPath,
+      cancelReturn,
+      ...billingPayload,
+      ...trackingPayloadForServer(),
+    };
     if (paymentType === 'full') payBody.amount = amount;
     if (funnelCtx.funnelName) {
       payBody.funnelName = funnelCtx.funnelName;
@@ -2025,6 +2059,7 @@
     let payRes = await fetch('/api/payments/start', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
+      credentials: 'same-origin',
       body: JSON.stringify(payBody),
     });
     let payData = await payRes.json();
@@ -2043,6 +2078,7 @@
       payRes = await fetch('/api/payments/start', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        credentials: 'same-origin',
         body: JSON.stringify(payBody),
       });
       payData = await payRes.json();
@@ -2132,11 +2168,15 @@
           const { reservationDepositEur, fullPaymentCheckoutEur } = readCheckoutAmountsFromBookingSection();
           const checkoutValue =
             paymentType === 'deposit' ? reservationDepositEur : fullPaymentCheckoutEur;
-          window.citimPixel.track('InitiateCheckout', {
-            value: checkoutValue,
-            currency: 'EUR',
-            num_items: 1,
-          });
+          window.citimPixel.track(
+            'InitiateCheckout',
+            {
+              value: checkoutValue,
+              currency: 'EUR',
+              num_items: 1,
+            },
+            { eventID: result.checkoutSessionId }
+          );
         }
         window.location.href = result.url;
         return;
@@ -2292,7 +2332,7 @@
           return;
         }
         if (window.citimPixel) {
-          window.citimPixel.track('Lead', { reservation_started: true });
+          window.citimPixel.track('Lead', { reservation_started: true }, { eventID: `lead:${lockToken}` });
         }
         showPaymentChoice();
       });
@@ -2454,11 +2494,15 @@
             const { reservationDepositEur, fullPaymentCheckoutEur } = readCheckoutAmountsFromBookingSection();
             const checkoutValue =
               pending.paymentType === 'deposit' ? reservationDepositEur : fullPaymentCheckoutEur;
-            window.citimPixel.track('InitiateCheckout', {
-              value: checkoutValue,
-              currency: 'EUR',
-              num_items: 1,
-            });
+            window.citimPixel.track(
+              'InitiateCheckout',
+              {
+                value: checkoutValue,
+                currency: 'EUR',
+                num_items: 1,
+              },
+              { eventID: result.checkoutSessionId }
+            );
           }
           window.location.href = result.url;
           return;
