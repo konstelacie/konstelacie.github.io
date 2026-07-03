@@ -13,6 +13,16 @@ module.exports = {
   env: process.env.NODE_ENV || 'development',
   /** Meta / Facebook Pixel — loaded only after marketing cookie consent (see cookie-consent.js). */
   metaPixelId: (process.env.META_PIXEL_ID || '').trim(),
+  /** Microsoft Clarity — session replay / heatmaps; same consent gate as Meta Pixel. */
+  clarity: (() => {
+    const { parseEnvFlag } = require('../lib/envFlag');
+    const projectId = (process.env.CLARITY_PROJECT_ID || '').trim();
+    const enabled = projectId ? parseEnvFlag(process.env.CLARITY_ENABLED, true) : false;
+    return {
+      projectId,
+      enabled: enabled && Boolean(projectId),
+    };
+  })(),
   /** Meta Conversions API (server-side; hybrid with browser Pixel). Kill switch default off. */
   metaCapi: (() => {
     const { parseEnvFlag } = require('../lib/envFlag');

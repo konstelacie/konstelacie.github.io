@@ -4,6 +4,7 @@ const path = require('path');
 const session = require('express-session');
 
 const config = require('./config');
+const { resolveClarityPageContext } = require('./lib/clarityPageContext');
 const {
   MIN_SESSION_TOTAL_EUR,
   FULL_PAYMENT_CHECKOUT_EUR,
@@ -126,6 +127,10 @@ app.use(
 
 app.use((req, res, next) => {
   res.locals.metaPixelId = config.metaPixelId || '';
+  res.locals.clarityProjectId = config.clarity.enabled ? config.clarity.projectId : '';
+  res.locals.showCookieBanner = Boolean(res.locals.metaPixelId || res.locals.clarityProjectId);
+  const clarityCtx = resolveClarityPageContext(req);
+  res.locals.clarityEnvironment = clarityCtx.environment;
   res.locals.testingBannerGloballyDisabled = Boolean(
     config.site && config.site.testingBannerGloballyDisabled
   );

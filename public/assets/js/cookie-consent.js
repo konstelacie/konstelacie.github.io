@@ -5,7 +5,8 @@
   if (!root) return;
 
   var pixelId = root.getAttribute('data-pixel-id');
-  if (!pixelId) return;
+  var clarityProjectId = root.getAttribute('data-clarity-project-id');
+  if (!pixelId && !clarityProjectId) return;
 
   if (window.citimNoTrack && window.citimNoTrack.isActive()) {
     root.hidden = true;
@@ -32,8 +33,16 @@
     }
   }
 
+  function dispatchMarketingConsentGranted() {
+    try {
+      window.dispatchEvent(new CustomEvent('citim:marketing-consent-granted'));
+    } catch (e) {
+      /* ignore */
+    }
+  }
+
   function loadPixel() {
-    if (window.fbq) return;
+    if (!pixelId || window.fbq) return;
     !(function (f, b, e, v, n, t, s) {
       if (f.fbq) return;
       n = f.fbq = function () {
@@ -52,16 +61,45 @@
     })(window, document, 'script', 'https://connect.facebook.net/en_US/fbevents.js');
     window.fbq('init', pixelId);
     window.fbq('track', 'PageView');
-    try {
-      window.dispatchEvent(new CustomEvent('citim:marketing-consent-granted'));
-    } catch (e) {
-      /* ignore */
+    dispatchMarketingConsentGranted();
+  }
+
+  function loadClarity() {
+    if (!clarityProjectId) return;
+    if (typeof window.clarity === 'function') {
+      if (window.citimClarity) {
+        window.citimClarity.grantConsent();
+        window.citimClarity.applyCustomTags();
+      }
+      return;
     }
+    (function (c, l, a, r, i, t, y) {
+      c[a] =
+        c[a] ||
+        function () {
+          (c[a].q = c[a].q || []).push(arguments);
+        };
+      t = l.createElement(r);
+      t.async = 1;
+      t.src = 'https://www.clarity.ms/tag/' + i;
+      y = l.getElementsByTagName(r)[0];
+      y.parentNode.insertBefore(t, y);
+    })(window, document, 'clarity', 'script', clarityProjectId);
+
+    if (window.citimClarity) {
+      window.citimClarity.grantConsent();
+      window.citimClarity.applyCustomTags();
+    }
+  }
+
+  function loadMarketingScripts() {
+    loadPixel();
+    loadClarity();
   }
 
   var stored = getStored();
   if (stored && stored.tier === 'all') {
-    loadPixel();
+    loadMarketingScripts();
     return;
   }
   if (stored && stored.tier === 'essential') {
@@ -80,7 +118,7 @@
   });
   btnAll.addEventListener('click', function () {
     setStored('all');
-    loadPixel();
+    loadMarketingScripts();
     root.hidden = true;
   });
 })();

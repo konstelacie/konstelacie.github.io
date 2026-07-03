@@ -12,7 +12,7 @@
   <link rel="stylesheet" href="/assets/css/site.css">
   <%- typeof extraStyles !== 'undefined' && extraStyles ? extraStyles : '' %>
 </head>
-<body>
+<body<% if (typeof clarityEnvironment !== 'undefined' && clarityEnvironment) { %> data-clarity-environment="<%= clarityEnvironment %>"<% } %>>
   <% if (typeof showTestingBanner !== 'undefined' && showTestingBanner) { %>
   <div class="site-testing-banner" role="status" aria-live="polite">
     Pozor: Stránka je momentálne v testovacej prevádzke. Prosíme, nepoužívajte ju ako bežný návštevník.
@@ -23,9 +23,15 @@
   <% } %>
   <%- body %>
   <%- include('../partials/footer') %>
-  <% if (typeof metaPixelId !== 'undefined' && metaPixelId) { %>
+  <% if (typeof showCookieBanner !== 'undefined' && showCookieBanner) { %>
   <%- include('../partials/cookie-banner') %>
+  <script src="/assets/js/citim-tracking.js"></script>
+  <% if (typeof metaPixelId !== 'undefined' && metaPixelId) { %>
   <script src="/assets/js/meta-pixel.js"></script>
+  <% } %>
+  <% if (typeof clarityProjectId !== 'undefined' && clarityProjectId) { %>
+  <script src="/assets/js/clarity.js"></script>
+  <% } %>
   <script src="/assets/js/cookie-consent.js" defer></script>
   <% } %>
   <script src="/assets/js/legal-from-links.js" defer></script>

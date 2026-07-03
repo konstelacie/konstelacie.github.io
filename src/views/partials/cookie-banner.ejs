@@ -5,13 +5,14 @@
   aria-labelledby="cookie-consent-title"
   aria-live="polite"
   hidden
-  data-pixel-id="<%= metaPixelId %>"
+  data-pixel-id="<%= typeof metaPixelId !== 'undefined' ? metaPixelId : '' %>"
+  data-clarity-project-id="<%= typeof clarityProjectId !== 'undefined' ? clarityProjectId : '' %>"
 >
   <div class="cookie-consent__inner container">
     <p id="cookie-consent-title" class="cookie-consent__text">
       Na zlepšovanie stránky používame aj marketingové cookies a pri súhlase môžeme meranie doplniť aj serverovým odoslaním
-      udalostí do Meta (Conversions API), rovnako ako Meta Pixel.
-Môžeš ich povoliť alebo pokračovať len s nevyhnutnými cookies. Viac sa dozvieš v 
+      udalostí do Meta (Conversions API), rovnako ako Meta Pixel, a analytickým nástrojom Microsoft Clarity (nahrávky relácií a heatmapy).
+      Môžeš ich povoliť alebo pokračovať len s nevyhnutnými cookies. Viac sa dozvieš v
       <a href="/ochrana-udajov">Zásadách ochrany osobných údajov.</a>.
     </p>
     <div class="cookie-consent__actions">

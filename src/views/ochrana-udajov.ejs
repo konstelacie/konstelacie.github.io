@@ -36,14 +36,14 @@
     <li><strong>Údaje o rezervácii</strong> — zvolený termín, stav rezervácie, súvisiaca komunikácia potrebná na poskytnutie služby.</li>
     <li><strong>Platobné údaje</strong> — pri platbe kartou spracúva platbu poskytovateľ platobných služieb (Stripe). My neukladáme úplné číslo karty; spracúvame informácie o platbe, ktoré nám Stripe poskytne na účely zúčtovania a podpory.</li>
     <li><strong>Technické údaje</strong> — napr. IP adresa, typ prehliadača, základné údaje o zariadení, údaje z logov servera v nevyhnutnom rozsahu na prevádzku a bezpečnosť.</li>
-    <li><strong>Cookies a podobné technológie</strong> — podľa tvojho rozhodnutia v cookie banneri pri marketingovom súhlase (Meta Pixel a prípadne serverové odoslanie udalostí cez Meta Conversions API). Bližšie v časti Cookies.</li>
+    <li><strong>Cookies a podobné technológie</strong> — podľa tvojho rozhodnutia v cookie banneri pri marketingovom súhlase (Meta Pixel, prípadne serverové odoslanie udalostí cez Meta Conversions API a analytický nástroj Microsoft Clarity). Bližšie v časti Cookies.</li>
   </ul>
 
   <h2>3. Na aký účel a na akom právnom základe</h2>
   <ul>
     <li><strong>Plnenie zmluvy / predzmluvné kroky</strong> — vybavenie rezervácie, potvrdenie termínu, komunikácia súvisiaca so službou, spracovanie platby.</li>
     <li><strong>Oprávnený záujem</strong> — zabezpečenie prevádzky webu, prevencia zneužitia, základná technická diagnostika, v primeranom rozsahu.</li>
-    <li><strong>Súhlas</strong> — ak povolíš v banneri marketingové cookies, spracovanie údajov v súvislosti s <strong>Meta Pixel</strong> a <strong>Meta Conversions API</strong> (server-to-server) na meranie a zlepšovanie reklamy (Facebook / Meta).</li>
+    <li><strong>Súhlas</strong> — ak povolíš v banneri marketingové cookies, spracovanie údajov v súvislosti s <strong>Meta Pixel</strong>, <strong>Meta Conversions API</strong> (server-to-server) na meranie a zlepšovanie reklamy (Facebook / Meta) a <strong>Microsoft Clarity</strong> na analytiku správania na webe (nahrávky relácií, heatmapy).</li>
   </ul>
 
   <h2>4. Príjemcovia a sprostredkovatelia</h2>
@@ -52,6 +52,11 @@
     <li>
       <strong>Meta Platforms Ireland Limited</strong> (reklamný Meta Pixel a Meta Conversions API) — údaje môžu byť spracúvané v súlade s pravidlami Meta:
       <a href="https://www.facebook.com/privacy/policy" rel="noopener noreferrer" target="_blank">Zásady ochrany súkromia Meta</a>.
+    </li>
+    <li>
+      <strong>Microsoft Ireland Operations Limited</strong> (Microsoft Clarity) — pri súhlase s marketingovými cookies môže Clarity zaznamenávať interakcie na webe (vrátane anonymizovaných alebo maskovaných údajov z formulárov):
+      <a href="https://privacy.microsoft.com/" rel="noopener noreferrer" target="_blank">Zásady ochrany osobných údajov Microsoft</a>,
+      <a href="https://clarity.microsoft.com/terms" rel="noopener noreferrer" target="_blank">podmienky Clarity</a>.
     </li>
     <li>
       <strong>Stripe Technology Europe Ltd.</strong> alebo príslušná entita Stripe — platby kartou:
@@ -95,6 +100,12 @@
     <li>
       <strong>Marketing / Meta Pixel</strong> — po tvojom súhlase v spodnom banneri; slúži na meranie návštevnosti z reklamy na Facebooku
       a prípravu štatistík pre kampane. Bez súhlasu sa Pixel nespúšťa.
+    </li>
+    <li>
+      <strong>Analytika / Microsoft Clarity</strong> — po súhlase s marketingovými cookies (tier „všetky“ v banneri); slúži na pochopenie
+      správania návštevníkov (nahrávky relácií, heatmapy, základné metriky). Citlivý obsah formulárov je maskovaný.
+      Clarity používa cookies (napr. <code>_clck</code>, <code>_clsk</code>). Bez súhlasu sa Clarity nespúšťa.
+      Pri parametri <code>?notrack=1</code> sa nespúšťa ani Pixel, ani Clarity.
     </li>
     <li>
       <strong>Meta Conversions API (server-to-server)</strong> — pri súhlase s marketingovými cookies môže server pri rezervácii

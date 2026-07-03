@@ -17,11 +17,11 @@ function securityHeaders(req, res, next) {
         'Content-Security-Policy',
         [
           "default-src 'self'",
-          "script-src 'self' 'unsafe-inline' https://connect.facebook.net https://www.google.com https://www.gstatic.com",
+          "script-src 'self' 'unsafe-inline' https://connect.facebook.net https://www.google.com https://www.gstatic.com https://www.clarity.ms https://*.clarity.ms",
           "style-src 'self' 'unsafe-inline'",
           "img-src 'self' data: https:",
           "font-src 'self' data:",
-          "connect-src 'self' https://www.facebook.com https://connect.facebook.net",
+          "connect-src 'self' https://www.facebook.com https://connect.facebook.net https://www.clarity.ms https://*.clarity.ms https://c.bing.com",
           "frame-src 'self' https://www.google.com",
           "frame-ancestors 'self'",
         ].join('; ')
