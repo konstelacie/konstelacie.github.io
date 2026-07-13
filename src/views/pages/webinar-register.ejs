@@ -1,0 +1,69 @@
+<main class="webinar-page">
+  <section class="webinar-hero section">
+    <div class="container webinar-hero__inner">
+      <h1 class="webinar-hero__title"><%= pageTitle %></h1>
+      <p class="webinar-hero__lead">
+        Vyber si termín. Po registrácii ti pošleme odkaz — video sa spustí v dohodnutom čase ako naživo.
+      </p>
+    </div>
+  </section>
+
+  <section class="section webinar-register" id="webinar-register">
+    <div class="container webinar-register__inner">
+      <% if (typeof registrationError !== 'undefined' && registrationError) { %>
+      <div class="webinar-alert webinar-alert--error" role="alert">
+        <%= registrationError %>
+      </div>
+      <% } %>
+
+      <div id="webinar-options-loading" class="webinar-muted">Načítavam termíny…</div>
+      <div id="webinar-options-error" class="webinar-alert webinar-alert--error" role="alert" hidden></div>
+
+      <form id="webinar-register-form" class="webinar-form" hidden novalidate>
+        <fieldset class="webinar-form__fieldset">
+          <legend class="webinar-form__legend">Termín</legend>
+          <div id="webinar-option-list" class="webinar-options" role="radiogroup" aria-label="Termín webinára"></div>
+        </fieldset>
+
+        <div id="webinar-custom-wrap" class="webinar-custom" hidden>
+          <label class="webinar-label" for="webinar-custom-datetime">Vlastný termín</label>
+          <input
+            type="datetime-local"
+            id="webinar-custom-datetime"
+            name="customDatetime"
+            class="webinar-input"
+            step="900"
+          >
+          <p class="webinar-hint">Čas musí byť v 15-minútových intervaloch (napr. 20:00, 20:15).</p>
+        </div>
+
+        <div class="webinar-form__email">
+          <label class="webinar-label" for="webinar-email">E-mail</label>
+          <input
+            type="email"
+            id="webinar-email"
+            name="email"
+            class="webinar-input"
+            required
+            autocomplete="email"
+            inputmode="email"
+            placeholder="tvoj@email.sk"
+          >
+        </div>
+
+        <div id="webinar-form-error" class="webinar-alert webinar-alert--error" role="alert" hidden></div>
+
+        <button type="submit" class="cta webinar-submit" id="webinar-submit">
+          Registrovať sa
+        </button>
+      </form>
+
+      <div id="webinar-success" class="webinar-success" hidden>
+        <h2 class="webinar-success__title">Registrácia je hotová</h2>
+        <p id="webinar-success-text" class="webinar-success__text"></p>
+        <p class="webinar-success__hint">Skontroluj e-mail — nájdeš tam odkaz do miestnosti webinára.</p>
+        <a id="webinar-success-room-link" class="cta" href="#">Prejsť do miestnosti</a>
+      </div>
+    </div>
+  </section>
+</main>

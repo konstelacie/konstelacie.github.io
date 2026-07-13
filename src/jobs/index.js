@@ -9,6 +9,7 @@ const preSessionReminder = require('./preSessionReminder');
 const sessionBeforeStart = require('./sessionBeforeStart');
 const billingDeliverStuck = require('./billingDeliverStuck');
 const stripeReconciliation = require('./stripeReconciliation');
+const webinarReminder = require('./webinarReminder');
 const cronHealthService = require('../services/cronHealthService');
 const systemAlertService = require('../services/systemAlertService');
 const { logLine } = require('../lib/structuredLog');
@@ -20,6 +21,7 @@ const jobs = [
   sessionBeforeStart,
   billingDeliverStuck,
   stripeReconciliation,
+  webinarReminder,
 ];
 
 /**

@@ -122,6 +122,39 @@ const supportContactLimiter = rateLimit({
   },
 });
 
+/** GET /api/webinar/options */
+const webinarOptionsLimiter = rateLimit({
+  ...limiterOptions,
+  max: 60,
+});
+
+/** POST /api/webinar/register */
+const webinarRegisterLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 10,
+  standardHeaders: true,
+  legacyHeaders: false,
+  keyGenerator: (req) => {
+    const ip = ipKeyGenerator(req.ip || req.socket?.remoteAddress || '', 56);
+    const body = req.body || {};
+    const email = typeof body.email === 'string' ? body.email.trim().toLowerCase() : '';
+    return email ? `webinar-reg:${ip}:${email}` : `webinar-reg:${ip}`;
+  },
+  handler: (req, res) => {
+    res.status(429).json({
+      ok: false,
+      error: 'RATE_LIMITED',
+      message: 'Príliš veľa pokusov. Skús to prosím neskôr.',
+    });
+  },
+});
+
+/** GET /api/webinar/room/:token */
+const webinarRoomLimiter = rateLimit({
+  ...limiterOptions,
+  max: 120,
+});
+
 module.exports = {
   slotsListLimiter,
   bookingWriteLimiter,
@@ -137,4 +170,7 @@ module.exports = {
   balancePayStartLimiter,
   paymentFixConfirmationEmailLimiter,
   supportContactLimiter,
+  webinarOptionsLimiter,
+  webinarRegisterLimiter,
+  webinarRoomLimiter,
 };

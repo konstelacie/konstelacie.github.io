@@ -1,0 +1,37 @@
+<main class="webinar-page webinar-room-page">
+  <section class="section webinar-room">
+    <div class="container webinar-room__inner">
+      <div id="webinar-room-status" class="webinar-room__status" aria-live="polite"></div>
+
+      <div id="webinar-room-countdown" class="webinar-room__countdown" hidden>
+        <p class="webinar-room__countdown-label">Webinár začína o</p>
+        <p id="webinar-room-countdown-time" class="webinar-room__countdown-time"></p>
+        <p id="webinar-room-countdown-remaining" class="webinar-room__countdown-remaining"></p>
+      </div>
+
+      <div id="webinar-room-video-wrap" class="webinar-room__video" hidden>
+        <div class="webinar-room__video-frame">
+          <iframe
+            id="webinar-wistia-iframe"
+            src="https://fast.wistia.net/embed/iframe/<%= wistiaHashedId %>"
+            title="Webinár"
+            class="wistia_embed"
+            name="wistia_embed"
+            allow="autoplay; fullscreen"
+            allowtransparency="true"
+          ></iframe>
+        </div>
+      </div>
+
+      <div id="webinar-room-ended" class="webinar-room__ended" hidden>
+        <h2 class="webinar-room__ended-title">Webinár skončil</h2>
+        <p class="webinar-room__ended-text">Ďakujeme za účasť. Ak ťa obsah oslovil, môžeš si rezervovať osobné sedenie.</p>
+        <a href="/#booking" class="cta">Rezervovať sedenie</a>
+      </div>
+    </div>
+  </section>
+</main>
+
+<script>
+  window.__WEBINAR_ROOM_TOKEN = <%- JSON.stringify(accessToken) %>;
+</script>

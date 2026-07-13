@@ -15,6 +15,7 @@ const reservationsRouter = require('./reservations');
 const paymentsRouter = require('./payments');
 const cronRouter = require('./cron');
 const supportRouter = require('./support');
+const webinarRouter = require('./webinar');
 
 const router = express.Router();
 
@@ -60,5 +61,6 @@ router.use('/reservations', reservationsRouter);
 router.use('/payments', paymentsRouter);
 router.use('/cron', cronRouter);
 router.use('/support', supportRouter);
+router.use('/webinar', webinarRouter);
 
 module.exports = router;

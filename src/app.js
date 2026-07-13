@@ -19,6 +19,7 @@ const staticRouter = require('./routes/static');
 const healthRouter = require('./routes/health');
 const apiRouter = require('./routes/api');
 const adminRouter = require('./routes/admin');
+const webinarRouter = require('./routes/webinar');
 const { router: krosRouter } = require('./routes/api/kros');
 const { apiErrorHandler } = require('./middleware/apiError');
 
@@ -142,6 +143,7 @@ app.use((req, res, next) => {
 // Routes (more specific first)
 app.use('/api', apiRouter);
 app.use('/admin', adminRouter);
+app.use('/', webinarRouter);
 app.use('/', payBalancePageRouter);
 app.use('/', legalRouter);
 app.use('/', funnelsRouter);

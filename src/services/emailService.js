@@ -486,10 +486,86 @@ async function sendBillingDelayedEmail({ to }, metadata = {}) {
   return result;
 }
 
+/**
+ * @param {object} params
+ * @param {string} params.to
+ * @param {string} params.roomUrl
+ * @param {{ weekday?: string, date?: string, time?: string }} params.formattedStart
+ * @param {string} params.timezone
+ */
+async function sendWebinarConfirmation({ to, roomUrl, formattedStart, timezone }, metadata = {}) {
+  const html = await ejs.renderFile(path.join(EMAIL_TEMPLATES_DIR, 'webinar-confirmation.ejs'), {
+    roomUrl,
+    formattedWeekday: formattedStart?.weekday || '',
+    formattedDate: formattedStart?.date || '',
+    formattedTime: formattedStart?.time || '',
+    timezone: timezone || 'Europe/Bratislava',
+  });
+
+  const result = await emailProvider.sendEmail(
+    to,
+    'Registrácia na webinár — potvrdenie',
+    html,
+    metadata
+  );
+
+  if (result.ok && result.messageId) {
+    await emailSentLogRepo.log({
+      recipientEmail: to,
+      templateId: 'webinar-confirmation',
+      entityType: metadata.entity_type,
+      entityId: metadata.entity_id,
+      providerMessageId: result.messageId,
+      actorType: 'system',
+    });
+  }
+
+  return result;
+}
+
+/**
+ * @param {object} params
+ * @param {string} params.to
+ * @param {string} params.roomUrl
+ * @param {{ weekday?: string, date?: string, time?: string }} params.formattedStart
+ * @param {string} params.timezone
+ */
+async function sendWebinarReminder({ to, roomUrl, formattedStart, timezone }, metadata = {}) {
+  const html = await ejs.renderFile(path.join(EMAIL_TEMPLATES_DIR, 'webinar-reminder.ejs'), {
+    roomUrl,
+    formattedWeekday: formattedStart?.weekday || '',
+    formattedDate: formattedStart?.date || '',
+    formattedTime: formattedStart?.time || '',
+    timezone: timezone || 'Europe/Bratislava',
+  });
+
+  const result = await emailProvider.sendEmail(
+    to,
+    'Webinár začína čoskoro — pripoj sa',
+    html,
+    metadata
+  );
+
+  if (result.ok && result.messageId) {
+    await emailSentLogRepo.log({
+      recipientEmail: to,
+      templateId: 'webinar-reminder',
+      entityType: metadata.entity_type,
+      entityId: metadata.entity_id,
+      providerMessageId: result.messageId,
+      actorType: 'system',
+    });
+  }
+
+  return result;
+}
+
 module.exports = {
   sendReservationConfirmation,
   sendPreSessionReminder,
   sendSessionBeforeStartEmail,
+  sendWebinarConfirmation,
+  sendWebinarReminder,
   sendBillingInvoiceEmail,
   sendBillingInvoiceKrosEmail,
   sendBalancePayInviteEmail,
