@@ -23,8 +23,8 @@
 
   var noTrackActive = syncNoTrackFromUrl();
 
-  function fromBookingElement() {
-    var el = document.querySelector('#booking');
+  function fromFunnelElement() {
+    var el = document.querySelector('#booking') || document.querySelector('#assessment-root');
     if (!el) return null;
     var ctx = {};
     var name = el.getAttribute('data-funnel-name');
@@ -77,7 +77,7 @@
   }
 
   function funnelContext() {
-    var fromEl = fromBookingElement();
+    var fromEl = fromFunnelElement();
     if (fromEl) return fromEl;
 
     var fromStorage = fromLocalStorage();

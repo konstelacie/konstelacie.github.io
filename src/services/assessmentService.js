@@ -141,6 +141,9 @@ async function submitAssessment(input) {
 
   return {
     submissionId: row.id,
+    email,
+    funnelName,
+    funnelCampaign,
     scores: scoresForStore,
     ranked: scored.ranked,
     primaryBottleneck: scored.primaryBottleneck,

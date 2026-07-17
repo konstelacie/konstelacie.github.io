@@ -562,7 +562,9 @@ When `isDualPrimary` is true, `secondaryResult` includes full sections like `res
 
 **Rate limit:** 20 / 15 min per IP+email. **Captcha:** adaptive route `assessment_submit` (see `docs/security/captcha.md`).
 
-Persists to `assessment_submissions` (migration `007`). Does **not** create a `users` row. Lead event `assessment_email_unlocked` is Phase 3.
+Persists to `assessment_submissions` (migration `007`). Does **not** create a `users` row.
+
+**Lead analytics:** fires `assessment_email_unlocked` (metadata: scores, bottlenecks, campaign) and optional Meta CAPI `Lead` (`assessment_lead:{submissionId}`). See `docs/leads/assessment-conversion-events.md`. Requires migration `008_assessment_lead_event.sql`.
 
 ---
 

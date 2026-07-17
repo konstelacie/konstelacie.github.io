@@ -21,6 +21,7 @@ const WIRED_EVENT_TYPES = new Set([
   'payment_refunded',
   'payment_path_selected',
   'lock_revoked',
+  'assessment_email_unlocked',
 ]);
 
 /** Newer types — require 003 migration (is_active) before insert. */

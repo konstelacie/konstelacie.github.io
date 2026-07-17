@@ -256,8 +256,13 @@ function usedScheduleLeadEventTypes(srcRoot) {
 }
 
 test('every scheduleLeadEvent type is seeded in migration', () => {
-  const migrationPath = path.join(__dirname, '../src/db/migrations/002_lead_events.sql');
-  const migrationSql = fs.readFileSync(migrationPath, 'utf8');
+  const migrationsDir = path.join(__dirname, '../src/db/migrations');
+  const migrationSql = fs
+    .readdirSync(migrationsDir)
+    .filter((name) => name.endsWith('.sql'))
+    .sort()
+    .map((name) => fs.readFileSync(path.join(migrationsDir, name), 'utf8'))
+    .join('\n');
   const seeded = seededLeadEventTypeCodes(migrationSql);
   const used = usedScheduleLeadEventTypes(path.join(__dirname, '../src'));
 
@@ -321,6 +326,13 @@ test('core routes do not await scheduleLeadEvent on the critical path', () => {
   const paymentsSrc = fs.readFileSync(path.join(__dirname, '../src/routes/api/payments.js'), 'utf8');
   assert.equal(paymentsSrc.includes('await scheduleLeadEvent'), false);
   assert.equal(paymentsSrc.includes('await recordLeadEvent'), false);
+
+  const assessmentSrc = fs.readFileSync(
+    path.join(__dirname, '../src/routes/api/assessment.js'),
+    'utf8'
+  );
+  assert.equal(assessmentSrc.includes('await scheduleLeadEvent'), false);
+  assert.equal(assessmentSrc.includes('await recordLeadEvent'), false);
 });
 
 test('migration defines lead_events tables and seeds idempotently', () => {

@@ -379,7 +379,7 @@ Wire in `src/lib/leadEventsGate.js` → `WIRED_EVENT_TYPES`.
 
 **Primary KPI for this funnel:** `assessment_email_unlocked`.
 
-Document separately from `docs/leads/conversion-events.md` (that doc is reservation-funnel-specific). Add `docs/leads/assessment-conversion-events.md` or a section in 009 during implementation.
+**Document separately:** [`docs/leads/assessment-conversion-events.md`](../../leads/assessment-conversion-events.md) (reservation funnel remains in `docs/leads/conversion-events.md`).
 
 ---
 
@@ -415,9 +415,11 @@ Document separately from `docs/leads/conversion-events.md` (that doc is reservat
 
 ### Phase 3 — Analytics
 
-- [ ] `assessment_email_unlocked` lead event (+ metadata: scores, bottlenecks)
-- [ ] Optional: CAPI `Lead` on unlock (`scheduleCapiLead`)
-- [ ] Clarity / page context includes funnel name
+**Done:**
+
+- [x] `assessment_email_unlocked` lead event (+ metadata: scores, bottlenecks)
+- [x] Optional: CAPI `Lead` on unlock (`scheduleCapiLead`)
+- [x] Clarity / page context includes funnel name (`#assessment-root` → `citim-tracking`)
 
 ### Phase 4 — Polish + handoff
 
@@ -537,7 +539,7 @@ The paid **Diagnostika životného autopilota** (~190 €, 90 min) is a **differ
 - [ ] `/autopilot-test` serves assessment funnel when `FUNNEL_AUTOPILOT_MODE=test`
 - [ ] User can complete full flow: landing → questions → email → results
 - [ ] Submission persisted in `assessment_submissions`
-- [ ] `assessment_email_unlocked` recorded in `lead_events`
+- [x] `assessment_email_unlocked` recorded in `lead_events`
 - [ ] Captcha + rate limit on submit
 - [ ] Scoring unit tests pass
 - [ ] No regression on existing video-booking funnels

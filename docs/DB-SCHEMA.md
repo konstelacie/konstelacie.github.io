@@ -298,6 +298,8 @@ Life Autopilot Assessment email-unlock rows (migration `007`). See `docs/funnel/
 
 Does **not** FK to `users`.
 
+**Related lead event:** `assessment_email_unlocked` in `lead_event_types` / `lead_events` (migration `008`). See `docs/leads/assessment-conversion-events.md`.
+
 ---
 
 ## 3. Entity relationship summary

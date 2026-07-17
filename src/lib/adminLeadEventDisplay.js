@@ -24,6 +24,7 @@ const LEAD_EVENT_LABELS = {
   lock_revoked: 'Zámok zrušený',
   purchase: 'Zakúpené',
   payment_refunded: 'Platba vrátená',
+  assessment_email_unlocked: 'Odomknuté hodnotenie',
 };
 
 const PAYMENT_TYPE_LABELS = {
@@ -85,6 +86,12 @@ function buildEventDetailSummary(eventType, metadata) {
   }
   if (md.funnelVideoId) {
     parts.push(`video: ${md.funnelVideoId}`);
+  }
+  if (md.primaryBottleneck) {
+    parts.push(String(md.primaryBottleneck));
+  }
+  if (md.isDualPrimary && md.secondaryBottleneck) {
+    parts.push(`+ ${md.secondaryBottleneck}`);
   }
 
   return parts.length ? parts.join(' · ') : '—';

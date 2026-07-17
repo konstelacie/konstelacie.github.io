@@ -290,11 +290,24 @@ async function sendCapiEvent({
 }
 
 /**
- * @param {{ email: string, lockToken: string, sourceUrl?: string|null, formId?: string|null }} params
+ * @param {{
+ *   email: string,
+ *   lockToken?: string,
+ *   eventId?: string,
+ *   contentType?: string,
+ *   sourceUrl?: string|null,
+ *   formId?: string|null,
+ * }} params
  * @param {ReturnType<import('../lib/metaAttribution').extractMetaAttribution>} attribution
  */
 function scheduleCapiLead(params, attribution) {
-  const eventId = buildLeadEventId(params.lockToken);
+  const eventId =
+    (params.eventId && String(params.eventId).trim()) ||
+    (params.lockToken ? buildLeadEventId(params.lockToken) : '');
+  if (!eventId) {
+    logCapiError('capi_lead_schedule_failed', { err: 'missing_event_id' });
+    return;
+  }
   void sendCapiEvent({
     eventName: 'Lead',
     eventId,
@@ -305,7 +318,7 @@ function scheduleCapiLead(params, attribution) {
     },
     eventSourceUrl: params.sourceUrl || null,
     customData: {
-      content_type: 'session',
+      content_type: params.contentType || 'session',
       ...(params.formId ? { content_name: params.formId } : {}),
     },
     userDataOverrides: buildUserData({
