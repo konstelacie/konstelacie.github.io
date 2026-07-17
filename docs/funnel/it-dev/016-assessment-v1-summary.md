@@ -1,6 +1,6 @@
 # 016 — Life Autopilot Assessment v1 — Summary & Implementation Brief
 
-**Status:** Canonical entry point for implementers — Phase 0 content done (`017`); ready for Phase 1 shell  
+**Status:** Canonical entry point for implementers — Phases 0–2 done; Phase 3 analytics next  
 **Audience:** Anyone building the free assessment funnel  
 **Product:** Free Life Autopilot Assessment → email unlock → personalized results → soft CTA to paid Life Autopilot Diagnosis (~190 €)
 
@@ -148,7 +148,7 @@ Do **not** overload `pilot.ejs` or `renderFunnelExpressPage()` with assessment c
 |-------|------|--------|
 | **0 — Content** | Likert SK, landing/gate stubs, SK translations | **Done** — [`017`](017-assessment-content-sk.md) |
 | **1 — Shell** | Registry + EJS + CSS + `assessment.js` state machine; client scoring + mock results | **Done** — set `FUNNEL_AUTOPILOT_MODE=test`, open `/autopilot-test` |
-| **2 — Persist** | Migration `007_assessment_submissions.sql` + submit API + captcha + rate limit; server scoring authoritative | Next free migration number is **007** |
+| **2 — Persist** | Migration `007_assessment_submissions.sql` + submit API + captcha + rate limit; server scoring authoritative | **Done** — run `yarn db:migrate`; unlock posts to `/api/assessment/submit` |
 | **3 — Analytics** | Wire `assessment_email_unlocked` (+ metadata); optional CAPI `Lead`; optional started/completed only if email constraint solved (`009` §11.2) | Primary KPI only is enough for first slice |
 | **4 — Polish** | Pair-specific dual copy polish; results CTA wiring; docs (`API.md`, `DB-SCHEMA.md`, `IMPLEMENTATION-SNAPSHOT.md`); manual mobile test | Soft CTA option A (`017` §12) |
 
@@ -233,7 +233,8 @@ From `006` §16 and `010` — do not block Phase 1–2:
 
 1. ~~Author Phase 0 strings~~ → [`017`](017-assessment-content-sk.md)
 2. ~~Implement Phase 1 shell~~ → registry + `/autopilot-test` + client scoring unlock (no API yet)
-3. **Phase 2:** migration + `POST /api/assessment/submit` + captcha + rate limit; server scoring authoritative
-4. Phase 3 KPI + Phase 4 polish / soft CTA wiring
+3. ~~Phase 2 persist~~ → `007` + `POST /api/assessment/submit` + captcha/rate limit
+4. **Phase 3:** wire `assessment_email_unlocked` (+ metadata); optional CAPI Lead
+5. Phase 4 polish / soft CTA wiring + remaining docs snapshot
 
 *`010` + this brief remain binding for v1 decisions; `017` is binding for Slovak UI copy.*

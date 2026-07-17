@@ -487,6 +487,7 @@ This codebase implements adaptive **Google reCAPTCHA v3** as a secondary layer:
 |--------|------------|-----------------|
 | Lock | `POST /api/slots/:slotId/lock` | `lock` |
 | Payment / checkout start | `POST /api/payments/start` | `payment_start` |
+| Assessment email unlock | `POST /api/assessment/submit` | `assessment_submit` |
 
 There is no separate `POST /api/reservations` for the public funnel; the doc’s “reservation” step here is **payment start** (Stripe Checkout session creation). **Read** endpoints are unchanged (no captcha).
 
@@ -510,6 +511,7 @@ If `enforce` is set but `RECAPTCHA_SECRET_KEY` is missing, the server logs a war
 | `RECAPTCHA_MIN_SCORE` | v3 score floor (default `0.5`). |
 | `CAPTCHA_LOCK_THRESHOLD` | Per-IP `POST …/lock` count in the sliding window before captcha tier (default `25`). |
 | `CAPTCHA_PAYMENT_START_THRESHOLD` | Per-IP `POST …/payments/start` count before captcha tier (default `20`). |
+| `CAPTCHA_ASSESSMENT_SUBMIT_THRESHOLD` | Per-IP `POST …/assessment/submit` count before captcha tier (default `15`). |
 | `CAPTCHA_VELOCITY_WINDOW_MS` | Sliding window length in milliseconds (default **300000** = 5 min). Minimum **60000** (1 min), maximum **3600000** (60 min). |
 
 Velocity state is **in-memory per process** (not shared across multiple Node instances).
@@ -523,12 +525,13 @@ Velocity state is **in-memory per process** (not shared across multiple Node ins
 | `captcha_passed` | Enforce: token verified. |
 | `captcha_failed` | Enforce: token present but verification failed. |
 
-For the four tags above (when the captcha tier applies), lines also include **`count`** (requests in window), **`threshold`**, and **`velocityWindowMs`** so operators can tune without cross-checking config.
+For the four tags above (when the captcha tier applies), lines also include **`count`** (requests in window), **`threshold`**, and **`velocityWindowMs`** so operators can tune without checking config.
 
 ### Code / CSP
 
 * Logic: `src/lib/captcha.js` — config: `src/config/index.js` (`captcha.*`).
-* Funnel: `src/routes/funnels.js` sets `window.__BOOKING_RECAPTCHA_SITE_KEY` when `RECAPTCHA_SITE_KEY` is set; client retries: `public/assets/js/booking.js`.
+* Booking funnel: `src/routes/funnels.js` sets `window.__BOOKING_RECAPTCHA_SITE_KEY` when `RECAPTCHA_SITE_KEY` is set; client retries: `public/assets/js/booking.js`.
+* Assessment funnel: same site key as `window.__ASSESSMENT_RECAPTCHA_SITE_KEY`; client retries: `public/assets/js/assessment.js`.
 * Production CSP allows Google reCAPTCHA script/frame hosts (`src/middleware/securityHeaders.js`).
 
 ---

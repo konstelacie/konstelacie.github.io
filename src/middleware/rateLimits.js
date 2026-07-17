@@ -155,6 +155,27 @@ const webinarRoomLimiter = rateLimit({
   max: 120,
 });
 
+/** POST /api/assessment/submit */
+const assessmentSubmitLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 20,
+  standardHeaders: true,
+  legacyHeaders: false,
+  keyGenerator: (req) => {
+    const ip = ipKeyGenerator(req.ip || req.socket?.remoteAddress || '', 56);
+    const body = req.body || {};
+    const email = typeof body.email === 'string' ? body.email.trim().toLowerCase() : '';
+    return email ? `assessment-submit:${ip}:${email}` : `assessment-submit:${ip}`;
+  },
+  handler: (req, res) => {
+    res.status(429).json({
+      ok: false,
+      error: 'RATE_LIMITED',
+      message: 'Príliš veľa pokusov. Skús to prosím neskôr.',
+    });
+  },
+});
+
 module.exports = {
   slotsListLimiter,
   bookingWriteLimiter,
@@ -173,4 +194,5 @@ module.exports = {
   webinarOptionsLimiter,
   webinarRegisterLimiter,
   webinarRoomLimiter,
+  assessmentSubmitLimiter,
 };

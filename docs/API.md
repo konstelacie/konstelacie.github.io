@@ -506,6 +506,66 @@ See `docs/SCHEDULED-EMAILS-CRON.md`.
 
 ---
 
+## POST /api/assessment/submit
+
+Unlock Life Autopilot Assessment results after all questions are answered. Server recalculates scores; client-sent scores are ignored.
+
+**Body (JSON):**
+
+| Field | Type | Required | Notes |
+|-------|------|----------|--------|
+| `email` | string | yes | Normalized lowercase |
+| `answers` | object | yes | `{ [questionId]: 1..5 }` for all 24 ids |
+| `funnelName` | string | yes | Assessment funnel (`autopilot`) |
+| `funnelCampaign` | string | no | Default `default` |
+| `captchaToken` | string | conditional | When adaptive captcha requires it |
+| `marketingConsent` | boolean | no | Accepted; not persisted in v1 |
+| `sourceUrl` | string | no | Else derived from `Referer` |
+
+**Response 200:**
+
+```json
+{
+  "ok": true,
+  "submissionId": 123,
+  "scores": {
+    "autopilot": { "raw": 22, "percent": 66.7 },
+    "identity": { "raw": 28, "percent": 91.7 },
+    "energy": { "raw": 19, "percent": 54.2 },
+    "relationships": { "raw": 15, "percent": 37.5 }
+  },
+  "ranked": [ { "dimensionId": "identity", "resultId": "identity_loop", "raw": 28, "percent": 91.7 } ],
+  "primaryBottleneck": "identity_loop",
+  "secondaryBottleneck": "autopilot_loop",
+  "isDualPrimary": false,
+  "isBalanced": false,
+  "isLowOverall": false,
+  "result": {
+    "id": "identity_loop",
+    "title": "Slučka identity",
+    "summary": ["…"],
+    "sections": {
+      "whatItMeans": ["…"],
+      "blindSpot": ["…"],
+      "longTermRisk": ["…"],
+      "firstStep": ["…"],
+      "transition": ["…"]
+    }
+  },
+  "secondaryResult": { "id": "autopilot_loop", "title": "Slučka autopilota" }
+}
+```
+
+When `isDualPrimary` is true, `secondaryResult` includes full sections like `result`.
+
+**Errors:** `VALIDATION_ERROR` (400), `captcha_required` / `request_cannot_be_completed` (403), `RATE_LIMITED` (429), `INTERNAL_ERROR` (503 if DB missing).
+
+**Rate limit:** 20 / 15 min per IP+email. **Captcha:** adaptive route `assessment_submit` (see `docs/security/captcha.md`).
+
+Persists to `assessment_submissions` (migration `007`). Does **not** create a `users` row. Lead event `assessment_email_unlocked` is Phase 3.
+
+---
+
 ## Seed data (optional)
 
 Public listing requires each slot to start **≥ 24 hours** from now (and weekdays in the funnel). Do not seed slots for **today** only—they will not appear.
@@ -526,9 +586,9 @@ INSERT INTO slots (local_date, grid_index, timezone, start_at_utc, end_at_utc, s
 | Method | Path | Notes |
 |--------|------|--------|
 | GET | `/` | Home |
-| GET | `/:funnelName` | Funnel page (`FUNNEL_INSTANCES`) |
-| GET | `/:funnelName/success` | Checkout success (typically `?session_id=cs_...`) |
-| GET | `/:funnelName/cancel` | Checkout cancelled |
+| GET | `/:funnelName` | Funnel page (`FUNNEL_PAGE_INSTANCES`; assessment e.g. `/autopilot-test`) |
+| GET | `/:funnelName/success` | Checkout success (video-booking funnels; typically `?session_id=cs_...`) |
+| GET | `/:funnelName/cancel` | Checkout cancelled (video-booking funnels) |
 | GET | `/ochrana-udajov` | Privacy / cookies — `src/routes/legal.js` |
 | GET | `/obchodne-podmienky` | Terms — `src/routes/legal.js` |
 | GET | `/health` | JSON DB health |

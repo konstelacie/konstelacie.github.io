@@ -406,10 +406,12 @@ Document separately from `docs/leads/conversion-events.md` (that doc is reservat
 
 ### Phase 2 — API + persistence
 
-- [ ] Migration `assessment_submissions`
-- [ ] `POST /api/assessment/submit` + service + repo
-- [ ] Email gate + captcha + rate limit
-- [ ] Server-side scoring matches client
+**Done:**
+
+- [x] Migration `assessment_submissions` (`007_assessment_submissions.sql`)
+- [x] `POST /api/assessment/submit` + service + repo
+- [x] Email gate + captcha + rate limit
+- [x] Server-side scoring authoritative (client uses API response)
 
 ### Phase 3 — Analytics
 

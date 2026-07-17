@@ -277,6 +277,29 @@ Logging for critical actions. See `docs/RESERVATION-SYSTEM-ARCHITECTURE.md`.
 
 ---
 
+### assessment_submissions
+
+Life Autopilot Assessment email-unlock rows (migration `007`). See `docs/funnel/it-dev/009-questionnaire-implementation-plan.md` §11.
+
+| Column | Type | Description |
+|--------|------|-------------|
+| id | BIGINT UNSIGNED PK | Auto-increment |
+| email | VARCHAR(255) | NOT NULL |
+| funnel_name | VARCHAR(64) | NOT NULL (e.g. `autopilot`) |
+| funnel_campaign | VARCHAR(64) | NULL |
+| answers_json | JSON | `{ questionId: 1..5 }` |
+| scores_json | JSON | `{ dimensionId: { raw, percent } }` |
+| primary_bottleneck | VARCHAR(64) | NOT NULL |
+| secondary_bottleneck | VARCHAR(64) | NOT NULL |
+| source_url | VARCHAR(2048) | NULL |
+| created_at | DATETIME(3) | UTC |
+
+**Indexes:** `(email, created_at)`, `(funnel_name, created_at)`, `(primary_bottleneck, created_at)`.
+
+Does **not** FK to `users`.
+
+---
+
 ## 3. Entity relationship summary
 
 ```
@@ -295,6 +318,7 @@ payments → reservations
 webhook_events (standalone)
 email_sent_log (standalone)
 audit_logs (standalone)
+assessment_submissions (standalone)
 ```
 
 ---
@@ -310,3 +334,4 @@ audit_logs (standalone)
 | `docs/SESSION-PRICING.md` | Amounts, deposit vs full payment |
 | `docs/payments/invoicing-mvp-implementation.md` | Invoicing MVP design, edge cases, rollout |
 | `docs/EMAILING.md` | Templates incl. billing invoice email |
+| `docs/funnel/it-dev/016-assessment-v1-summary.md` | Assessment funnel entry |

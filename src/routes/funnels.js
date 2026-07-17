@@ -221,6 +221,11 @@ function renderAssessmentFunnelPage(res, funnelName, req) {
     landing: assessmentAutopilot.landing,
     extraStyles: '<link rel="stylesheet" href="/assets/css/assessment.css">',
     extraScripts: `
+      ${
+        appConfig.captcha?.siteKey
+          ? `<script>window.__ASSESSMENT_RECAPTCHA_SITE_KEY=${JSON.stringify(appConfig.captcha.siteKey)}</script>`
+          : ''
+      }
       <script type="application/json" id="assessment-config">${configJson}</script>
       <script>
         window.__ASSESSMENT_BOOTSTRAP = {
@@ -229,7 +234,6 @@ function renderAssessmentFunnelPage(res, funnelName, req) {
           supportEmail: ${JSON.stringify(appConfig.site.supportEmail || '')}
         };
       </script>
-      <script src="/assets/js/assessment-scoring.js"></script>
       <script src="/assets/js/assessment.js"></script>
     `,
   });

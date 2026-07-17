@@ -16,6 +16,7 @@ const paymentsRouter = require('./payments');
 const cronRouter = require('./cron');
 const supportRouter = require('./support');
 const webinarRouter = require('./webinar');
+const assessmentRouter = require('./assessment');
 
 const router = express.Router();
 
@@ -62,5 +63,6 @@ router.use('/payments', paymentsRouter);
 router.use('/cron', cronRouter);
 router.use('/support', supportRouter);
 router.use('/webinar', webinarRouter);
+router.use('/assessment', assessmentRouter);
 
 module.exports = router;

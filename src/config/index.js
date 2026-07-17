@@ -192,6 +192,7 @@ module.exports = {
       /** Per-IP POST count in sliding window to trigger captcha tier (see captcha.js). */
       lockThreshold: capInt('CAPTCHA_LOCK_THRESHOLD', 25, 100_000),
       paymentStartThreshold: capInt('CAPTCHA_PAYMENT_START_THRESHOLD', 20, 100_000),
+      assessmentSubmitThreshold: capInt('CAPTCHA_ASSESSMENT_SUBMIT_THRESHOLD', 15, 100_000),
       velocityWindowMs: velocityWindowMs(),
     };
   })(),

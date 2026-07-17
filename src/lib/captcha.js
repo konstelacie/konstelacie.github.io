@@ -10,6 +10,7 @@ const config = require('../config');
 
 const ROUTE_LOCK = 'lock';
 const ROUTE_PAYMENT_START = 'payment_start';
+const ROUTE_ASSESSMENT_SUBMIT = 'assessment_submit';
 
 /** @type {Map<string, number[]>} */
 const buckets = new Map();
@@ -34,9 +35,9 @@ function getVelocityWindowMs() {
 }
 
 function thresholdForRoute(route) {
-  return route === ROUTE_LOCK
-    ? config.captcha?.lockThreshold ?? 25
-    : config.captcha?.paymentStartThreshold ?? 20;
+  if (route === ROUTE_LOCK) return config.captcha?.lockThreshold ?? 25;
+  if (route === ROUTE_ASSESSMENT_SUBMIT) return config.captcha?.assessmentSubmitThreshold ?? 15;
+  return config.captcha?.paymentStartThreshold ?? 20;
 }
 
 function prune(tsList, now, windowMs) {
@@ -62,7 +63,7 @@ function recordAttempt(ip, route) {
 /**
  * Current per-IP count in window and threshold (after pruning).
  * @param {string} ip
- * @param {'lock'|'payment_start'} route
+ * @param {'lock'|'payment_start'|'assessment_submit'} route
  */
 function velocitySnapshot(ip, route) {
   const windowMs = getVelocityWindowMs();
@@ -83,7 +84,7 @@ function velocitySnapshot(ip, route) {
 /**
  * Whether captcha would be required based on recent write attempts (risk layer).
  * @param {string} ip
- * @param {'lock'|'payment_start'} route
+ * @param {'lock'|'payment_start'|'assessment_submit'} route
  */
 function shouldRequireCaptcha(ip, route) {
   const windowMs = getVelocityWindowMs();
@@ -136,7 +137,7 @@ async function verifyRecaptchaToken(token) {
 /**
  * @param {import('express').Request} req
  * @param {import('express').Response} res
- * @param {{ route: 'lock'|'payment_start', slotId?: number }} ctx
+ * @param {{ route: 'lock'|'payment_start'|'assessment_submit', slotId?: number }} ctx
  * @returns {Promise<{ proceed: true } | { proceed: false, status: number, body: object }>}
  */
 async function handleCaptchaGate(req, res, ctx) {
@@ -233,4 +234,5 @@ module.exports = {
   handleCaptchaGate,
   ROUTE_LOCK,
   ROUTE_PAYMENT_START,
+  ROUTE_ASSESSMENT_SUBMIT,
 };

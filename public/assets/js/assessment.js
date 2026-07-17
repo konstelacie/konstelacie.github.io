@@ -49,6 +49,45 @@
     return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(value || '').trim());
   }
 
+  var recaptchaScriptPromise = null;
+
+  function getRecaptchaSiteKey() {
+    return typeof window !== 'undefined' && window.__ASSESSMENT_RECAPTCHA_SITE_KEY
+      ? String(window.__ASSESSMENT_RECAPTCHA_SITE_KEY).trim()
+      : '';
+  }
+
+  async function getRecaptchaToken(action) {
+    var key = getRecaptchaSiteKey();
+    if (!key) return '';
+    if (!recaptchaScriptPromise) {
+      recaptchaScriptPromise = new Promise(function (resolve, reject) {
+        var s = document.createElement('script');
+        s.src = 'https://www.google.com/recaptcha/api.js?render=' + encodeURIComponent(key);
+        s.async = true;
+        s.onload = function () {
+          resolve();
+        };
+        s.onerror = function () {
+          reject(new Error('recaptcha script'));
+        };
+        document.head.appendChild(s);
+      });
+    }
+    await recaptchaScriptPromise;
+    if (!window.grecaptcha || typeof window.grecaptcha.execute !== 'function') {
+      throw new Error('grecaptcha');
+    }
+    return new Promise(function (resolve, reject) {
+      window.grecaptcha.ready(function () {
+        window.grecaptcha
+          .execute(key, { action: action || 'assessment_submit' })
+          .then(resolve)
+          .catch(reject);
+      });
+    });
+  }
+
   function loadConfig() {
     var node = document.getElementById('assessment-config');
     if (!node || !node.textContent) throw new Error('Missing assessment config');
@@ -249,22 +288,77 @@
       }, duration);
     }
 
-    function unlockResults(email) {
-      if (!window.AssessmentScoring || !window.AssessmentScoring.scoreAssessment) {
-        throw new Error('Scoring module missing');
-      }
-      var result = window.AssessmentScoring.scoreAssessment({
-        questions: questions,
-        dimensions: config.dimensions,
-        bottlenecks: config.bottlenecks,
+    async function submitToServer(email, captchaToken) {
+      var body = {
+        email: email,
         answers: state.answers,
+        funnelName: funnelName,
+        funnelCampaign: funnelCampaign,
+        marketingConsent: Boolean(state.marketingConsent),
+        sourceUrl: typeof window !== 'undefined' ? window.location.href : null,
+      };
+      if (captchaToken) body.captchaToken = captchaToken;
+
+      var res = await fetch('/api/assessment/submit', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+        body: JSON.stringify(body),
       });
-      state.email = email;
-      state.scoreResult = result;
+      var data = {};
+      try {
+        data = await res.json();
+      } catch (_err) {
+        data = {};
+      }
+      return { res: res, data: data };
+    }
+
+    function applyServerResult(data) {
+      state.scoreResult = {
+        scores: data.scores || {},
+        ranked: data.ranked || [],
+        primaryBottleneck: data.primaryBottleneck,
+        secondaryBottleneck: data.secondaryBottleneck,
+        isDualPrimary: Boolean(data.isDualPrimary),
+        isBalanced: Boolean(data.isBalanced),
+        isLowOverall: Boolean(data.isLowOverall),
+        submissionId: data.submissionId,
+        result: data.result || null,
+        secondaryResult: data.secondaryResult || null,
+      };
       state.completed = true;
       state.phase = 'results';
       clearSession(funnelName);
       render();
+    }
+
+    async function unlockResults(email) {
+      state.email = email;
+      var first = await submitToServer(email, '');
+      if (first.res.status === 403 && first.data && first.data.error === 'captcha_required') {
+        var token = '';
+        try {
+          token = await getRecaptchaToken('assessment_submit');
+        } catch (_err) {
+          throw new Error('captcha');
+        }
+        var second = await submitToServer(email, token);
+        if (!second.res.ok || !second.data || !second.data.ok) {
+          var err = new Error('submit_failed');
+          err.payload = second.data;
+          err.status = second.res.status;
+          throw err;
+        }
+        applyServerResult(second.data);
+        return;
+      }
+      if (!first.res.ok || !first.data || !first.data.ok) {
+        var fail = new Error('submit_failed');
+        fail.payload = first.data;
+        fail.status = first.res.status;
+        throw fail;
+      }
+      applyServerResult(first.data);
     }
 
     function resultCopy(resultId) {
@@ -477,12 +571,25 @@
           return;
         }
         state.marketingConsent = Boolean(consent.checked);
-        try {
-          unlockResults(email);
-        } catch (_err) {
-          errorNode.hidden = false;
-          errorNode.textContent = gate.errorGeneric || 'Niečo sa nepodarilo.';
-        }
+        errorNode.hidden = true;
+        var submitBtn = form.querySelector('button[type="submit"]');
+        if (submitBtn) submitBtn.disabled = true;
+        unlockResults(email)
+          .catch(function (err) {
+            errorNode.hidden = false;
+            var payload = err && err.payload;
+            if (payload && payload.message) {
+              errorNode.textContent = payload.message;
+            } else if (err && err.message === 'captcha') {
+              errorNode.textContent =
+                'Potrebujeme overiť, že nie ste robot. Skúste to prosím znova.';
+            } else {
+              errorNode.textContent = gate.errorGeneric || 'Niečo sa nepodarilo. Skúste to prosím znova.';
+            }
+          })
+          .finally(function () {
+            if (submitBtn && state.phase === 'email') submitBtn.disabled = false;
+          });
       });
 
       return el('section', { className: 'assessment-phase assessment-email' }, [
