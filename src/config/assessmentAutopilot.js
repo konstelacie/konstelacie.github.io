@@ -528,17 +528,14 @@ const landing = {
 };
 
 const analyzing = {
-  messages: [
-    'Prechádzame vaše odpovede…',
-    'Hľadáme vzorce vo vašom životnom systéme…',
-    'Pripravujeme personalizovaný výsledok…',
-  ],
-  fallback: 'Vyhodnocujeme vaše odpovede…',
-  durationMs: 2500,
+  headline: 'Analyzujeme vaše odpovede…',
+  body: 'Skúmame vzťahy medzi jednotlivými oblasťami vášho životného systému.',
+  /** Timed interstitial before email gate (018: ~1.5–2.5 s). */
+  durationMs: 2000,
 };
 
 const emailGate = {
-  headline: 'Vaše výsledky sú pripravené.',
+  headline: 'Vaše personalizované hodnotenie je pripravené.',
   subhead:
     'Zadajte e-mail a odomknite personalizované vyhodnotenie štyroch oblastí životného systému.',
   emailLabel: 'E-mail',
@@ -554,8 +551,15 @@ const emailGate = {
 
 const ui = {
   progress: 'Otázka {current} z {total}',
-  back: 'Späť',
+  remainingMinutesFew: '≈ {minutes} minúty zostávajú',
+  remainingMinutesMany: '≈ {minutes} minút zostáva',
+  remainingMinuteOne: '≈ 1 minúta zostáva',
+  remainingAlmost: 'Už skoro koniec.',
+  reassurance:
+    'Nie sú správne ani nesprávne odpovede. Vyberte možnosť, ktorá najlepšie vystihuje vašu každodennú skúsenosť.',
+  back: '← Späť',
   continue: 'Pokračovať',
+  insightKicker: 'Krátke zamyslenie',
   resumeBanner: 'Pokračujeme tam, kde ste prestali.',
   resumeCta: 'Pokračovať',
   restart: 'Začať odznova',
