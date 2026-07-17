@@ -396,16 +396,77 @@
       return dimensionId;
     }
 
-    function renderLanding() {
-      var L = config.landing || {};
-      var systems = el(
-        'ul',
-        { className: 'assessment-systems' },
-        (L.systems || []).map(function (name) {
-          return el('li', { text: name });
+    function renderSystemCards(systems) {
+      return el(
+        'div',
+        { className: 'assessment-dim-cards' },
+        (systems || []).map(function (item) {
+          var label = typeof item === 'string' ? item : item.label || '';
+          var description = typeof item === 'string' ? '' : item.description || '';
+          var descId = 'assessment-dim-' + (item && item.id ? item.id : label);
+          var card = el(
+            'button',
+            {
+              type: 'button',
+              className: 'assessment-dim-card',
+              'aria-expanded': 'false',
+              'aria-controls': descId,
+            },
+            [
+              el('span', { className: 'assessment-dim-card__label', text: label }),
+              description
+                ? el('span', {
+                    className: 'assessment-dim-card__desc',
+                    id: descId,
+                    text: description,
+                  })
+                : null,
+            ]
+          );
+          card.addEventListener('click', function () {
+            var open = card.getAttribute('aria-expanded') === 'true';
+            card.setAttribute('aria-expanded', open ? 'false' : 'true');
+            card.classList.toggle('is-open', !open);
+          });
+          return card;
         })
       );
-      return el('section', { className: 'assessment-phase assessment-landing' }, [
+    }
+
+    function renderPreview(L) {
+      var rows = L.previewRows || [];
+      if (!rows.length) return null;
+      return el('div', { className: 'assessment-block assessment-preview' }, [
+        el('h2', { text: L.previewTitle || '' }),
+        el(
+          'div',
+          {
+            className: 'assessment-scores assessment-scores--preview',
+            'aria-hidden': 'true',
+          },
+          rows.map(function (row) {
+            var width = Math.max(0, Math.min(100, Number(row.width) || 0));
+            return el('div', { className: 'assessment-score-row' }, [
+              el('div', {
+                className: 'assessment-score-row__label',
+                text: row.label || '',
+              }),
+              el('div', { className: 'assessment-score-row__track' }, [
+                el('div', {
+                  className: 'assessment-score-row__fill',
+                  style: 'width:' + width + '%',
+                }),
+              ]),
+            ]);
+          })
+        ),
+        el('p', { className: 'assessment-preview__caption', text: L.previewCaption || '' }),
+      ]);
+    }
+
+    function renderLanding() {
+      var L = config.landing || {};
+      var kids = [
         el('p', { className: 'assessment-kicker', text: 'Diagnostika životného autopilota' }),
         el('h1', { className: 'assessment-title', text: L.headline || '' }),
         el('p', { className: 'assessment-lead', text: L.subhead || '' }),
@@ -413,6 +474,27 @@
           el('h2', { text: L.diffTitle || '' }),
           el('p', { text: L.diffBody || '' }),
         ]),
+      ];
+
+      if (L.recognizeTitle || (L.recognizeBullets && L.recognizeBullets.length)) {
+        kids.push(
+          el('div', { className: 'assessment-block assessment-recognize' }, [
+            el('h2', { text: L.recognizeTitle || '' }),
+            el(
+              'ul',
+              { className: 'assessment-list' },
+              (L.recognizeBullets || []).map(function (b) {
+                return el('li', { text: b });
+              })
+            ),
+            L.recognizeClose
+              ? el('p', { className: 'assessment-recognize__close', text: L.recognizeClose })
+              : null,
+          ])
+        );
+      }
+
+      kids.push(
         el('div', { className: 'assessment-block' }, [
           el('h2', { text: L.receiveTitle || '' }),
           el(
@@ -425,9 +507,28 @@
         ]),
         el('div', { className: 'assessment-block' }, [
           el('h2', { text: L.systemsTitle || '' }),
-          systems,
-        ]),
-        el('p', { className: 'assessment-note', text: L.durationNote || '' }),
+          renderSystemCards(L.systems),
+        ])
+      );
+
+      var preview = renderPreview(L);
+      if (preview) kids.push(preview);
+
+      if (L.trustNote) {
+        kids.push(
+          el('div', { className: 'assessment-block assessment-trust' }, [
+            el('p', { text: L.trustNote }),
+          ])
+        );
+      }
+
+      kids.push(el('p', { className: 'assessment-note', text: L.durationNote || '' }));
+
+      if (L.personalizeNote) {
+        kids.push(el('p', { className: 'assessment-personalize', text: L.personalizeNote }));
+      }
+
+      kids.push(
         el('div', { className: 'assessment-actions' }, [
           el('button', {
             type: 'button',
@@ -435,8 +536,10 @@
             text: L.cta || 'Spustiť',
             onClick: startAssessment,
           }),
-        ]),
-      ]);
+        ])
+      );
+
+      return el('section', { className: 'assessment-phase assessment-landing' }, kids);
     }
 
     function renderResumeBanner() {

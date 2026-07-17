@@ -451,24 +451,70 @@ const lowScores = [
 ];
 
 const landing = {
-  headline: 'Zistite, ktorá časť vášho životného systému ticho beží na autopilotovi.',
+  headline: 'Máte pocit, že všetko funguje… ale niečo nesedí?',
   subhead:
-    'Bezplatné hodnotenie na 3–4 minúty. Ukáže skryté vzorce, ktoré ovplyvňujú energiu, identitu, vzťahy a bežný deň.',
-  cta: 'Spustiť diagnostiku',
+    'Zistite, ktorá časť vášho životného systému potichu preberá kontrolu a ovplyvňuje vašu energiu, identitu, vzťahy a každodenné rozhodnutia.',
+  cta: 'Začať bezplatnú diagnostiku',
   diffTitle: 'Toto nie je test osobnosti.',
   diffBody:
     'Identifikuje aktuálne úzke miesta vo vašom životnom systéme. Cieľom je uvedomenie — nie nálepky.',
+  recognizeTitle: 'Možno sa v tomto spoznáte',
+  recognizeBullets: [
+    'dni vám často splývajú jeden do druhého',
+    'aj počas oddychu myslíte na povinnosti',
+    'riešite potreby ostatných skôr než svoje',
+    'večer ste unavení, ale neviete úplne vypnúť',
+    'vaše vzťahy fungujú, no niekedy im chýba skutočné spojenie',
+  ],
+  recognizeClose:
+    'Ak ste sa našli aspoň v jednom z týchto bodov, diagnostika vám pomôže odhaliť, ktorý vzorec za tým môže byť.',
   receiveTitle: 'Čo získate',
   receiveBullets: [
-    'primárne úzke miesto',
-    'sekundárny vzorec',
-    'ako sa vzorec prejavuje v bežnom dni',
-    'najväčší slepý uhol',
-    'jeden praktický prvý krok',
+    'ktorý vzorec dnes najviac ovplyvňuje váš život',
+    'ako sa tento vzorec prejavuje vo vašom bežnom dni',
+    'čo si pri ňom väčšina ľudí neuvedomuje',
+    'jeden jednoduchý krok, ktorým môžete začať ešte dnes',
   ],
   systemsTitle: 'Štyri prepojené oblasti životného systému',
-  systems: ['Autopilot', 'Identita', 'Energia', 'Vzťahy'],
-  durationNote: '24 otázok · jedna obrazovka naraz · môžete sa vrátiť späť',
+  systems: [
+    {
+      id: 'autopilot',
+      label: 'Autopilot',
+      description:
+        'Keď sa dni začnú podobať jeden na druhý a život sa viac deje, než vedome tvorí.',
+    },
+    {
+      id: 'identity',
+      label: 'Identita',
+      description:
+        'Keď vlastnú hodnotu začneme nevedomky spájať s výkonom, zodpovednosťou alebo produktivitou.',
+    },
+    {
+      id: 'energy',
+      label: 'Energia',
+      description:
+        'Keď tempo života dlhodobo spotrebúva viac energie, než dokáže vrátiť späť.',
+    },
+    {
+      id: 'relationships',
+      label: 'Vzťahy',
+      description:
+        'Keď spolu fungujeme, ale postupne sa prestávame skutočne spájať.',
+    },
+  ],
+  previewTitle: 'Váš životný systém',
+  previewCaption: 'Takto bude vyzerať vaša diagnostika.',
+  previewRows: [
+    { label: 'Identita', width: 88 },
+    { label: 'Energia', width: 72 },
+    { label: 'Autopilot', width: 58 },
+    { label: 'Vzťahy', width: 45 },
+  ],
+  trustNote:
+    'Diagnostika je súčasťou vznikajúcej metodiky Life Autopilot, ktorej cieľom je pomáhať ľuďom lepšie porozumieť vzorcom, ktoré ovplyvňujú ich každodenný život.',
+  personalizeNote:
+    'Po dokončení získate personalizovanú diagnostiku vytvorenú z vašich odpovedí.',
+  durationNote: '24 otázok · približne 3–4 minúty · môžete sa vrátiť späť',
 };
 
 const analyzing = {

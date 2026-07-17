@@ -143,7 +143,7 @@ const INSTANCE_META = {
   autopilot: {
     title: 'Diagnostika životného autopilota – citimtedasom.sk',
     description:
-      'Bezplatné hodnotenie životného systému: autopilot, identita, energia a vzťahy.',
+      'Bezplatná diagnostika životného systému: zistite, ktorý vzorec potichu ovplyvňuje energiu, identitu, vzťahy a bežný deň.',
   },
 };
 

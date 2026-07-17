@@ -90,17 +90,17 @@ Avoid: Ste… / Máte diagnózu… / Ste typ…
 
 **headline**
 
-> Zistite, ktorá časť vášho životného systému ticho beží na autopilotovi.
+> Máte pocit, že všetko funguje… ale niečo nesedí?
 
 **subhead**
 
-> Bezplatné hodnotenie na 3–4 minúty. Ukáže skryté vzorce, ktoré ovplyvňujú energiu, identitu, vzťahy a bežný deň.
+> Zistite, ktorá časť vášho životného systému potichu preberá kontrolu a ovplyvňuje vašu energiu, identitu, vzťahy a každodenné rozhodnutia.
 
 **cta**
 
-> Spustiť diagnostiku
+> Začať bezplatnú diagnostiku
 
-### Difference (optional block)
+### Difference (methodology)
 
 **diffTitle**
 
@@ -110,6 +110,24 @@ Avoid: Ste… / Máte diagnózu… / Ste typ…
 
 > Identifikuje aktuálne úzke miesta vo vašom životnom systéme. Cieľom je uvedomenie — nie nálepky.
 
+### Recognition
+
+**recognizeTitle**
+
+> Možno sa v tomto spoznáte
+
+**recognizeBullets**
+
+1. dni vám často splývajú jeden do druhého
+2. aj počas oddychu myslíte na povinnosti
+3. riešite potreby ostatných skôr než svoje
+4. večer ste unavení, ale neviete úplne vypnúť
+5. vaše vzťahy fungujú, no niekedy im chýba skutočné spojenie
+
+**recognizeClose**
+
+> Ak ste sa našli aspoň v jednom z týchto bodov, diagnostika vám pomôže odhaliť, ktorý vzorec za tým môže byť.
+
 ### What you’ll receive
 
 **receiveTitle**
@@ -118,28 +136,53 @@ Avoid: Ste… / Máte diagnózu… / Ste typ…
 
 **receiveBullets**
 
-1. primárne úzke miesto
-2. sekundárny vzorec
-3. ako sa vzorec prejavuje v bežnom dni
-4. najväčší slepý uhol
-5. jeden praktický prvý krok
+1. ktorý vzorec dnes najviac ovplyvňuje váš život
+2. ako sa tento vzorec prejavuje vo vašom bežnom dni
+3. čo si pri ňom väčšina ľudí neuvedomuje
+4. jeden jednoduchý krok, ktorým môžete začať ešte dnes
 
-### Credibility
+### Four dimensions (interactive)
 
 **systemsTitle**
 
 > Štyri prepojené oblasti životného systému
 
-**systems**
+**systems** — each item: `{ id, label, description }`
 
-1. Autopilot
-2. Identita
-3. Energia
-4. Vzťahy
+| id | label | description |
+|----|-------|-------------|
+| autopilot | Autopilot | Keď sa dni začnú podobať jeden na druhý a život sa viac deje, než vedome tvorí. |
+| identity | Identita | Keď vlastnú hodnotu začneme nevedomky spájať s výkonom, zodpovednosťou alebo produktivitou. |
+| energy | Energia | Keď tempo života dlhodobo spotrebúva viac energie, než dokáže vrátiť späť. |
+| relationships | Vzťahy | Keď spolu fungujeme, ale postupne sa prestávame skutočne spájať. |
+
+Hover (desktop) / tap (mobile) reveals the description.
+
+### Result preview (illustrative only)
+
+**previewTitle**
+
+> Váš životný systém
+
+**previewCaption**
+
+> Takto bude vyzerať vaša diagnostika.
+
+**previewRows** — illustrative bar widths only (no real scores): Identita 88, Energia 72, Autopilot 58, Vzťahy 45.
+
+### Trust & personalization
+
+**trustNote**
+
+> Diagnostika je súčasťou vznikajúcej metodiky Life Autopilot, ktorej cieľom je pomáhať ľuďom lepšie porozumieť vzorcom, ktoré ovplyvňujú ich každodenný život.
+
+**personalizeNote**
+
+> Po dokončení získate personalizovanú diagnostiku vytvorenú z vašich odpovedí.
 
 **durationNote**
 
-> 24 otázok · jedna obrazovka naraz · môžete sa vrátiť späť
+> 24 otázok · približne 3–4 minúty · môžete sa vrátiť späť
 
 ---
 
