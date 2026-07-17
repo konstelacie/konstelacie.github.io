@@ -470,7 +470,7 @@ const landing = {
     'Vo vzťahoch všetko funguje, no niečo im chýba',
   ],
   recognizeClose: 'Stačí jeden bod — diagnostika pomôže odhaliť vzorec za ním.',
-  trustBadges: ['3–4 minúty', '24 otázok', 'Personalizovaný výsledok'],
+  trustBadges: ['3–4 minúty', '24 krátkych otázok', 'Personalizovaný výsledok'],
   privacyNote:
     'Vaše odpovede slúžia výlučne na vytvorenie vašej personalizovanej diagnostiky.',
   philosophyLine:
