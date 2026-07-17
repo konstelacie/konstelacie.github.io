@@ -397,10 +397,12 @@ Document separately from `docs/leads/conversion-events.md` (that doc is reservat
 
 ### Phase 1 — Shell (no persistence)
 
-- [ ] Registry: `autopilot`, `funnelType: assessment`
-- [ ] EJS + CSS + JS state machine through all screens with mock data
-- [ ] Client-side scoring + results render from config
-- [ ] `FUNNEL_AUTOPILOT_MODE=test` locally
+**Done** (client-side unlock; no submit API yet):
+
+- [x] Registry: `autopilot`, `funnelType: assessment`
+- [x] EJS + CSS + JS state machine through all screens with config data
+- [x] Client-side scoring + results render from config
+- [x] `FUNNEL_AUTOPILOT_MODE=test` locally (see `.env.example`)
 
 ### Phase 2 — API + persistence
 

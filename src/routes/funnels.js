@@ -1,8 +1,13 @@
 const express = require('express');
 const appConfig = require('../config');
-const { FUNNEL_INSTANCES, FUNNEL_PAGE_INSTANCES } = require('../config/funnelInstances');
+const {
+  FUNNEL_INSTANCES,
+  FUNNEL_PAGE_INSTANCES,
+  getFunnelPageType,
+} = require('../config/funnelInstances');
 const pageVisibility = require('../config/pageVisibility');
 const { resolveCampaignVideo } = require('../config/funnelVideo');
+const assessmentAutopilot = require('../config/assessmentAutopilot');
 const {
   bookingPricingViewLocals,
   bookingPricingDefaultsScriptTag,
@@ -107,6 +112,12 @@ const INSTANCE_CAMPAIGNS = {
   manipulacia: {
     default: { ...manipulaciaDefault },
   },
+  autopilot: {
+    default: {
+      headline: assessmentAutopilot.landing.headline,
+      subhead: assessmentAutopilot.landing.subhead,
+    },
+  },
 };
 
 /** Instance-specific meta (title, description). */
@@ -128,6 +139,11 @@ const INSTANCE_META = {
     description: 'Krátke video o tom, ako rozpoznať manipuláciu vo vzťahoch — a čo s tým.',
     successTitle: 'Platba dokončená',
     cancelTitle: 'Platba zrušená',
+  },
+  autopilot: {
+    title: 'Diagnostika životného autopilota – citimtedasom.sk',
+    description:
+      'Bezplatné hodnotenie životného systému: autopilot, identita, energia a vzťahy.',
   },
 };
 
@@ -179,6 +195,51 @@ function renderFunnelExpressPage(res, funnelName, req) {
       <script src="/assets/js/funnel.js"></script>
     `,
   });
+}
+
+function renderAssessmentFunnelPage(res, funnelName, req) {
+  const campaigns = INSTANCE_CAMPAIGNS[funnelName] || { default: {} };
+  const campaignId =
+    (req.query && req.query.campaign && String(req.query.campaign).trim()) || 'default';
+  const safeCampaignId = Object.prototype.hasOwnProperty.call(campaigns, campaignId)
+    ? campaignId
+    : 'default';
+  const meta = INSTANCE_META[funnelName] || { title: funnelName, description: '' };
+  const clientConfig = assessmentAutopilot.getClientConfig();
+  const configJson = JSON.stringify(clientConfig).replace(/</g, '\\u003c');
+
+  res.render(`funnels/${funnelName}`, {
+    layout: 'layouts/default',
+    hideHeader: true,
+    robotsNoindex: true,
+    showTestingBanner: funnelTestingBanner(funnelName),
+    title: meta.title,
+    description: meta.description,
+    funnelName,
+    funnelCampaignId: safeCampaignId,
+    supportEmail: appConfig.site.supportEmail,
+    landing: assessmentAutopilot.landing,
+    extraStyles: '<link rel="stylesheet" href="/assets/css/assessment.css">',
+    extraScripts: `
+      <script type="application/json" id="assessment-config">${configJson}</script>
+      <script>
+        window.__ASSESSMENT_BOOTSTRAP = {
+          funnelName: ${JSON.stringify(funnelName)},
+          funnelCampaign: ${JSON.stringify(safeCampaignId)},
+          supportEmail: ${JSON.stringify(appConfig.site.supportEmail || '')}
+        };
+      </script>
+      <script src="/assets/js/assessment-scoring.js"></script>
+      <script src="/assets/js/assessment.js"></script>
+    `,
+  });
+}
+
+function renderFunnelPage(res, funnelName, req) {
+  if (getFunnelPageType(funnelName) === 'assessment') {
+    return renderAssessmentFunnelPage(res, funnelName, req);
+  }
+  return renderFunnelExpressPage(res, funnelName, req);
 }
 
 /**
@@ -277,6 +338,7 @@ router.get('/:segment/success', (req, res, next) => {
   if (resolved.redirectHome) return res.redirect(302, '/');
 
   const { funnelName } = resolved;
+  if (getFunnelPageType(funnelName) === 'assessment') return next('route');
   const meta = INSTANCE_META[funnelName] || {};
   res.render('pages/booking-success', {
     layout: 'layouts/default',
@@ -298,6 +360,7 @@ router.get('/:segment/cancel', (req, res, next) => {
   if (resolved.redirectHome) return res.redirect(302, '/');
 
   const { funnelName } = resolved;
+  if (getFunnelPageType(funnelName) === 'assessment') return next('route');
   const meta = INSTANCE_META[funnelName] || {};
   const publicPath = pageVisibility.buildPublicPath(funnelName);
   res.render('pages/booking-cancel', {
@@ -317,10 +380,11 @@ router.get('/:segment', (req, res, next) => {
   if (!resolved) return next('route');
   if (resolved.redirectHome) return res.redirect(302, '/');
 
-  renderFunnelExpressPage(res, resolved.funnelName, req);
+  renderFunnelPage(res, resolved.funnelName, req);
 });
 
 module.exports = router;
 module.exports.FUNNEL_INSTANCES = FUNNEL_INSTANCES;
 module.exports.FUNNEL_PAGE_INSTANCES = FUNNEL_PAGE_INSTANCES;
 module.exports.parseFunnelAttribution = parseFunnelAttribution;
+module.exports.getFunnelPageType = getFunnelPageType;
