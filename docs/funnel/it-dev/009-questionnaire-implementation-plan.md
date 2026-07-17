@@ -2,7 +2,10 @@
 
 **Status:** Draft v1 — planning only (no code yet)  
 **Scope:** Free interactive assessment funnel (questionnaire), first shippable vertical slice  
-**Product specs:** [`007-questionaire-v1.md`](007-questionaire-v1.md), [`008-questionaire-v2.md`](008-questionaire-v2.md)  
+**Canonical entry (start here):** [`016-assessment-v1-summary.md`](016-assessment-v1-summary.md) — decisions, content map, drift overrides, DoD  
+**Locked decisions:** [`010-decisions.md`](010-decisions.md) (supersedes open defaults in §18 below)  
+**Content / scoring:** [`011`](011-questionaire.md)–[`014`](014-scoring), principles [`015`](015-principles.md)  
+**Product vision drafts (historical):** [`007-questionaire-v1.md`](007-questionaire-v1.md), [`008-questionaire-v2.md`](008-questionaire-v2.md)  
 **Business context:** [`006-funnel-it-dev.md`](006-funnel-it-dev.md) §6 (free diagnostic), §7 (paid diagnosis)
 
 ---
@@ -508,16 +511,18 @@ The paid **Diagnostika životného autopilota** (~190 €, 90 min) is a **differ
 
 ## 18. Open decisions (resolve before or during Phase 2)
 
-| # | Question | Default if unset |
-|---|----------|----------------|
-| 1 | 24 vs 12 questions for first deploy | 24 with placeholder text |
-| 2 | Allow back navigation between questions | No in v1 |
-| 3 | `sessionStorage` resume after refresh | Yes |
-| 4 | Primary KPI event name | `assessment_email_unlocked` |
-| 5 | Paid diagnosis CTA | Static contact / waitlist |
-| 6 | Tie-break dimension order | Identity > Energy > Autopilot > Relationships (explicit in config) |
-| 7 | Send transactional email with results | No in v1 |
-| 8 | Require marketing consent checkbox | No |
+**Resolved in [`010-decisions.md`](010-decisions.md) and summarized in [`016`](016-assessment-v1-summary.md) §3–4.** Do not use the table below as defaults — kept for history only.
+
+| # | Question | Historical default in this draft | Resolved (010 / 014) |
+|---|----------|----------------------------------|----------------------|
+| 1 | 24 vs 12 questions for first deploy | 24 with placeholder text | **24** |
+| 2 | Allow back navigation between questions | No in v1 | **Yes** |
+| 3 | `sessionStorage` resume after refresh | Yes | **Yes** |
+| 4 | Primary KPI event name | `assessment_email_unlocked` | **Unchanged** |
+| 5 | Paid diagnosis CTA | Static contact / waitlist | **Unchanged** (soft CTA) |
+| 6 | Tie-break dimension order | Identity > Energy > Autopilot > Relationships | **Rejected** — use 5% threshold dual-primary |
+| 7 | Send transactional email with results | No in v1 | **No** |
+| 8 | Require marketing consent checkbox | No | **Optional only** |
 
 ---
 
@@ -553,12 +558,13 @@ The paid **Diagnostika životného autopilota** (~190 €, 90 min) is a **differ
 
 | Doc | Role |
 |-----|------|
-| 007 | Methodology, scoring philosophy, result structure |
-| 008 | Full journey, UX principles, email strategy, analytics vision |
-| 006 | IT-dev funnel context, paid product pricing, next steps §15.2 |
-| This doc (009) | **How** to build draft v1 in this codebase |
-
-**Next doc (future):** `010-questionnaire-content.md` — actual questions, Slovak copy, bottleneck texts (or split by language file).
+| [`016`](016-assessment-v1-summary.md) | **Start here** — summary, links, implementation brief |
+| 010 | Locked product/UX decisions |
+| 011–014 | Questionnaire, insights, results, scoring |
+| 015 | Methodology principles |
+| 007 / 008 | Historical vision drafts (superseded for content) |
+| 006 | IT-dev funnel context, paid product pricing |
+| This doc (009) | **How** to build draft v1 in this codebase (architecture, API, DB, phases) |
 
 ---
 
@@ -572,4 +578,4 @@ The paid **Diagnostika životného autopilota** (~190 €, 90 min) is a **differ
 
 ---
 
-*End of draft v1. No code until this plan is reviewed and open decisions in §18 are confirmed.*
+*End of draft v1. No code until [`016`](016-assessment-v1-summary.md) and [`010`](010-decisions.md) are treated as binding for v1 decisions; use this doc for architecture detail.*
