@@ -387,11 +387,13 @@ Document separately from `docs/leads/conversion-events.md` (that doc is reservat
 
 ### Phase 0 — Content stub (can parallel code)
 
-- [ ] 12–24 draft questions in Slovak (placeholders OK)
-- [ ] 1 fully written bottleneck result (Identity Loop)
-- [ ] 3 stub bottleneck results
-- [ ] 2–3 micro-insights
-- [ ] Landing + email gate copy
+**Done** — see [`017-assessment-content-sk.md`](017-assessment-content-sk.md). Older stub checklist below is obsolete:
+
+- [x] 24 questions in Slovak — `011` (not placeholders)
+- [x] All four bottleneck results in Slovak — `017` §9
+- [x] 5 micro-insights in Slovak — `017` §6
+- [x] Landing + email gate + analyzing copy — `017` §4, §7–8
+- [x] Likert SK labels — `017` §2 / `011`
 
 ### Phase 1 — Shell (no persistence)
 
@@ -559,8 +561,9 @@ The paid **Diagnostika životného autopilota** (~190 €, 90 min) is a **differ
 | Doc | Role |
 |-----|------|
 | [`016`](016-assessment-v1-summary.md) | **Start here** — summary, links, implementation brief |
+| [`017`](017-assessment-content-sk.md) | Phase 0 Slovak UI + results pack (map into config) |
 | 010 | Locked product/UX decisions |
-| 011–014 | Questionnaire, insights, results, scoring |
+| 011–014 | Questionnaire, insights (EN), results (EN), scoring |
 | 015 | Methodology principles |
 | 007 / 008 | Historical vision drafts (superseded for content) |
 | 006 | IT-dev funnel context, paid product pricing |
@@ -578,4 +581,4 @@ The paid **Diagnostika životného autopilota** (~190 €, 90 min) is a **differ
 
 ---
 
-*End of draft v1. No code until [`016`](016-assessment-v1-summary.md) and [`010`](010-decisions.md) are treated as binding for v1 decisions; use this doc for architecture detail.*
+*Phase 0 content is in [`017`](017-assessment-content-sk.md). Treat [`016`](016-assessment-v1-summary.md) and [`010`](010-decisions.md) as binding for v1 decisions; use this doc for architecture detail. Next: Phase 1 shell.*

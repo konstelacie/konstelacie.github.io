@@ -1,6 +1,6 @@
 # 016 — Life Autopilot Assessment v1 — Summary & Implementation Brief
 
-**Status:** Canonical entry point for implementers (no code yet)  
+**Status:** Canonical entry point for implementers — Phase 0 content done (`017`); ready for Phase 1 shell  
 **Audience:** Anyone building the free assessment funnel  
 **Product:** Free Life Autopilot Assessment → email unlock → personalized results → soft CTA to paid Life Autopilot Diagnosis (~190 €)
 
@@ -26,11 +26,12 @@ Use these as the source of truth. Prefer the newest numbered doc when topics ove
 |-------|---------------|--------|
 | Business context, offer, pilot | [`006-funnel-it-dev.md`](006-funnel-it-dev.md) | Free diagnostic §6, paid §7; drafts `000`–`005` are historical |
 | Product / UX decisions (locked) | [`010-decisions.md`](010-decisions.md) | Overrides older defaults in `009` §18 |
-| Questionnaire (24 Q, Slovak) | [`011-questionaire.md`](011-questionaire.md) | Includes reverse-score flags |
-| Micro-insights | [`012-insights.md`](012-insights.md) | English draft — translate for prod |
-| Results copy (4 bottlenecks × 6 sections) | [`013-result-framework.md`](013-result-framework.md) | English draft — translate for prod |
+| Questionnaire (24 Q, Slovak) | [`011-questionaire.md`](011-questionaire.md) | Includes reverse-score flags + Likert SK |
+| Micro-insights | [`012-insights.md`](012-insights.md) | English draft — **prod SK in `017` §6** |
+| Results copy (4 bottlenecks × 6 sections) | [`013-result-framework.md`](013-result-framework.md) | English draft — **prod SK in `017` §9** |
 | Scoring & tie rules | [`014-scoring`](014-scoring) | Normalized %, threshold dual-primary |
 | Methodology principles | [`015-principles.md`](015-principles.md) | Decision filter for future changes |
+| **Slovak UI + results pack (Phase 0)** | [`017-assessment-content-sk.md`](017-assessment-content-sk.md) | Likert, landing, gate, analyzing, insights, results, CTA |
 | Technical architecture & phases | [`009-questionnaire-implementation-plan.md`](009-questionnaire-implementation-plan.md) | Still valid for files/API/DB; apply overrides in §4 below |
 | Vision drafts (superseded for content) | [`007`](007-questionaire-v1.md), [`008`](008-questionaire-v2.md) | Useful for journey language; do not treat as content or decision source |
 
@@ -102,13 +103,14 @@ Ship content via `src/config/assessmentAutopilot.js` (see `009` §9). Map fields
 
 | Config export | Source |
 |---------------|--------|
-| `dimensions` | `011`, `014` — ids: `autopilot`, `identity`, `energy`, `relationships` |
-| `bottlenecks` | Result ids: `autopilot_loop`, `identity_loop`, `energy_drain`, `connection_gap` |
+| `dimensions` | `011`, `014`, **`017` §3** — ids: `autopilot`, `identity`, `energy`, `relationships` |
+| `bottlenecks` | **`017` §3** — result ids: `autopilot_loop`, `identity_loop`, `energy_drain`, `connection_gap` |
 | `questions` | `011` — id, dimension, Slovak text, `reverseScored`, order |
-| `likertLabels` | Slovak labels (not yet in `011` — author in Phase 0) |
-| `microInsights` | `012` — afterQuestionIndex + text (translate) |
-| `bottleneckResults` | `013` — six sections per bottleneck (translate) |
-| `landing` / `emailGate` / `analyzing` | Still thin — author for Phase 0/4; tone from `008` / `006` |
+| `likertLabels` | **`017` §2** (also mirrored in `011`) |
+| `microInsights` | **`017` §6** (EN draft: `012`) |
+| `bottleneckResults` | **`017` §9** (EN draft: `013`) |
+| `landing` / `emailGate` / `analyzing` | **`017` §4 / §8 / §7** |
+| `paidCta` / special states | **`017` §11–12** |
 | Scoring rules | Pure functions in `src/lib/assessmentScoring.js` per `014` |
 
 **Content readiness**
@@ -116,13 +118,11 @@ Ship content via `src/config/assessmentAutopilot.js` (see `009` §9). Map fields
 | Asset | Status |
 |-------|--------|
 | 24 Slovak questions + reverse flags | Ready in `011` |
-| Likert Slovak labels | **Todo** |
-| Micro-insights | English in `012` — **translate** (placeholders OK for shell) |
-| Result frameworks | English in `013` — **translate** |
-| Landing + email-gate + CTA strings | **Todo** |
-| Dual-bottleneck reinforcement blurbs | Partial in `014` examples — expand as needed |
-
-Phase 1 may use English placeholders or one fully Slovak bottleneck; prod wants full Slovak.
+| Likert Slovak labels | **Done** — `017` §2 / `011` |
+| Micro-insights | **Done** — `017` §6 |
+| Result frameworks | **Done** — `017` §9 |
+| Landing + email-gate + analyzing + CTA strings | **Done** — `017` §4, §7–8, §12 |
+| Dual-bottleneck / balanced / low-score blurbs | **Done** (generic) — `017` §11; pair-specific optional later |
 
 ---
 
@@ -146,11 +146,11 @@ Do **not** overload `pilot.ejs` or `renderFunnelExpressPage()` with assessment c
 
 | Phase | Goal | Notes |
 |-------|------|--------|
-| **0 — Content** | Likert SK, landing/gate stubs, SK translations (or placeholders) | Parallel with Phase 1 |
-| **1 — Shell** | Registry + EJS + CSS + `assessment.js` state machine; client scoring + mock results | `FUNNEL_AUTOPILOT_MODE=test` |
+| **0 — Content** | Likert SK, landing/gate stubs, SK translations | **Done** — [`017`](017-assessment-content-sk.md) |
+| **1 — Shell** | Registry + EJS + CSS + `assessment.js` state machine; client scoring + mock results | `FUNNEL_AUTOPILOT_MODE=test`; load copy from `017` |
 | **2 — Persist** | Migration `007_assessment_submissions.sql` + submit API + captcha + rate limit; server scoring authoritative | Next free migration number is **007** |
 | **3 — Analytics** | Wire `assessment_email_unlocked` (+ metadata); optional CAPI `Lead`; optional started/completed only if email constraint solved (`009` §11.2) | Primary KPI only is enough for first slice |
-| **4 — Polish** | Full SK copy; results CTA; docs (`API.md`, `DB-SCHEMA.md`, `IMPLEMENTATION-SNAPSHOT.md`); manual mobile test | Soft CTA option A |
+| **4 — Polish** | Pair-specific dual copy polish; results CTA wiring; docs (`API.md`, `DB-SCHEMA.md`, `IMPLEMENTATION-SNAPSHOT.md`); manual mobile test | Soft CTA option A (`017` §12) |
 
 ### 8.2 Scoring implementation notes
 
@@ -219,19 +219,20 @@ From `006` §16 and `010` — do not block Phase 1–2:
 ## 11. Suggested reading order (before coding)
 
 1. This brief (`016`)
-2. [`010-decisions.md`](010-decisions.md)
-3. [`009-questionnaire-implementation-plan.md`](009-questionnaire-implementation-plan.md) — architecture only; apply §4 overrides
-4. [`014-scoring`](014-scoring) + [`011-questionaire.md`](011-questionaire.md)
-5. [`012-insights.md`](012-insights.md) + [`013-result-framework.md`](013-result-framework.md)
-6. [`015-principles.md`](015-principles.md) — tone check
-7. [`006-funnel-it-dev.md`](006-funnel-it-dev.md) §6–7 — business framing
+2. [`017-assessment-content-sk.md`](017-assessment-content-sk.md) — Slovak strings to load into config
+3. [`010-decisions.md`](010-decisions.md)
+4. [`009-questionnaire-implementation-plan.md`](009-questionnaire-implementation-plan.md) — architecture only; apply §4 overrides
+5. [`014-scoring`](014-scoring) + [`011-questionaire.md`](011-questionaire.md)
+6. [`012-insights.md`](012-insights.md) + [`013-result-framework.md`](013-result-framework.md) — EN reference only
+7. [`015-principles.md`](015-principles.md) — tone check
+8. [`006-funnel-it-dev.md`](006-funnel-it-dev.md) §6–7 — business framing
 
 ---
 
 ## 12. Next action
 
-1. Author Phase 0 strings (Likert SK, landing/gate stubs; start SK translation of `012`/`013`).
-2. Implement Phase 1 shell against `009` architecture + this brief’s overrides.
-3. Persist + KPI (Phases 2–3), then polish copy and soft CTA (Phase 4).
+1. ~~Author Phase 0 strings~~ → [`017`](017-assessment-content-sk.md)
+2. **Implement Phase 1 shell** against `009` architecture + this brief’s overrides; map `017` into `assessmentAutopilot.js`.
+3. Persist + KPI (Phases 2–3), then polish pair-specific dual copy and soft CTA wiring (Phase 4).
 
-*No code until this brief and `010` are treated as binding for v1 decisions.*
+*`010` + this brief remain binding for v1 decisions; `017` is binding for Slovak UI copy.*

@@ -1,5 +1,7 @@
 # 012 — Life Autopilot Assessment — Micro-Insights (v1)
 
+**Production Slovak:** [`017-assessment-content-sk.md`](017-assessment-content-sk.md) §6 — use that pack for implementation. This file remains the English methodology draft.
+
 ## Purpose
 
 Micro-insights are short reflective messages displayed between question blocks.

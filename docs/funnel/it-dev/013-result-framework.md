@@ -1,5 +1,7 @@
 # 013 — Life Autopilot Assessment — Results Framework (v1)
 
+**Production Slovak:** [`017-assessment-content-sk.md`](017-assessment-content-sk.md) §9–11 — use that pack for implementation. This file remains the English methodology draft.
+
 ## Purpose
 
 The assessment results should help people understand what is currently happening in their life—not explain everything about who they are.

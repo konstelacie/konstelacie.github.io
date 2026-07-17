@@ -31,11 +31,23 @@ Question format:
 
 Five-point Likert scale.
 
+English (reference):
+
 * Strongly disagree
 * Disagree
 * Neither agree nor disagree
 * Agree
 * Strongly agree
+
+Slovak (production — see also [`017-assessment-content-sk.md`](017-assessment-content-sk.md)):
+
+* Úplne nesúhlasím
+* Nesúhlasím
+* Ani súhlasím, ani nesúhlasím
+* Súhlasím
+* Úplne súhlasím
+
+Scores map to **1–5** in that order (before reverse scoring).
 
 ---
 
