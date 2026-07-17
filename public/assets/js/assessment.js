@@ -396,7 +396,9 @@
       return dimensionId;
     }
 
-    function renderSystemCards(systems) {
+    function renderSystemCards(systems, L) {
+      var moreLabel = (L && L.systemsMoreLabel) || 'Viac';
+      var lessLabel = (L && L.systemsLessLabel) || 'Menej';
       return el(
         'div',
         { className: 'assessment-dim-cards' },
@@ -408,18 +410,8 @@
               : item.summary || item.description || '';
           var detail = typeof item === 'string' ? '' : item.detail || '';
           var detailId = 'assessment-dim-' + (item && item.id ? item.id : label);
-          var mark = label ? label.charAt(0) : '';
           var kids = [
-            el('span', { className: 'assessment-dim-card__head' }, [
-              mark
-                ? el('span', {
-                    className: 'assessment-dim-card__mark',
-                    'aria-hidden': 'true',
-                    text: mark,
-                  })
-                : null,
-              el('span', { className: 'assessment-dim-card__label', text: label }),
-            ]),
+            el('span', { className: 'assessment-dim-card__label', text: label }),
           ];
           if (summary) {
             kids.push(el('span', { className: 'assessment-dim-card__summary', text: summary }));
@@ -429,7 +421,14 @@
               el('span', {
                 className: 'assessment-dim-card__detail',
                 id: detailId,
+                hidden: true,
                 text: detail,
+              })
+            );
+            kids.push(
+              el('span', {
+                className: 'assessment-dim-card__more',
+                text: moreLabel,
               })
             );
           }
@@ -446,8 +445,13 @@
           if (detail) {
             card.addEventListener('click', function () {
               var open = card.getAttribute('aria-expanded') === 'true';
-              card.setAttribute('aria-expanded', open ? 'false' : 'true');
-              card.classList.toggle('is-open', !open);
+              var next = !open;
+              card.setAttribute('aria-expanded', next ? 'true' : 'false');
+              card.classList.toggle('is-open', next);
+              var detailNode = card.querySelector('.assessment-dim-card__detail');
+              var moreNode = card.querySelector('.assessment-dim-card__more');
+              if (detailNode) detailNode.hidden = !next;
+              if (moreNode) moreNode.textContent = next ? lessLabel : moreLabel;
             });
           }
           return card;
@@ -522,22 +526,51 @@
       return [];
     }
 
+    function renderCtaCluster(L) {
+      var kids = [];
+      if (L.trustBadges && L.trustBadges.length) {
+        kids.push(
+          el(
+            'ul',
+            { className: 'assessment-badges' },
+            L.trustBadges.map(function (badge) {
+              return el('li', { text: badge });
+            })
+          )
+        );
+      }
+      kids.push(
+        el('div', { className: 'assessment-actions' }, [
+          el('button', {
+            type: 'button',
+            className: 'assessment-btn assessment-btn--block',
+            text: L.cta || 'Spustiť',
+            onClick: startAssessment,
+          }),
+        ])
+      );
+      if (L.privacyNote) {
+        kids.push(el('p', { className: 'assessment-privacy-note', text: L.privacyNote }));
+      }
+      return el('div', { className: 'assessment-cta-cluster' }, kids);
+    }
+
     function renderLanding() {
       var L = config.landing || {};
-      var kids = [
+      var primary = [
         el('p', { className: 'assessment-kicker', text: 'Diagnostika životného autopilota' }),
         el('h1', { className: 'assessment-title', text: L.headline || '' }),
       ].concat(renderLandingLead(L));
 
-      kids.push(
-        el('div', { className: 'assessment-block' }, [
+      primary.push(
+        el('div', { className: 'assessment-block assessment-diff' }, [
           el('h2', { text: L.diffTitle || '' }),
           el('p', { text: L.diffBody || '' }),
         ])
       );
 
       if (L.recognizeTitle || (L.recognizeBullets && L.recognizeBullets.length)) {
-        kids.push(
+        primary.push(
           el('div', { className: 'assessment-block assessment-recognize' }, [
             el('h2', { text: L.recognizeTitle || '' }),
             el(
@@ -554,7 +587,15 @@
         );
       }
 
-      kids.push(
+      primary.push(renderCtaCluster(L));
+
+      if (L.philosophyLine) {
+        primary.push(
+          el('p', { className: 'assessment-philosophy', text: L.philosophyLine })
+        );
+      }
+
+      var secondary = [
         el('div', { className: 'assessment-block' }, [
           el('h2', { text: L.receiveTitle || '' }),
           el(
@@ -567,59 +608,42 @@
         ]),
         el('div', { className: 'assessment-block' }, [
           el('h2', { text: L.systemsTitle || '' }),
-          renderSystemCards(L.systems),
-        ])
-      );
+          renderSystemCards(L.systems, L),
+        ]),
+      ];
 
       var preview = renderPreview(L);
-      if (preview) kids.push(preview);
+      if (preview) secondary.push(preview);
 
       if (L.whyTitle || (L.whyParagraphs && L.whyParagraphs.length)) {
-        kids.push(
-          el('div', { className: 'assessment-block assessment-why' }, [
-            el('h2', { text: L.whyTitle || '' }),
-          ].concat(
-            (L.whyParagraphs || []).map(function (p) {
-              return el('p', { text: p });
-            })
-          ))
+        secondary.push(
+          el(
+            'div',
+            { className: 'assessment-block assessment-why' },
+            [el('h2', { text: L.whyTitle || '' })].concat(
+              (L.whyParagraphs || []).map(function (p) {
+                return el('p', { text: p });
+              })
+            )
+          )
         );
       }
 
-      if (L.trustNote) {
-        kids.push(
-          el('div', { className: 'assessment-block assessment-trust' }, [
-            el('p', { text: L.trustNote }),
-          ])
-        );
-      }
-
-      if (L.durationNote) {
-        kids.push(el('p', { className: 'assessment-note', text: L.durationNote }));
-      }
-
-      if (L.personalizeNote) {
-        kids.push(el('p', { className: 'assessment-personalize', text: L.personalizeNote }));
-      }
-
-      if (L.curiosityTrigger) {
-        kids.push(
-          el('p', { className: 'assessment-curiosity', text: L.curiosityTrigger })
-        );
-      }
-
-      kids.push(
-        el('div', { className: 'assessment-actions' }, [
+      secondary.push(
+        el('div', { className: 'assessment-actions assessment-actions--secondary' }, [
           el('button', {
             type: 'button',
-            className: 'assessment-btn',
+            className: 'assessment-btn assessment-btn--block',
             text: L.cta || 'Spustiť',
             onClick: startAssessment,
           }),
         ])
       );
 
-      return el('section', { className: 'assessment-phase assessment-landing' }, kids);
+      return el('section', { className: 'assessment-phase assessment-landing' }, [
+        el('div', { className: 'assessment-landing__primary' }, primary),
+        el('div', { className: 'assessment-landing__secondary' }, secondary),
+      ]);
     }
 
     function renderResumeBanner() {

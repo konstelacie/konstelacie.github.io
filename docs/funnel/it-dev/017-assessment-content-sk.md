@@ -86,22 +86,28 @@ Avoid: Ste… / Máte diagnózu… / Ste typ…
 
 ## 4. Landing (`landing`)
 
+### Layout (v1.0)
+
+**Above the fold (primary):** headline → short curiosity → “not a personality test” → recognition → trust badges + CTA + privacy → philosophy line
+
+**Below (secondary):** what you’ll receive → four dimensions → result preview → why story → secondary CTA
+
 ### Hero
 
 **headline**
 
 > Máte pocit, že všetko funguje… ale niečo nesedí?
 
-**leadLines** (curiosity first)
+**leadLines**
 
-1. Možno nejde o nedostatok motivácie.
-2. Možno váš každodenný život ovplyvňuje vzorec, ktorý ste si už prestali uvedomovať.
+1. Možno nejde o motiváciu.
+2. Možno vás vedie vzorec, ktorý ste si už prestali uvedomovať.
 
 **leadClose**
 
-> Diagnostika Life Autopilot pomáha odhaliť, ktorá časť vášho životného systému dnes najviac ovplyvňuje vaše rozhodnutia, energiu, identitu a vzťahy.
+> Diagnostika Life Autopilot odhalí, ktorá časť vášho životného systému dnes najviac ovplyvňuje rozhodnutia, energiu, identitu a vzťahy.
 
-**cta** (outcome-focused)
+**cta**
 
 > Chcem zistiť svoj výsledok
 
@@ -113,15 +119,13 @@ Avoid: Ste… / Máte diagnózu… / Ste typ…
 
 **diffBody**
 
-> Nehodnotí, kto ste. Odhaľuje skryté vzorce, ktoré potichu formujú váš bežný deň. Cieľom je uvedomenie — nie nálepky.
+> Nehodnotí, kto ste. Odhaľuje skryté vzorce vo vašom bežnom dni.
 
 ### Recognition (checklist)
 
 **recognizeTitle**
 
 > Možno sa v tomto spoznáte
-
-Rendered as a visually distinct checklist (✓), not a plain bullet list.
 
 **recognizeBullets**
 
@@ -133,9 +137,25 @@ Rendered as a visually distinct checklist (✓), not a plain bullet list.
 
 **recognizeClose**
 
-> Ak ste sa našli aspoň v jednom z týchto bodov, diagnostika vám pomôže odhaliť, ktorý vzorec za tým môže byť.
+> Stačí jeden bod — diagnostika pomôže odhaliť vzorec za ním.
 
-### What you’ll receive
+### CTA cluster
+
+**trustBadges**
+
+1. 3–4 minúty
+2. 24 otázok
+3. Personalizovaný výsledok
+
+**privacyNote**
+
+> Vaše odpovede slúžia výlučne na vytvorenie vašej personalizovanej diagnostiky.
+
+**philosophyLine**
+
+> Najťažšie sa odhaľujú vzorce, ktoré nám pripadajú úplne normálne.
+
+### What you’ll receive (secondary)
 
 **receiveTitle**
 
@@ -144,44 +164,29 @@ Rendered as a visually distinct checklist (✓), not a plain bullet list.
 **receiveBullets**
 
 1. ktorý vzorec dnes najviac ovplyvňuje váš život
-2. ako sa tento vzorec prejavuje vo vašom bežnom dni
-3. čo si pri ňom väčšina ľudí neuvedomuje
-4. jeden jednoduchý krok, ktorým môžete začať ešte dnes
+2. ako sa prejavuje vo vašom bežnom dni
+3. jeden jednoduchý krok, ktorým môžete začať
 
-### Four dimensions (diagnostic modules)
+### Four dimensions (secondary)
 
 **systemsTitle**
 
 > Štyri časti životného systému
 
-**systems** — each item: `{ id, label, summary, detail }`
+**systems** — `{ id, label, summary, detail }` with optional “Viac” / “Menej” toggle
 
-| id | label | summary (always visible) |
-|----|-------|--------------------------|
-| autopilot | Autopilot | Keď sa dni začnú podobať jeden na druhý a život sa viac deje, než vedome tvorí. |
-| identity | Identita | Keď vlastnú hodnotu začneme nevedomky spájať s výkonom alebo zodpovednosťou. |
-| energy | Energia | Keď tempo života dlhodobo spotrebúva viac energie, než dokáže vrátiť späť. |
-| relationships | Vzťahy | Keď spolu fungujeme, ale postupne sa prestávame skutočne spájať. |
+| id | label | summary |
+|----|-------|---------|
+| autopilot | Autopilot | Keď sa dni podobajú jeden na druhý a život sa viac deje, než tvorí. |
+| identity | Identita | Keď vlastnú hodnotu spájame s výkonom alebo zodpovednosťou. |
+| energy | Energia | Keď tempo života spotrebúva viac energie, než dokáže vrátiť. |
+| relationships | Vzťahy | Keď spolu fungujeme, ale prestávame sa skutočne spájať. |
 
-`detail` reveals on hover (desktop) / tap (mobile). Cards read as diagnostic modules, not FAQ.
+### Result preview (secondary)
 
-### Result preview (illustrative only)
+**previewEyebrow** · **previewTitle** · **previewCaption** — illustrative bars only (Identita 88, Energia 72, Autopilot 58, Vzťahy 45).
 
-**previewEyebrow**
-
-> Ukážka výsledku
-
-**previewTitle**
-
-> Váš životný systém
-
-**previewCaption**
-
-> Ilustračný príklad personalizovanej diagnostiky.
-
-**previewRows** — illustrative bar widths only (no real scores): Identita 88, Energia 72, Autopilot 58, Vzťahy 45.
-
-### Why this exists
+### Why this exists (secondary)
 
 **whyTitle**
 
@@ -189,24 +194,9 @@ Rendered as a visually distinct checklist (✓), not a plain bullet list.
 
 **whyParagraphs**
 
-1. Mnohí ľudia si myslia, že potrebujú viac motivácie, disciplíny alebo lepší time management.
-2. Často však problém nie je v nich.
-3. Problémom bývajú vzorce, ktoré sa v ich živote vytvárali celé roky a postupne sa stali neviditeľnými.
-4. Diagnostika Life Autopilot vznikla preto, aby tieto vzorce pomohla zviditeľniť.
-
-### Pre-CTA
-
-**durationNote**
-
-> 24 otázok · jedna obrazovka naraz · môžete sa vrátiť späť
-
-**personalizeNote**
-
-> Za 3–4 minúty získate personalizovaný pohľad na svoj životný systém a vzorce, ktoré ho dnes najviac ovplyvňujú.
-
-**curiosityTrigger**
-
-> Najväčšie úzke miesto často nebýva tam, kde ho očakávame.
+1. Mnohí ľudia hľadajú viac motivácie alebo lepší time management.
+2. Často však nejde o nich — ale o vzorce, ktoré sa stali neviditeľnými.
+3. Táto diagnostika ich pomáha zviditeľniť.
 
 ---
 
