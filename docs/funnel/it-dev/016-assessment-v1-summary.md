@@ -1,6 +1,6 @@
 # 016 — Life Autopilot Assessment v1 — Summary & Implementation Brief
 
-**Status:** Canonical entry point for implementers — Phases 0–3 done; Phase 4 polish next  
+**Status:** Canonical entry point for implementers — Phases 0–4 done (v1 slice); operator manual test remaining  
 **Audience:** Anyone building the free assessment funnel  
 **Product:** Free Life Autopilot Assessment → email unlock → personalized results → soft CTA to paid Life Autopilot Diagnosis (~190 €)
 
@@ -122,7 +122,7 @@ Ship content via `src/config/assessmentAutopilot.js` (see `009` §9). Map fields
 | Micro-insights | **Done** — `017` §6 |
 | Result frameworks | **Done** — `017` §9 |
 | Landing + email-gate + analyzing + CTA strings | **Done** — `017` §4, §7–8, §12 |
-| Dual-bottleneck / balanced / low-score blurbs | **Done** (generic) — `017` §11; pair-specific optional later |
+| Dual-bottleneck / balanced / low-score blurbs | **Done** — generic + all 6 pair blurbs in `dualPrimaryPairs` |
 
 ---
 
@@ -150,7 +150,7 @@ Do **not** overload `pilot.ejs` or `renderFunnelExpressPage()` with assessment c
 | **1 — Shell** | Registry + EJS + CSS + `assessment.js` state machine; client scoring + mock results | **Done** — set `FUNNEL_AUTOPILOT_MODE=test`, open `/autopilot-test` |
 | **2 — Persist** | Migration `007_assessment_submissions.sql` + submit API + captcha + rate limit; server scoring authoritative | **Done** — run `yarn db:migrate`; unlock posts to `/api/assessment/submit` |
 | **3 — Analytics** | Wire `assessment_email_unlocked` (+ metadata); optional CAPI `Lead`; optional started/completed only if email constraint solved (`009` §11.2) | **Done** — primary KPI + CAPI Lead; started/completed deferred |
-| **4 — Polish** | Pair-specific dual copy polish; results CTA wiring; docs (`API.md`, `DB-SCHEMA.md`, `IMPLEMENTATION-SNAPSHOT.md`); manual mobile test | Soft CTA option A (`017` §12) |
+| **4 — Polish** | Pair-specific dual copy; results CTA Option A; docs snapshot; manual checklist | **Done** — operator runs `009` §20 on mobile |
 
 ### 8.2 Scoring implementation notes
 
@@ -183,9 +183,9 @@ Captcha + rate limit on submit; server recalculates scores; privacy link on emai
 
 Transactional results email; 190 € Stripe/booking; circular “Life System” diagram; admin submissions UI; PseudoChat; per-question abandonment dashboard; personalized micro-insights; campaign variants beyond `default`.
 
-### 8.7 Paid CTA (Phase 4 pick)
+### 8.7 Paid CTA (Phase 4)
 
-Prefer **Option A** — static contact / waitlist (`009` §15). Do not block launch on diagnosis checkout.
+**Shipped Option A** — static dual `mailto:` (info + waitlist) to `SUPPORT_EMAIL`. Diagnosis Stripe/booking deferred.
 
 ---
 
@@ -197,22 +197,22 @@ From `006` §16 and `010` — do not block Phase 1–2:
 - Guarantee copy
 - Bonus packaging / pilot pricing messaging polish
 - Whether extended funnel (video series, drip by bottleneck) comes after pilot data
-- Dual-bottleneck specific copy for every dimension pair (can ship generic reinforcement text first)
+- Dual-bottleneck specific copy — **done** for all 6 pairs in `dualPrimaryPairs` (tune later if needed)
 
 ---
 
 ## 10. Definition of done (first slice)
 
-- [ ] `/autopilot-test` serves assessment when `FUNNEL_AUTOPILOT_MODE=test`
-- [ ] Full flow: landing → questions (back + resume) → analyzing → email → results with four scores
-- [ ] Tie within 5% shows dual primary; otherwise primary + secondary
-- [ ] Submission in `assessment_submissions`
+- [x] `/autopilot-test` serves assessment when `FUNNEL_AUTOPILOT_MODE=test`
+- [x] Full flow: landing → questions (back + resume) → analyzing → email → results with four scores
+- [x] Tie within 5% shows dual primary; otherwise primary + secondary
+- [x] Submission in `assessment_submissions`
 - [x] `assessment_email_unlocked` in `lead_events`
-- [ ] Captcha + rate limit on submit
-- [ ] Scoring unit tests pass (incl. reverse + ties)
-- [ ] No regression on `pilot` / other video-booking funnels
-- [ ] Docs updated: `API.md`, `DB-SCHEMA.md`, `IMPLEMENTATION-SNAPSHOT.md`
-- [ ] Manual check on mobile viewport
+- [x] Captcha + rate limit on submit
+- [x] Scoring unit tests pass (incl. reverse + ties)
+- [x] No regression on `pilot` / other video-booking funnels
+- [x] Docs updated: `API.md`, `DB-SCHEMA.md`, `IMPLEMENTATION-SNAPSHOT.md`
+- [ ] Manual check on mobile viewport (operator — `009` §20)
 
 ---
 
@@ -234,7 +234,8 @@ From `006` §16 and `010` — do not block Phase 1–2:
 1. ~~Author Phase 0 strings~~ → [`017`](017-assessment-content-sk.md)
 2. ~~Implement Phase 1 shell~~ → registry + `/autopilot-test` + client scoring unlock (no API yet)
 3. ~~Phase 2 persist~~ → `007` + `POST /api/assessment/submit` + captcha/rate limit
-4. ~~**Phase 3:** wire `assessment_email_unlocked` (+ metadata); optional CAPI Lead~~ → migration `008` + submit path
-5. **Phase 4:** polish / soft CTA wiring + remaining docs snapshot
+4. ~~Phase 3~~ → `assessment_email_unlocked` + CAPI Lead (`008`)
+5. ~~Phase 4~~ → soft CTA Option A + pair blurbs + snapshot docs
+6. **Operator:** run manual checklist `009` §20 (incl. mobile); set `FUNNEL_AUTOPILOT_MODE` when ready for test/prod traffic
 
 *`010` + this brief remain binding for v1 decisions; `017` is binding for Slovak UI copy.*

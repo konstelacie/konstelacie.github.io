@@ -408,6 +408,37 @@ const dualPrimary = {
   body: 'Keď jedna oblasť životného systému zostáva pod dlhodobým tlakom, druhá ju zvyčajne začne kompenzovať — a obe sa časom uzamknú do spoločného cyklu.',
 };
 
+/**
+ * Pair-specific dual-primary blurbs. Keys are sorted bottleneck ids joined by `|`.
+ * Falls back to `dualPrimary` when a pair is missing.
+ */
+const dualPrimaryPairs = {
+  'energy_drain|identity_loop': {
+    intro: 'Tieto dva vzorce sa často navzájom posilňujú.',
+    body: 'Keď je sebahodnota úzko viazaná na výkon, obnova sa často odsúva nabok. Nižšia energia potom môže zvyšovať pocit, že výkon je ešte potrebný — a cyklus sa zatvára.',
+  },
+  'autopilot_loop|identity_loop': {
+    intro: 'Tieto dva vzorce sa často navzájom posilňujú.',
+    body: 'Keď sa deň napĺňa rutinou bez vedomého výberu, výkon sa ľahko stane jedinou kotvou identity. Autopilot potom drží tempo — a otázka „kto som bez výkonu?“ ostáva neodpovedaná.',
+  },
+  'autopilot_loop|energy_drain': {
+    intro: 'Tieto dva vzorce sa často navzájom posilňujú.',
+    body: 'Rutina bez renewalu vyčerpáva zásoby energie. Nižšia energia zase sťažuje zastavenie a vedomé rozhodovanie — a život ostáva v režime „iba pokračovať“.',
+  },
+  'autopilot_loop|connection_gap': {
+    intro: 'Tieto dva vzorce sa často navzájom posilňujú.',
+    body: 'Keď bežný deň beží na autopilotovi, blízke vzťahy môžu ustúpiť do pozadia. Menej spojenia potom ešte viac posilňuje návyk zvládať všetko sám — bez spoločného rytmu.',
+  },
+  'connection_gap|identity_loop': {
+    intro: 'Tieto dva vzorce sa často navzájom posilňujú.',
+    body: 'Keď sa hodnota viaže na výkon, blízkosť môže pôsobiť ako ďalšia úloha alebo riziko. Menšie spojenie potom zvyšuje tlak „dokázať sa“ inde — mimo vzťahov.',
+  },
+  'connection_gap|energy_drain': {
+    intro: 'Tieto dva vzorce sa často navzájom posilňujú.',
+    body: 'Vyčerpanie často skracuje priestor na prítomnosť vo vzťahoch. Slabšie spojenie potom berie ďalší zdroj obnovy — a energia klesá ešte rýchlejšie.',
+  },
+};
+
 const balancedScores = [
   'Vaše odpovede naznačujú, že žiadna oblasť nevyčnieva jednoznačne. Viaceré časti životného systému sa zdajú navzájom ovplyvňovať.',
   'Platená diagnostika skúma práve tieto interakcie — nie izolované kategórie.',
@@ -486,8 +517,9 @@ const paidCta = {
   primaryCta: 'Požiadať o informácie',
   secondaryCta: 'Pridať sa na waitlist',
   contactHint: 'Ozveme sa s termínmi a detailmi. Bez záväzku.',
-  /** Phase 1: mailto; Phase 4 may switch to form / waitlist endpoint */
+  /** Option A (009 §15): static mailto — no Stripe/booking in v1 */
   mailtoSubject: 'Diagnostika životného autopilota — záujem',
+  waitlistMailtoSubject: 'Diagnostika životného autopilota — waitlist',
 };
 
 /**
@@ -507,6 +539,7 @@ function getClientConfig() {
     bottleneckResults,
     closingMessage,
     dualPrimary,
+    dualPrimaryPairs,
     balancedScores,
     lowScores,
     landing,
@@ -529,6 +562,7 @@ module.exports = {
   bottleneckResults,
   closingMessage,
   dualPrimary,
+  dualPrimaryPairs,
   balancedScores,
   lowScores,
   landing,

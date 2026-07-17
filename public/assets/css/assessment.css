@@ -116,6 +116,14 @@
   margin-top: var(--spacing-gap);
 }
 
+.assessment-actions--cta {
+  margin-top: var(--spacing-md);
+}
+
+.assessment-actions--cta .assessment-btn {
+  flex: 1 1 12rem;
+}
+
 .assessment-btn {
   display: inline-flex;
   align-items: center;

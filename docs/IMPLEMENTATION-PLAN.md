@@ -101,10 +101,18 @@
 | | |
 |---|--|
 | **Item** | Additional **funnel instances** beyond `pilot`; production **Wistia** (or self-hosted) assets |
-| **Current state** | `FUNNEL_INSTANCES = ['pilot']`; test Wistia id in `src/routes/funnels.js`. |
-| **Target** | New funnels + campaigns per `docs/PRACTICES.md`; replace `WISTIA_TEST_HASHED_ID` when assets ready. |
-| **Dependencies** | Creative pipeline `docs/CREATIVE-MEDIA.md`; `sitemap.xml` updates. |
-| **Definition of done** | New funnel in registry + views + sitemap; snapshot updated. |
+| **Current state** | Page funnels: `pilot`, `manipulacia` (video-booking), `autopilot` (assessment). See `src/config/funnelInstances.js`. |
+| **Target** | New funnels + campaigns per `docs/PRACTICES.md`; replace test video ids when assets ready. |
+| **Dependencies** | Creative pipeline `docs/CREATIVE-MEDIA.md`; funnels never in sitemap. |
+| **Definition of done** | New funnel in registry + views; snapshot updated. |
+
+| | |
+|---|--|
+| **Item** | **Life Autopilot Assessment** (`autopilot`) — free diagnostic funnel |
+| **Current state** | **Shipped v1** — shell, persist, analytics, soft mailto CTA. Docs: `docs/funnel/it-dev/016-assessment-v1-summary.md`. |
+| **Target (later)** | Paid diagnosis booking (~190 €); transactional results email; anonymous mid-funnel lead events. |
+| **Dependencies** | Product decisions for diagnosis checkout (`009` §15 options B/C). |
+| **Definition of done (v1)** | Full flow on `/autopilot-test`; submit + `assessment_email_unlocked`; soft CTA. |
 
 | | |
 |---|--|

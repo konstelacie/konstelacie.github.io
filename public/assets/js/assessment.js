@@ -1,6 +1,7 @@
 /**
- * Life Autopilot Assessment — client state machine (Phase 1: client scoring unlock).
+ * Life Autopilot Assessment — client state machine.
  * Phases: landing | question | insight | analyzing | email | results
+ * Unlock: POST /api/assessment/submit (server scoring authoritative).
  */
 (function () {
   'use strict';
@@ -146,6 +147,28 @@
       if (list[i].afterQuestionIndex === questionIndex1Based) return list[i];
     }
     return null;
+  }
+
+  function dualPrimaryKey(a, b) {
+    return [String(a || ''), String(b || '')].sort().join('|');
+  }
+
+  function resolveDualPrimaryCopy(config, primaryId, secondaryId) {
+    var fallback = config.dualPrimary || {};
+    var pairs = config.dualPrimaryPairs || {};
+    var pair = pairs[dualPrimaryKey(primaryId, secondaryId)];
+    if (!pair) return fallback;
+    return {
+      intro: pair.intro || fallback.intro || '',
+      body: pair.body || fallback.body || '',
+    };
+  }
+
+  function mailtoHref(email, subject) {
+    if (!email) return '#';
+    var href = 'mailto:' + email;
+    if (subject) href += '?subject=' + encodeURIComponent(subject);
+    return href;
   }
 
   function createApp(root, config, bootstrap) {
@@ -668,13 +691,18 @@
       }
 
       if (scored.isDualPrimary) {
+        var dualCopy = resolveDualPrimaryCopy(
+          config,
+          scored.primaryBottleneck,
+          scored.secondaryBottleneck
+        );
         body.push(
           renderBottleneckBlock(scored.primaryBottleneck, ui.primaryDual)
         );
         body.push(
           el('div', { className: 'assessment-block' }, [
-            el('p', { text: (config.dualPrimary && config.dualPrimary.intro) || '' }),
-            el('p', { text: (config.dualPrimary && config.dualPrimary.body) || '' }),
+            el('p', { text: dualCopy.intro || '' }),
+            el('p', { text: dualCopy.body || '' }),
           ])
         );
         body.push(
@@ -702,20 +730,32 @@
       );
 
       var cta = config.paidCta || {};
-      var mailto = supportEmail
-        ? 'mailto:' + supportEmail + '?subject=' + encodeURIComponent(cta.mailtoSubject || '')
-        : '#';
+      var infoMailto = mailtoHref(supportEmail, cta.mailtoSubject || '');
+      var waitlistMailto = mailtoHref(
+        supportEmail,
+        cta.waitlistMailtoSubject || cta.mailtoSubject || ''
+      );
+      var ctaActions = [
+        el('a', {
+          className: 'assessment-btn',
+          href: infoMailto,
+          text: cta.primaryCta || '',
+        }),
+      ];
+      if (cta.secondaryCta) {
+        ctaActions.push(
+          el('a', {
+            className: 'assessment-btn assessment-btn--secondary',
+            href: waitlistMailto,
+            text: cta.secondaryCta,
+          })
+        );
+      }
       body.push(
         el('section', { className: 'assessment-cta' }, [
           el('h2', { text: cta.title || '' }),
           el('p', { text: cta.body || '' }),
-          el('div', { className: 'assessment-actions' }, [
-            el('a', {
-              className: 'assessment-btn',
-              href: mailto,
-              text: cta.primaryCta || '',
-            }),
-          ]),
+          el('div', { className: 'assessment-actions assessment-actions--cta' }, ctaActions),
           el('p', { className: 'assessment-note', text: cta.contactHint || '' }),
         ])
       );

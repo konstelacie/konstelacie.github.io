@@ -94,3 +94,18 @@ test('tie within 5% marks dual primary', () => {
     result.primaryBottleneck === 'identity_loop' || result.primaryBottleneck === 'energy_drain'
   );
 });
+
+test('dualPrimaryPairs covers every bottleneck pair', () => {
+  const { dualPrimaryPairs, bottlenecks: bn } = require('../src/config/assessmentAutopilot');
+  const ids = [...new Set(Object.values(bn))].sort();
+  const expected = [];
+  for (let i = 0; i < ids.length; i++) {
+    for (let j = i + 1; j < ids.length; j++) {
+      expected.push(`${ids[i]}|${ids[j]}`);
+    }
+  }
+  assert.deepEqual(Object.keys(dualPrimaryPairs).sort(), expected);
+  for (const key of expected) {
+    assert.ok(dualPrimaryPairs[key].body && dualPrimaryPairs[key].body.length > 20);
+  }
+});

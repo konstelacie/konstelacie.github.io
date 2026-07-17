@@ -509,17 +509,17 @@ Diagnostika životného autopilota skúma, ako tieto vzorce vznikli a ako dá ob
 
 ### Dual primary reinforcement (`dualPrimary`)
 
-Generic (ship first; pair-specific blurbs later):
+Generic fallback + **all 6 bottleneck pairs** in `dualPrimaryPairs` (sorted ids joined by `|`).
 
-**intro**
+**intro** (generic)
 
 > Tieto dva vzorce sa často navzájom posilňujú.
 
-**body**
+**body** (generic)
 
 > Keď jedna oblasť životného systému zostáva pod dlhodobým tlakom, druhá ju zvyčajne začne kompenzovať — a obe sa časom uzamknú do spoločného cyklu.
 
-Example pair (Identity + Energy) — optional override:
+Example pair (Identity + Energy) — key `energy_drain|identity_loop`:
 
 > Keď je sebahodnota úzko viazaná na výkon, obnova sa často odsúva nabok. Nižšia energia potom môže zvyšovať pocit, že výkon je ešte potrebný — a cyklus sa zatvára.
 
@@ -539,7 +539,7 @@ Example pair (Identity + Energy) — optional override:
 
 ---
 
-## 12. Soft paid CTA (`paidCta`) — Phase 4 option A stub
+## 12. Soft paid CTA (`paidCta`) — Option A (shipped)
 
 **title**
 
@@ -561,6 +561,8 @@ Example pair (Identity + Energy) — optional override:
 
 > Ozveme sa s termínmi a detailmi. Bez záväzku.
 
+**mailto subjects:** záujem / waitlist → `SUPPORT_EMAIL`.
+
 *(Stripe / booking out of scope for v1.)*
 
 ---
@@ -581,7 +583,7 @@ When creating `src/config/assessmentAutopilot.js`, include:
 - [ ] `emailGate` — §8
 - [ ] `analyzing` — §7
 - [ ] `ui` chrome — §5
-- [ ] `paidCta` — §12 (can stay stub until Phase 4)
+- [x] `paidCta` — §12
 
 ---
 

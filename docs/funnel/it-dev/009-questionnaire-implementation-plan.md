@@ -1,6 +1,6 @@
 # Life Autopilot Assessment — First Technical Implementation Plan
 
-**Status:** Draft v1 — planning only (no code yet)  
+**Status:** v1 shipped (Phases 0–4) — architecture reference; start at [`016`](016-assessment-v1-summary.md)  
 **Scope:** Free interactive assessment funnel (questionnaire), first shippable vertical slice  
 **Canonical entry (start here):** [`016-assessment-v1-summary.md`](016-assessment-v1-summary.md) — decisions, content map, drift overrides, DoD  
 **Locked decisions:** [`010-decisions.md`](010-decisions.md) (supersedes open defaults in §18 below)  
@@ -423,10 +423,13 @@ Wire in `src/lib/leadEventsGate.js` → `WIRED_EVENT_TYPES`.
 
 ### Phase 4 — Polish + handoff
 
-- [ ] Replace placeholder copy
-- [ ] Results CTA block (paid diagnosis — see §15)
-- [ ] Manual test checklist
-- [ ] Update `docs/API.md`, `docs/DB-SCHEMA.md`, `IMPLEMENTATION-SNAPSHOT.md`
+**Done:**
+
+- [x] Slovak copy from `017` in `assessmentAutopilot.js` (no placeholders)
+- [x] Results CTA Option A — dual `mailto:` (info + waitlist) via `SUPPORT_EMAIL`
+- [x] Pair-specific dual-primary blurbs (`dualPrimaryPairs`)
+- [x] Manual test checklist (§20)
+- [x] Docs: `API.md`, `DB-SCHEMA.md`, `IMPLEMENTATION-SNAPSHOT.md`, `IMPLEMENTATION-PLAN.md`
 
 **Estimated order:** Phase 1 → 2 → 3 can overlap; Phase 0 content can lag behind Phase 1 with placeholders.
 
@@ -474,11 +477,11 @@ The paid **Diagnostika životného autopilota** (~190 €, 90 min) is a **differ
 
 | Option | Effort | Notes |
 |--------|--------|-------|
-| A. Static copy + `mailto:` / contact | Minimal | Fine for first 20 clients |
+| A. Static copy + `mailto:` / contact | Minimal | **Chosen for v1** — primary + waitlist subjects |
 | B. Link to separate `/autopilot/diagnosis` video-booking page | Medium | Reuse booking.js with new env pricing |
 | C. Full new checkout amount (`FUNNEL_AUTOPILOT_DIAGNOSIS_FULL_EUR=190`) | Medium–high | Needs product + Stripe + slot policy decision |
 
-**Recommendation for first slice:** Option A or waitlist form (could reuse support API pattern). Do not block assessment launch on payment integration.
+**v1 shipped:** Option A (`paidCta` in config; `assessment.js` results section). Do not block on payment integration.
 
 ---
 
@@ -536,29 +539,33 @@ The paid **Diagnostika životného autopilota** (~190 €, 90 min) is a **differ
 
 ## 19. Definition of done (first slice)
 
-- [ ] `/autopilot-test` serves assessment funnel when `FUNNEL_AUTOPILOT_MODE=test`
-- [ ] User can complete full flow: landing → questions → email → results
-- [ ] Submission persisted in `assessment_submissions`
+- [x] `/autopilot-test` serves assessment funnel when `FUNNEL_AUTOPILOT_MODE=test`
+- [x] User can complete full flow: landing → questions → email → results
+- [x] Submission persisted in `assessment_submissions`
 - [x] `assessment_email_unlocked` recorded in `lead_events`
-- [ ] Captcha + rate limit on submit
-- [ ] Scoring unit tests pass
-- [ ] No regression on existing video-booking funnels
-- [ ] Docs updated: `API.md`, `DB-SCHEMA.md`, `IMPLEMENTATION-SNAPSHOT.md`
-- [ ] Manual test on mobile viewport
+- [x] Captcha + rate limit on submit
+- [x] Scoring unit tests pass
+- [x] No regression on existing video-booking funnels (separate render path)
+- [x] Docs updated: `API.md`, `DB-SCHEMA.md`, `IMPLEMENTATION-SNAPSHOT.md`
+- [ ] Manual test on mobile viewport (operator — §20)
 
 ---
 
 ## 20. Testing checklist (manual)
 
-1. Start assessment → progress through all questions
-2. Micro-insight appears at configured indices
-3. Refresh mid-flow → resume from `sessionStorage` (if implemented)
-4. Submit invalid email → validation error
-5. Submit without captcha → error
-6. Successful submit → results match expected bottleneck for known answer pattern
-7. Repeat submit same email → allowed (new row) or rate-limited — **decision:** allow multiple submissions in v1
-8. `/autopilot` redirects or 404 when mode `hidden`
-9. Existing `/pilot-test` unchanged
+1. `FUNNEL_AUTOPILOT_MODE=test` → open `/autopilot-test`
+2. Start assessment → progress through all 24 questions; Back works
+3. Micro-insight appears after questions 4, 8, 12, 16, 20
+4. Refresh mid-flow → resume banner from `sessionStorage`
+5. Analyzing → email gate; invalid email → validation error
+6. Successful submit → results with four bars + bottleneck copy + closing + dual mailto CTAs
+7. Dual-primary fixture (scores within 5%) → pair-specific reinforcement blurb
+8. Check DB: `assessment_submissions` row + `lead_events` type `assessment_email_unlocked`
+9. Captcha path: after threshold, unlock retries with token (see `docs/security/captcha.md`)
+10. Repeat submit same email → new row allowed (v1)
+11. `FUNNEL_AUTOPILOT_MODE=hidden` → `/autopilot` redirects home
+12. `/pilot-test` / `/manipulacia-test` unchanged
+13. Mobile viewport (~375px): questions, bars, CTA buttons usable
 
 ---
 
@@ -587,4 +594,4 @@ The paid **Diagnostika životného autopilota** (~190 €, 90 min) is a **differ
 
 ---
 
-*Phase 0 content is in [`017`](017-assessment-content-sk.md). Treat [`016`](016-assessment-v1-summary.md) and [`010`](010-decisions.md) as binding for v1 decisions; use this doc for architecture detail. Next: Phase 1 shell.*
+*Phase 0 content is in [`017`](017-assessment-content-sk.md). Treat [`016`](016-assessment-v1-summary.md) and [`010`](010-decisions.md) as binding for v1 decisions; use this doc for architecture detail. Phases 0–4 shipped; remaining: operator manual test (§20).*

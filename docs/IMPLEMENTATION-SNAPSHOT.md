@@ -2,7 +2,7 @@
 
 **Purpose:** Point-in-time inventory of what the codebase actually does. **HTTP details (public JSON):** `docs/API.md`. **Tables/columns:** `docs/DB-SCHEMA.md`. **Planned / not built yet:** `docs/IMPLEMENTATION-PLAN.md`. Regenerate or update this file when making large behavior changes.
 
-**Generated:** 2026-03-31 (from repository state).
+**Generated:** 2026-07-17 (from repository state).
 
 ---
 
@@ -93,6 +93,7 @@ All JSON APIs use `requestId` middleware. Base: `src/routes/api/index.js`.
 | POST | `/api/reservations` | Create reservation from lock; body includes funnel attribution (`funnelName` / `funnel`, `funnelCampaign` / `campaign`). |
 | GET | `/api/payments/status` | Query `session_id` (`cs_...`) — payment + reservation + slot summary. |
 | POST | `/api/payments/start` | Create Stripe Checkout Session; body `reservationId`, `paymentType` (`deposit` \| `full`), `amount` (full only), `returnPath` (funnel segment for success/cancel URLs). |
+| POST | `/api/assessment/submit` | Life Autopilot Assessment unlock: validate answers, server score, persist `assessment_submissions`, fire `assessment_email_unlocked` + optional CAPI Lead. Captcha + rate limit. See `docs/API.md`, `docs/leads/assessment-conversion-events.md`. |
 | POST | `/api/cron/run` | Run scheduled jobs (auth below). |
 | GET | `/api/cron/run` | Same as POST (for browser/cron GET). |
 
@@ -153,6 +154,9 @@ All JSON APIs use `requestId` middleware. Base: `src/routes/api/index.js`.
 | `webhook_events` | Stripe `evt_...` idempotency. |
 | `email_sent_log` | Transactional email audit. |
 | `audit_logs` | Generic audit trail. |
+| `lead_event_types` / `lead_events` | Funnel analytics (migrations `002`–`003`, `008` for assessment KPI). |
+| `assessment_submissions` | Free assessment unlock rows (migration `007`). |
+| `capi_send_log` | Meta CAPI send audit (migration `005`). |
 
 ---
 
@@ -168,16 +172,31 @@ All JSON APIs use `requestId` middleware. Base: `src/routes/api/index.js`.
 
 ## Funnels
 
-**Registry:** `FUNNEL_INSTANCES` in `src/routes/funnels.js` — currently `['pilot']`.
+**Registry:** `FUNNEL_INSTANCES` / `FUNNEL_PAGE_INSTANCES` / `FUNNEL_PAGE_TYPES` in `src/config/funnelInstances.js` — page funnels: `pilot`, `manipulacia` (`video-booking`), `autopilot` (`assessment`).
 
-**Campaigns** (for `/:funnelName?campaign=id`): defined in `INSTANCE_CAMPAIGNS.pilot`:
+**Visibility:** `FUNNEL_{NAME}_MODE=hidden|test|prod` (e.g. `FUNNEL_AUTOPILOT_MODE`). Test URLs use `-test` suffix. Never in sitemap; always `noindex`. See `docs/PAGE-VISIBILITY.md`.
 
-- `default`, `poslanie` (same hero content as default in practice),
-- `zavist`.
+### Video-booking (`pilot`, `manipulacia`)
 
-**Templates:** `src/views/funnels/pilot.ejs` (instance page); shared partials `_funnel-content.ejs`, `_funnel-success.ejs`, `_funnel-cancel.ejs`.
+**Campaigns** (for `/:funnelName?campaign=id`): `INSTANCE_CAMPAIGNS` in `src/routes/funnels.js`.
+
+**Templates:** `src/views/funnels/{name}.ejs`; shared partials `_funnel-content.ejs`, `_funnel-success.ejs`, `_funnel-cancel.ejs`.
 
 **Video resolution:** `src/config/funnelVideo.js` (`resolveCampaignVideo`) — supports `self`, `wistia`, legacy iframe `videoUrl`.
+
+**Assets:** `/assets/css/funnel.css`, `/assets/js/booking.js`, `/assets/js/funnel.js`; success page `/assets/js/success-page.js`.
+
+### Assessment (`autopilot`)
+
+**Product:** Free Life Autopilot Assessment → email unlock → results → soft CTA to paid diagnosis (~190 €, no Stripe in v1).
+
+**Template / assets:** `src/views/funnels/autopilot.ejs`, `/assets/css/assessment.css`, `/assets/js/assessment.js`, scoring in `/assets/js/assessment-scoring.js` (required from `src/lib/assessmentScoring.js`).
+
+**Config / copy:** `src/config/assessmentAutopilot.js` (from `docs/funnel/it-dev/017-assessment-content-sk.md`).
+
+**API / DB:** `POST /api/assessment/submit` → `assessment_submissions`; lead event `assessment_email_unlocked` (migration `008`). Docs: `docs/funnel/it-dev/016-assessment-v1-summary.md`, `docs/leads/assessment-conversion-events.md`.
+
+**Results CTA:** Option A — dual `mailto:` (`SUPPORT_EMAIL`) for info + waitlist.
 
 **Sitemap:** dynamic — `/` when `SITE_HOME_MODE=prod`, plus legal pages. Funnel URLs never listed.
 
@@ -185,14 +204,16 @@ All JSON APIs use `requestId` middleware. Base: `src/routes/api/index.js`.
 
 ## Front-end assets (funnel / booking)
 
-Loaded by funnel template (see `funnels.js` `extraStyles` / `extraScripts`):
+Loaded by video-booking funnel template (see `funnels.js` `extraStyles` / `extraScripts`):
 
 - `/assets/css/funnel.css`
 - `/assets/js/booking.js`
 - `/assets/js/funnel.js`
 - `/assets/js/success-page.js` on success page only.
 
-**PseudoChat:** Implemented under `public/assets/js/pseudochat/` and `public/assets/css/pseudochat.css`; **not** included on the pilot funnel bundle above (see `docs/PSEUDOCHAT.md`).
+Assessment pages load `assessment.css` / `assessment.js` instead (no booking widget).
+
+**PseudoChat:** Implemented under `public/assets/js/pseudochat/` and `public/assets/css/pseudochat.css`; **not** included on funnel bundles above (see `docs/PSEUDOCHAT.md`).
 
 ---
 
