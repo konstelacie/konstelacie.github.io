@@ -452,19 +452,23 @@ const lowScores = [
 
 const landing = {
   headline: 'Máte pocit, že všetko funguje… ale niečo nesedí?',
-  subhead:
-    'Zistite, ktorá časť vášho životného systému potichu preberá kontrolu a ovplyvňuje vašu energiu, identitu, vzťahy a každodenné rozhodnutia.',
-  cta: 'Začať bezplatnú diagnostiku',
+  leadLines: [
+    'Možno nejde o nedostatok motivácie.',
+    'Možno váš každodenný život ovplyvňuje vzorec, ktorý ste si už prestali uvedomovať.',
+  ],
+  leadClose:
+    'Diagnostika Life Autopilot pomáha odhaliť, ktorá časť vášho životného systému dnes najviac ovplyvňuje vaše rozhodnutia, energiu, identitu a vzťahy.',
+  cta: 'Chcem zistiť svoj výsledok',
   diffTitle: 'Toto nie je test osobnosti.',
   diffBody:
-    'Identifikuje aktuálne úzke miesta vo vašom životnom systéme. Cieľom je uvedomenie — nie nálepky.',
+    'Nehodnotí, kto ste. Odhaľuje skryté vzorce, ktoré potichu formujú váš bežný deň. Cieľom je uvedomenie — nie nálepky.',
   recognizeTitle: 'Možno sa v tomto spoznáte',
   recognizeBullets: [
-    'dni vám často splývajú jeden do druhého',
-    'aj počas oddychu myslíte na povinnosti',
-    'riešite potreby ostatných skôr než svoje',
-    'večer ste unavení, ale neviete úplne vypnúť',
-    'vaše vzťahy fungujú, no niekedy im chýba skutočné spojenie',
+    'Dni vám často splývajú jeden do druhého',
+    'Aj počas oddychu myslíte na povinnosti',
+    'Večer ste unavení, ale neviete úplne vypnúť',
+    'Potreby ostatných riešite skôr než svoje',
+    'Vo vzťahoch všetko funguje, no niečo im chýba',
   ],
   recognizeClose:
     'Ak ste sa našli aspoň v jednom z týchto bodov, diagnostika vám pomôže odhaliť, ktorý vzorec za tým môže byť.',
@@ -475,46 +479,62 @@ const landing = {
     'čo si pri ňom väčšina ľudí neuvedomuje',
     'jeden jednoduchý krok, ktorým môžete začať ešte dnes',
   ],
-  systemsTitle: 'Štyri prepojené oblasti životného systému',
+  systemsTitle: 'Štyri časti životného systému',
   systems: [
     {
       id: 'autopilot',
       label: 'Autopilot',
-      description:
+      summary:
         'Keď sa dni začnú podobať jeden na druhý a život sa viac deje, než vedome tvorí.',
+      detail:
+        'Rutiny postupne nahradia vedomé rozhodnutia — a ťažšie spomeniete, kedy ste sa naposledy opýtali, či váš deň stále odráža to, na čom vám záleží.',
     },
     {
       id: 'identity',
       label: 'Identita',
-      description:
-        'Keď vlastnú hodnotu začneme nevedomky spájať s výkonom, zodpovednosťou alebo produktivitou.',
+      summary:
+        'Keď vlastnú hodnotu začneme nevedomky spájať s výkonom alebo zodpovednosťou.',
+      detail:
+        'Spoľahlivosť a produktivita sú cenné. Výzva nastáva vtedy, keď výkon potichu prevezme úlohu hlavného zdroja sebahodnoty.',
     },
     {
       id: 'energy',
       label: 'Energia',
-      description:
+      summary:
         'Keď tempo života dlhodobo spotrebúva viac energie, než dokáže vrátiť späť.',
+      detail:
+        'Oddych existuje, no regenerácia nestíha. Telo a myseľ signalizujú únavu skôr, než ju stihneme brať vážne.',
     },
     {
       id: 'relationships',
       label: 'Vzťahy',
-      description:
+      summary:
         'Keď spolu fungujeme, ale postupne sa prestávame skutočne spájať.',
+      detail:
+        'Koordinácia a povinnosti bežia. Chýba však priestor, v ktorom sa môžete naozaj stretnúť — nielen dohodnúť ďalší deň.',
     },
   ],
+  previewEyebrow: 'Ukážka výsledku',
   previewTitle: 'Váš životný systém',
-  previewCaption: 'Takto bude vyzerať vaša diagnostika.',
+  previewCaption: 'Ilustračný príklad personalizovanej diagnostiky.',
   previewRows: [
     { label: 'Identita', width: 88 },
     { label: 'Energia', width: 72 },
     { label: 'Autopilot', width: 58 },
     { label: 'Vzťahy', width: 45 },
   ],
-  trustNote:
-    'Diagnostika je súčasťou vznikajúcej metodiky Life Autopilot, ktorej cieľom je pomáhať ľuďom lepšie porozumieť vzorcom, ktoré ovplyvňujú ich každodenný život.',
+  whyTitle: 'Prečo vznikla táto diagnostika?',
+  whyParagraphs: [
+    'Mnohí ľudia si myslia, že potrebujú viac motivácie, disciplíny alebo lepší time management.',
+    'Často však problém nie je v nich.',
+    'Problémom bývajú vzorce, ktoré sa v ich živote vytvárali celé roky a postupne sa stali neviditeľnými.',
+    'Diagnostika Life Autopilot vznikla preto, aby tieto vzorce pomohla zviditeľniť.',
+  ],
   personalizeNote:
-    'Po dokončení získate personalizovanú diagnostiku vytvorenú z vašich odpovedí.',
-  durationNote: '24 otázok · približne 3–4 minúty · môžete sa vrátiť späť',
+    'Za 3–4 minúty získate personalizovaný pohľad na svoj životný systém a vzorce, ktoré ho dnes najviac ovplyvňujú.',
+  curiosityTrigger:
+    'Najväčšie úzke miesto často nebýva tam, kde ho očakávame.',
+  durationNote: '24 otázok · jedna obrazovka naraz · môžete sa vrátiť späť',
 };
 
 const analyzing = {

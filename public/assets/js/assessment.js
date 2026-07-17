@@ -402,32 +402,54 @@
         { className: 'assessment-dim-cards' },
         (systems || []).map(function (item) {
           var label = typeof item === 'string' ? item : item.label || '';
-          var description = typeof item === 'string' ? '' : item.description || '';
-          var descId = 'assessment-dim-' + (item && item.id ? item.id : label);
+          var summary =
+            typeof item === 'string'
+              ? ''
+              : item.summary || item.description || '';
+          var detail = typeof item === 'string' ? '' : item.detail || '';
+          var detailId = 'assessment-dim-' + (item && item.id ? item.id : label);
+          var mark = label ? label.charAt(0) : '';
+          var kids = [
+            el('span', { className: 'assessment-dim-card__head' }, [
+              mark
+                ? el('span', {
+                    className: 'assessment-dim-card__mark',
+                    'aria-hidden': 'true',
+                    text: mark,
+                  })
+                : null,
+              el('span', { className: 'assessment-dim-card__label', text: label }),
+            ]),
+          ];
+          if (summary) {
+            kids.push(el('span', { className: 'assessment-dim-card__summary', text: summary }));
+          }
+          if (detail) {
+            kids.push(
+              el('span', {
+                className: 'assessment-dim-card__detail',
+                id: detailId,
+                text: detail,
+              })
+            );
+          }
           var card = el(
             'button',
             {
               type: 'button',
               className: 'assessment-dim-card',
               'aria-expanded': 'false',
-              'aria-controls': descId,
+              'aria-controls': detail ? detailId : undefined,
             },
-            [
-              el('span', { className: 'assessment-dim-card__label', text: label }),
-              description
-                ? el('span', {
-                    className: 'assessment-dim-card__desc',
-                    id: descId,
-                    text: description,
-                  })
-                : null,
-            ]
+            kids
           );
-          card.addEventListener('click', function () {
-            var open = card.getAttribute('aria-expanded') === 'true';
-            card.setAttribute('aria-expanded', open ? 'false' : 'true');
-            card.classList.toggle('is-open', !open);
-          });
+          if (detail) {
+            card.addEventListener('click', function () {
+              var open = card.getAttribute('aria-expanded') === 'true';
+              card.setAttribute('aria-expanded', open ? 'false' : 'true');
+              card.classList.toggle('is-open', !open);
+            });
+          }
           return card;
         })
       );
@@ -436,8 +458,17 @@
     function renderPreview(L) {
       var rows = L.previewRows || [];
       if (!rows.length) return null;
+      var headerKids = [];
+      if (L.previewEyebrow) {
+        headerKids.push(
+          el('p', { className: 'assessment-preview__eyebrow', text: L.previewEyebrow })
+        );
+      }
+      if (L.previewTitle) {
+        headerKids.push(el('h2', { text: L.previewTitle }));
+      }
       return el('div', { className: 'assessment-block assessment-preview' }, [
-        el('h2', { text: L.previewTitle || '' }),
+        el('div', { className: 'assessment-preview__header' }, headerKids),
         el(
           'div',
           {
@@ -460,8 +491,35 @@
             ]);
           })
         ),
-        el('p', { className: 'assessment-preview__caption', text: L.previewCaption || '' }),
+        L.previewCaption
+          ? el('p', { className: 'assessment-preview__caption', text: L.previewCaption })
+          : null,
       ]);
+    }
+
+    function renderLandingLead(L) {
+      var lines = L.leadLines || [];
+      if (lines.length || L.leadClose) {
+        var parts = lines.map(function (line) {
+          return el('p', {
+            className: 'assessment-lead assessment-lead--tight',
+            text: line,
+          });
+        });
+        if (L.leadClose) {
+          parts.push(
+            el('p', {
+              className: 'assessment-lead assessment-lead--close',
+              text: L.leadClose,
+            })
+          );
+        }
+        return parts;
+      }
+      if (L.subhead) {
+        return [el('p', { className: 'assessment-lead', text: L.subhead })];
+      }
+      return [];
     }
 
     function renderLanding() {
@@ -469,12 +527,14 @@
       var kids = [
         el('p', { className: 'assessment-kicker', text: 'Diagnostika životného autopilota' }),
         el('h1', { className: 'assessment-title', text: L.headline || '' }),
-        el('p', { className: 'assessment-lead', text: L.subhead || '' }),
+      ].concat(renderLandingLead(L));
+
+      kids.push(
         el('div', { className: 'assessment-block' }, [
           el('h2', { text: L.diffTitle || '' }),
           el('p', { text: L.diffBody || '' }),
-        ]),
-      ];
+        ])
+      );
 
       if (L.recognizeTitle || (L.recognizeBullets && L.recognizeBullets.length)) {
         kids.push(
@@ -482,7 +542,7 @@
             el('h2', { text: L.recognizeTitle || '' }),
             el(
               'ul',
-              { className: 'assessment-list' },
+              { className: 'assessment-checklist' },
               (L.recognizeBullets || []).map(function (b) {
                 return el('li', { text: b });
               })
@@ -514,6 +574,18 @@
       var preview = renderPreview(L);
       if (preview) kids.push(preview);
 
+      if (L.whyTitle || (L.whyParagraphs && L.whyParagraphs.length)) {
+        kids.push(
+          el('div', { className: 'assessment-block assessment-why' }, [
+            el('h2', { text: L.whyTitle || '' }),
+          ].concat(
+            (L.whyParagraphs || []).map(function (p) {
+              return el('p', { text: p });
+            })
+          ))
+        );
+      }
+
       if (L.trustNote) {
         kids.push(
           el('div', { className: 'assessment-block assessment-trust' }, [
@@ -522,10 +594,18 @@
         );
       }
 
-      kids.push(el('p', { className: 'assessment-note', text: L.durationNote || '' }));
+      if (L.durationNote) {
+        kids.push(el('p', { className: 'assessment-note', text: L.durationNote }));
+      }
 
       if (L.personalizeNote) {
         kids.push(el('p', { className: 'assessment-personalize', text: L.personalizeNote }));
+      }
+
+      if (L.curiosityTrigger) {
+        kids.push(
+          el('p', { className: 'assessment-curiosity', text: L.curiosityTrigger })
+        );
       }
 
       kids.push(

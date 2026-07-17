@@ -92,13 +92,18 @@ Avoid: Ste… / Máte diagnózu… / Ste typ…
 
 > Máte pocit, že všetko funguje… ale niečo nesedí?
 
-**subhead**
+**leadLines** (curiosity first)
 
-> Zistite, ktorá časť vášho životného systému potichu preberá kontrolu a ovplyvňuje vašu energiu, identitu, vzťahy a každodenné rozhodnutia.
+1. Možno nejde o nedostatok motivácie.
+2. Možno váš každodenný život ovplyvňuje vzorec, ktorý ste si už prestali uvedomovať.
 
-**cta**
+**leadClose**
 
-> Začať bezplatnú diagnostiku
+> Diagnostika Life Autopilot pomáha odhaliť, ktorá časť vášho životného systému dnes najviac ovplyvňuje vaše rozhodnutia, energiu, identitu a vzťahy.
+
+**cta** (outcome-focused)
+
+> Chcem zistiť svoj výsledok
 
 ### Difference (methodology)
 
@@ -108,21 +113,23 @@ Avoid: Ste… / Máte diagnózu… / Ste typ…
 
 **diffBody**
 
-> Identifikuje aktuálne úzke miesta vo vašom životnom systéme. Cieľom je uvedomenie — nie nálepky.
+> Nehodnotí, kto ste. Odhaľuje skryté vzorce, ktoré potichu formujú váš bežný deň. Cieľom je uvedomenie — nie nálepky.
 
-### Recognition
+### Recognition (checklist)
 
 **recognizeTitle**
 
 > Možno sa v tomto spoznáte
 
+Rendered as a visually distinct checklist (✓), not a plain bullet list.
+
 **recognizeBullets**
 
-1. dni vám často splývajú jeden do druhého
-2. aj počas oddychu myslíte na povinnosti
-3. riešite potreby ostatných skôr než svoje
-4. večer ste unavení, ale neviete úplne vypnúť
-5. vaše vzťahy fungujú, no niekedy im chýba skutočné spojenie
+1. Dni vám často splývajú jeden do druhého
+2. Aj počas oddychu myslíte na povinnosti
+3. Večer ste unavení, ale neviete úplne vypnúť
+4. Potreby ostatných riešite skôr než svoje
+5. Vo vzťahoch všetko funguje, no niečo im chýba
 
 **recognizeClose**
 
@@ -141,24 +148,28 @@ Avoid: Ste… / Máte diagnózu… / Ste typ…
 3. čo si pri ňom väčšina ľudí neuvedomuje
 4. jeden jednoduchý krok, ktorým môžete začať ešte dnes
 
-### Four dimensions (interactive)
+### Four dimensions (diagnostic modules)
 
 **systemsTitle**
 
-> Štyri prepojené oblasti životného systému
+> Štyri časti životného systému
 
-**systems** — each item: `{ id, label, description }`
+**systems** — each item: `{ id, label, summary, detail }`
 
-| id | label | description |
-|----|-------|-------------|
+| id | label | summary (always visible) |
+|----|-------|--------------------------|
 | autopilot | Autopilot | Keď sa dni začnú podobať jeden na druhý a život sa viac deje, než vedome tvorí. |
-| identity | Identita | Keď vlastnú hodnotu začneme nevedomky spájať s výkonom, zodpovednosťou alebo produktivitou. |
+| identity | Identita | Keď vlastnú hodnotu začneme nevedomky spájať s výkonom alebo zodpovednosťou. |
 | energy | Energia | Keď tempo života dlhodobo spotrebúva viac energie, než dokáže vrátiť späť. |
 | relationships | Vzťahy | Keď spolu fungujeme, ale postupne sa prestávame skutočne spájať. |
 
-Hover (desktop) / tap (mobile) reveals the description.
+`detail` reveals on hover (desktop) / tap (mobile). Cards read as diagnostic modules, not FAQ.
 
 ### Result preview (illustrative only)
+
+**previewEyebrow**
+
+> Ukážka výsledku
 
 **previewTitle**
 
@@ -166,23 +177,36 @@ Hover (desktop) / tap (mobile) reveals the description.
 
 **previewCaption**
 
-> Takto bude vyzerať vaša diagnostika.
+> Ilustračný príklad personalizovanej diagnostiky.
 
 **previewRows** — illustrative bar widths only (no real scores): Identita 88, Energia 72, Autopilot 58, Vzťahy 45.
 
-### Trust & personalization
+### Why this exists
 
-**trustNote**
+**whyTitle**
 
-> Diagnostika je súčasťou vznikajúcej metodiky Life Autopilot, ktorej cieľom je pomáhať ľuďom lepšie porozumieť vzorcom, ktoré ovplyvňujú ich každodenný život.
+> Prečo vznikla táto diagnostika?
 
-**personalizeNote**
+**whyParagraphs**
 
-> Po dokončení získate personalizovanú diagnostiku vytvorenú z vašich odpovedí.
+1. Mnohí ľudia si myslia, že potrebujú viac motivácie, disciplíny alebo lepší time management.
+2. Často však problém nie je v nich.
+3. Problémom bývajú vzorce, ktoré sa v ich živote vytvárali celé roky a postupne sa stali neviditeľnými.
+4. Diagnostika Life Autopilot vznikla preto, aby tieto vzorce pomohla zviditeľniť.
+
+### Pre-CTA
 
 **durationNote**
 
-> 24 otázok · približne 3–4 minúty · môžete sa vrátiť späť
+> 24 otázok · jedna obrazovka naraz · môžete sa vrátiť späť
+
+**personalizeNote**
+
+> Za 3–4 minúty získate personalizovaný pohľad na svoj životný systém a vzorce, ktoré ho dnes najviac ovplyvňujú.
+
+**curiosityTrigger**
+
+> Najväčšie úzke miesto často nebýva tam, kde ho očakávame.
 
 ---
 

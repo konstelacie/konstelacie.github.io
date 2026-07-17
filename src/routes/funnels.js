@@ -115,7 +115,7 @@ const INSTANCE_CAMPAIGNS = {
   autopilot: {
     default: {
       headline: assessmentAutopilot.landing.headline,
-      subhead: assessmentAutopilot.landing.subhead,
+      subhead: assessmentAutopilot.landing.leadClose,
     },
   },
 };
@@ -143,7 +143,7 @@ const INSTANCE_META = {
   autopilot: {
     title: 'Diagnostika životného autopilota – citimtedasom.sk',
     description:
-      'Bezplatná diagnostika životného systému: zistite, ktorý vzorec potichu ovplyvňuje energiu, identitu, vzťahy a bežný deň.',
+      'Odhaľte skryté vzorce, ktoré potichu formujú váš bežný deň — energia, identita, vzťahy a autopilot.',
   },
 };
 
