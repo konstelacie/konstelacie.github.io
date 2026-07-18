@@ -49,7 +49,7 @@ const questions = [
     order: 13,
     reverseScored: false,
     contextPrompt: 'Keď sa zamyslíte nad svojím bežným rytmom…',
-    text: 'Len zriedka sa počas bežného týždňa vedome zastavím.',
+    text: 'Len zriedka sa počas bežného týždňa na chvíľu zastavím.',
   },
   {
     id: 'A04',
@@ -71,7 +71,7 @@ const questions = [
     order: 21,
     reverseScored: false,
     contextPrompt: 'Predstavte si bežný pracovný deň.',
-    text: 'Keď mám chvíľu pre seba, automaticky siahnem po mobile alebo ďalšej úlohe.',
+    text: 'Keď mám chvíľu pre seba, automaticky siahnem po niečom, čo ma zamestná.',
   },
   {
     id: 'I01',
