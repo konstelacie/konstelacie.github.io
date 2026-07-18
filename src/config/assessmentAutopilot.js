@@ -169,7 +169,7 @@ const questions = [
     order: 7,
     reverseScored: false,
     contextPrompt: 'Počas rozhovorov s blízkymi…',
-    text: 'Pri rozhovoroch s blízkymi často myslím na to, čo ešte musím urobiť.',
+    text: 'Aj keď trávim čas s blízkymi, niekedy mám pocit, že tam nie som úplne naplno.',
   },
   {
     id: 'R02',
