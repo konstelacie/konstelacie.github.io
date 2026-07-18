@@ -262,7 +262,7 @@ const microInsights = [
     headline: 'Život je systém',
     paragraphs: [
       'Rôzne časti života sa navzájom neustále ovplyvňujú.',
-      'Keď sa jedna oblasť začne vychyľovať z rovnováhy, dôsledky sa často najprv ukážu niekde inde.',
+      'Keď sa jedna oblasť začne vychyľovať z rovnováhy, dôsledky sa často najprv prejavia niekde inde.',
       'Pochopiť vzorec je prvý krok k tomu, aby ste ho mohli zmeniť.',
     ],
   },

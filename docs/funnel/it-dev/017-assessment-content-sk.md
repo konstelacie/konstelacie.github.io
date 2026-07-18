@@ -204,7 +204,7 @@ Avoid: Ste… / Máte diagnózu… / Ste typ…
 
 | Key | Slovak |
 |-----|--------|
-| Progress | Otázka {current} z {total} |
+| Progress | Krok {current} z {total} |
 | Back | Späť |
 | Continue (insight) | Pokračovať |
 | Resume banner | Pokračujeme tam, kde ste prestali. |
