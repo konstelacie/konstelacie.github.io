@@ -541,6 +541,13 @@ const prepare = {
     'Počas nasledujúcich 24 krátkych otázok odpovedajte podľa toho, ako veci zažívate najčastejšie — nie podľa výnimočných situácií.',
     'Neexistujú správne ani nesprávne odpovede.',
   ],
+  rewardTitle: 'Za približne 4 minúty získate:',
+  rewardItems: [
+    'hlavný vzorec',
+    'sekundárny vzorec',
+    'personalizované vysvetlenie',
+    'odporúčaný prvý krok',
+  ],
   cta: 'Začať diagnostiku',
 };
 
@@ -577,14 +584,6 @@ const ui = {
   back: '← Späť',
   continue: 'Pokračovať',
   insightKicker: 'Krátke zamyslenie',
-  /** Shown only on question 1 — reminds why the time investment matters. */
-  rewardTitle: 'Po dokončení získate:',
-  rewardItems: [
-    'hlavný vzorec',
-    'sekundárny vzorec',
-    'personalizované vysvetlenie',
-    'odporúčaný prvý krok',
-  ],
   resumeBanner: 'Pokračujeme tam, kde ste prestali.',
   resumeCta: 'Pokračovať',
   restart: 'Začať odznova',

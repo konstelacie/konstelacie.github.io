@@ -216,8 +216,9 @@
     var analyzingTimer = null;
     var advanceTimer = null;
     var isAdvancing = false;
-    /** Brief confirmation before leaving the question (018 flow polish). */
-    var SELECTION_FEEDBACK_MS = 130;
+    /** Brief confirmation, then short exit before the next screen (018 timing). */
+    var SELECTION_FEEDBACK_MS = 140;
+    var EXIT_TRANSITION_MS = 170;
 
     var state = {
       phase: 'landing',
@@ -302,11 +303,19 @@
     }
 
     function goBack() {
-      if (isAdvancing) return;
+      var wasAdvancing = isAdvancing || Boolean(advanceTimer);
       if (advanceTimer) {
         clearTimeout(advanceTimer);
         advanceTimer = null;
-        isAdvancing = false;
+      }
+      isAdvancing = false;
+      if (mount) mount.classList.remove('assessment-mount--exit');
+      if (wasAdvancing && state.phase === 'question') {
+        var currentQ = questions[state.questionIndex];
+        if (currentQ) delete state.answers[currentQ.id];
+        persist();
+        render();
+        return;
       }
       if (state.phase === 'prepare') {
         setPhase('landing');
@@ -336,16 +345,20 @@
       render();
       if (advanceTimer) clearTimeout(advanceTimer);
       advanceTimer = setTimeout(function () {
-        advanceTimer = null;
-        isAdvancing = false;
-        var index1 = state.questionIndex + 1;
-        var insight = insightAfter(config, index1);
-        if (insight) {
-          pendingInsight = insight;
-          setPhase('insight');
-          return;
-        }
-        advanceAfterQuestion();
+        if (mount) mount.classList.add('assessment-mount--exit');
+        advanceTimer = setTimeout(function () {
+          advanceTimer = null;
+          if (mount) mount.classList.remove('assessment-mount--exit');
+          isAdvancing = false;
+          var index1 = state.questionIndex + 1;
+          var insight = insightAfter(config, index1);
+          if (insight) {
+            pendingInsight = insight;
+            setPhase('insight');
+            return;
+          }
+          advanceAfterQuestion();
+        }, EXIT_TRANSITION_MS);
       }, SELECTION_FEEDBACK_MS);
     }
 
@@ -754,11 +767,14 @@
       );
     }
 
-    function renderRewardPreview(ui) {
-      var items = ui.rewardItems || [];
+    function renderRewardPreview(source) {
+      var items = (source && source.rewardItems) || [];
       if (!items.length) return null;
       return el('div', { className: 'assessment-reward' }, [
-        el('p', { className: 'assessment-reward__title', text: ui.rewardTitle || '' }),
+        el('p', {
+          className: 'assessment-reward__title',
+          text: (source && source.rewardTitle) || '',
+        }),
         el(
           'ul',
           { className: 'assessment-reward__list' },
@@ -781,6 +797,7 @@
             { className: 'assessment-prepare__body' },
             paragraphs(P.paragraphs)
           ),
+          renderRewardPreview(P),
           el('div', { className: 'assessment-actions' }, [
             el('button', {
               type: 'button',
@@ -798,6 +815,8 @@
       var q = questions[state.questionIndex];
       var current = state.questionIndex + 1;
       var selected = state.answers[q.id];
+      var answeredCount = Object.keys(state.answers).length;
+      var progressPct = Math.round((answeredCount / total) * 100);
       var labels = config.likertLabels || [];
       var options = labels.map(function (label, idx) {
         var value = idx + 1;
@@ -850,14 +869,13 @@
           el('div', { className: 'assessment-progress__track' }, [
             el('div', {
               className: 'assessment-progress__fill',
-              style: 'width:' + Math.round((current / total) * 100) + '%',
+              style: 'width:' + progressPct + '%',
             }),
           ]),
           ui.reassurance
             ? el('p', { className: 'assessment-reassurance', text: ui.reassurance })
             : null,
         ]),
-        current === 1 ? renderRewardPreview(ui) : null,
         el('div', { className: 'assessment-question__prompt' }, questionBlock),
         el('div', { className: 'assessment-likert', role: 'group' }, options),
       ]);
@@ -869,13 +887,10 @@
       return el('section', { className: 'assessment-phase assessment-insight' }, [
         renderBackLink(ui, { compact: true }),
         el('div', { className: 'assessment-insight__inner' }, [
-          el('p', {
-            className: 'assessment-kicker',
+          el('h2', {
+            className: 'assessment-insight__title',
             text: ui.insightKicker || 'Krátke zamyslenie',
           }),
-          insight.headline
-            ? el('h2', { className: 'assessment-insight__title', text: insight.headline })
-            : null,
           el(
             'div',
             { className: 'assessment-block assessment-insight__body' },
