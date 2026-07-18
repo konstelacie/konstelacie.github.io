@@ -49,7 +49,7 @@ const questions = [
     order: 13,
     reverseScored: false,
     contextPrompt: 'Keď sa zamyslíte nad svojím bežným rytmom…',
-    text: 'Len zriedka sa počas bežného týždňa na chvíľu zastavím.',
+    text: 'Len zriedka sa počas bežného týždňa vedome zastavím.',
   },
   {
     id: 'A04',
@@ -254,7 +254,7 @@ const microInsights = [
     paragraphs: [
       'Vzťahy sa zriedka vzdialia cez noc.',
       'Častejšie praktické povinnosti postupne nahradia zvedavosť, prítomnosť a zmysluplné rozhovory.',
-      'Vzťah ďalej funguje — no už nemusí pôsobiť hlboko spojený.',
+      'Navonok môže byť všetko v poriadku, no pocit blízkosti sa časom môže vytratiť.',
     ],
   },
   {
