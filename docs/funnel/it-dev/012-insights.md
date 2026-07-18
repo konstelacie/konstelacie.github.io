@@ -102,7 +102,7 @@ Relationships rarely become distant overnight.
 
 More often, practical responsibilities gradually replace curiosity, presence and meaningful conversations.
 
-The relationship continues to function—but it may no longer feel deeply connected.
+On the surface everything can look fine, yet the feeling of closeness can fade over time.
 
 ---
 
@@ -112,7 +112,7 @@ The relationship continues to function—but it may no longer feel deeply connec
 
 The different parts of life constantly influence one another.
 
-When one area begins to drift out of balance, the effects often appear somewhere else first.
+When one area begins to drift out of balance, the effects often show up somewhere else first.
 
 Understanding the pattern is the first step toward changing it.
 

@@ -144,7 +144,7 @@ Avoid: Ste… / Máte diagnózu… / Ste typ…
 **trustBadges**
 
 1. 3–4 minúty
-2. 24 otázok
+2. 24 krátkych otázok
 3. Personalizovaný výsledok
 
 **privacyNote**
@@ -205,7 +205,7 @@ Avoid: Ste… / Máte diagnózu… / Ste typ…
 | Key | Slovak |
 |-----|--------|
 | Progress | Krok {current} z {total} |
-| Back | Späť |
+| Back | ← Späť |
 | Continue (insight) | Pokračovať |
 | Resume banner | Pokračujeme tam, kde ste prestali. |
 | Resume CTA | Pokračovať |
@@ -255,7 +255,7 @@ Source: `012`. Display after questions 4, 8, 12, 16, 20 (1-based index in UI = a
 >
 > Častejšie praktické povinnosti postupne nahradia zvedavosť, prítomnosť a zmysluplné rozhovory.
 >
-> Vzťah ďalej funguje — no už nemusí pôsobiť hlboko spojený.
+> Navonok môže byť všetko v poriadku, no pocit blízkosti sa časom môže vytratiť.
 
 ### Insight 5 — afterQuestionIndex: 20
 
@@ -263,7 +263,7 @@ Source: `012`. Display after questions 4, 8, 12, 16, 20 (1-based index in UI = a
 
 > Rôzne časti života sa navzájom neustále ovplyvňujú.
 >
-> Keď sa jedna oblasť začne vychyľovať z rovnováhy, dôsledky sa často najprv ukážu niekde inde.
+> Keď sa jedna oblasť začne vychyľovať z rovnováhy, dôsledky sa často najprv prejavia niekde inde.
 >
 > Pochopiť vzorec je prvý krok k tomu, aby ste ho mohli zmeniť.
 
@@ -271,17 +271,15 @@ Source: `012`. Display after questions 4, 8, 12, 16, 20 (1-based index in UI = a
 
 ## 7. Analyzing (`analyzing`)
 
-Timed interstitial (~2–3 s) before email gate.
+Timed interstitial (~1.5–2.5 s; config `durationMs: 2000`) before email gate.
 
-**messages** (rotate or show sequentially):
+**headline**
 
-1. Prechádzame vaše odpovede…
-2. Hľadáme vzorce vo vašom životnom systéme…
-3. Pripravujeme personalizovaný výsledok…
+> Analyzujeme vaše odpovede…
 
-**fallback single line**
+**body**
 
-> Vyhodnocujeme vaše odpovede…
+> Spájame vaše odpovede do celkového obrazu.
 
 Do not claim certainty (“máme diagnózu”). Prefer process language.
 
@@ -291,7 +289,7 @@ Do not claim certainty (“máme diagnózu”). Prefer process language.
 
 **headline**
 
-> Vaše výsledky sú pripravené.
+> Vaše personalizované hodnotenie je pripravené.
 
 **subhead**
 

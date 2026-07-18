@@ -185,7 +185,7 @@ Awareness
 
 Question
 
-> Keď mám chvíľu pre seba, automaticky siahnem po mobile alebo ďalšej úlohe.
+> Keď mám chvíľu pre seba, automaticky siahnem po niečom, čo ma zamestná.
 
 Reverse scored
 
@@ -266,7 +266,7 @@ Boundaries
 
 Question
 
-> Keď sa rozhodujem, čo chcem ja, často najprv myslím na ostatných.
+> Keď sa rozhodujem, čo chcem ja, niekedy ani neviem, čo by som si vybral bez ohľadu na ostatných.
 
 Reverse scored
 
@@ -298,7 +298,7 @@ Perfectionism
 
 Question
 
-> Často odkladám dokončenie vecí, pretože ešte nie sú podľa mojich predstáv.
+> Keď niečo neurobím podľa svojich predstáv, dlho mi to ostáva v hlave.
 
 Reverse scored
 
@@ -444,7 +444,7 @@ Presence
 
 Question
 
-> Pri rozhovoroch s blízkymi často myslím na to, čo ešte musím urobiť.
+> Stáva sa mi, že čas s blízkymi ubehne bez toho, aby sme sa naozaj spojili.
 
 Reverse scored
 
@@ -460,7 +460,7 @@ Connection
 
 Question
 
-> Keď sme spolu, často riešime hlavne to, čo treba vybaviť.
+> Aj keď som s ľuďmi, na ktorých mi záleží, myšlienkami bývam často pri tom, čo ešte musím urobiť.
 
 Reverse scored
 
@@ -524,7 +524,7 @@ Emotional attention
 
 Question
 
-> Aj keď trávim čas s blízkymi, niekedy som myšlienkami inde.
+> Často odkladám, že sa ozvem ľuďom, na ktorých mi záleží.
 
 Reverse scored
 

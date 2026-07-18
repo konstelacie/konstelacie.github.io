@@ -138,13 +138,13 @@ More observable (time allocation) than feeling-based self-rating; less “deň�
 
 > Aj keď mám chvíľu pre seba, automaticky siaham po ďalšej úlohe alebo rozptýlení.
 
-**Decision:** Light edit.
+**Decision:** Rewrite.
 
-Concrete phone reach; keep automatic fill of spare moments.
+Automatic fill of spare moments without naming a specific device or task.
 
 **New**
 
-> Keď mám chvíľu pre seba, automaticky siahnem po mobile alebo ďalšej úlohe.
+> Keď mám chvíľu pre seba, automaticky siahnem po niečom, čo ma zamestná.
 
 ---
 
@@ -206,11 +206,11 @@ Shorter; drop “výrazné” and “sám” without changing the self-doubt-aft
 
 **Decision:** Rewrite.
 
-Decision moment instead of being asked; same others-first pattern, simpler wording.
+Decision moment; loss of own preference when others are in view — not only “others first.”
 
 **New**
 
-> Keď sa rozhodujem, čo chcem ja, často najprv myslím na ostatných.
+> Keď sa rozhodujem, čo chcem ja, niekedy ani neviem, čo by som si vybral bez ohľadu na ostatných.
 
 ---
 
@@ -236,11 +236,13 @@ Avoid the abstract word “produktivita”; keep worth-independent-of-output.
 
 > Často odkladám dokončenie vecí, pretože ešte nie sú podľa mojich predstáv.
 
-**Decision:** Keep.
+**Decision:** Rewrite.
 
-Behavioral, clear, good length contrast after longer items.
+Rumination after falling short of standards — not only postponing completion.
 
-**New:** unchanged
+**New**
+
+> Keď niečo neurobím podľa svojich predstáv, dlho mi to ostáva v hlave.
 
 ---
 
@@ -344,11 +346,13 @@ More natural spoken Slovak; same sustainability construct.
 
 > Pri rozhovoroch s blízkymi často myslím na to, čo ešte musím urobiť.
 
-**Decision:** Keep.
+**Decision:** Rewrite.
 
-Situational and recognizable.
+Shared time without connection — less about thoughts during talk, more about missed bonding.
 
-**New:** unchanged
+**New**
+
+> Stáva sa mi, že čas s blízkymi ubehne bez toho, aby sme sa naozaj spojili.
 
 ---
 
@@ -360,11 +364,11 @@ Situational and recognizable.
 
 **Decision:** Rewrite.
 
-Together-time frame; same logistics-over-connection pattern, simpler wording.
+Mind elsewhere while with people who matter — presence gap over logistics talk.
 
 **New**
 
-> Keď sme spolu, často riešime hlavne to, čo treba vybaviť.
+> Aj keď som s ľuďmi, na ktorých mi záleží, myšlienkami bývam často pri tom, čo ešte musím urobiť.
 
 ---
 
@@ -420,11 +424,11 @@ Drop “Cítim, že” for a cleaner reverse statement; same meaning.
 
 **Decision:** Rewrite.
 
-“Prítomný” leans abstract; describe the behavior (mind elsewhere).
+Deferred outreach to people who matter — concrete postponement, not abstract presence.
 
 **New**
 
-> Aj keď trávim čas s blízkymi, niekedy som myšlienkami inde.
+> Často odkladám, že sa ozvem ľuďom, na ktorých mi záleží.
 
 ---
 
@@ -437,27 +441,27 @@ Drop “Cítim, že” for a cleaner reverse statement; same meaning.
 | A03 | rewritten |
 | A04 | rewritten |
 | A05 | rewritten *(reverse)* |
-| A06 | light edit |
+| A06 | rewritten |
 | I01 | light edit |
 | I02 | light edit |
 | I03 | light edit |
 | I04 | rewritten |
 | I05 | rewritten *(reverse)* |
-| I06 | unchanged |
+| I06 | rewritten |
 | E01 | unchanged |
 | E02 | rewritten |
 | E03 | light edit |
 | E04 | unchanged |
 | E05 | unchanged *(reverse)* |
 | E06 | light edit *(reverse)* |
-| R01 | unchanged |
+| R01 | rewritten |
 | R02 | rewritten |
 | R03 | unchanged |
 | R04 | unchanged |
 | R05 | light edit *(reverse)* |
 | R06 | rewritten |
 
-**Unchanged:** 6 · **Light edit:** 9 · **Rewritten:** 9
+**Unchanged:** 4 · **Light edit:** 7 · **Rewritten:** 13
 
 ---
 
@@ -465,7 +469,7 @@ Drop “Cítim, že” for a cleaner reverse statement; same meaning.
 
 Approximate opening variety across the 24 items:
 
-Keď… · Väčšinu… · Len… · Často… · To, čomu… · Keď… · Keď… · Oddych… · Keď… · Keď… · Aj bez… · Často… · Aj keď… · Ráno… · Aj drobné… · Veci… · Po… · Mám pocit… · Pri… · Keď… · O tom… · Je pre mňa… · Ľudia… · Aj keď…
+Keď… · Väčšinu… · Len… · Často… · To, čomu… · Keď… · Keď… · Oddych… · Keď… · Keď… · Aj bez… · Keď… · Aj keď… · Ráno… · Aj drobné… · Veci… · Po… · Mám pocit… · Stáva sa… · Aj keď… · O tom… · Je pre mňa… · Ľudia… · Často…
 
 ---
 
