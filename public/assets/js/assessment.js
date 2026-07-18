@@ -843,7 +843,8 @@
       });
 
       var questionBlock = [];
-      if (q.contextPrompt) {
+      var hasContext = Boolean(q.contextPrompt);
+      if (hasContext) {
         questionBlock.push(
           el('p', { className: 'assessment-context-prompt', text: q.contextPrompt })
         );
@@ -852,33 +853,41 @@
         el('p', { className: 'assessment-question-text', text: q.text })
       );
 
-      return el('section', { className: 'assessment-phase assessment-question' }, [
-        renderResumeBanner(),
-        renderBackLink(ui, { compact: true }),
-        el('div', { className: 'assessment-progress' }, [
-          el('div', { className: 'assessment-progress__label' }, [
-            el('span', {
-              className: 'assessment-progress__count',
-              text: formatProgress(ui.progress, current, total),
-            }),
-            el('span', {
-              className: 'assessment-progress__remaining',
-              text: formatRemaining(ui, current, total),
-            }),
+      return el(
+        'section',
+        {
+          className:
+            'assessment-phase assessment-question' +
+            (hasContext ? ' assessment-question--paced' : ''),
+        },
+        [
+          renderResumeBanner(),
+          renderBackLink(ui, { compact: true }),
+          el('div', { className: 'assessment-progress' }, [
+            el('div', { className: 'assessment-progress__label' }, [
+              el('span', {
+                className: 'assessment-progress__count',
+                text: formatProgress(ui.progress, current, total),
+              }),
+              el('span', {
+                className: 'assessment-progress__remaining',
+                text: formatRemaining(ui, current, total),
+              }),
+            ]),
+            el('div', { className: 'assessment-progress__track' }, [
+              el('div', {
+                className: 'assessment-progress__fill',
+                style: 'width:' + progressPct + '%',
+              }),
+            ]),
+            ui.reassurance
+              ? el('p', { className: 'assessment-reassurance', text: ui.reassurance })
+              : null,
           ]),
-          el('div', { className: 'assessment-progress__track' }, [
-            el('div', {
-              className: 'assessment-progress__fill',
-              style: 'width:' + progressPct + '%',
-            }),
-          ]),
-          ui.reassurance
-            ? el('p', { className: 'assessment-reassurance', text: ui.reassurance })
-            : null,
-        ]),
-        el('div', { className: 'assessment-question__prompt' }, questionBlock),
-        el('div', { className: 'assessment-likert', role: 'group' }, options),
-      ]);
+          el('div', { className: 'assessment-question__prompt' }, questionBlock),
+          el('div', { className: 'assessment-likert', role: 'group' }, options),
+        ]
+      );
     }
 
     function renderInsight() {

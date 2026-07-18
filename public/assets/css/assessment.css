@@ -455,7 +455,8 @@ body.assessment-immersive .assessment-page {
   }
 
   .assessment-context-prompt {
-    font-size: 0.8rem;
+    font-size: 0.78rem;
+    margin-bottom: 0.65rem;
   }
 
   .assessment-progress {
@@ -684,12 +685,12 @@ body.assessment-immersive .assessment-page {
 }
 
 .assessment-context-prompt {
-  margin: 0 0 0.55rem;
-  color: color-mix(in srgb, var(--color-text-muted) 88%, transparent);
-  font-size: 0.84rem;
+  margin: 0 0 0.75rem;
+  color: color-mix(in srgb, var(--color-text-muted) 85%, transparent);
+  font-size: 0.82rem;
   font-weight: 400;
   font-style: italic;
-  line-height: 1.4;
+  line-height: 1.45;
 }
 
 .assessment-question__prompt {
@@ -703,6 +704,30 @@ body.assessment-immersive .assessment-page {
   font-style: normal;
   line-height: 1.4;
   color: var(--color-text);
+}
+
+/* Psychological pacing: context first, then question, then answers */
+.assessment-question--paced .assessment-context-prompt {
+  animation: assessment-fade-in 0.22s ease;
+}
+
+.assessment-question--paced .assessment-question-text {
+  opacity: 0;
+  animation: assessment-fade-in 0.3s ease 0.14s forwards;
+}
+
+.assessment-question--paced .assessment-likert {
+  opacity: 0;
+  animation: assessment-fade-in 0.28s ease 0.26s forwards;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .assessment-question--paced .assessment-context-prompt,
+  .assessment-question--paced .assessment-question-text,
+  .assessment-question--paced .assessment-likert {
+    opacity: 1;
+    animation: none;
+  }
 }
 
 .assessment-likert {

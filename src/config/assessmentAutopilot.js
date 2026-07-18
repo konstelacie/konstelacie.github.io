@@ -47,7 +47,7 @@ const questions = [
     dimensionId: 'autopilot',
     order: 3,
     reverseScored: false,
-    contextPrompt: 'Myslite na svoj bežný spôsob života — nie na výnimočné situácie.',
+    contextPrompt: 'Keď sa obzriete za bežným dňom…',
     text: 'Len zriedka sa zastavím a premýšľam, či mi môj súčasný spôsob života naozaj vyhovuje.',
   },
   {
@@ -69,6 +69,7 @@ const questions = [
     dimensionId: 'autopilot',
     order: 6,
     reverseScored: false,
+    contextPrompt: 'Predstavte si bežný pracovný deň.',
     text: 'Aj keď mám chvíľu pre seba, automaticky siaham po ďalšej úlohe alebo rozptýlení.',
   },
   {
@@ -76,7 +77,7 @@ const questions = [
     dimensionId: 'identity',
     order: 7,
     reverseScored: false,
-    contextPrompt: 'Zamyslite sa nad tým, ako reagujete, keď niečo zlyhá.',
+    contextPrompt: 'Keď sa niečo nepodarí…',
     text: 'Keď sa niečo pokazí, často mám pocit, že je mojou úlohou to vyriešiť.',
   },
   {
@@ -91,6 +92,7 @@ const questions = [
     dimensionId: 'identity',
     order: 9,
     reverseScored: false,
+    contextPrompt: 'Keď sa pozriete na posledné mesiace…',
     text: 'Keď sa mi dlhšie nič výrazné nepodarí, začnem pochybovať sám o sebe.',
   },
   {
@@ -98,7 +100,6 @@ const questions = [
     dimensionId: 'identity',
     order: 10,
     reverseScored: false,
-    contextPrompt: 'Spomeňte si na situáciu, keď ste mali povedať, čo chcete vy.',
     text: 'Keď sa ma niekto opýta, čo chcem ja, často najskôr premýšľam nad potrebami ostatných.',
   },
   {
@@ -106,6 +107,7 @@ const questions = [
     dimensionId: 'identity',
     order: 11,
     reverseScored: true,
+    contextPrompt: 'Keď máte konečne voľno…',
     text: 'Aj bez neustálej produktivity mám pocit, že moja hodnota zostáva rovnaká.',
   },
   {
@@ -120,7 +122,7 @@ const questions = [
     dimensionId: 'energy',
     order: 13,
     reverseScored: false,
-    contextPrompt: 'Všimnite si svoju energiu počas bežného dňa.',
+    contextPrompt: 'Keď ste naposledy mali voľný večer…',
     text: 'Aj keď mám konečne voľný večer, trvá mi dlho, kým sa naozaj uvoľním.',
   },
   {
@@ -135,6 +137,7 @@ const questions = [
     dimensionId: 'energy',
     order: 15,
     reverseScored: false,
+    contextPrompt: 'Keď si spomeniete na malé rozhodnutia počas dňa…',
     text: 'Aj malé rozhodnutia ma občas vyčerpávajú viac než kedysi.',
   },
   {
@@ -149,6 +152,7 @@ const questions = [
     dimensionId: 'energy',
     order: 17,
     reverseScored: true,
+    contextPrompt: 'Keď si predstavíte skutočný oddych…',
     text: 'Po kvalitnom oddychu sa väčšinou cítim pripravený na nové výzvy.',
   },
   {
@@ -163,7 +167,7 @@ const questions = [
     dimensionId: 'relationships',
     order: 19,
     reverseScored: false,
-    contextPrompt: 'Premyslite si posledné rozhovory s blízkymi.',
+    contextPrompt: 'Počas rozhovorov s blízkymi…',
     text: 'Pri rozhovoroch s blízkymi často myslím na to, čo ešte musím urobiť.',
   },
   {
@@ -178,7 +182,7 @@ const questions = [
     dimensionId: 'relationships',
     order: 21,
     reverseScored: false,
-    contextPrompt: 'Zamyslite sa nad tým, čo zvyčajne zdieľate — a čo nie.',
+    contextPrompt: 'Keď sa zamyslíte nad tým, čo zvyčajne zdieľate — a čo nie…',
     text: 'O tom, ako sa naozaj cítim, hovorím len zriedka.',
   },
   {
@@ -193,6 +197,7 @@ const questions = [
     dimensionId: 'relationships',
     order: 23,
     reverseScored: true,
+    contextPrompt: 'Keď trávite čas s ľuďmi, na ktorých vám záleží…',
     text: 'Cítim, že ľudia, na ktorých mi záleží, skutočne vedia, čo prežívam.',
   },
   {
