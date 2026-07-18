@@ -8,6 +8,8 @@ The assessment is designed to identify the current bottlenecks within a person's
 
 The objective is to create recognition, clarity, and curiosity, leading naturally into the paid Life Autopilot Diagnosis.
 
+**Wording:** Slovak question text was refined in v1.1 — see [`019-question-wording.md`](019-question-wording.md). IDs, constructs, reverse flags, and scoring are unchanged.
+
 ---
 
 # Questionnaire Structure
@@ -119,7 +121,7 @@ Intentionality
 
 Question
 
-> Väčšina mojich dní sa odvíja skôr od povinností než od vedomých rozhodnutí.
+> Môj týždeň väčšinou určuje to, čo práve treba vybaviť.
 
 Reverse scored
 
@@ -135,7 +137,7 @@ Reflection
 
 Question
 
-> Len zriedka sa zastavím a premýšľam, či mi môj súčasný spôsob života naozaj vyhovuje.
+> Len málokedy si počas týždňa nájdem chvíľu, aby som sa spýtal, či mi môj spôsob života stále sedí.
 
 Reverse scored
 
@@ -151,7 +153,7 @@ Reactivity
 
 Question
 
-> Počas dňa väčšinou riešim to, čo práve prichádza, namiesto toho, aby som určoval smer ja.
+> Ľahko sa stane, že celý pracovný deň len reagujem na to, čo práve príde.
 
 Reverse scored
 
@@ -167,7 +169,7 @@ Intentional Living
 
 Question
 
-> Mám pocit, že moje bežné dni odrážajú to, na čom mi skutočne záleží.
+> To, čomu v bežnom týždni venujem čas, zodpovedá tomu, na čom mi naozaj záleží.
 
 Reverse scored
 
@@ -183,7 +185,7 @@ Awareness
 
 Question
 
-> Aj keď mám chvíľu pre seba, automaticky siaham po ďalšej úlohe alebo rozptýlení.
+> Keď mám chvíľu voľna, automaticky siaham po ďalšej úlohe alebo rozptýlení.
 
 Reverse scored
 
@@ -216,7 +218,7 @@ Responsibility
 
 Question
 
-> Keď sa niečo pokazí, často mám pocit, že je mojou úlohou to vyriešiť.
+> Keď sa niečo pokazí, často mám pocit, že to mám vyriešiť ja.
 
 Reverse scored
 
@@ -232,7 +234,7 @@ Achievement
 
 Question
 
-> Mám problém oddychovať, pokiaľ nemám pocit, že som si oddych zaslúžil.
+> Oddych mi ide ťažko, kým nemám pocit, že som si ho zaslúžil.
 
 Reverse scored
 
@@ -264,7 +266,7 @@ Boundaries
 
 Question
 
-> Keď sa ma niekto opýta, čo chcem ja, často najskôr premýšľam nad potrebami ostatných.
+> Keď sa ma niekto opýta, čo chcem ja, najprv prebehnem, čo potrebujú ostatní.
 
 Reverse scored
 
@@ -280,7 +282,7 @@ Self-worth
 
 Question
 
-> Aj bez neustálej produktivity mám pocit, že moja hodnota zostáva rovnaká.
+> Aj bez toho, aby som stále niečo stíhal, mám pocit, že moja hodnota ostáva rovnaká.
 
 Reverse scored
 
@@ -345,7 +347,7 @@ Capacity
 
 Question
 
-> Už ráno mám niekedy pocit, že mám menej energie, než by som potreboval na celý deň.
+> Ráno sa niekedy zobudím s pocitom, že energie je menej, než si bežný rytmus žiada.
 
 Reverse scored
 
@@ -361,7 +363,7 @@ Mental fatigue
 
 Question
 
-> Aj malé rozhodnutia ma občas vyčerpávajú viac než kedysi.
+> Aj drobné rozhodnutia ma dnes unavia viac než kedysi.
 
 Reverse scored
 
@@ -409,7 +411,7 @@ Sustainable pace
 
 Question
 
-> Mám pocit, že moje tempo života je dlhodobo udržateľné.
+> Mám pocit, že tempo, akým žijem, zvládnem aj dlhodobo.
 
 Reverse scored
 
@@ -458,7 +460,7 @@ Connection
 
 Question
 
-> Väčšina našich rozhovorov sa točí okolo povinností a organizovania bežného života.
+> Keď sa rozprávame, väčšinou riešime povinnosti a organizáciu bežného života.
 
 Reverse scored
 
@@ -506,7 +508,7 @@ Communication
 
 Question
 
-> Cítim, že ľudia, na ktorých mi záleží, skutočne vedia, čo prežívam.
+> Ľudia, na ktorých mi záleží, skutočne vedia, čo prežívam.
 
 Reverse scored
 
@@ -522,7 +524,7 @@ Emotional attention
 
 Question
 
-> Aj keď trávim čas s blízkymi, niekedy mám pocit, že tam nie som úplne prítomný.
+> Aj keď trávim čas s blízkymi, niekedy som myšlienkami inde.
 
 Reverse scored
 

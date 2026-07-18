@@ -2,6 +2,7 @@
  * Life Autopilot Assessment — content + structure for funnel `autopilot`.
  * Copy source: docs/funnel/it-dev/017-assessment-content-sk.md
  * Questions: docs/funnel/it-dev/011-questionaire.md
+ * Wording v1.1: docs/funnel/it-dev/019-question-wording.md
  */
 
 const dimensions = [
@@ -33,36 +34,36 @@ const questions = [
     order: 1,
     reverseScored: false,
     contextPrompt: 'Zamyslite sa nad posledným týždňom.',
-    text: 'Keď sa obzriem za uplynulým týždňom, veľa dní mi splýva do jedného.',
+    text: 'Keď sa obzriem za posledným týždňom, jednotlivé dni mi často splývajú.',
   },
   {
     id: 'A02',
     dimensionId: 'autopilot',
     order: 2,
     reverseScored: false,
-    text: 'Väčšina mojich dní sa odvíja skôr od povinností než od vedomých rozhodnutí.',
+    text: 'Väčšinu dňa riešim to, čo práve treba vybaviť.',
   },
   {
     id: 'A03',
     dimensionId: 'autopilot',
     order: 3,
     reverseScored: false,
-    contextPrompt: 'Keď sa obzriete za bežným dňom…',
-    text: 'Len zriedka sa zastavím a premýšľam, či mi môj súčasný spôsob života naozaj vyhovuje.',
+    contextPrompt: 'Keď sa zamyslíte nad svojím bežným rytmom…',
+    text: 'Len zriedka sa počas bežného týždňa na chvíľu zastavím.',
   },
   {
     id: 'A04',
     dimensionId: 'autopilot',
     order: 4,
     reverseScored: false,
-    text: 'Počas dňa väčšinou riešim to, čo práve prichádza, namiesto toho, aby som určoval smer ja.',
+    text: 'Často mám pocit, že môj deň riadia okolnosti viac než ja.',
   },
   {
     id: 'A05',
     dimensionId: 'autopilot',
     order: 5,
     reverseScored: true,
-    text: 'Mám pocit, že moje bežné dni odrážajú to, na čom mi skutočne záleží.',
+    text: 'To, čomu v bežnom týždni venujem čas, zodpovedá tomu, na čom mi naozaj záleží.',
   },
   {
     id: 'A06',
@@ -70,7 +71,7 @@ const questions = [
     order: 6,
     reverseScored: false,
     contextPrompt: 'Predstavte si bežný pracovný deň.',
-    text: 'Aj keď mám chvíľu pre seba, automaticky siaham po ďalšej úlohe alebo rozptýlení.',
+    text: 'Keď mám chvíľu pre seba, automaticky siahnem po mobile alebo ďalšej úlohe.',
   },
   {
     id: 'I01',
@@ -78,14 +79,14 @@ const questions = [
     order: 7,
     reverseScored: false,
     contextPrompt: 'Keď sa niečo nepodarí…',
-    text: 'Keď sa niečo pokazí, často mám pocit, že je mojou úlohou to vyriešiť.',
+    text: 'Keď sa niečo pokazí, často mám pocit, že to mám vyriešiť ja.',
   },
   {
     id: 'I02',
     dimensionId: 'identity',
     order: 8,
     reverseScored: false,
-    text: 'Mám problém oddychovať, pokiaľ nemám pocit, že som si oddych zaslúžil.',
+    text: 'Oddych mi ide ťažko, kým nemám pocit, že som si ho zaslúžil.',
   },
   {
     id: 'I03',
@@ -93,14 +94,14 @@ const questions = [
     order: 9,
     reverseScored: false,
     contextPrompt: 'Keď sa pozriete na posledné mesiace…',
-    text: 'Keď sa mi dlhšie nič výrazné nepodarí, začnem pochybovať sám o sebe.',
+    text: 'Keď sa mi dlhšie nedarí, začnem pochybovať o sebe.',
   },
   {
     id: 'I04',
     dimensionId: 'identity',
     order: 10,
     reverseScored: false,
-    text: 'Keď sa ma niekto opýta, čo chcem ja, často najskôr premýšľam nad potrebami ostatných.',
+    text: 'Keď sa rozhodujem, čo chcem ja, často najprv myslím na ostatných.',
   },
   {
     id: 'I05',
@@ -108,7 +109,7 @@ const questions = [
     order: 11,
     reverseScored: true,
     contextPrompt: 'Keď máte konečne voľno…',
-    text: 'Aj bez neustálej produktivity mám pocit, že moja hodnota zostáva rovnaká.',
+    text: 'Aj bez toho, aby som stále niečo stíhal, mám pocit, že moja hodnota ostáva rovnaká.',
   },
   {
     id: 'I06',
@@ -130,7 +131,7 @@ const questions = [
     dimensionId: 'energy',
     order: 14,
     reverseScored: false,
-    text: 'Už ráno mám niekedy pocit, že mám menej energie, než by som potreboval na celý deň.',
+    text: 'Ráno sa často zobudím unavenejší, než by som čakal.',
   },
   {
     id: 'E03',
@@ -138,7 +139,7 @@ const questions = [
     order: 15,
     reverseScored: false,
     contextPrompt: 'Keď si spomeniete na malé rozhodnutia počas dňa…',
-    text: 'Aj malé rozhodnutia ma občas vyčerpávajú viac než kedysi.',
+    text: 'Aj drobné rozhodnutia ma dnes unavia viac než kedysi.',
   },
   {
     id: 'E04',
@@ -160,7 +161,7 @@ const questions = [
     dimensionId: 'energy',
     order: 18,
     reverseScored: true,
-    text: 'Mám pocit, že moje tempo života je dlhodobo udržateľné.',
+    text: 'Mám pocit, že tempo, akým žijem, zvládnem aj dlhodobo.',
   },
   {
     id: 'R01',
@@ -175,7 +176,7 @@ const questions = [
     dimensionId: 'relationships',
     order: 20,
     reverseScored: false,
-    text: 'Väčšina našich rozhovorov sa točí okolo povinností a organizovania bežného života.',
+    text: 'Keď sme spolu, často riešime hlavne to, čo treba vybaviť.',
   },
   {
     id: 'R03',
@@ -198,14 +199,14 @@ const questions = [
     order: 23,
     reverseScored: true,
     contextPrompt: 'Keď trávite čas s ľuďmi, na ktorých vám záleží…',
-    text: 'Cítim, že ľudia, na ktorých mi záleží, skutočne vedia, čo prežívam.',
+    text: 'Ľudia, na ktorých mi záleží, skutočne vedia, čo prežívam.',
   },
   {
     id: 'R06',
     dimensionId: 'relationships',
     order: 24,
     reverseScored: false,
-    text: 'Aj keď trávim čas s blízkymi, niekedy mám pocit, že tam nie som úplne prítomný.',
+    text: 'Aj keď trávim čas s blízkymi, niekedy som myšlienkami inde.',
   },
 ];
 
