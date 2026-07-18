@@ -32,6 +32,7 @@ const questions = [
     dimensionId: 'autopilot',
     order: 1,
     reverseScored: false,
+    contextPrompt: 'Zamyslite sa nad posledným týždňom.',
     text: 'Keď sa obzriem za uplynulým týždňom, veľa dní mi splýva do jedného.',
   },
   {
@@ -46,6 +47,7 @@ const questions = [
     dimensionId: 'autopilot',
     order: 3,
     reverseScored: false,
+    contextPrompt: 'Myslite na svoj bežný spôsob života — nie na výnimočné situácie.',
     text: 'Len zriedka sa zastavím a premýšľam, či mi môj súčasný spôsob života naozaj vyhovuje.',
   },
   {
@@ -74,6 +76,7 @@ const questions = [
     dimensionId: 'identity',
     order: 7,
     reverseScored: false,
+    contextPrompt: 'Zamyslite sa nad tým, ako reagujete, keď niečo zlyhá.',
     text: 'Keď sa niečo pokazí, často mám pocit, že je mojou úlohou to vyriešiť.',
   },
   {
@@ -95,6 +98,7 @@ const questions = [
     dimensionId: 'identity',
     order: 10,
     reverseScored: false,
+    contextPrompt: 'Spomeňte si na situáciu, keď ste mali povedať, čo chcete vy.',
     text: 'Keď sa ma niekto opýta, čo chcem ja, často najskôr premýšľam nad potrebami ostatných.',
   },
   {
@@ -116,6 +120,7 @@ const questions = [
     dimensionId: 'energy',
     order: 13,
     reverseScored: false,
+    contextPrompt: 'Všimnite si svoju energiu počas bežného dňa.',
     text: 'Aj keď mám konečne voľný večer, trvá mi dlho, kým sa naozaj uvoľním.',
   },
   {
@@ -158,6 +163,7 @@ const questions = [
     dimensionId: 'relationships',
     order: 19,
     reverseScored: false,
+    contextPrompt: 'Premyslite si posledné rozhovory s blízkymi.',
     text: 'Pri rozhovoroch s blízkymi často myslím na to, čo ešte musím urobiť.',
   },
   {
@@ -172,6 +178,7 @@ const questions = [
     dimensionId: 'relationships',
     order: 21,
     reverseScored: false,
+    contextPrompt: 'Zamyslite sa nad tým, čo zvyčajne zdieľate — a čo nie.',
     text: 'O tom, ako sa naozaj cítim, hovorím len zriedka.',
   },
   {
@@ -527,6 +534,16 @@ const landing = {
   ],
 };
 
+/** Shown once after landing CTA, before question 1. */
+const prepare = {
+  headline: 'Začíname',
+  paragraphs: [
+    'Počas nasledujúcich 24 krátkych otázok odpovedajte podľa toho, ako veci zažívate najčastejšie — nie podľa výnimočných situácií.',
+    'Neexistujú správne ani nesprávne odpovede.',
+  ],
+  cta: 'Začať diagnostiku',
+};
+
 const analyzing = {
   headline: 'Analyzujeme vaše odpovede…',
   body: 'Skúmame vzťahy medzi jednotlivými oblasťami vášho životného systému.',
@@ -560,6 +577,14 @@ const ui = {
   back: '← Späť',
   continue: 'Pokračovať',
   insightKicker: 'Krátke zamyslenie',
+  /** Shown only on question 1 — reminds why the time investment matters. */
+  rewardTitle: 'Po dokončení získate:',
+  rewardItems: [
+    'hlavný vzorec',
+    'sekundárny vzorec',
+    'personalizované vysvetlenie',
+    'odporúčaný prvý krok',
+  ],
   resumeBanner: 'Pokračujeme tam, kde ste prestali.',
   resumeCta: 'Pokračovať',
   restart: 'Začať odznova',
@@ -603,6 +628,7 @@ function getClientConfig() {
     balancedScores,
     lowScores,
     landing,
+    prepare,
     analyzing,
     emailGate,
     ui,
@@ -626,6 +652,7 @@ module.exports = {
   balancedScores,
   lowScores,
   landing,
+  prepare,
   analyzing,
   emailGate,
   ui,

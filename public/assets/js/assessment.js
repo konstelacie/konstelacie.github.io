@@ -1,6 +1,6 @@
 /**
  * Life Autopilot Assessment — client state machine.
- * Phases: landing | question | insight | analyzing | email | results
+ * Phases: landing | prepare | question | insight | analyzing | email | results
  * Unlock: POST /api/assessment/submit (server scoring authoritative).
  */
 (function () {
@@ -67,6 +67,7 @@
   }
 
   var IMMERSIVE_PHASES = {
+    prepare: true,
     question: true,
     insight: true,
     analyzing: true,
@@ -215,7 +216,8 @@
     var analyzingTimer = null;
     var advanceTimer = null;
     var isAdvancing = false;
-    var TRANSITION_MS = 200;
+    /** Brief confirmation before leaving the question (018 flow polish). */
+    var SELECTION_FEEDBACK_MS = 130;
 
     var state = {
       phase: 'landing',
@@ -270,13 +272,21 @@
         advanceTimer = null;
       }
       isAdvancing = false;
-      state.phase = 'question';
+      state.phase = 'prepare';
       state.questionIndex = 0;
       state.answers = {};
       state.completed = false;
       state.scoreResult = null;
       state.showResume = false;
       pendingInsight = null;
+      persist();
+      render();
+    }
+
+    function beginQuestions() {
+      state.phase = 'question';
+      state.questionIndex = 0;
+      state.showResume = false;
       persist();
       render();
     }
@@ -298,6 +308,10 @@
         advanceTimer = null;
         isAdvancing = false;
       }
+      if (state.phase === 'prepare') {
+        setPhase('landing');
+        return;
+      }
       if (state.phase === 'insight') {
         pendingInsight = null;
         setPhase('question');
@@ -305,7 +319,7 @@
       }
       if (state.phase !== 'question') return;
       if (state.questionIndex <= 0) {
-        setPhase('landing');
+        setPhase('prepare');
         return;
       }
       state.questionIndex -= 1;
@@ -332,7 +346,7 @@
           return;
         }
         advanceAfterQuestion();
-      }, TRANSITION_MS);
+      }, SELECTION_FEEDBACK_MS);
     }
 
     function continueFromInsight() {
@@ -721,14 +735,61 @@
       ]);
     }
 
-    function renderBackLink(ui) {
-      return el('div', { className: 'assessment-nav' }, [
-        el('button', {
-          type: 'button',
-          className: 'assessment-back',
-          text: ui.back || '← Späť',
-          onClick: goBack,
-        }),
+    function renderBackLink(ui, opts) {
+      opts = opts || {};
+      return el(
+        'div',
+        {
+          className:
+            'assessment-nav' + (opts.compact ? ' assessment-nav--compact' : ''),
+        },
+        [
+          el('button', {
+            type: 'button',
+            className: 'assessment-back',
+            text: ui.back || '← Späť',
+            onClick: goBack,
+          }),
+        ]
+      );
+    }
+
+    function renderRewardPreview(ui) {
+      var items = ui.rewardItems || [];
+      if (!items.length) return null;
+      return el('div', { className: 'assessment-reward' }, [
+        el('p', { className: 'assessment-reward__title', text: ui.rewardTitle || '' }),
+        el(
+          'ul',
+          { className: 'assessment-reward__list' },
+          items.map(function (item) {
+            return el('li', { text: item });
+          })
+        ),
+      ]);
+    }
+
+    function renderPrepare() {
+      var P = config.prepare || {};
+      var ui = config.ui || {};
+      return el('section', { className: 'assessment-phase assessment-prepare' }, [
+        renderBackLink(ui, { compact: true }),
+        el('div', { className: 'assessment-prepare__inner' }, [
+          el('h1', { className: 'assessment-prepare__title', text: P.headline || 'Začíname' }),
+          el(
+            'div',
+            { className: 'assessment-prepare__body' },
+            paragraphs(P.paragraphs)
+          ),
+          el('div', { className: 'assessment-actions' }, [
+            el('button', {
+              type: 'button',
+              className: 'assessment-btn assessment-btn--block',
+              text: P.cta || 'Začať diagnostiku',
+              onClick: beginQuestions,
+            }),
+          ]),
+        ]),
       ]);
     }
 
@@ -740,14 +801,17 @@
       var labels = config.likertLabels || [];
       var options = labels.map(function (label, idx) {
         var value = idx + 1;
+        var isSelected = selected === value;
         return el(
           'button',
           {
             type: 'button',
             className:
-              'assessment-likert__option' + (selected === value ? ' is-selected' : ''),
-            'aria-pressed': selected === value ? 'true' : 'false',
-            disabled: isAdvancing && selected !== value,
+              'assessment-likert__option' +
+              (isSelected ? ' is-selected' : '') +
+              (isSelected && isAdvancing ? ' is-confirming' : ''),
+            'aria-pressed': isSelected ? 'true' : 'false',
+            disabled: isAdvancing && !isSelected,
             onClick: function () {
               selectAnswer(value);
             },
@@ -759,12 +823,23 @@
         );
       });
 
+      var questionBlock = [];
+      if (q.contextPrompt) {
+        questionBlock.push(
+          el('p', { className: 'assessment-context-prompt', text: q.contextPrompt })
+        );
+      }
+      questionBlock.push(
+        el('p', { className: 'assessment-question-text', text: q.text })
+      );
+
       return el('section', { className: 'assessment-phase assessment-question' }, [
         renderResumeBanner(),
-        renderBackLink(ui),
+        renderBackLink(ui, { compact: true }),
         el('div', { className: 'assessment-progress' }, [
           el('div', { className: 'assessment-progress__label' }, [
             el('span', {
+              className: 'assessment-progress__count',
               text: formatProgress(ui.progress, current, total),
             }),
             el('span', {
@@ -782,7 +857,8 @@
             ? el('p', { className: 'assessment-reassurance', text: ui.reassurance })
             : null,
         ]),
-        el('p', { className: 'assessment-question-text', text: q.text }),
+        current === 1 ? renderRewardPreview(ui) : null,
+        el('div', { className: 'assessment-question__prompt' }, questionBlock),
         el('div', { className: 'assessment-likert', role: 'group' }, options),
       ]);
     }
@@ -791,22 +867,28 @@
       var ui = config.ui || {};
       var insight = pendingInsight || {};
       return el('section', { className: 'assessment-phase assessment-insight' }, [
-        renderBackLink(ui),
-        el('p', {
-          className: 'assessment-kicker',
-          text: ui.insightKicker || 'Krátke zamyslenie',
-        }),
-        insight.headline
-          ? el('h2', { className: 'assessment-insight__title', text: insight.headline })
-          : null,
-        el('div', { className: 'assessment-block assessment-insight__body' }, paragraphs(insight.paragraphs)),
-        el('div', { className: 'assessment-actions' }, [
-          el('button', {
-            type: 'button',
-            className: 'assessment-btn',
-            text: ui.continue || 'Pokračovať',
-            onClick: continueFromInsight,
+        renderBackLink(ui, { compact: true }),
+        el('div', { className: 'assessment-insight__inner' }, [
+          el('p', {
+            className: 'assessment-kicker',
+            text: ui.insightKicker || 'Krátke zamyslenie',
           }),
+          insight.headline
+            ? el('h2', { className: 'assessment-insight__title', text: insight.headline })
+            : null,
+          el(
+            'div',
+            { className: 'assessment-block assessment-insight__body' },
+            paragraphs(insight.paragraphs)
+          ),
+          el('div', { className: 'assessment-actions assessment-actions--centered' }, [
+            el('button', {
+              type: 'button',
+              className: 'assessment-btn',
+              text: ui.continue || 'Pokračovať',
+              onClick: continueFromInsight,
+            }),
+          ]),
         ]),
       ]);
     }
@@ -1042,6 +1124,9 @@
       mount.replaceChildren();
       var view;
       switch (state.phase) {
+        case 'prepare':
+          view = renderPrepare();
+          break;
         case 'question':
           view = renderQuestion();
           break;

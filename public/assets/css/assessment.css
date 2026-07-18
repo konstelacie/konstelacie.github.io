@@ -28,18 +28,20 @@ body.assessment-immersive .assessment-page {
 }
 
 .assessment-phase {
-  animation: assessment-fade-in 0.2s ease;
+  animation: assessment-fade-in 0.18s ease;
 }
 
 .assessment-question.assessment-phase,
-.assessment-insight.assessment-phase {
+.assessment-insight.assessment-phase,
+.assessment-prepare.assessment-phase {
   animation: assessment-slide-up 0.2s ease;
 }
 
 @media (prefers-reduced-motion: reduce) {
   .assessment-phase,
   .assessment-question.assessment-phase,
-  .assessment-insight.assessment-phase {
+  .assessment-insight.assessment-phase,
+  .assessment-prepare.assessment-phase {
     animation: none;
   }
 }
@@ -64,26 +66,43 @@ body.assessment-immersive .assessment-page {
   }
 }
 
+@keyframes assessment-select-confirm {
+  0% {
+    transform: scale(1);
+  }
+  40% {
+    transform: scale(1.015);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
 .assessment-nav {
-  margin: 0 0 var(--spacing-sm);
+  margin: -0.35rem 0 0.85rem -0.55rem;
+}
+
+.assessment-nav--compact {
+  margin-top: -0.55rem;
 }
 
 .assessment-back {
   display: inline-flex;
   align-items: center;
-  min-height: 2rem;
-  padding: 0.25rem 0;
+  min-height: 1.75rem;
+  padding: 0.15rem 0.35rem 0.15rem 0.1rem;
   border: 0;
   background: transparent;
-  color: var(--color-text-muted);
+  color: color-mix(in srgb, var(--color-text-muted) 78%, transparent);
   font: inherit;
-  font-size: 0.9rem;
+  font-size: 0.8rem;
   font-weight: 500;
+  letter-spacing: 0.01em;
   cursor: pointer;
 }
 
 .assessment-back:hover {
-  color: var(--color-text);
+  color: var(--color-text-secondary);
 }
 
 .assessment-back:focus-visible {
@@ -404,23 +423,73 @@ body.assessment-immersive .assessment-page {
     padding-top: var(--spacing-md);
   }
 
+  body.assessment-immersive .assessment-page {
+    padding-top: var(--spacing-sm);
+    padding-bottom: var(--spacing-md);
+  }
+
   .assessment-title {
     font-size: clamp(1.35rem, 6vw, 1.7rem);
   }
 
   .assessment-question-text {
-    font-size: clamp(1.18rem, 5.2vw, 1.4rem);
+    font-size: clamp(1.12rem, 4.8vw, 1.32rem);
+  }
+
+  .assessment-context-prompt {
+    font-size: 0.84rem;
+  }
+
+  .assessment-progress {
+    margin-bottom: 0.65rem;
   }
 
   .assessment-progress__label {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 0.15rem;
+    flex-direction: row;
+    align-items: baseline;
+    flex-wrap: wrap;
+    gap: 0.2rem 0.65rem;
+    font-size: 0.82rem;
   }
 
   .assessment-progress__remaining {
     text-align: left;
     white-space: normal;
+  }
+
+  .assessment-reward {
+    padding: 0.55rem 0.7rem;
+    margin-bottom: 0.75rem;
+  }
+
+  .assessment-likert {
+    gap: 0.4rem;
+  }
+
+  .assessment-likert__option {
+    min-height: 2.85rem;
+    padding: 0.65rem 0.8rem;
+  }
+
+  .assessment-insight {
+    min-height: min(78vh, 36rem);
+  }
+
+  .assessment-insight__inner {
+    padding-top: var(--spacing-md);
+    padding-bottom: var(--spacing-gap);
+  }
+
+  .assessment-insight__body p {
+    font-size: 1rem;
+  }
+
+  .assessment-prepare {
+    min-height: min(78vh, 34rem);
+  }
+
+  .assessment-nav {
+    margin-left: -0.35rem;
   }
 
   .assessment-lead {
@@ -505,7 +574,7 @@ body.assessment-immersive .assessment-page {
 }
 
 .assessment-progress {
-  margin-bottom: var(--spacing-md);
+  margin-bottom: var(--spacing-sm);
 }
 
 .assessment-progress__label {
@@ -513,28 +582,37 @@ body.assessment-immersive .assessment-page {
   justify-content: space-between;
   align-items: baseline;
   gap: var(--spacing-sm);
-  margin-bottom: 0.4rem;
-  color: var(--color-text-muted);
-  font-size: 0.85rem;
+  margin-bottom: 0.45rem;
+  color: var(--color-text-secondary);
+  font-size: 0.88rem;
+  font-weight: 500;
+}
+
+.assessment-progress__count {
+  color: var(--color-text);
 }
 
 .assessment-progress__remaining {
   text-align: right;
   white-space: nowrap;
+  color: var(--color-text-muted);
+  font-weight: 400;
 }
 
 .assessment-progress__track {
-  height: 0.35rem;
+  height: 0.5rem;
   border-radius: var(--radius-pill);
-  background: var(--color-border);
+  background: color-mix(in srgb, var(--color-border) 70%, #fff 30%);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--color-border) 80%, transparent);
   overflow: hidden;
 }
 
 .assessment-progress__fill {
   height: 100%;
   border-radius: var(--radius-pill);
-  background: var(--color-booking-accent);
-  transition: width 0.2s ease;
+  background: var(--color-booking-accent-hover);
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--color-booking-accent-hover) 35%, transparent);
+  transition: width 0.22s ease;
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -544,14 +622,65 @@ body.assessment-immersive .assessment-page {
 }
 
 .assessment-reassurance {
-  margin: 0.55rem 0 0;
+  margin: 0.4rem 0 0;
+  color: color-mix(in srgb, var(--color-text-muted) 72%, transparent);
+  font-size: 0.72rem;
+  line-height: 1.35;
+}
+
+.assessment-reward {
+  margin: 0 0 var(--spacing-md);
+  padding: 0.65rem 0.8rem;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-booking-slot);
+  background: var(--color-booking-surface);
+}
+
+.assessment-reward__title {
+  margin: 0 0 0.35rem;
+  color: var(--color-text-secondary);
+  font-size: 0.82rem;
+  font-weight: 600;
+}
+
+.assessment-reward__list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.assessment-reward__list li {
+  position: relative;
+  padding: 0.15rem 0 0.15rem 1.2rem;
+  color: var(--color-text-secondary);
+  font-size: 0.82rem;
+  line-height: 1.35;
+}
+
+.assessment-reward__list li::before {
+  content: '✓';
+  position: absolute;
+  left: 0;
+  top: 0.15rem;
+  color: var(--color-booking-accent);
+  font-size: 0.78rem;
+  font-weight: 600;
+}
+
+.assessment-context-prompt {
+  margin: 0 0 0.45rem;
   color: var(--color-text-muted);
-  font-size: 0.8rem;
+  font-size: 0.9rem;
+  font-weight: 500;
   line-height: 1.4;
 }
 
+.assessment-question__prompt {
+  margin: 0 0 var(--spacing-md);
+}
+
 .assessment-question-text {
-  margin: 0 0 var(--spacing-gap);
+  margin: 0;
   font-size: clamp(1.28rem, 3.4vw, 1.55rem);
   font-weight: 600;
   line-height: 1.4;
@@ -561,7 +690,7 @@ body.assessment-immersive .assessment-page {
 .assessment-likert {
   display: flex;
   flex-direction: column;
-  gap: 0.55rem;
+  gap: 0.5rem;
   margin: 0;
   padding: 0;
   border: 0;
@@ -572,7 +701,7 @@ body.assessment-immersive .assessment-page {
   align-items: center;
   gap: 0.75rem;
   width: 100%;
-  min-height: 3rem;
+  min-height: 2.95rem;
   padding: 0.7rem 0.9rem;
   border: 1px solid var(--color-border);
   border-radius: var(--radius-booking-slot);
@@ -581,7 +710,11 @@ body.assessment-immersive .assessment-page {
   font: inherit;
   text-align: left;
   cursor: pointer;
-  transition: border-color 0.15s ease, background 0.15s ease;
+  transition:
+    border-color 0.14s ease,
+    background 0.14s ease,
+    box-shadow 0.14s ease,
+    transform 0.14s ease;
 }
 
 .assessment-likert__option:hover {
@@ -591,14 +724,26 @@ body.assessment-immersive .assessment-page {
 
 .assessment-likert__option:disabled {
   cursor: default;
-  opacity: 0.65;
+  opacity: 0.55;
 }
 
 .assessment-likert__option.is-selected {
-  border-color: var(--color-booking-accent);
-  background: var(--color-booking-accent-soft);
-  box-shadow: inset 0 0 0 1px var(--color-booking-accent);
+  border-color: var(--color-booking-accent-hover);
+  background: color-mix(in srgb, var(--color-booking-accent-soft) 85%, #fff 15%);
+  box-shadow:
+    inset 0 0 0 1px var(--color-booking-accent),
+    0 1px 2px color-mix(in srgb, var(--color-booking-accent) 18%, transparent);
   opacity: 1;
+}
+
+.assessment-likert__option.is-confirming {
+  animation: assessment-select-confirm 0.16s ease;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .assessment-likert__option.is-confirming {
+    animation: none;
+  }
 }
 
 .assessment-likert__marker {
@@ -608,11 +753,12 @@ body.assessment-immersive .assessment-page {
   border: 1.5px solid var(--color-text-muted);
   border-radius: 50%;
   background: transparent;
+  transition: border-color 0.14s ease, background 0.14s ease, box-shadow 0.14s ease;
 }
 
 .assessment-likert__option.is-selected .assessment-likert__marker {
-  border-color: var(--color-booking-accent);
-  background: var(--color-booking-accent);
+  border-color: var(--color-booking-accent-hover);
+  background: var(--color-booking-accent-hover);
   box-shadow: inset 0 0 0 2px #fff;
 }
 
@@ -635,28 +781,94 @@ body.assessment-immersive .assessment-page {
 }
 
 .assessment-insight {
-  padding-top: 0.25rem;
+  display: flex;
+  flex-direction: column;
+  min-height: min(70vh, 34rem);
+  padding-top: 0.15rem;
+}
+
+.assessment-insight__inner {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  flex: 1 1 auto;
+  max-width: 28rem;
+  margin: 0 auto;
+  padding: var(--spacing-gap) 0 var(--spacing-section);
+  text-align: center;
+}
+
+.assessment-insight .assessment-kicker {
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  font-size: 0.75rem;
 }
 
 .assessment-insight__title {
-  margin: 0 0 var(--spacing-sm);
-  font-size: clamp(1.2rem, 3vw, 1.4rem);
+  margin: 0 0 var(--spacing-md);
+  font-size: clamp(1.25rem, 3.2vw, 1.5rem);
   line-height: 1.35;
   color: var(--color-text);
 }
 
+.assessment-insight__body {
+  margin-bottom: 0;
+  text-align: left;
+}
+
 .assessment-insight__body p {
   color: var(--color-text-secondary);
-  font-size: 1.02rem;
-  line-height: 1.55;
+  font-size: 1.05rem;
+  line-height: 1.6;
 }
 
 .assessment-insight__body p + p {
-  margin-top: 0.75rem;
+  margin-top: 0.9rem;
 }
 
-.assessment-insight .assessment-actions {
+.assessment-actions--centered {
+  justify-content: center;
   margin-top: var(--spacing-gap);
+}
+
+.assessment-prepare {
+  display: flex;
+  flex-direction: column;
+  min-height: min(70vh, 32rem);
+}
+
+.assessment-prepare__inner {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  flex: 1 1 auto;
+  max-width: 28rem;
+  margin: 0 auto;
+  padding: var(--spacing-md) 0 var(--spacing-section);
+}
+
+.assessment-prepare__title {
+  margin: 0 0 var(--spacing-md);
+  font-size: clamp(1.4rem, 4vw, 1.75rem);
+  line-height: 1.25;
+  color: var(--color-text);
+}
+
+.assessment-prepare__body p {
+  margin: 0 0 var(--spacing-sm);
+  color: var(--color-text-secondary);
+  font-size: 1.05rem;
+  line-height: 1.55;
+}
+
+.assessment-prepare__body p:last-child {
+  margin-bottom: var(--spacing-gap);
+  color: var(--color-text-muted);
+  font-size: 0.98rem;
+}
+
+.assessment-prepare .assessment-actions {
+  margin-top: 0.25rem;
 }
 
 .assessment-analyzing {
