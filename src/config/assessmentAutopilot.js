@@ -206,7 +206,7 @@ const questions = [
     dimensionId: 'relationships',
     order: 15,
     reverseScored: false,
-    text: 'Aj keď trávim čas s blízkymi, niekedy som myšlienkami inde.',
+    text: 'Často odkladám, že sa ozvem ľuďom, na ktorých mi záleží.',
   },
 ];
 
