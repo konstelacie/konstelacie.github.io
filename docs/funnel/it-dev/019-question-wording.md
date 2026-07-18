@@ -58,11 +58,13 @@ For each item: construct → original → decision → new text (if changed).
 
 > Keď sa obzriem za uplynulým týždňom, veľa dní mi splýva do jedného.
 
-**Decision:** Keep.
+**Decision:** Light edit.
 
-Already situational, recognizable, and non-moralizing. Minor synonym (`posledným` / `uplynulým`) would not improve UX enough to justify churn.
+Shorter, more natural spoken rhythm; same week-blur construct.
 
-**New:** unchanged
+**New**
+
+> Keď sa obzriem za posledným týždňom, jednotlivé dni mi často splývajú.
 
 ---
 
@@ -74,11 +76,11 @@ Already situational, recognizable, and non-moralizing. Minor synonym (`posledný
 
 **Decision:** Rewrite.
 
-“Vedomé rozhodnutia” hints at a preferred answer. Shift to describing what actually drives the week.
+“Vedomé rozhodnutia” hints at a preferred answer. Describe what actually fills the day.
 
 **New**
 
-> Môj týždeň väčšinou určuje to, čo práve treba vybaviť.
+> Väčšinu dňa riešim to, čo práve treba vybaviť.
 
 ---
 
@@ -90,11 +92,11 @@ Already situational, recognizable, and non-moralizing. Minor synonym (`posledný
 
 **Decision:** Rewrite.
 
-More behavioral pause; less self-evaluation tone; avoid stacking “deň”.
+Behavioral pause only — drop the self-evaluation clause; shorter item.
 
 **New**
 
-> Len málokedy si počas týždňa nájdem chvíľu, aby som sa spýtal, či mi môj spôsob života stále sedí.
+> Len zriedka sa počas bežného týždňa na chvíľu zastavím.
 
 ---
 
@@ -106,11 +108,11 @@ More behavioral pause; less self-evaluation tone; avoid stacking “deň”.
 
 **Decision:** Rewrite.
 
-The contrast “aby som určoval smer ja” moralizes. Keep pure reactivity in a workday situation.
+The contrast “aby som určoval smer ja” moralizes. Keep the sense that circumstances drive the day.
 
 **New**
 
-> Ľahko sa stane, že celý pracovný deň len reagujem na to, čo práve príde.
+> Často mám pocit, že môj deň riadia okolnosti viac než ja.
 
 ---
 
@@ -138,11 +140,11 @@ More observable (time allocation) than feeling-based self-rating; less “deň�
 
 **Decision:** Light edit.
 
-Opening variety (“Keď…”) while keeping the same automatic reach for task/distraction.
+Concrete phone reach; keep automatic fill of spare moments.
 
 **New**
 
-> Keď mám chvíľu voľna, automaticky siaham po ďalšej úlohe alebo rozptýlení.
+> Keď mám chvíľu pre seba, automaticky siahnem po mobile alebo ďalšej úlohe.
 
 ---
 
@@ -186,11 +188,13 @@ Shorter, more spoken; same earned-rest construct.
 
 > Keď sa mi dlhšie nič výrazné nepodarí, začnem pochybovať sám o sebe.
 
-**Decision:** Keep.
+**Decision:** Light edit.
 
-Already situational and clear.
+Shorter; drop “výrazné” and “sám” without changing the self-doubt-after-stagnation construct.
 
-**New:** unchanged
+**New**
+
+> Keď sa mi dlhšie nedarí, začnem pochybovať o sebe.
 
 ---
 
@@ -200,13 +204,13 @@ Already situational and clear.
 
 > Keď sa ma niekto opýta, čo chcem ja, často najskôr premýšľam nad potrebami ostatných.
 
-**Decision:** Light edit.
+**Decision:** Rewrite.
 
-More behavioral (“prebehnem”) without changing the priority-of-others pattern.
+Decision moment instead of being asked; same others-first pattern, simpler wording.
 
 **New**
 
-> Keď sa ma niekto opýta, čo chcem ja, najprv prebehnem, čo potrebujú ostatní.
+> Keď sa rozhodujem, čo chcem ja, často najprv myslím na ostatných.
 
 ---
 
@@ -264,11 +268,11 @@ Strong situational item.
 
 **Decision:** Rewrite.
 
-“Než by som potreboval” leans normative; re-anchor in morning + usual rhythm.
+Shorter morning fatigue signal; avoid normative “než by som potreboval”.
 
 **New**
 
-> Ráno sa niekedy zobudím s pocitom, že energie je menej, než si bežný rytmus žiada.
+> Ráno sa často zobudím unavenejší, než by som čakal.
 
 ---
 
@@ -354,13 +358,13 @@ Situational and recognizable.
 
 > Väčšina našich rozhovorov sa točí okolo povinností a organizovania bežného života.
 
-**Decision:** Light edit.
+**Decision:** Rewrite.
 
-Situational opening; same logistics-over-connection pattern.
+Together-time frame; same logistics-over-connection pattern, simpler wording.
 
 **New**
 
-> Keď sa rozprávame, väčšinou riešime povinnosti a organizáciu bežného života.
+> Keď sme spolu, často riešime hlavne to, čo treba vybaviť.
 
 ---
 
@@ -428,7 +432,7 @@ Drop “Cítim, že” for a cleaner reverse statement; same meaning.
 
 | ID | Change |
 | --- | --- |
-| A01 | unchanged |
+| A01 | light edit |
 | A02 | rewritten |
 | A03 | rewritten |
 | A04 | rewritten |
@@ -436,8 +440,8 @@ Drop “Cítim, že” for a cleaner reverse statement; same meaning.
 | A06 | light edit |
 | I01 | light edit |
 | I02 | light edit |
-| I03 | unchanged |
-| I04 | light edit |
+| I03 | light edit |
+| I04 | rewritten |
 | I05 | rewritten *(reverse)* |
 | I06 | unchanged |
 | E01 | unchanged |
@@ -447,13 +451,13 @@ Drop “Cítim, že” for a cleaner reverse statement; same meaning.
 | E05 | unchanged *(reverse)* |
 | E06 | light edit *(reverse)* |
 | R01 | unchanged |
-| R02 | light edit |
+| R02 | rewritten |
 | R03 | unchanged |
 | R04 | unchanged |
 | R05 | light edit *(reverse)* |
 | R06 | rewritten |
 
-**Unchanged:** 9 · **Light edit:** 8 · **Rewritten:** 7
+**Unchanged:** 6 · **Light edit:** 9 · **Rewritten:** 9
 
 ---
 
@@ -461,7 +465,7 @@ Drop “Cítim, že” for a cleaner reverse statement; same meaning.
 
 Approximate opening variety across the 24 items:
 
-Keď… · Môj… · Len… · Ľahko… · To, čomu… · Keď… · Keď… · Oddych… · Keď… · Keď… · Aj bez… · Často… · Aj keď… · Ráno… · Aj drobné… · Veci… · Po… · Mám pocit… · Pri… · Keď… · O tom… · Je pre mňa… · Ľudia… · Aj keď…
+Keď… · Väčšinu… · Len… · Často… · To, čomu… · Keď… · Keď… · Oddych… · Keď… · Keď… · Aj bez… · Často… · Aj keď… · Ráno… · Aj drobné… · Veci… · Po… · Mám pocit… · Pri… · Keď… · O tom… · Je pre mňa… · Ľudia… · Aj keď…
 
 ---
 

@@ -105,7 +105,7 @@ Presence
 
 Question
 
-> Keď sa obzriem za uplynulým týždňom, veľa dní mi splýva do jedného.
+> Keď sa obzriem za posledným týždňom, jednotlivé dni mi často splývajú.
 
 Reverse scored
 
@@ -121,7 +121,7 @@ Intentionality
 
 Question
 
-> Môj týždeň väčšinou určuje to, čo práve treba vybaviť.
+> Väčšinu dňa riešim to, čo práve treba vybaviť.
 
 Reverse scored
 
@@ -137,7 +137,7 @@ Reflection
 
 Question
 
-> Len málokedy si počas týždňa nájdem chvíľu, aby som sa spýtal, či mi môj spôsob života stále sedí.
+> Len zriedka sa počas bežného týždňa na chvíľu zastavím.
 
 Reverse scored
 
@@ -153,7 +153,7 @@ Reactivity
 
 Question
 
-> Ľahko sa stane, že celý pracovný deň len reagujem na to, čo práve príde.
+> Často mám pocit, že môj deň riadia okolnosti viac než ja.
 
 Reverse scored
 
@@ -185,7 +185,7 @@ Awareness
 
 Question
 
-> Keď mám chvíľu voľna, automaticky siaham po ďalšej úlohe alebo rozptýlení.
+> Keď mám chvíľu pre seba, automaticky siahnem po mobile alebo ďalšej úlohe.
 
 Reverse scored
 
@@ -250,7 +250,7 @@ External validation
 
 Question
 
-> Keď sa mi dlhšie nič výrazné nepodarí, začnem pochybovať sám o sebe.
+> Keď sa mi dlhšie nedarí, začnem pochybovať o sebe.
 
 Reverse scored
 
@@ -266,7 +266,7 @@ Boundaries
 
 Question
 
-> Keď sa ma niekto opýta, čo chcem ja, najprv prebehnem, čo potrebujú ostatní.
+> Keď sa rozhodujem, čo chcem ja, často najprv myslím na ostatných.
 
 Reverse scored
 
@@ -347,7 +347,7 @@ Capacity
 
 Question
 
-> Ráno sa niekedy zobudím s pocitom, že energie je menej, než si bežný rytmus žiada.
+> Ráno sa často zobudím unavenejší, než by som čakal.
 
 Reverse scored
 
@@ -460,7 +460,7 @@ Connection
 
 Question
 
-> Keď sa rozprávame, väčšinou riešime povinnosti a organizáciu bežného života.
+> Keď sme spolu, často riešime hlavne to, čo treba vybaviť.
 
 Reverse scored
 
