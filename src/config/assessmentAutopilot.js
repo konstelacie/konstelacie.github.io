@@ -101,7 +101,7 @@ const questions = [
     dimensionId: 'identity',
     order: 12,
     reverseScored: false,
-    text: 'Keď sa rozhodujem, čo chcem ja, často najprv myslím na ostatných.',
+    text: 'Keď sa rozhodujem, čo chcem ja, niekedy ani neviem, čo by som si vybral bez ohľadu na ostatných.',
   },
   {
     id: 'I05',
@@ -116,7 +116,7 @@ const questions = [
     dimensionId: 'identity',
     order: 8,
     reverseScored: false,
-    text: 'Často odkladám dokončenie vecí, pretože ešte nie sú podľa mojich predstáv.',
+    text: 'Keď niečo neurobím podľa svojich predstáv, dlho mi to ostáva v hlave.',
   },
   {
     id: 'E01',
@@ -169,7 +169,7 @@ const questions = [
     order: 7,
     reverseScored: false,
     contextPrompt: 'Počas rozhovorov s blízkymi…',
-    text: 'Aj keď trávim čas s blízkymi, niekedy mám pocit, že tam nie som úplne naplno.',
+    text: 'Stáva sa mi, že čas s blízkymi ubehne bez toho, aby sme sa naozaj spojili.',
   },
   {
     id: 'R02',
