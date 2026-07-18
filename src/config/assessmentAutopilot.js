@@ -176,7 +176,7 @@ const questions = [
     dimensionId: 'relationships',
     order: 3,
     reverseScored: false,
-    text: 'Keď sme spolu, často riešime hlavne to, čo treba vybaviť.',
+    text: 'Aj keď som s ľuďmi, na ktorých mi záleží, myšlienkami bývam často pri tom, čo ešte musím urobiť.',
   },
   {
     id: 'R03',
