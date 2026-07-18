@@ -559,7 +559,7 @@ const prepare = {
 
 const analyzing = {
   headline: 'Analyzujeme vaše odpovede…',
-  body: 'Skúmame vzťahy medzi jednotlivými oblasťami vášho životného systému.',
+  body: 'Spájame vaše odpovede do celkového obrazu.',
   /** Timed interstitial before email gate (018: ~1.5–2.5 s). */
   durationMs: 2000,
 };
