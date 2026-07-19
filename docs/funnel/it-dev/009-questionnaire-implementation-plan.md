@@ -3,9 +3,10 @@
 **Status:** v1 shipped (Phases 0–4) — architecture reference; start at [`016`](016-assessment-v1-summary.md)  
 **Scope:** Free interactive assessment funnel (questionnaire), first shippable vertical slice  
 **Canonical entry (start here):** [`016-assessment-v1-summary.md`](016-assessment-v1-summary.md) — decisions, content map, drift overrides, DoD  
+**Folder index:** [`README.md`](README.md)  
 **Locked decisions:** [`010-decisions.md`](010-decisions.md) (supersedes open defaults in §18 below)  
-**Content / scoring:** [`011`](011-questionaire.md)–[`014`](014-scoring), principles [`015`](015-principles.md)  
-**Product vision drafts (historical):** [`007-questionaire-v1.md`](007-questionaire-v1.md), [`008-questionaire-v2.md`](008-questionaire-v2.md)  
+**Content / scoring:** [`011`](011-questionaire.md)–[`014`](014-scoring.md), principles [`015`](015-principles.md); SK pack [`017`](017-assessment-content-sk.md); wording [`019`](019-question-wording.md); experience [`018`](018-experience.md)  
+**Product vision drafts (historical):** [`archive/007`](archive/007-questionaire-v1.md), [`archive/008`](archive/008-questionaire-v2.md)  
 **Business context:** [`006-funnel-it-dev.md`](006-funnel-it-dev.md) §6 (free diagnostic), §7 (paid diagnosis)
 
 ---
@@ -573,12 +574,16 @@ The paid **Diagnostika životného autopilota** (~190 €, 90 min) is a **differ
 
 | Doc | Role |
 |-----|------|
+| [`README`](README.md) | Folder index |
 | [`016`](016-assessment-v1-summary.md) | **Start here** — summary, links, implementation brief |
-| [`017`](017-assessment-content-sk.md) | Phase 0 Slovak UI + results pack (map into config) |
+| [`017`](017-assessment-content-sk.md) | Slovak UI + results pack (map into config) |
+| [`018`](018-experience.md) | Experience / emotional journey |
+| [`019`](019-question-wording.md) | Question wording v1.1 |
+| [`020`](020-customer-journey.md) | Planning only — post-v1 journey proposal |
 | 010 | Locked product/UX decisions |
 | 011–014 | Questionnaire, insights (EN), results (EN), scoring |
 | 015 | Methodology principles |
-| 007 / 008 | Historical vision drafts (superseded for content) |
+| [`archive/007`](archive/007-questionaire-v1.md) / [`008`](archive/008-questionaire-v2.md) | Historical vision drafts |
 | 006 | IT-dev funnel context, paid product pricing |
 | This doc (009) | **How** to build draft v1 in this codebase (architecture, API, DB, phases) |
 

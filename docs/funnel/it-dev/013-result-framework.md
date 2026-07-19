@@ -1,5 +1,8 @@
 # 013 — Life Autopilot Assessment — Results Framework (v1)
 
+**Status:** English methodology draft — **prod SK in [`017`](017-assessment-content-sk.md) §9–11**  
+**Entry:** [`016`](016-assessment-v1-summary.md) · [`README`](README.md)
+
 **Production Slovak:** [`017-assessment-content-sk.md`](017-assessment-content-sk.md) §9–11 — use that pack for implementation. This file remains the English methodology draft.
 
 ## Purpose

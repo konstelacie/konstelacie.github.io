@@ -1,5 +1,8 @@
 # 018 — Life Autopilot Assessment — Experience Specification (v1)
 
+**Status:** Experience / emotional-journey reference (not implementation)  
+**Entry:** [`016`](016-assessment-v1-summary.md) · [`README`](README.md)
+
 ## Purpose
 
 This document defines the **experience** of completing the Life Autopilot Assessment.

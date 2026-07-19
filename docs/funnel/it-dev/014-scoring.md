@@ -1,5 +1,9 @@
 # 014 — Life Autopilot Assessment — Scoring & Interpretation Framework (v1)
 
+**Status:** Scoring & dual-primary rules (canonical)  
+**Entry:** [`016`](016-assessment-v1-summary.md) · [`README`](README.md)  
+**Code:** `src/lib/assessmentScoring.js` / `/assets/js/assessment-scoring.js`
+
 ## Purpose
 
 This document defines how responses are converted into meaningful assessment results.

@@ -1,5 +1,8 @@
 # 015 — Life Autopilot Methodology — Foundational Principles
 
+**Status:** Methodology principles — decision filter for future changes  
+**Entry:** [`016`](016-assessment-v1-summary.md) · [`README`](README.md)
+
 ## Purpose
 
 This document defines the principles that underpin the Life Autopilot Methodology.

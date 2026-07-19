@@ -109,7 +109,7 @@
 | | |
 |---|--|
 | **Item** | **Life Autopilot Assessment** (`autopilot`) — free diagnostic funnel |
-| **Current state** | **Shipped v1** — shell, persist, analytics, soft mailto CTA. Docs: `docs/funnel/it-dev/016-assessment-v1-summary.md`. |
+| **Current state** | **Shipped v1** — shell, persist, analytics, soft mailto CTA. Docs: `docs/funnel/it-dev/README.md`, `docs/funnel/it-dev/016-assessment-v1-summary.md`. |
 | **Target (later)** | Paid diagnosis booking (~190 €); transactional results email; anonymous mid-funnel lead events. |
 | **Dependencies** | Product decisions for diagnosis checkout (`009` §15 options B/C). |
 | **Definition of done (v1)** | Full flow on `/autopilot-test`; submit + `assessment_email_unlocked`; soft CTA. |

@@ -1,11 +1,13 @@
 # 020 — Customer Journey v2 (návrh pokračovania)
 
-**Status:** Návrh ďalšieho smerovania po implementácii Assessment v1.
+**Status:** Planning only — návrh ďalšieho smerovania po Assessment v1. **Nie** je to implementačná špecifikácia assessmentu ani zdroj copy.
 
 **Nadväzuje na:**
-- 006-funnel-it-dev.md
-- 016-assessment-v1-summary.md
-- 017–019 (Assessment v1)
+- [`006-funnel-it-dev.md`](006-funnel-it-dev.md)
+- [`016-assessment-v1-summary.md`](016-assessment-v1-summary.md) (canonical v1 entry)
+- [`017`](017-assessment-content-sk.md)–[`019`](019-question-wording.md) (Assessment v1)
+
+**Assessment ops:** [`README.md`](README.md) · [`016`](016-assessment-v1-summary.md)
 
 ---
 

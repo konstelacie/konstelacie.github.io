@@ -1,5 +1,9 @@
 # 011 — Life Autopilot Assessment — Questionnaire Specification (v1)
 
+**Status:** Structure source (ids, dimensions, reverse flags, order)  
+**Entry:** [`016`](016-assessment-v1-summary.md) · [`README`](README.md)  
+**Wording v1.1:** [`019-question-wording.md`](019-question-wording.md) · live text in `src/config/assessmentAutopilot.js`
+
 ## Purpose
 
 This document defines Version 1 of the Life Autopilot Assessment questionnaire.

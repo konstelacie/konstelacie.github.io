@@ -18,7 +18,7 @@ This is the business lead for the free assessment: completed questionnaire + ema
 - `results_viewed`
 - `paid_diagnosis_cta_clicked`
 
-See `docs/funnel/it-dev/009-questionnaire-implementation-plan.md` §11.2 and `010-decisions.md`.
+See `docs/funnel/it-dev/README.md`, `docs/funnel/it-dev/009-questionnaire-implementation-plan.md` §11.2 and `010-decisions.md`.
 
 ## Payload
 

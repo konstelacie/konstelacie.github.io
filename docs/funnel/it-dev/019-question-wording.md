@@ -1,5 +1,9 @@
 # 019 — Life Autopilot Assessment — Question Wording Refactor (v1.1)
 
+**Status:** Wording v1.1 — formulation source for question text (structure stays in `011`)  
+**Entry:** [`016`](016-assessment-v1-summary.md) · [`README`](README.md)  
+**Live copy:** `src/config/assessmentAutopilot.js` (prefer config if drift)
+
 ## Purpose
 
 Improve the **user experience and psychological quality** of all 24 assessment questions.

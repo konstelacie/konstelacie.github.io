@@ -1,5 +1,8 @@
 # Life Autopilot Assessment — Implementation Decisions (v1)
 
+**Status:** Locked product / UX decisions for Assessment v1  
+**Entry:** [`016`](016-assessment-v1-summary.md) · [`README`](README.md)
+
 This document captures the agreed implementation decisions for Version 1 of the Life Autopilot Assessment. It supplements the main implementation plan and serves as the product decision reference for development.
 
 ---

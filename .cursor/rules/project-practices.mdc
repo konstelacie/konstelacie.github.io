@@ -19,6 +19,7 @@ alwaysApply: true
 - **Scheduled emails & cron:** `docs/SCHEDULED-EMAILS-CRON.md` — timed emails (personal, bulk), cron endpoint, newsletter, special messages
 - **Creative media (FB ads vs funnel video):** `docs/CREATIVE-MEDIA.md` — `creative/`, `public/assets/media/funnel/`, `INSTANCE_CAMPAIGNS` + `src/config/funnelVideo.js`
 - **Page visibility & payment backends:** `docs/PAGE-VISIBILITY.md` — home/funnel modes, Stripe test/prod, KROS prefixes
+- **Life Autopilot Assessment:** `docs/funnel/it-dev/README.md` — start at `016-assessment-v1-summary.md`; live copy in `src/config/assessmentAutopilot.js`
 
 **Deployment:** alwaysdata (not GitHub Pages).
 

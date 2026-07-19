@@ -3,6 +3,7 @@
  * Copy source: docs/funnel/it-dev/017-assessment-content-sk.md
  * Questions: docs/funnel/it-dev/011-questionaire.md
  * Wording v1.1: docs/funnel/it-dev/019-question-wording.md
+ * Docs index: docs/funnel/it-dev/README.md
  */
 
 const dimensions = [

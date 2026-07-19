@@ -2,9 +2,12 @@
 
 **Status:** Phase 0 complete — production-ready Slovak strings for v1 shell  
 **Audience:** Implementers mapping copy into `src/config/assessmentAutopilot.js`  
-**Language:** User-facing Slovak; field names / ids remain English
+**Language:** User-facing Slovak; field names / ids remain English  
+**Entry:** [`016`](016-assessment-v1-summary.md) · [`README`](README.md)
 
-This document is the **canonical Slovak content pack** for v1. English drafts remain in `012` / `013` for methodology reference. Questions stay in `011`. Scoring rules stay in `014`.
+This document is the **canonical Slovak UI + results pack** for v1. English drafts remain in `012` / `013` for methodology reference. Questionnaire structure stays in `011`; question **wording** v1.1 in [`019`](019-question-wording.md). Scoring rules stay in [`014-scoring.md`](014-scoring.md).
+
+**Live copy:** when this file and `src/config/assessmentAutopilot.js` disagree, prefer the config and update this pack.
 
 Map every section below into the config exports listed in `016` §6 / `009` §9.
 

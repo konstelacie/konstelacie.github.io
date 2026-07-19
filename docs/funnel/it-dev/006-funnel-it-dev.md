@@ -1,8 +1,8 @@
 # IT-Dev Funnel — konsolidovaný návrh
 
-**Status:** Pracovná verzia zložená z draftov `000`–`005` (AI chatboty). Nie je to finálna implementácia ani hotový copy.
+**Status:** Pracovná verzia zložená z draftov `000`–`005` (AI chatboty). Nie je to finálna implementácia ani hotový copy. Assessment v1: start at [`016`](016-assessment-v1-summary.md) / [`README`](README.md).
 
-**Zdroje:** `000-avatar-draft.md`, `001-equality-draft.md`, `002-bonuses-draft.md`, `003-urgency-draft.md`, `004-guarancy-draft.md`, `005-offer-draft.md`
+**Zdroje (archive):** [`archive/000-avatar-draft.md`](archive/000-avatar-draft.md), [`001`](archive/001-equality-draft.md), [`002`](archive/002-bonuses-draft.md), [`003`](archive/003-urgency-draft.md), [`004`](archive/004-guarancy-draft.md), [`005`](archive/005-offer-draft.md)
 
 ---
 

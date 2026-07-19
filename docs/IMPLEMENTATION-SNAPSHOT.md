@@ -194,7 +194,7 @@ All JSON APIs use `requestId` middleware. Base: `src/routes/api/index.js`.
 
 **Config / copy:** `src/config/assessmentAutopilot.js` (from `docs/funnel/it-dev/017-assessment-content-sk.md`).
 
-**API / DB:** `POST /api/assessment/submit` → `assessment_submissions`; lead event `assessment_email_unlocked` (migration `008`). Docs: `docs/funnel/it-dev/016-assessment-v1-summary.md`, `docs/leads/assessment-conversion-events.md`.
+**API / DB:** `POST /api/assessment/submit` → `assessment_submissions`; lead event `assessment_email_unlocked` (migration `008`). Docs: `docs/funnel/it-dev/README.md`, `docs/funnel/it-dev/016-assessment-v1-summary.md`, `docs/leads/assessment-conversion-events.md`.
 
 **Results CTA:** Option A — dual `mailto:` (`SUPPORT_EMAIL`) for info + waitlist.
 

@@ -336,4 +336,5 @@ assessment_submissions (standalone)
 | `docs/SESSION-PRICING.md` | Amounts, deposit vs full payment |
 | `docs/payments/invoicing-mvp-implementation.md` | Invoicing MVP design, edge cases, rollout |
 | `docs/EMAILING.md` | Templates incl. billing invoice email |
+| `docs/funnel/it-dev/README.md` | Assessment docs index |
 | `docs/funnel/it-dev/016-assessment-v1-summary.md` | Assessment funnel entry |

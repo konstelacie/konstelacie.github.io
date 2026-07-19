@@ -1,6 +1,6 @@
 /**
  * Life Autopilot Assessment scoring (shared Node + browser).
- * Spec: docs/funnel/it-dev/014-scoring
+ * Spec: docs/funnel/it-dev/014-scoring.md
  */
 (function (root, factory) {
   if (typeof module === 'object' && module.exports) {
