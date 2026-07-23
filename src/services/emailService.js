@@ -38,6 +38,12 @@ function formatAmount(amountCents, currency = 'eur') {
   return `${amount} ${symbol}`;
 }
 
+/** Escape HTML, then turn **emphasis** into <strong> for nurture copy packs. */
+function formatNurtureParagraphHtml(text) {
+  const raw = text == null ? '' : String(text);
+  return escapeHtml(raw).replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+}
+
 function escapeHtml(s) {
   return String(s ?? '')
     .replace(/&/g, '&amp;')
@@ -598,8 +604,10 @@ async function sendAssessmentNurtureEmail(params, metadata = {}) {
   const html = await ejs.renderFile(path.join(EMAIL_TEMPLATES_DIR, 'assessment-nurture.ejs'), {
     subject,
     preview: preview || '',
-    paragraphs: Array.isArray(paragraphs) ? paragraphs : [],
-    closingParagraphs: Array.isArray(closingParagraphs) ? closingParagraphs : [],
+    paragraphs: (Array.isArray(paragraphs) ? paragraphs : []).map(formatNurtureParagraphHtml),
+    closingParagraphs: (Array.isArray(closingParagraphs) ? closingParagraphs : []).map(
+      formatNurtureParagraphHtml
+    ),
     personalizedHtml: personalizedHtml || null,
     ctaPrimary,
     ctaSecondary,

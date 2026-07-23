@@ -609,8 +609,8 @@ const paidCta = {
   secondaryCta: 'Pridať sa na waitlist',
   contactHint: 'Ozveme sa s termínmi a detailmi. Bez záväzku.',
   /** Option A (009 §15): static mailto — no Stripe/booking in v1 */
-  mailtoSubject: 'Diagnostika životného autopilota — záujem',
-  waitlistMailtoSubject: 'Diagnostika životného autopilota — waitlist',
+  mailtoSubject: 'Záujem o Diagnostiku životného autopilota',
+  waitlistMailtoSubject: 'Záujem o waitlist Diagnostiky životného autopilota',
 };
 
 /**
