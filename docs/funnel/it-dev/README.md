@@ -45,6 +45,8 @@ When docs and config disagree on shipped strings, **prefer the config** and upda
 
 **Implemented nurture:** migration `009`, `assessmentNurtureService`, cron `assessment-nurture`, `/odhlasenie-emailov`, admin test UI `/admin/email-nurture-test`. Timing + final SK copy in `src/config/assessmentNurture.js` (v1 = universal only).
 
+**Manual UX testing:** [`031-manual-ux-test-checklist.md`](031-manual-ux-test-checklist.md) — printable Pass/Fail worksheet (assessment + nurture + unsubscribe).
+
 ## Archive
 
 Superseded drafts live in [`archive/`](archive/) (`000`–`005`, `007`–`008`). Do not implement from them.
