@@ -1,0 +1,103 @@
+<div class="admin-wrap admin-wrap--wide">
+  <header class="admin-header admin-header--bar">
+    <h1 class="admin-title">Test nurture sekvencie</h1>
+    <form method="post" action="/admin/logout">
+      <button type="submit" class="admin-btn admin-btn--ghost">Odhlásiť sa</button>
+    </form>
+  </header>
+
+  <p class="admin-bulk__hint">
+    Pri načítaní stránky sa spustí rovnaký sender ako cron (<code>assessment-nurture</code>),
+    ale s simulovaným časom (Europe/Bratislava). Emaily sa <strong>skutočne odosielajú</strong>.
+    Jeden beh = maximálne jeden ďalší krok na enrollment.
+  </p>
+
+  <section class="admin-detail" aria-labelledby="nurture-test-result-heading">
+    <h2 id="nurture-test-result-heading" class="admin-create__title">Výsledok behu</h2>
+    <dl class="admin-dl">
+      <div class="admin-dl__row">
+        <dt>Current day offset</dt>
+        <dd><%= addDays %></dd>
+      </div>
+      <div class="admin-dl__row">
+        <dt>Test date</dt>
+        <dd><%= testDate %></dd>
+      </div>
+      <div class="admin-dl__row">
+        <dt>Test time</dt>
+        <dd><%= testTime %></dd>
+      </div>
+      <div class="admin-dl__row">
+        <dt>Emails sent</dt>
+        <dd><%= result.sent %></dd>
+      </div>
+      <div class="admin-dl__row">
+        <dt>Due / skipped</dt>
+        <dd><%= result.due %> due · <%= result.skipped %> skipped</dd>
+      </div>
+      <div class="admin-dl__row">
+        <dt>nowUtc used</dt>
+        <dd><code><%= testNowUtcIso %></code></dd>
+      </div>
+    </dl>
+
+    <% if (result.errors && result.errors.length) { %>
+    <p class="admin-error" role="alert">Chyby: <%= result.errors.join('; ') %></p>
+    <% } %>
+
+    <% if (result.results && result.results.length) { %>
+    <h3 class="admin-detail__subtitle">Detail</h3>
+    <div class="admin-table-wrap admin-table-wrap--scroll">
+      <table class="admin-table">
+        <thead>
+          <tr>
+            <th scope="col">Enrollment</th>
+            <th scope="col">Email</th>
+            <th scope="col">Step</th>
+            <th scope="col">Výsledok</th>
+          </tr>
+        </thead>
+        <tbody>
+          <% for (const row of result.results) { %>
+          <tr>
+            <td><%= row.enrollmentId != null ? row.enrollmentId : '—' %></td>
+            <td><%= row.email || '—' %></td>
+            <td><%= row.step != null ? 'E' + row.step : '—' %><% if (row.templateId) { %> <code><%= row.templateId %></code><% } %></td>
+            <td><%= row.sent ? 'sent' : ('skipped' + (row.reason ? ' (' + row.reason + ')' : '')) %></td>
+          </tr>
+          <% } %>
+        </tbody>
+      </table>
+    </div>
+    <% } else { %>
+    <p class="admin-placeholder">Žiadne due enrollmenty pre tento simulovaný čas.</p>
+    <% } %>
+  </section>
+
+  <section class="admin-detail admin-detail--section-gap" aria-labelledby="nurture-test-controls-heading">
+    <h2 id="nurture-test-controls-heading" class="admin-create__title">Ovládanie</h2>
+
+    <form method="get" action="/admin/email-nurture-test" class="admin-detail__form">
+      <input type="hidden" name="addDays" value="<%= addDays %>">
+      <div class="admin-field">
+        <label for="nurture-test-time">Čas (HH:mm)</label>
+        <input type="text" id="nurture-test-time" name="time" value="<%= timeParam || testTime %>" pattern="\d{1,2}:\d{2}(:\d{2})?" placeholder="07:00" maxlength="8">
+      </div>
+      <div class="admin-detail__actions">
+        <button type="submit" class="admin-btn admin-btn--primary">Nastaviť čas a spustiť</button>
+      </div>
+    </form>
+
+    <p class="admin-detail__actions admin-detail__form--spaced-top">
+      <a class="admin-btn" href="<%= prevDayHref %>">Previous Day</a>
+      <a class="admin-btn" href="<%= nextDayHref %>">Next Day</a>
+      <a class="admin-btn admin-btn--ghost" href="/admin/email-nurture-test">Reset to Today (0)</a>
+    </p>
+
+    <p class="admin-bulk__hint">
+      Kroky sekvencie (delay od enrollmentu):
+      <%= stepHints %>.
+      Po odoslaní kroku treba posunúť <code>addDays</code> aspoň na ďalší delay (alebo resetovať enrollment v DB).
+    </p>
+  </section>
+</div>

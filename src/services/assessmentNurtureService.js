@@ -185,35 +185,36 @@ async function enrollAfterAssessment(input) {
 /**
  * Send the next due step for one enrollment (idempotent).
  * @param {number} enrollmentId
- * @returns {Promise<{ sent: boolean, skipped?: boolean, reason?: string }>}
+ * @param {Date} [now] - Clock for due checks and last_sent_at (test UI injects a fake now)
+ * @returns {Promise<{ sent: boolean, skipped?: boolean, reason?: string, enrollmentId?: number, email?: string, step?: number, templateId?: string }>}
  */
-async function processEnrollment(enrollmentId) {
+async function processEnrollment(enrollmentId, now = new Date()) {
   const enrollment = await emailSequenceEnrollmentsRepo.findById(enrollmentId);
   if (!enrollment) return { sent: false, skipped: true, reason: 'not_found' };
   if (enrollment.status !== 'ACTIVE') {
-    return { sent: false, skipped: true, reason: 'not_active' };
+    return { sent: false, skipped: true, reason: 'not_active', enrollmentId, email: enrollment.email };
   }
 
   const consentOk = await marketingConsentsRepo.hasActiveConsent(enrollment.email);
   if (!consentOk) {
     await emailSequenceEnrollmentsRepo.markUnsubscribed(enrollment.id);
-    return { sent: false, skipped: true, reason: 'no_consent' };
+    return { sent: false, skipped: true, reason: 'no_consent', enrollmentId, email: enrollment.email };
   }
 
-  const now = new Date();
-  if (enrollment.nextSendAt && new Date(enrollment.nextSendAt) > now) {
-    return { sent: false, skipped: true, reason: 'not_due' };
+  const clock = now instanceof Date ? now : new Date(now);
+  if (enrollment.nextSendAt && new Date(enrollment.nextSendAt) > clock) {
+    return { sent: false, skipped: true, reason: 'not_due', enrollmentId, email: enrollment.email };
   }
 
   const nextStep = nurtureConfig.getNextStepAfter(enrollment.currentStep);
   if (!nextStep) {
     await emailSequenceEnrollmentsRepo.markStepSent(enrollment.id, {
       sentStep: enrollment.currentStep,
-      sentAt: now,
+      sentAt: clock,
       nextSendAt: null,
       completed: true,
     });
-    return { sent: false, skipped: true, reason: 'already_complete' };
+    return { sent: false, skipped: true, reason: 'already_complete', enrollmentId, email: enrollment.email };
   }
 
   const templateId = nextStep.templateId;
@@ -224,13 +225,29 @@ async function processEnrollment(enrollmentId) {
   );
   if (alreadySent) {
     // Heal state if log exists but step not advanced
-    await advanceAfterSend(enrollment, nextStep, now);
-    return { sent: false, skipped: true, reason: 'already_logged' };
+    await advanceAfterSend(enrollment, nextStep, clock);
+    return {
+      sent: false,
+      skipped: true,
+      reason: 'already_logged',
+      enrollmentId,
+      email: enrollment.email,
+      step: nextStep.step,
+      templateId,
+    };
   }
 
   const copy = nurtureConfig.getEmailCopy(nextStep.step);
   if (!copy) {
-    return { sent: false, skipped: true, reason: 'missing_copy' };
+    return {
+      sent: false,
+      skipped: true,
+      reason: 'missing_copy',
+      enrollmentId,
+      email: enrollment.email,
+      step: nextStep.step,
+      templateId,
+    };
   }
 
   const personalizedHtml = nurtureConfig.resolvePersonalizationHtml(
@@ -276,10 +293,18 @@ async function processEnrollment(enrollmentId) {
   );
 
   if (!result.ok) {
-    return { sent: false, skipped: Boolean(result.skipped), reason: result.skipped ? 'provider_skipped' : 'send_failed' };
+    return {
+      sent: false,
+      skipped: Boolean(result.skipped),
+      reason: result.skipped ? 'provider_skipped' : 'send_failed',
+      enrollmentId,
+      email: enrollment.email,
+      step: nextStep.step,
+      templateId,
+    };
   }
 
-  await advanceAfterSend(enrollment, nextStep, now);
+  await advanceAfterSend(enrollment, nextStep, clock);
 
   scheduleLeadEvent('email_sent', {
     email: enrollment.email,
@@ -309,7 +334,13 @@ async function processEnrollment(enrollmentId) {
     });
   }
 
-  return { sent: true, step: nextStep.step };
+  return {
+    sent: true,
+    enrollmentId: enrollment.id,
+    email: enrollment.email,
+    step: nextStep.step,
+    templateId,
+  };
 }
 
 async function advanceAfterSend(enrollment, sentStepConfig, sentAt) {
@@ -333,17 +364,22 @@ async function advanceAfterSend(enrollment, sentStepConfig, sentAt) {
 }
 
 /**
- * Cron: process all due enrollments.
+ * Cron / test UI: process all due enrollments.
+ * @param {number} [limit=100]
+ * @param {Date} [now] - Injected clock (defaults to real now)
  */
-async function processDueEnrollments(limit = 100) {
-  const due = await emailSequenceEnrollmentsRepo.findDue(new Date(), limit);
+async function processDueEnrollments(limit = 100, now = new Date()) {
+  const clock = now instanceof Date ? now : new Date(now);
+  const due = await emailSequenceEnrollmentsRepo.findDue(clock, limit);
   let sent = 0;
   let skipped = 0;
   const errors = [];
+  const results = [];
 
   for (const row of due) {
     try {
-      const result = await processEnrollment(row.id);
+      const result = await processEnrollment(row.id, clock);
+      results.push(result);
       if (result.sent) sent++;
       else skipped++;
     } catch (err) {
@@ -351,7 +387,7 @@ async function processDueEnrollments(limit = 100) {
     }
   }
 
-  return { due: due.length, sent, skipped, errors };
+  return { due: due.length, sent, skipped, errors, results };
 }
 
 /**

@@ -139,6 +139,8 @@ This doc is a thinking input. Final decisions will be captured elsewhere once ma
 
 **Implemented (v1):** Post-assessment nurture sequence (`assessment_post_nurture_v1`) — enrollment on assessment unlock with marketing consent, cron `assessment-nurture`, templates `assessment-nurture.ejs`, consent in `marketing_consents`, progression in `email_sequence_enrollments`, one-click unsubscribe at `/odhlasenie-emailov`. See `src/config/assessmentNurture.js`, `docs/funnel/it-dev/023-email-architecture.md`.
 
+**Local test UI:** `GET /admin/email-nurture-test?addDays=&time=` (admin login). Same sender as cron with an injected Europe/Bratislava clock — emails are really sent. Examples: `/admin/email-nurture-test`, `?addDays=2`, `?addDays=5&time=10:00`. One page load sends at most one next step per due enrollment.
+
 **Still planned:** General newsletter / broadcast system (separate from this linear sequence).
 ---
 

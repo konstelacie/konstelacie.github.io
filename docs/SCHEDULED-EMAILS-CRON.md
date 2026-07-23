@@ -176,6 +176,8 @@ module.exports = {
 | `stripe-reconciliation` | **Implemented** (`src/jobs/stripeReconciliation.js`) | Stripe Checkout Sessions (paid, complete) vs local `payments`; completed booking payments vs reservation + confirmation email task (throttled by `STRIPE_RECONCILIATION_INTERVAL_HOURS`) | `system_alerts` (`stripe_payment_needs_reconciliation` on mismatch; `stripe_reconciliation_failed` when detector cannot call Stripe — **no auto-repair**) |
 | `email-delivery-tasks` | **Implemented** (`src/jobs/emailDeliveryTasks.js`) | Due `email_delivery_tasks` (confirmation retries, billing-delayed) | `email_delivery_tasks` + `email_sent_log` |
 | `assessment-nurture` | **Implemented** (`src/jobs/assessmentNurture.js`) | `email_sequence_enrollments` ACTIVE with `next_send_at <= now` | `email_sent_log` + sequence `current_step`; consent via `marketing_consents` |
+
+**Nurture local test UI:** Admin `GET /admin/email-nurture-test` (optional `addDays`, `time=HH:mm`) builds a fake “now” in `Europe/Bratislava` and calls `assessmentNurtureService.processDueEnrollments(limit, testNowUtc)` — same pipeline as cron, real sends. See `docs/EMAILING.md` §3.3.
 | `post-session-follow-up` | Planned | — | — |
 | `doplatok-reminder` | Planned | — | — |
 | `newsletter-batch` | Planned | — | — |

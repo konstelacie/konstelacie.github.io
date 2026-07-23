@@ -43,7 +43,7 @@ When docs and config disagree on shipped strings, **prefer the config** and upda
 | [`025`](025-email-sequence.md) | Sequence copy pack (EN reference) |
 | [`027`](027-sk-copy-pack1.md)–[`030`](030-sk-copy-pack4.md) | Final SK production copy (pack titled 026; live in `src/config/assessmentNurture.js`) |
 
-**Implemented nurture:** migration `009`, `assessmentNurtureService`, cron `assessment-nurture`, `/odhlasenie-emailov`. Timing + final SK copy in `src/config/assessmentNurture.js` (v1 = universal only).
+**Implemented nurture:** migration `009`, `assessmentNurtureService`, cron `assessment-nurture`, `/odhlasenie-emailov`, admin test UI `/admin/email-nurture-test`. Timing + final SK copy in `src/config/assessmentNurture.js` (v1 = universal only).
 
 ## Archive
 

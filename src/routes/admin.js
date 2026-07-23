@@ -29,6 +29,8 @@ const { mysqlLocalDateToYmd } = require('../lib/slotApiMap');
 const { resolveBalancePayAdminLink } = require('../lib/balancePayAdminLink');
 const emailService = require('../services/emailService');
 const emailSentLogRepo = require('../db/repositories/emailSentLogRepo');
+const assessmentNurtureService = require('../services/assessmentNurtureService');
+const nurtureConfig = require('../config/assessmentNurture');
 const systemAlertService = require('../services/systemAlertService');
 const { validateEmail } = require('../middleware/validators');
 const { logLine } = require('../lib/structuredLog');
@@ -340,6 +342,94 @@ router.get('/maintenance', requireAdmin, async (req, res) => {
       slotPurgeBatchMax: slotsRepo.OLD_UNUSED_SLOT_PURGE_BATCH_MAX,
     });
   }
+});
+
+/**
+ * Build simulated "now" for nurture test UI (Europe/Bratislava).
+ * addDays is absolute vs real today; time optionally overrides the clock (HH:mm or HH:mm:ss).
+ * @param {{ addDays?: unknown, time?: unknown }} query
+ */
+function buildNurtureTestNow(query) {
+  const tz = nurtureConfig.TIMEZONE;
+  const rawOffset = query?.addDays != null ? Number(query.addDays) : 0;
+  const addDays = Number.isFinite(rawOffset) ? Math.trunc(rawOffset) : 0;
+
+  let local = DateTime.utc().setZone(tz);
+  if (addDays !== 0) {
+    local = local.plus({ days: addDays });
+  }
+
+  let timeParam = '';
+  const rawTime = query?.time != null ? String(query.time).trim() : '';
+  const timeMatch = rawTime.match(/^(\d{1,2}):(\d{2})(?::(\d{2}))?$/);
+  if (timeMatch) {
+    const hour = Number(timeMatch[1]);
+    const minute = Number(timeMatch[2]);
+    const second = timeMatch[3] != null ? Number(timeMatch[3]) : 0;
+    if (hour >= 0 && hour <= 23 && minute >= 0 && minute <= 59 && second >= 0 && second <= 59) {
+      local = local.set({ hour, minute, second, millisecond: 0 });
+      timeParam = timeMatch[3] != null
+        ? `${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}:${String(second).padStart(2, '0')}`
+        : `${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}`;
+    }
+  }
+
+  return {
+    addDays,
+    timeParam,
+    local,
+    testNowUtc: local.toUTC().toJSDate(),
+  };
+}
+
+function nurtureTestQueryHref(addDays, timeParam) {
+  const params = new URLSearchParams();
+  if (addDays !== 0) params.set('addDays', String(addDays));
+  if (timeParam) params.set('time', timeParam);
+  const qs = params.toString();
+  return qs ? `/admin/email-nurture-test?${qs}` : '/admin/email-nurture-test';
+}
+
+/**
+ * Test UI for assessment nurture sequence — same sender as cron, injected clock.
+ * Examples:
+ *   /admin/email-nurture-test
+ *   /admin/email-nurture-test?addDays=2
+ *   /admin/email-nurture-test?addDays=5&time=10:00
+ */
+router.get('/email-nurture-test', requireAdmin, async (req, res) => {
+  const { addDays, timeParam, local, testNowUtc } = buildNurtureTestNow(req.query);
+
+  let result = { due: 0, sent: 0, skipped: 0, errors: [], results: [] };
+  try {
+    result = await assessmentNurtureService.processDueEnrollments(100, testNowUtc);
+  } catch (err) {
+    console.error('[admin/email-nurture-test]', err);
+    result = {
+      due: 0,
+      sent: 0,
+      skipped: 0,
+      errors: [err.message || String(err)],
+      results: [],
+    };
+  }
+
+  const stepHints = nurtureConfig.STEPS.map((s) => `E${s.step}=+${s.delayDays}d`).join(', ');
+
+  return res.render('admin/email-nurture-test', {
+    layout: 'layouts/admin',
+    title: 'Test nurture sekvencie — administrácia',
+    adminSection: 'email-nurture-test',
+    addDays,
+    timeParam,
+    testDate: local.toFormat('yyyy-MM-dd'),
+    testTime: local.toFormat('HH:mm'),
+    testNowUtcIso: DateTime.fromJSDate(testNowUtc, { zone: 'utc' }).toISO(),
+    result,
+    stepHints,
+    prevDayHref: nurtureTestQueryHref(addDays - 1, timeParam),
+    nextDayHref: nurtureTestQueryHref(addDays + 1, timeParam),
+  });
 });
 
 router.post('/maintenance/delete-expired-slot-locks', requireAdmin, async (req, res) => {
