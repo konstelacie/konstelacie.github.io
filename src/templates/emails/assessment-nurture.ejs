@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="sk">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title><%= subject %></title>
+<% if (preview) { %>
+  <span style="display:none !important; visibility:hidden; opacity:0; color:transparent; height:0; width:0; overflow:hidden; mso-hide:all;"><%= preview %></span>
+<% } %>
+</head>
+<body style="margin: 0; padding: 0; font-family: Georgia, 'Times New Roman', serif; font-size: 17px; line-height: 1.65; color: #1c1917; background-color: #f5f5f4;">
+  <div style="max-width: 600px; margin: 0 auto; padding: 32px 24px;">
+<% paragraphs.forEach(function (p) { %>
+    <p style="margin: 0 0 18px;"><%= p %></p>
+<% }) %>
+
+<% if (personalizedHtml) { %>
+    <div style="margin: 24px 0; padding: 16px 0; border-top: 1px solid #d6d3d1; border-bottom: 1px solid #d6d3d1;">
+      <%- personalizedHtml %>
+    </div>
+<% } %>
+
+<% closingParagraphs.forEach(function (p) { %>
+    <p style="margin: 0 0 18px;"><%= p %></p>
+<% }) %>
+
+<% if (ctaPrimary) { %>
+    <p style="margin: 28px 0 12px;">
+      <a href="<%= ctaPrimary.href %>" style="display: inline-block; padding: 12px 20px; background: #1c1917; color: #fafaf9; text-decoration: none; border-radius: 4px; font-family: system-ui, -apple-system, 'Segoe UI', sans-serif; font-size: 15px;"><%= ctaPrimary.label %></a>
+    </p>
+<% } %>
+<% if (ctaSecondary) { %>
+    <p style="margin: 0 0 24px; font-family: system-ui, -apple-system, 'Segoe UI', sans-serif; font-size: 15px;">
+      <a href="<%= ctaSecondary.href %>" style="color: #44403c;"><%= ctaSecondary.label %></a>
+    </p>
+<% } %>
+
+    <hr style="border: none; border-top: 1px solid #d6d3d1; margin: 32px 0 16px;">
+
+    <p style="margin: 0 0 8px; font-family: system-ui, -apple-system, 'Segoe UI', sans-serif; font-size: 12px; line-height: 1.5; color: #78716c;"><%= whyReceiving %></p>
+<% if (companyLine) { %>
+    <p style="margin: 0 0 8px; font-family: system-ui, -apple-system, 'Segoe UI', sans-serif; font-size: 12px; line-height: 1.5; color: #78716c;"><%= companyLine %></p>
+<% } %>
+    <p style="margin: 0; font-family: system-ui, -apple-system, 'Segoe UI', sans-serif; font-size: 12px; line-height: 1.5; color: #78716c;">
+      <a href="<%= unsubscribeUrl %>" style="color: #78716c;"><%= unsubscribeLabel %></a>
+    </p>
+  </div>
+</body>
+</html>

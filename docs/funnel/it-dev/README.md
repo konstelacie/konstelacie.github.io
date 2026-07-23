@@ -37,6 +37,12 @@ When docs and config disagree on shipped strings, **prefer the config** and upda
 | Doc | Role |
 |-----|------|
 | [`020`](020-customer-journey.md) | Customer journey v2 proposal — do not implement assessment from this |
+| [`022`](022-marketing-architecture.md) | Messaging architecture (strategy) |
+| [`023`](023-email-architecture.md) | Post-assessment email journey (strategy) |
+| [`024`](024-email-copy-framework.md) | Copy framework |
+| [`025`](025-email-sequence.md) | Sequence copy pack (EN reference; prod SK in `src/config/assessmentNurture.js`) |
+
+**Implemented nurture foundation:** migration `009`, `assessmentNurtureService`, cron `assessment-nurture`, `/odhlasenie-emailov`. Timing + SK placeholders in `src/config/assessmentNurture.js` (marketing replaces copy before prod).
 
 ## Archive
 

@@ -21,6 +21,7 @@ function buildFrom() {
  * @param {object} [options]
  * @param {Array<{ filename: string, content: Buffer }>} [options.attachments]
  * @param {string} [options.scheduledAt] - ISO 8601 time for Resend scheduled send
+ * @param {Record<string, string>} [options.headers] - Extra email headers (e.g. List-Unsubscribe)
  * @returns {Promise<{ok: boolean, skipped?: boolean, messageId?: string}>}
  */
 async function sendEmail(to, subject, html, metadata = {}, options = {}) {
@@ -44,6 +45,9 @@ async function sendEmail(to, subject, html, metadata = {}, options = {}) {
   }
   if (options.scheduledAt) {
     payload.scheduledAt = options.scheduledAt;
+  }
+  if (options.headers && typeof options.headers === 'object') {
+    payload.headers = options.headers;
   }
 
   const { data, error } = await resend.emails.send(payload);

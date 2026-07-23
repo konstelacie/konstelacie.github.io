@@ -133,12 +133,13 @@ This doc is a thinking input. Final decisions will be captured elsewhere once ma
 - Audit trail matters: who sent what, when, to whom.
 - May reference reservation, payment, or user.
 
-### 3.3 Possible Future Newsletter / Sequence Emails
+### 3.3 Newsletter / Sequence Emails
 
-**Definition:** Marketing or nurture emails. Sequences, broadcasts, campaigns. Not in scope for this document.
+**Definition:** Marketing or nurture emails. Sequences, broadcasts, campaigns.
 
-**Note:** Kept as a category for clarity. Do not design a full newsletter system now. If we add it later, it should be clearly separated from transactional and operator-assisted emails (different provider config, different consent, different unsubscribe handling).
+**Implemented (v1):** Post-assessment nurture sequence (`assessment_post_nurture_v1`) — enrollment on assessment unlock with marketing consent, cron `assessment-nurture`, templates `assessment-nurture.ejs`, consent in `marketing_consents`, progression in `email_sequence_enrollments`, one-click unsubscribe at `/odhlasenie-emailov`. See `src/config/assessmentNurture.js`, `docs/funnel/it-dev/023-email-architecture.md`.
 
+**Still planned:** General newsletter / broadcast system (separate from this linear sequence).
 ---
 
 ## 4. Example Real-World Use Cases for This Project

@@ -560,6 +560,79 @@ async function sendWebinarReminder({ to, roomUrl, formattedStart, timezone }, me
   return result;
 }
 
+/**
+ * Marketing nurture email (post-assessment sequence).
+ * @param {object} params
+ * @param {string} params.to
+ * @param {string} params.templateId - e.g. assessment-nurture-e1
+ * @param {string} params.subject
+ * @param {string} [params.preview]
+ * @param {string[]} params.paragraphs
+ * @param {string[]} [params.closingParagraphs]
+ * @param {string|null} [params.personalizedHtml]
+ * @param {{ label: string, href: string }|null} [params.ctaPrimary]
+ * @param {{ label: string, href: string }|null} [params.ctaSecondary]
+ * @param {string} params.whyReceiving
+ * @param {string} params.companyLine
+ * @param {string} params.unsubscribeLabel
+ * @param {string} params.unsubscribeUrl
+ * @param {object} [metadata]
+ */
+async function sendAssessmentNurtureEmail(params, metadata = {}) {
+  const {
+    to,
+    templateId,
+    subject,
+    preview,
+    paragraphs,
+    closingParagraphs = [],
+    personalizedHtml = null,
+    ctaPrimary = null,
+    ctaSecondary = null,
+    whyReceiving,
+    companyLine,
+    unsubscribeLabel,
+    unsubscribeUrl,
+  } = params;
+
+  const html = await ejs.renderFile(path.join(EMAIL_TEMPLATES_DIR, 'assessment-nurture.ejs'), {
+    subject,
+    preview: preview || '',
+    paragraphs: Array.isArray(paragraphs) ? paragraphs : [],
+    closingParagraphs: Array.isArray(closingParagraphs) ? closingParagraphs : [],
+    personalizedHtml: personalizedHtml || null,
+    ctaPrimary,
+    ctaSecondary,
+    whyReceiving,
+    companyLine,
+    unsubscribeLabel,
+    unsubscribeUrl,
+  });
+
+  const headers = {};
+  if (unsubscribeUrl) {
+    headers['List-Unsubscribe'] = `<${unsubscribeUrl}>`;
+    headers['List-Unsubscribe-Post'] = 'List-Unsubscribe=One-Click';
+  }
+
+  const result = await emailProvider.sendEmail(to, subject, html, metadata, {
+    headers: Object.keys(headers).length ? headers : undefined,
+  });
+
+  if (result.ok && result.messageId) {
+    await emailSentLogRepo.log({
+      recipientEmail: to,
+      templateId,
+      entityType: metadata.entity_type,
+      entityId: metadata.entity_id,
+      providerMessageId: result.messageId,
+      actorType: 'system',
+    });
+  }
+
+  return result;
+}
+
 module.exports = {
   sendReservationConfirmation,
   sendPreSessionReminder,
@@ -570,6 +643,7 @@ module.exports = {
   sendBillingInvoiceKrosEmail,
   sendBalancePayInviteEmail,
   sendBillingDelayedEmail,
+  sendAssessmentNurtureEmail,
   DEFAULT_BALANCE_PAY_INVITE_SUBJECT,
   MAX_BALANCE_PAY_INVITE_MESSAGE_LEN,
 };

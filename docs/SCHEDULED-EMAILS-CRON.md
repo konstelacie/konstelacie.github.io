@@ -100,7 +100,7 @@ Otherwise reject with **401** if secret is missing or wrong.
 }
 ```
 
-Only jobs registered in `src/jobs/index.js` appear. Current jobs: `cron-health`, `email-delivery-tasks`, `pre-session-reminder`, `billing-deliver-stuck`, `stripe-reconciliation`.
+Only jobs registered in `src/jobs/index.js` appear. Current jobs: `cron-health`, `email-delivery-tasks`, `pre-session-reminder`, `session-before-start`, `billing-deliver-stuck`, `stripe-reconciliation`, `webinar-reminder`, `assessment-nurture`.
 
 ### 4.4 Cron health semantics (Phase 5)
 
@@ -175,6 +175,7 @@ module.exports = {
 | `cron-health` | **Implemented** (`src/jobs/cronHealth.js`) | Stale `system_settings.last_successful_cron_run_at` (see §4.4) | `system_alerts` (`cron_not_running`); auto-resolved on successful `/api/cron/run` |
 | `stripe-reconciliation` | **Implemented** (`src/jobs/stripeReconciliation.js`) | Stripe Checkout Sessions (paid, complete) vs local `payments`; completed booking payments vs reservation + confirmation email task (throttled by `STRIPE_RECONCILIATION_INTERVAL_HOURS`) | `system_alerts` (`stripe_payment_needs_reconciliation` on mismatch; `stripe_reconciliation_failed` when detector cannot call Stripe — **no auto-repair**) |
 | `email-delivery-tasks` | **Implemented** (`src/jobs/emailDeliveryTasks.js`) | Due `email_delivery_tasks` (confirmation retries, billing-delayed) | `email_delivery_tasks` + `email_sent_log` |
+| `assessment-nurture` | **Implemented** (`src/jobs/assessmentNurture.js`) | `email_sequence_enrollments` ACTIVE with `next_send_at <= now` | `email_sent_log` + sequence `current_step`; consent via `marketing_consents` |
 | `post-session-follow-up` | Planned | — | — |
 | `doplatok-reminder` | Planned | — | — |
 | `newsletter-batch` | Planned | — | — |

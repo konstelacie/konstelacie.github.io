@@ -22,6 +22,10 @@ const WIRED_EVENT_TYPES = new Set([
   'payment_path_selected',
   'lock_revoked',
   'assessment_email_unlocked',
+  'sequence_enrolled',
+  'email_sent',
+  'sequence_completed',
+  'sequence_unsubscribed',
 ]);
 
 /** Newer types — require 003 migration (is_active) before insert. */

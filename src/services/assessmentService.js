@@ -3,6 +3,8 @@ const { scoreAssessment } = require('../lib/assessmentScoring');
 const assessmentAutopilot = require('../config/assessmentAutopilot');
 const { FUNNEL_INSTANCES, getFunnelPageType } = require('../config/funnelInstances');
 const assessmentSubmissionsRepo = require('../db/repositories/assessmentSubmissionsRepo');
+const nurtureConfig = require('../config/assessmentNurture');
+const assessmentNurtureService = require('./assessmentNurtureService');
 
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -95,13 +97,14 @@ function buildResultPayload(resultId) {
  * @param {string} input.funnelName
  * @param {string} [input.funnelCampaign]
  * @param {string|null} [input.sourceUrl]
- * @param {boolean} [input.marketingConsent] — accepted but not persisted in v1
+ * @param {boolean} [input.marketingConsent]
  */
 async function submitAssessment(input) {
   const email = validateEmail(input.email);
   const answers = validateAnswers(input.answers);
   const funnelName = validateFunnelName(input.funnelName);
   const funnelCampaign = validateCampaign(input.funnelCampaign);
+  const marketingConsent = Boolean(input.marketingConsent);
 
   let scored;
   try {
@@ -123,6 +126,8 @@ async function submitAssessment(input) {
     };
   }
 
+  const consentAt = marketingConsent ? new Date() : null;
+
   const row = await assessmentSubmissionsRepo.createSubmission({
     email,
     funnelName,
@@ -132,12 +137,35 @@ async function submitAssessment(input) {
     primaryBottleneck: scored.primaryBottleneck,
     secondaryBottleneck: scored.secondaryBottleneck,
     sourceUrl: input.sourceUrl || null,
+    marketingConsent: marketingConsent ? true : false,
+    marketingConsentAt: consentAt,
+    marketingConsentSource: marketingConsent
+      ? nurtureConfig.CONSENT_SOURCE_ASSESSMENT_UNLOCK
+      : null,
   }).catch((err) => {
     if (err && err.message === 'Database not configured') {
       throw new ApiError('INTERNAL_ERROR', 'Database not configured', 503);
     }
     throw err;
   });
+
+  let nurture = { enrolled: false };
+  try {
+    nurture = await assessmentNurtureService.enrollAfterAssessment({
+      email,
+      submissionId: row.id,
+      marketingConsent,
+      funnelName,
+      sourceUrl: input.sourceUrl || null,
+      primaryBottleneck: scored.primaryBottleneck,
+      secondaryBottleneck: scored.secondaryBottleneck,
+      isDualPrimary: scored.isDualPrimary,
+      isBalanced: scored.isBalanced,
+      isLowOverall: scored.isLowOverall,
+    });
+  } catch (err) {
+    console.error('[assessment] nurture enroll failed:', err.message || err);
+  }
 
   return {
     submissionId: row.id,
@@ -151,6 +179,7 @@ async function submitAssessment(input) {
     isDualPrimary: scored.isDualPrimary,
     isBalanced: scored.isBalanced,
     isLowOverall: scored.isLowOverall,
+    nurtureEnrolled: Boolean(nurture.enrolled),
     result: buildResultPayload(scored.primaryBottleneck),
     secondaryResult: scored.isDualPrimary
       ? buildResultPayload(scored.secondaryBottleneck)

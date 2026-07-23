@@ -10,6 +10,7 @@ const sessionBeforeStart = require('./sessionBeforeStart');
 const billingDeliverStuck = require('./billingDeliverStuck');
 const stripeReconciliation = require('./stripeReconciliation');
 const webinarReminder = require('./webinarReminder');
+const assessmentNurture = require('./assessmentNurture');
 const cronHealthService = require('../services/cronHealthService');
 const systemAlertService = require('../services/systemAlertService');
 const { logLine } = require('../lib/structuredLog');
@@ -22,6 +23,7 @@ const jobs = [
   billingDeliverStuck,
   stripeReconciliation,
   webinarReminder,
+  assessmentNurture,
 ];
 
 /**

@@ -292,6 +292,9 @@ Life Autopilot Assessment email-unlock rows (migration `007`). See `docs/funnel/
 | primary_bottleneck | VARCHAR(64) | NOT NULL |
 | secondary_bottleneck | VARCHAR(64) | NOT NULL |
 | source_url | VARCHAR(2048) | NULL |
+| marketing_consent | TINYINT(1) | NULL — snapshot at unlock (`009`) |
+| marketing_consent_at | DATETIME(3) | NULL |
+| marketing_consent_source | VARCHAR(64) | NULL (e.g. `assessment_unlock`) |
 | created_at | DATETIME(3) | UTC |
 
 **Indexes:** `(email, created_at)`, `(funnel_name, created_at)`, `(primary_bottleneck, created_at)`.
@@ -299,6 +302,57 @@ Life Autopilot Assessment email-unlock rows (migration `007`). See `docs/funnel/
 Does **not** FK to `users`.
 
 **Related lead event:** `assessment_email_unlocked` in `lead_event_types` / `lead_events` (migration `008`). See `docs/leads/assessment-conversion-events.md`.
+
+**Nurture:** With marketing consent, enrolls into `email_sequence_enrollments` (migration `009`). See `src/config/assessmentNurture.js`, `src/services/assessmentNurtureService.js`.
+
+---
+
+### marketing_consents
+
+Source of truth for marketing email eligibility (migration `009`).
+
+| Column | Type | Description |
+|--------|------|-------------|
+| id | BIGINT UNSIGNED PK | Auto-increment |
+| email | VARCHAR(255) | NOT NULL, UNIQUE |
+| consent_granted | TINYINT(1) | 1 = may send marketing |
+| consent_source | VARCHAR(64) | NULL (e.g. `assessment_unlock`) |
+| consented_at | DATETIME(3) | NULL |
+| withdrawn_at | DATETIME(3) | NULL — set on unsubscribe |
+| updated_at | DATETIME(3) | Auto-update |
+
+---
+
+### email_sequence_enrollments
+
+Marketing sequence progression state (migration `009`). Not inferred from `email_sent_log`.
+
+| Column | Type | Description |
+|--------|------|-------------|
+| id | BIGINT UNSIGNED PK | Auto-increment |
+| sequence_name | VARCHAR(64) | e.g. `assessment_post_nurture_v1` |
+| email | VARCHAR(255) | NOT NULL |
+| assessment_submission_id | BIGINT UNSIGNED | Latest linked submission |
+| current_step | TINYINT UNSIGNED | Last sent step (`0` = none) |
+| status | ENUM | `ACTIVE`, `PAUSED`, `COMPLETED`, `UNSUBSCRIBED`, `CANCELLED` |
+| enrolled_at | DATETIME(3) | |
+| last_sent_at | DATETIME(3) | NULL |
+| next_send_at | DATETIME(3) | NULL — cron due query |
+| completed_at | DATETIME(3) | NULL |
+| unsubscribed_at | DATETIME(3) | NULL |
+| cancelled_at | DATETIME(3) | NULL |
+| primary_bottleneck | VARCHAR(64) | NULL — for future personalization |
+| secondary_bottleneck | VARCHAR(64) | NULL |
+| is_dual_primary | TINYINT(1) | |
+| is_balanced | TINYINT(1) | |
+| is_low_overall | TINYINT(1) | |
+| created_at / updated_at | DATETIME(3) | |
+
+**Unique:** `(sequence_name, email)`. **Indexes:** `(status, next_send_at)`, submission id, email.
+
+**Related lead events:** `sequence_enrolled`, `email_sent`, `sequence_completed`, `sequence_unsubscribed` (`009`).
+
+**Unsubscribe:** `GET /odhlasenie-emailov?token=…` (HMAC; `MARKETING_UNSUBSCRIBE_TOKEN_SECRET`).
 
 ---
 
@@ -321,6 +375,8 @@ webhook_events (standalone)
 email_sent_log (standalone)
 audit_logs (standalone)
 assessment_submissions (standalone)
+marketing_consents (standalone, by email)
+email_sequence_enrollments (standalone; links assessment_submission_id)
 ```
 
 ---

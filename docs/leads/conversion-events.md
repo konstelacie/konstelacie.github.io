@@ -3,7 +3,7 @@
 **Status:** proposal / decision draft (not implementation spec)  
 **Scope:** FB/IG ad → dedicated landing page (with optional supporting video) → time slot selection → email → reservation → **€10 reservation fee** payment.
 
-**Assessment funnel KPI:** see [`assessment-conversion-events.md`](assessment-conversion-events.md) (`assessment_email_unlocked`).
+**Assessment funnel KPI:** see [`assessment-conversion-events.md`](assessment-conversion-events.md) (`assessment_email_unlocked`). Nurture sequence events: [`assessment-nurture-events.md`](assessment-nurture-events.md).
 
 This document defines what counts as a lead, which events to track, how to classify them, and how they support analytics, remarketing, and future ad optimization for this funnel only.
 

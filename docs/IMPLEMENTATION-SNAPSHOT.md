@@ -194,9 +194,9 @@ All JSON APIs use `requestId` middleware. Base: `src/routes/api/index.js`.
 
 **Config / copy:** `src/config/assessmentAutopilot.js` (from `docs/funnel/it-dev/017-assessment-content-sk.md`).
 
-**API / DB:** `POST /api/assessment/submit` → `assessment_submissions`; lead event `assessment_email_unlocked` (migration `008`). Docs: `docs/funnel/it-dev/README.md`, `docs/funnel/it-dev/016-assessment-v1-summary.md`, `docs/leads/assessment-conversion-events.md`.
+**API / DB:** `POST /api/assessment/submit` → `assessment_submissions` (incl. marketing consent snapshot); lead event `assessment_email_unlocked` (migration `008`). With consent → `marketing_consents` + `email_sequence_enrollments` (migration `009`); cron job `assessment-nurture`; unsubscribe `GET /odhlasenie-emailov`. Config: `src/config/assessmentNurture.js`. Docs: `docs/funnel/it-dev/README.md`, `docs/funnel/it-dev/016-assessment-v1-summary.md`, `docs/leads/assessment-conversion-events.md`, `docs/funnel/it-dev/023-email-architecture.md`.
 
-**Results CTA:** Option A — dual `mailto:` (`SUPPORT_EMAIL`) for info + waitlist.
+**Results CTA:** Option A — dual `mailto:` (`SUPPORT_EMAIL`) for info + waitlist (same destinations used in nurture CTAs).
 
 **Sitemap:** dynamic — `/` when `SITE_HOME_MODE=prod`, plus legal pages. Funnel URLs never listed.
 

@@ -16,6 +16,10 @@ function mapRow(row) {
     primaryBottleneck: row.primary_bottleneck,
     secondaryBottleneck: row.secondary_bottleneck,
     sourceUrl: row.source_url,
+    marketingConsent:
+      row.marketing_consent == null ? null : Boolean(row.marketing_consent),
+    marketingConsentAt: row.marketing_consent_at ?? null,
+    marketingConsentSource: row.marketing_consent_source ?? null,
     createdAt: row.created_at,
   };
 }
@@ -30,6 +34,9 @@ function mapRow(row) {
  * @param {string} input.primaryBottleneck
  * @param {string} input.secondaryBottleneck
  * @param {string|null} [input.sourceUrl]
+ * @param {boolean|null} [input.marketingConsent]
+ * @param {Date|null} [input.marketingConsentAt]
+ * @param {string|null} [input.marketingConsentSource]
  * @returns {Promise<{ id: number }>}
  */
 async function createSubmission(input) {
@@ -47,11 +54,25 @@ async function createSubmission(input) {
       ? String(input.sourceUrl).trim().slice(0, 2048)
       : null;
 
+  const marketingConsent =
+    input.marketingConsent == null ? null : input.marketingConsent ? 1 : 0;
+  const marketingConsentAt =
+    marketingConsent === 1
+      ? input.marketingConsentAt instanceof Date
+        ? input.marketingConsentAt
+        : new Date()
+      : null;
+  const marketingConsentSource =
+    marketingConsent === 1 && input.marketingConsentSource
+      ? String(input.marketingConsentSource).trim().slice(0, 64)
+      : null;
+
   const [result] = await pool.execute(
     `INSERT INTO assessment_submissions
       (email, funnel_name, funnel_campaign, answers_json, scores_json,
-       primary_bottleneck, secondary_bottleneck, source_url)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+       primary_bottleneck, secondary_bottleneck, source_url,
+       marketing_consent, marketing_consent_at, marketing_consent_source)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     [
       email,
       funnelName,
@@ -61,6 +82,9 @@ async function createSubmission(input) {
       input.primaryBottleneck,
       input.secondaryBottleneck,
       sourceUrl,
+      marketingConsent,
+      marketingConsentAt,
+      marketingConsentSource,
     ]
   );
 

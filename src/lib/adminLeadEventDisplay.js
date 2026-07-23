@@ -25,6 +25,10 @@ const LEAD_EVENT_LABELS = {
   purchase: 'Zakúpené',
   payment_refunded: 'Platba vrátená',
   assessment_email_unlocked: 'Odomknuté hodnotenie',
+  sequence_enrolled: 'Zaradenie do e-mailovej sekvencie',
+  email_sent: 'Odoslaný marketingový e-mail',
+  sequence_completed: 'Dokončená e-mailová sekvencia',
+  sequence_unsubscribed: 'Odhlásenie zo sekvencie',
 };
 
 const PAYMENT_TYPE_LABELS = {

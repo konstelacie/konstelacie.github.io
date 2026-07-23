@@ -1,0 +1,18 @@
+<main class="legal-page" style="max-width: 36rem; margin: 0 auto; padding: var(--spacing-section, 3rem) 1.25rem;">
+  <% if (status === 'ok') { %>
+    <h1>Ste odhlásení</h1>
+    <% if (alreadyUnsubscribed) { %>
+      <p>Táto adresa už bola z marketingových e-mailov odhlásená skôr.</p>
+    <% } else { %>
+      <p>Odhlásenie prebehlo. Ďalšie marketingové e-maily z tejto sekvencie už neposielame.</p>
+    <% } %>
+    <p>Transakčné e-maily (napríklad potvrdenia rezervácií) týmto nie sú ovplyvnené.</p>
+  <% } else if (status === 'error') { %>
+    <h1>Niečo sa nepodarilo</h1>
+    <p>Odhlásenie sa nepodarilo spracovať. Skúste to prosím neskôr alebo nám napíšte.</p>
+  <% } else { %>
+    <h1>Odkaz nie je platný</h1>
+    <p>Tento odkaz na odhlásenie je neplatný alebo expirovaný. Ak stále dostávate e-maily, odpovedzte na posledný e-mail a radi to vyriešime.</p>
+  <% } %>
+  <p style="margin-top: 2rem;"><a href="/">Späť na úvod</a></p>
+</main>

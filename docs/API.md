@@ -458,7 +458,7 @@ See `docs/EMAILING.md` and `src/routes/api/resend.js`.
 
 ## POST /api/cron/run (GET also supported)
 
-Single endpoint for **all** cron tasks. Runs registered jobs in `src/jobs/index.js`: **cron-health**, **email-delivery-tasks**, **pre-session-reminder**, **billing-deliver-stuck** (KROS webhook missing recovery), **stripe-reconciliation** (payment mismatch detector — no auto-repair). A successful run records `system_settings.last_successful_cron_run_at` and auto-resolves `cron_not_running` alerts.
+Single endpoint for **all** cron tasks. Runs registered jobs in `src/jobs/index.js`: **cron-health**, **email-delivery-tasks**, **pre-session-reminder**, **session-before-start**, **billing-deliver-stuck** (KROS webhook missing recovery), **stripe-reconciliation** (payment mismatch detector — no auto-repair), **webinar-reminder**, **assessment-nurture** (post-assessment marketing sequence). A successful run records `system_settings.last_successful_cron_run_at` and auto-resolves `cron_not_running` alerts.
 
 **Cron health (Phase 5):** While cron is actually down, staleness is detected primarily on **admin page load** (`adminAlertBanner` → `checkCronHealth`). The `cron-health` job at the start of a run reports a stale *previous* run when cron resumes; the end of `runAll()` records success and auto-resolves the alert. Before the first successful cron run (`last_successful_cron_run_at` unset), no `cron_not_running` alert is raised. See `docs/SCHEDULED-EMAILS-CRON.md` §4.4.
 
@@ -519,7 +519,7 @@ Unlock Life Autopilot Assessment results after all questions are answered. Serve
 | `funnelName` | string | yes | Assessment funnel (`autopilot`) |
 | `funnelCampaign` | string | no | Default `default` |
 | `captchaToken` | string | conditional | When adaptive captcha requires it |
-| `marketingConsent` | boolean | no | Accepted; not persisted in v1 |
+| `marketingConsent` | boolean | no | Persisted; when true, enrolls into post-assessment nurture sequence |
 | `sourceUrl` | string | no | Else derived from `Referer` |
 
 **Response 200:**
