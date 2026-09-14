@@ -4,10 +4,12 @@ const {
   FUNNEL_INSTANCES,
   FUNNEL_PAGE_INSTANCES,
   getFunnelPageType,
+  funnelHasBookingReturns,
 } = require('../config/funnelInstances');
 const pageVisibility = require('../config/pageVisibility');
 const { resolveCampaignVideo } = require('../config/funnelVideo');
 const assessmentAutopilot = require('../config/assessmentAutopilot');
+const situationMap = require('../config/situationMap');
 const {
   bookingPricingViewLocals,
   bookingPricingDefaultsScriptTag,
@@ -118,6 +120,12 @@ const INSTANCE_CAMPAIGNS = {
       subhead: assessmentAutopilot.landing.leadClose,
     },
   },
+  mapa: {
+    default: {
+      headline: situationMap.landing.headline,
+      subhead: situationMap.landing.cta,
+    },
+  },
 };
 
 /** Instance-specific meta (title, description). */
@@ -144,6 +152,11 @@ const INSTANCE_META = {
     title: 'Diagnostika životného autopilota – citimtedasom.sk',
     description:
       'Odhaľte skryté vzorce, ktoré potichu formujú váš bežný deň — energia, identita, vzťahy a autopilot.',
+  },
+  mapa: {
+    title: 'Mapa situácie – citimtedasom.sk',
+    description:
+      'Krátka mapa, ktorá ti pomôže pomenovať situáciu, ktorú práve riešiš — bez diagnózy a bez testu.',
   },
 };
 
@@ -239,9 +252,56 @@ function renderAssessmentFunnelPage(res, funnelName, req) {
   });
 }
 
+function renderSituationMapFunnelPage(res, funnelName, req) {
+  const campaigns = INSTANCE_CAMPAIGNS[funnelName] || { default: {} };
+  const campaignId =
+    (req.query && req.query.campaign && String(req.query.campaign).trim()) || 'default';
+  const safeCampaignId = Object.prototype.hasOwnProperty.call(campaigns, campaignId)
+    ? campaignId
+    : 'default';
+  const meta = INSTANCE_META[funnelName] || { title: funnelName, description: '' };
+  const clientConfig = situationMap.getClientConfig();
+  const configJson = JSON.stringify(clientConfig).replace(/</g, '\\u003c');
+
+  res.render(`funnels/${funnelName}`, {
+    layout: 'layouts/default',
+    hideHeader: true,
+    robotsNoindex: true,
+    showTestingBanner: funnelTestingBanner(funnelName),
+    title: meta.title,
+    description: meta.description,
+    funnelName,
+    funnelCampaignId: safeCampaignId,
+    supportEmail: appConfig.site.supportEmail,
+    extraStyles:
+      '<link rel="stylesheet" href="/assets/css/assessment.css">' +
+      '<link rel="stylesheet" href="/assets/css/situation-map.css">',
+    extraScripts: `
+      ${
+        appConfig.captcha?.siteKey
+          ? `<script>window.__SITUATION_MAP_RECAPTCHA_SITE_KEY=${JSON.stringify(appConfig.captcha.siteKey)}</script>`
+          : ''
+      }
+      <script type="application/json" id="situation-map-config">${configJson}</script>
+      <script>
+        window.__SITUATION_MAP_BOOTSTRAP = {
+          funnelName: ${JSON.stringify(funnelName)},
+          funnelCampaign: ${JSON.stringify(safeCampaignId)},
+          supportEmail: ${JSON.stringify(appConfig.site.supportEmail || '')}
+        };
+      </script>
+      <script src="/assets/js/situation-map.js"></script>
+    `,
+  });
+}
+
 function renderFunnelPage(res, funnelName, req) {
-  if (getFunnelPageType(funnelName) === 'assessment') {
+  const pageType = getFunnelPageType(funnelName);
+  if (pageType === 'assessment') {
     return renderAssessmentFunnelPage(res, funnelName, req);
+  }
+  if (pageType === 'situation-map') {
+    return renderSituationMapFunnelPage(res, funnelName, req);
   }
   return renderFunnelExpressPage(res, funnelName, req);
 }
@@ -342,7 +402,7 @@ router.get('/:segment/success', (req, res, next) => {
   if (resolved.redirectHome) return res.redirect(302, '/');
 
   const { funnelName } = resolved;
-  if (getFunnelPageType(funnelName) === 'assessment') return next('route');
+  if (!funnelHasBookingReturns(funnelName)) return next('route');
   const meta = INSTANCE_META[funnelName] || {};
   res.render('pages/booking-success', {
     layout: 'layouts/default',
@@ -364,7 +424,7 @@ router.get('/:segment/cancel', (req, res, next) => {
   if (resolved.redirectHome) return res.redirect(302, '/');
 
   const { funnelName } = resolved;
-  if (getFunnelPageType(funnelName) === 'assessment') return next('route');
+  if (!funnelHasBookingReturns(funnelName)) return next('route');
   const meta = INSTANCE_META[funnelName] || {};
   const publicPath = pageVisibility.buildPublicPath(funnelName);
   res.render('pages/booking-cancel', {

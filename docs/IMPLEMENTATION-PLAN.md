@@ -101,9 +101,9 @@
 | | |
 |---|--|
 | **Item** | Additional **funnel instances** beyond `pilot`; production **Wistia** (or self-hosted) assets |
-| **Current state** | Page funnels: `pilot`, `manipulacia` (video-booking), `autopilot` (assessment). See `src/config/funnelInstances.js`. **Planning only (do not build):** Mapa situácie — `docs/funnel/constellation/README.md` / `001-technical-foundation.md`. |
+| **Current state** | Page funnels: `pilot`, `manipulacia` (video-booking), `autopilot` (assessment), `mapa` (situation-map v0). See `src/config/funnelInstances.js`. |
 | **Target** | New funnels + campaigns per `docs/PRACTICES.md`; replace test video ids when assets ready. |
-| **Dependencies** | Creative pipeline `docs/CREATIVE-MEDIA.md`; funnels never in sitemap. Map design (`001` §12) before any constellation instance. |
+| **Dependencies** | Creative pipeline `docs/CREATIVE-MEDIA.md`; funnels never in sitemap. |
 | **Definition of done** | New funnel in registry + views; snapshot updated. |
 
 | | |
@@ -113,6 +113,14 @@
 | **Target (later)** | Paid diagnosis booking (~190 €); transactional results email; anonymous mid-funnel lead events. |
 | **Dependencies** | Product decisions for diagnosis checkout (`009` §15 options B/C). |
 | **Definition of done (v1)** | Full flow on `/autopilot-test`; submit + `assessment_email_unlocked`; soft CTA. |
+
+| | |
+|---|--|
+| **Item** | **Mapa situácie** (`mapa`) — qualitative acquisition map |
+| **Current state** | **v0 prototype** — intro → Q1–Q8 → email → recap. Docs: `docs/funnel/constellation/002-situation-map-v0.md`. |
+| **Target (later)** | Content/UX lock; swappable CTA/offer; optional result email; ads. |
+| **Dependencies** | Operator testing on model situations. |
+| **Definition of done (v0)** | `/mapa-test` walkthrough; structured persist; deterministic recap; funnel events. |
 
 | | |
 |---|--|

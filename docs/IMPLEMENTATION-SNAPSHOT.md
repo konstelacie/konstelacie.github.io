@@ -172,7 +172,7 @@ All JSON APIs use `requestId` middleware. Base: `src/routes/api/index.js`.
 
 ## Funnels
 
-**Registry:** `FUNNEL_INSTANCES` / `FUNNEL_PAGE_INSTANCES` / `FUNNEL_PAGE_TYPES` in `src/config/funnelInstances.js` — page funnels: `pilot`, `manipulacia` (`video-booking`), `autopilot` (`assessment`).
+**Registry:** `FUNNEL_INSTANCES` / `FUNNEL_PAGE_INSTANCES` / `FUNNEL_PAGE_TYPES` in `src/config/funnelInstances.js` — page funnels: `pilot`, `manipulacia` (`video-booking`), `autopilot` (`assessment`), `mapa` (`situation-map`).
 
 **Visibility:** `FUNNEL_{NAME}_MODE=hidden|test|prod` (e.g. `FUNNEL_AUTOPILOT_MODE`). Test URLs use `-test` suffix. Never in sitemap; always `noindex`. See `docs/PAGE-VISIBILITY.md`.
 
@@ -197,6 +197,16 @@ All JSON APIs use `requestId` middleware. Base: `src/routes/api/index.js`.
 **API / DB:** `POST /api/assessment/submit` → `assessment_submissions` (incl. marketing consent snapshot); lead event `assessment_email_unlocked` (migration `008`). With consent → `marketing_consents` + `email_sequence_enrollments` (migration `009`); cron job `assessment-nurture`; unsubscribe `GET /odhlasenie-emailov`. Config: `src/config/assessmentNurture.js`. Docs: `docs/funnel/it-dev/README.md`, `docs/funnel/it-dev/016-assessment-v1-summary.md`, `docs/leads/assessment-conversion-events.md`, `docs/funnel/it-dev/023-email-architecture.md`.
 
 **Results CTA:** Option A — dual `mailto:` (`SUPPORT_EMAIL`) for info + waitlist (same destinations used in nurture CTAs).
+
+### Situation map (`mapa`)
+
+**Product:** Mapa situácie v0 — qualitative intro → Q1–Q8 → email → deterministic recap. Internal prototype; no paid offer, no nurture, no result email.
+
+**Template / assets:** `src/views/funnels/mapa.ejs`, `/assets/css/assessment.css` + `/assets/css/situation-map.css`, `/assets/js/situation-map.js`.
+
+**Config / copy:** `src/config/situationMap.js`. Recap: `src/lib/situationMapRecap.js`.
+
+**API / DB:** `POST /api/situation-map/submit` → `situation_map_submissions`; `POST /api/situation-map/event` → `situation_map_events` (migration `010`). Lead event `situation_map_email_submitted`. Marketing consent snapshot only. Docs: `docs/funnel/constellation/002-situation-map-v0.md`.
 
 **Sitemap:** dynamic — `/` when `SITE_HOME_MODE=prod`, plus legal pages. Funnel URLs never listed.
 

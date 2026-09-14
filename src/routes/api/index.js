@@ -17,6 +17,7 @@ const cronRouter = require('./cron');
 const supportRouter = require('./support');
 const webinarRouter = require('./webinar');
 const assessmentRouter = require('./assessment');
+const situationMapRouter = require('./situationMap');
 
 const router = express.Router();
 
@@ -64,5 +65,6 @@ router.use('/cron', cronRouter);
 router.use('/support', supportRouter);
 router.use('/webinar', webinarRouter);
 router.use('/assessment', assessmentRouter);
+router.use('/situation-map', situationMapRouter);
 
 module.exports = router;

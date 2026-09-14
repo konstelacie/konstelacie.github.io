@@ -176,6 +176,33 @@ const assessmentSubmitLimiter = rateLimit({
   },
 });
 
+/** POST /api/situation-map/submit */
+const situationMapSubmitLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 20,
+  standardHeaders: true,
+  legacyHeaders: false,
+  keyGenerator: (req) => {
+    const ip = ipKeyGenerator(req.ip || req.socket?.remoteAddress || '', 56);
+    const body = req.body || {};
+    const email = typeof body.email === 'string' ? body.email.trim().toLowerCase() : '';
+    return email ? `smap-submit:${ip}:${email}` : `smap-submit:${ip}`;
+  },
+  handler: (req, res) => {
+    res.status(429).json({
+      ok: false,
+      error: 'RATE_LIMITED',
+      message: 'Príliš veľa pokusov. Skús to prosím neskôr.',
+    });
+  },
+});
+
+/** POST /api/situation-map/event — one per question step; keep generous. */
+const situationMapEventLimiter = rateLimit({
+  ...limiterOptions,
+  max: 80,
+});
+
 module.exports = {
   slotsListLimiter,
   bookingWriteLimiter,
@@ -195,4 +222,6 @@ module.exports = {
   webinarRegisterLimiter,
   webinarRoomLimiter,
   assessmentSubmitLimiter,
+  situationMapSubmitLimiter,
+  situationMapEventLimiter,
 };

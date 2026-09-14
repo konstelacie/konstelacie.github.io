@@ -25,6 +25,7 @@ const LEAD_EVENT_LABELS = {
   purchase: 'Zakúpené',
   payment_refunded: 'Platba vrátená',
   assessment_email_unlocked: 'Odomknuté hodnotenie',
+  situation_map_email_submitted: 'Mapa situácie (e-mail)',
   sequence_enrolled: 'Zaradenie do e-mailovej sekvencie',
   email_sent: 'Odoslaný marketingový e-mail',
   sequence_completed: 'Dokončená e-mailová sekvencia',
@@ -93,6 +94,9 @@ function buildEventDetailSummary(eventType, metadata) {
   }
   if (md.primaryBottleneck) {
     parts.push(String(md.primaryBottleneck));
+  }
+  if (md.topic) {
+    parts.push(String(md.topic));
   }
   if (md.isDualPrimary && md.secondaryBottleneck) {
     parts.push(`+ ${md.secondaryBottleneck}`);

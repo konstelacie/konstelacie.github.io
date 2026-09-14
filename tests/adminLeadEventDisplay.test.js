@@ -10,6 +10,7 @@ test('leadEventTypeLabel returns Slovak label for known types', () => {
   assert.equal(leadEventTypeLabel('email_entered'), 'Zadaný e-mail');
   assert.equal(leadEventTypeLabel('purchase'), 'Zakúpené');
   assert.equal(leadEventTypeLabel('unknown_type'), 'unknown_type');
+  assert.equal(leadEventTypeLabel('situation_map_email_submitted'), 'Mapa situácie (e-mail)');
 });
 
 test('mapAdminLeadEventRow formats slot and checkout metadata', () => {

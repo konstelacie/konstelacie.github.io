@@ -568,6 +568,50 @@ Persists to `assessment_submissions` (migration `007`). Does **not** create a `u
 
 ---
 
+## POST /api/situation-map/event
+
+Anonymous funnel step for Mapa situácie (`mapa`). Email is **not** required (`lead_events` cannot store pre-email steps).
+
+**Body (JSON):** `sessionId` (8–64 `[a-zA-Z0-9_-]`), `eventType`, optional `questionId`, `funnelName`, `funnelCampaign`.
+
+Allowed `eventType`: `map_started`, `map_question_viewed`, `map_question_answered`, `map_completed`, `email_submitted`, `result_viewed`, `offer_viewed`, `offer_clicked`.
+
+**Response 200:** `{ "ok": true }`. Invalid body → 400. Rate limit 80/min/IP.
+
+Persists to `situation_map_events` (migration `010`). Missing DB is a no-op.
+
+---
+
+## POST /api/situation-map/submit
+
+Unlock Mapa situácie recap. Server validates structured answers and builds a deterministic recap (no scoring).
+
+**Body (JSON):**
+
+| Field | Type | Required | Notes |
+|-------|------|----------|--------|
+| `email` | string | yes | Normalized lowercase |
+| `displayName` | string | yes | Name / oslovenie, max 80 |
+| `answers` | object | yes | See below |
+| `funnelName` | string | yes | `mapa` |
+| `funnelCampaign` | string | no | Default `default` |
+| `sessionId` | string | no | Links `situation_map_events` |
+| `captchaToken` | string | conditional | Adaptive captcha |
+| `marketingConsent` | boolean | no | Snapshot only — **no** nurture enroll in v0 |
+| `sourceUrl` | string | no | Else `Referer` |
+
+**`answers` fields:** `topic`, `topicOther`, `situationDescription`, `situationType`, `duration`, `peopleInvolved[]`, `peopleInvolvedOther`, `attempts[]`, `attemptsOther`, `desiredChange`, `perceivedBarrier`, `perceivedBarrierOther`. Codes come from `src/config/situationMap.js`. Server sets `constellationExperience` from `attempts`.
+
+**Response 200:** `{ "ok": true, "submissionId": 1, "recap": { "sections": { … }, "disclaimer": "…" } }`
+
+**Errors:** `VALIDATION_ERROR` (400), captcha 403, `RATE_LIMITED` (429), `INTERNAL_ERROR` (503 if DB missing).
+
+**Rate limit:** 20 / 15 min per IP+email. **Captcha:** `situation_map_submit` (same threshold as assessment).
+
+Persists to `situation_map_submissions`. Lead event `situation_map_email_submitted`. Does **not** email the recap in v0 (on-page only).
+
+---
+
 ## Seed data (optional)
 
 Public listing requires each slot to start **≥ 24 hours** from now (and weekdays in the funnel). Do not seed slots for **today** only—they will not appear.
@@ -588,7 +632,7 @@ INSERT INTO slots (local_date, grid_index, timezone, start_at_utc, end_at_utc, s
 | Method | Path | Notes |
 |--------|------|--------|
 | GET | `/` | Home |
-| GET | `/:funnelName` | Funnel page (`FUNNEL_PAGE_INSTANCES`; assessment e.g. `/autopilot-test`) |
+| GET | `/:funnelName` | Funnel page (`FUNNEL_PAGE_INSTANCES`; assessment e.g. `/autopilot-test`, map e.g. `/mapa-test`) |
 | GET | `/:funnelName/success` | Checkout success (video-booking funnels; typically `?session_id=cs_...`) |
 | GET | `/:funnelName/cancel` | Checkout cancelled (video-booking funnels) |
 | GET | `/ochrana-udajov` | Privacy / cookies — `src/routes/legal.js` |

@@ -488,6 +488,7 @@ This codebase implements adaptive **Google reCAPTCHA v3** as a secondary layer:
 | Lock | `POST /api/slots/:slotId/lock` | `lock` |
 | Payment / checkout start | `POST /api/payments/start` | `payment_start` |
 | Assessment email unlock | `POST /api/assessment/submit` | `assessment_submit` |
+| Situation map email unlock | `POST /api/situation-map/submit` | `situation_map_submit` |
 
 There is no separate `POST /api/reservations` for the public funnel; the doc’s “reservation” step here is **payment start** (Stripe Checkout session creation). **Read** endpoints are unchanged (no captcha).
 

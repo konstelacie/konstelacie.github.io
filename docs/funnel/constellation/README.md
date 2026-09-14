@@ -1,35 +1,23 @@
 # Constellation funnel — docs index
 
-**Status:** Planning / validation. Do **not** implement the Map or a new funnel instance yet.
+**Start here:** [`002-situation-map-v0.md`](002-situation-map-v0.md) for the implemented prototype; [`001-technical-foundation.md`](001-technical-foundation.md) for the working brief.
 
-**Start here:** [`001-technical-foundation.md`](001-technical-foundation.md)
+**Mapa situácie v0** is an internal validation prototype at `/mapa-test` (`FUNNEL_MAPA_MODE=test`). Do not treat it as a public campaign launch.
 
-Working product: **Mapa situácie** — qualitative acquisition/research form (not Autopilot scoring). Next step is the Map design (questions, data model, result rules, events). That design is the technical spec.
-
-Autopilot (`docs/funnel/it-dev/`) is **code infrastructure to reuse as patterns**, not a product this funnel must position against.
+Autopilot (`docs/funnel/it-dev/`) remains separate infrastructure. This funnel does not reuse Autopilot questions, scoring, or nurture.
 
 ## Active
 
 | Doc | Role |
 |-----|------|
-| [`001`](001-technical-foundation.md) | **Working brief** — accepted foundation, codebase constraints, what not to build |
-| [`000`](000-brainstorming.md) | Earlier chat capture (offer pyramid, funnel sketch). Some open items superseded by `001` |
+| [`002`](002-situation-map-v0.md) | **v0 as-built** — flow, files, local check |
+| [`001`](001-technical-foundation.md) | Working brief (Map vs offer layer, what not to build) |
+| [`000`](000-brainstorming.md) | Earlier chat capture (offer pyramid) |
 
-## Next (do not invent in code)
+## Next (not in v0)
 
-Map design covering `001` §12: questions, types, options, required/optional, branching, segments, open text, result data model + algorithm, analytics events.
+Content/UX testing on model situations. Then lock questions, recap wording, and the first paid offer (CTA slot is empty on purpose).
 
-Then: funnel name/URL, CTA layer (swappable offer), consent copy.
+## Explicitly out of v0
 
-## Explicitly out of scope now
-
-Membership, constellation circle, community, course, Autopilot clone, new DB tables before the Map data model exists.
-
-## Related
-
-| Doc | Role |
-|-----|------|
-| `docs/funnel/it-dev/` | Shipped Autopilot assessment (hidden by default) — patterns only for this pack |
-| `docs/PAGE-VISIBILITY.md` | How to add a funnel page **after** Map spec |
-| `docs/leads/assessment-conversion-events.md` | Why pre-email events are not free (`lead_events.email` required) |
-| `docs/IMPLEMENTATION-PLAN.md` §7 | Funnel backlog (planning pointer) |
+Membership, constellation circle, scoring, AI interpretations, segmented nurture, payment for a specific package, admin dashboard for Maps.

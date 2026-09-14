@@ -1,0 +1,143 @@
+/* Mapa situácie v0 — extends assessment.css tokens/layout */
+
+.situation-map-hint {
+  margin: 0.45rem 0 0;
+  color: var(--color-text-muted);
+  font-size: 0.88rem;
+  line-height: 1.4;
+}
+
+.situation-map-choices {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin: 0.85rem 0 0;
+}
+
+.situation-map-choice {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.7rem;
+  width: 100%;
+  min-height: 2.95rem;
+  padding: 0.7rem 0.9rem;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-booking-slot);
+  background: #fff;
+  color: var(--color-text);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.situation-map-choice:hover,
+.situation-map-choice:focus-visible {
+  border-color: var(--color-booking-accent);
+  background: var(--color-booking-accent-softer);
+}
+
+.situation-map-choice:focus-visible {
+  outline: 2px solid var(--color-booking-accent);
+  outline-offset: 2px;
+}
+
+.situation-map-choice.is-selected {
+  border-color: var(--color-booking-accent-hover);
+  background: color-mix(in srgb, var(--color-booking-accent-soft) 85%, #fff 15%);
+  box-shadow: inset 0 0 0 1px var(--color-booking-accent);
+}
+
+.situation-map-choice__mark {
+  flex: 0 0 auto;
+  width: 1.1rem;
+  height: 1.1rem;
+  margin-top: 0.15rem;
+  border: 1px solid var(--color-border);
+  background: #fff;
+}
+
+.situation-map-choice--single .situation-map-choice__mark {
+  border-radius: 999px;
+}
+
+.situation-map-choice--multi .situation-map-choice__mark {
+  border-radius: 0.2rem;
+}
+
+.situation-map-choice.is-selected .situation-map-choice__mark {
+  border-color: var(--color-booking-accent);
+  background: var(--color-booking-accent);
+}
+
+.situation-map-textarea,
+.situation-map-other,
+.situation-map-page .assessment-field input[type='text'] {
+  width: 100%;
+  margin-top: 0.75rem;
+  padding: 0.75rem 0.85rem;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-booking-slot);
+  background: #fff;
+  color: var(--color-text);
+  font: inherit;
+  line-height: 1.45;
+}
+
+.situation-map-textarea {
+  min-height: 8.5rem;
+  resize: vertical;
+}
+
+.situation-map-textarea:focus,
+.situation-map-other:focus,
+.situation-map-page .assessment-field input[type='text']:focus {
+  outline: 2px solid var(--color-booking-accent);
+  outline-offset: 1px;
+}
+
+.situation-map-count {
+  margin: 0.35rem 0 0;
+  color: var(--color-text-muted);
+  font-size: 0.8rem;
+  text-align: right;
+}
+
+.situation-map-recap h2 {
+  margin: 1.6rem 0 0.5rem;
+  font-size: 1.15rem;
+}
+
+.situation-map-recap__quote,
+.situation-map-recap p {
+  margin: 0.4rem 0 0;
+  line-height: 1.5;
+}
+
+.situation-map-recap__quote {
+  padding: 0.85rem 1rem;
+  border-left: 3px solid var(--color-booking-accent);
+  background: var(--color-booking-surface);
+  white-space: pre-wrap;
+}
+
+.situation-map-recap ul {
+  margin: 0.5rem 0 0;
+  padding-left: 1.15rem;
+}
+
+.situation-map-disclaimer {
+  margin-top: var(--spacing-gap);
+  padding-top: 0.85rem;
+  border-top: 1px solid var(--color-border);
+  color: var(--color-text-muted);
+  font-size: 0.88rem;
+  line-height: 1.45;
+}
+
+.situation-map-offer:empty {
+  display: none;
+}
+
+.situation-map-offer:not(:empty) {
+  margin-top: var(--spacing-section);
+}

@@ -22,6 +22,7 @@ const WIRED_EVENT_TYPES = new Set([
   'payment_path_selected',
   'lock_revoked',
   'assessment_email_unlocked',
+  'situation_map_email_submitted',
   'sequence_enrolled',
   'email_sent',
   'sequence_completed',

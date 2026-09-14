@@ -11,6 +11,7 @@ const config = require('../config');
 const ROUTE_LOCK = 'lock';
 const ROUTE_PAYMENT_START = 'payment_start';
 const ROUTE_ASSESSMENT_SUBMIT = 'assessment_submit';
+const ROUTE_SITUATION_MAP_SUBMIT = 'situation_map_submit';
 
 /** @type {Map<string, number[]>} */
 const buckets = new Map();
@@ -36,7 +37,9 @@ function getVelocityWindowMs() {
 
 function thresholdForRoute(route) {
   if (route === ROUTE_LOCK) return config.captcha?.lockThreshold ?? 25;
-  if (route === ROUTE_ASSESSMENT_SUBMIT) return config.captcha?.assessmentSubmitThreshold ?? 15;
+  if (route === ROUTE_ASSESSMENT_SUBMIT || route === ROUTE_SITUATION_MAP_SUBMIT) {
+    return config.captcha?.assessmentSubmitThreshold ?? 15;
+  }
   return config.captcha?.paymentStartThreshold ?? 20;
 }
 
@@ -235,4 +238,5 @@ module.exports = {
   ROUTE_LOCK,
   ROUTE_PAYMENT_START,
   ROUTE_ASSESSMENT_SUBMIT,
+  ROUTE_SITUATION_MAP_SUBMIT,
 };
