@@ -101,9 +101,9 @@
 | | |
 |---|--|
 | **Item** | Additional **funnel instances** beyond `pilot`; production **Wistia** (or self-hosted) assets |
-| **Current state** | Page funnels: `pilot`, `manipulacia` (video-booking), `autopilot` (assessment). See `src/config/funnelInstances.js`. **Planning only (do not build):** constellation / “Mapa situácie” — `docs/funnel/constellation/README.md`. |
+| **Current state** | Page funnels: `pilot`, `manipulacia` (video-booking), `autopilot` (assessment). See `src/config/funnelInstances.js`. **Planning only (do not build):** Mapa situácie — `docs/funnel/constellation/README.md` / `001-technical-foundation.md`. |
 | **Target** | New funnels + campaigns per `docs/PRACTICES.md`; replace test video ids when assets ready. |
-| **Dependencies** | Creative pipeline `docs/CREATIVE-MEDIA.md`; funnels never in sitemap. Product decisions in constellation `000` before any instance. |
+| **Dependencies** | Creative pipeline `docs/CREATIVE-MEDIA.md`; funnels never in sitemap. Map design (`001` §12) before any constellation instance. |
 | **Definition of done** | New funnel in registry + views; snapshot updated. |
 
 | | |

@@ -1,7 +1,8 @@
 # 000 — Constellation offer + “Mapa situácie” funnel (brainstorming)
 
-**Status:** Initial brainstorming. **Not a spec. Do not implement.**  
-**Source:** External chat with a strategy agent, saved 2026-09. Wording below is distilled from that chat, not rewritten as product decisions.  
+**Status:** Historical chat capture. **Not a spec. Do not implement.**  
+**Superseded in part by:** [`001-technical-foundation.md`](001-technical-foundation.md) (working brief). Use `001` for positioning vs Autopilot, form type, swappable offer, and “do not build yet.” This file keeps the longer offer pyramid and early funnel sketch.  
+**Source:** External chat with a strategy agent, saved 2026-09.  
 **Index:** [`README.md`](README.md)
 
 ---
@@ -201,7 +202,9 @@ Draft **7–10 exact questions**, form branching, and a **result algorithm** so 
 
 ## 6. Open decisions (must decide before any build)
 
-Until these are answered, do not add a funnel instance, questionnaire config, or ads.
+**Update:** [`001`](001-technical-foundation.md) §13 closes Autopilot-as-positioning, qualitative Map (not Likert clone), and swappable CTA/offer. Remaining blockers are the Map design (`001` §12) plus name/URL, v1 offer choice, economics, and legal copy.
+
+Until the Map design exists, do not add a funnel instance, questionnaire config, or ads.
 
 ### Identity and overlap
 
