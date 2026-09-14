@@ -79,7 +79,9 @@ project-root/
 │   ├── EMAILING.md                     # Emailing (transactional, operator-assisted; planning, open questions)
 │   ├── SCHEDULED-EMAILS-CRON.md        # Timed emails (personal, bulk), cron endpoint, newsletter, special messages
 │   ├── CREATIVE-MEDIA.md               # FB ad vs funnel video folders, public `/assets/media/funnel/`
-│   └── funnel/it-dev/                  # Life Autopilot Assessment — start at README.md / 016-…
+│   └── funnel/
+│       ├── it-dev/                     # Life Autopilot Assessment — start at README.md / 016-…
+│       └── constellation/              # Planning only — “Mapa situácie” / constellation offer brainstorming
 ├── creative/                           # FB ad assets & funnel masters (not all are web-served; see CREATIVE-MEDIA.md)
 │   ├── facebook-ads/                   # Meta Ads exports, campaign folders
 │   └── funnel/                         # Funnel video working / masters
