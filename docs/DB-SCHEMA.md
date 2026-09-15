@@ -309,7 +309,7 @@ Does **not** FK to `users`.
 
 ### situation_map_submissions
 
-Mapa situácie v0 email-unlock rows (migration `010`). Structured columns for segment analysis (`topic`, `duration`, `constellation_experience`). Q8 (`perceived_barrier`) is nullable so it can be disabled in config without a migration.
+Mapa situácie v0 email-unlock rows (migration `010`). Structured columns for segment analysis (`topic`, `duration`, `constellation_experience`). `perceived_barrier` (question id `Q8`) is nullable so it can be disabled in config without a migration. Question ids are stable identities, not screen order.
 
 | Column | Type | Description |
 |--------|------|-------------|
@@ -321,7 +321,7 @@ Mapa situácie v0 email-unlock rows (migration `010`). Structured columns for se
 | funnel_campaign | VARCHAR(64) | NULL |
 | topic | VARCHAR(32) | NOT NULL |
 | topic_other | VARCHAR(200) | NULL |
-| situation_description | TEXT | NOT NULL (Q2) |
+| situation_description | TEXT | NOT NULL (`Q2` / `situationDescription`; screen 5 in v0) |
 | situation_type | VARCHAR(32) | NOT NULL |
 | duration | VARCHAR(32) | NOT NULL |
 | people_involved_json | JSON | string[] codes |
@@ -329,8 +329,8 @@ Mapa situácie v0 email-unlock rows (migration `010`). Structured columns for se
 | attempts_json | JSON | string[] codes |
 | attempts_other | VARCHAR(200) | NULL |
 | constellation_experience | TINYINT(1) | Derived from attempts |
-| desired_change | TEXT | NOT NULL (Q7) |
-| perceived_barrier | VARCHAR(32) | NULL (Q8 experimental) |
+| desired_change | TEXT | NOT NULL (`Q7`) |
+| perceived_barrier | VARCHAR(32) | NULL (`Q8` experimental) |
 | perceived_barrier_other | VARCHAR(200) | NULL |
 | source_url | VARCHAR(2048) | NULL |
 | marketing_consent | TINYINT(1) | NULL — snapshot only, no nurture in v0 |
@@ -350,7 +350,7 @@ Pre-email funnel steps (migration `010`). `lead_events.email` is NOT NULL, so th
 | funnel_name | VARCHAR(64) | NOT NULL |
 | funnel_campaign | VARCHAR(64) | NULL |
 | event_type | VARCHAR(64) | e.g. `map_started`, `map_question_viewed` |
-| question_id | VARCHAR(16) | NULL (`Q1`…`Q8`) |
+| question_id | VARCHAR(16) | NULL (`Q1`…`Q8` identities, not screen order) |
 | submission_id | BIGINT UNSIGNED | NULL — set on `email_submitted` |
 | created_at | DATETIME(3) | |
 

@@ -17,6 +17,11 @@ const landing = {
   cta: 'Vytvoriť svoju Mapu',
 };
 
+/**
+ * `id` is a stable question identity for analytics (not screen order).
+ * `field` is the semantic answer key / DB column mapping.
+ * Array order is presentation only.
+ */
 const questions = [
   {
     id: 'Q1',
@@ -35,14 +40,6 @@ const questions = [
       { value: 'recurring', label: 'niečo, čo sa mi v živote opakuje' },
       { value: 'other', label: 'iné' },
     ],
-  },
-  {
-    id: 'Q2',
-    field: 'situationDescription',
-    type: 'textarea',
-    maxLength: 800,
-    text: 'Čo sa momentálne deje?',
-    hint: 'Neuvádzaj mená ani iné údaje, podľa ktorých by sa dali spoznať ďalšie osoby. Stačí situácia tak, ako ju vnímaš ty.',
   },
   {
     id: 'Q3',
@@ -89,6 +86,16 @@ const questions = [
       { value: 'outside_family', label: 'človeka mimo rodiny' },
       { value: 'other', label: 'iné' },
     ],
+  },
+  {
+    id: 'Q2',
+    field: 'situationDescription',
+    type: 'textarea',
+    maxLength: 800,
+    rows: 3,
+    nudge: 'Už máš polovicu.',
+    text: 'Skús pár vetami opísať, čo sa momentálne deje.',
+    hint: 'Nemusíš zachádzať do detailov ani uvádzať mená. Stačí to, čo je pre teba v tejto situácii podstatné.',
   },
   {
     id: 'Q6',
@@ -196,6 +203,10 @@ function getQuestionById(id) {
   return questions.find((q) => q.id === id) || null;
 }
 
+function getQuestionByField(field) {
+  return questions.find((q) => q.field === field) || null;
+}
+
 function getClientConfig() {
   return {
     funnelName: FUNNEL_NAME,
@@ -219,5 +230,6 @@ module.exports = {
   isQuestionEnabled,
   getEnabledQuestions,
   getQuestionById,
+  getQuestionByField,
   getClientConfig,
 };

@@ -572,7 +572,7 @@ Persists to `assessment_submissions` (migration `007`). Does **not** create a `u
 
 Anonymous funnel step for Mapa situácie (`mapa`). Email is **not** required (`lead_events` cannot store pre-email steps).
 
-**Body (JSON):** `sessionId` (8–64 `[a-zA-Z0-9_-]`), `eventType`, optional `questionId`, `funnelName`, `funnelCampaign`.
+**Body (JSON):** `sessionId` (8–64 `[a-zA-Z0-9_-]`), `eventType`, optional `questionId` (stable identity `Q1`…`Q8`, not screen order), `funnelName`, `funnelCampaign`.
 
 Allowed `eventType`: `map_started`, `map_question_viewed`, `map_question_answered`, `map_completed`, `email_submitted`, `result_viewed`, `offer_viewed`, `offer_clicked`.
 

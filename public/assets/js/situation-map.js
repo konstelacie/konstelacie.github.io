@@ -4,7 +4,7 @@
 (function () {
   'use strict';
 
-  var STORAGE_PREFIX = 'situation-map:';
+  var STORAGE_PREFIX = 'situation-map:v0-order:';
   var SESSION_ID_KEY = 'situation-map:session-id';
 
   function $(sel, root) {
@@ -161,6 +161,10 @@
     var sessionId = getSessionId();
     var mount = $('#situation-map-mount', root);
     var lastViewedQuestionId = null;
+    var advanceTimer = null;
+    var isAdvancing = false;
+    var SELECTION_FEEDBACK_MS = 140;
+    var EXIT_TRANSITION_MS = 170;
 
     var state = {
       phase: 'landing',
@@ -229,7 +233,17 @@
       });
     }
 
+    function cancelAdvance() {
+      if (advanceTimer) {
+        clearTimeout(advanceTimer);
+        advanceTimer = null;
+      }
+      isAdvancing = false;
+      if (mount) mount.classList.remove('assessment-mount--exit');
+    }
+
     function startMap() {
+      cancelAdvance();
       state.phase = 'question';
       state.questionIndex = 0;
       state.answers = {};
@@ -242,7 +256,14 @@
     }
 
     function goBack() {
+      var wasAdvancing = isAdvancing || Boolean(advanceTimer);
+      cancelAdvance();
       state.error = '';
+      if (wasAdvancing && state.phase === 'question') {
+        persist();
+        render();
+        return;
+      }
       if (state.phase === 'email') {
         state.phase = 'question';
         state.questionIndex = Math.max(0, total - 1);
@@ -295,6 +316,13 @@
       return true;
     }
 
+    function needsContinue(question) {
+      if (!question || question.type !== 'single') return true;
+      if (isAdvancing) return false;
+      if (otherSelected(question, state.answers[question.field])) return true;
+      return isQuestionComplete(question);
+    }
+
     function advanceFromQuestion() {
       var q = currentQuestion();
       if (!isQuestionComplete(q)) {
@@ -321,6 +349,22 @@
       render();
     }
 
+    function scheduleAdvanceFromQuestion() {
+      isAdvancing = true;
+      persist();
+      render();
+      if (advanceTimer) clearTimeout(advanceTimer);
+      advanceTimer = setTimeout(function () {
+        if (mount) mount.classList.add('assessment-mount--exit');
+        advanceTimer = setTimeout(function () {
+          advanceTimer = null;
+          if (mount) mount.classList.remove('assessment-mount--exit');
+          isAdvancing = false;
+          advanceFromQuestion();
+        }, EXIT_TRANSITION_MS);
+      }, SELECTION_FEEDBACK_MS);
+    }
+
     function toggleMulti(question, optionValue) {
       var current = Array.isArray(state.answers[question.field])
         ? state.answers[question.field].slice()
@@ -338,13 +382,20 @@
     }
 
     function selectSingle(question, optionValue) {
+      if (isAdvancing) return;
       state.answers[question.field] = optionValue;
       if (!otherSelected(question, optionValue) && question.otherField) {
         state.answers[question.otherField] = '';
       }
       state.error = '';
       persist();
-      render();
+      if (otherSelected(question, optionValue)) {
+        render();
+        var otherInput = mount && mount.querySelector('.situation-map-other');
+        if (otherInput && typeof otherInput.focus === 'function') otherInput.focus();
+        return;
+      }
+      scheduleAdvanceFromQuestion();
     }
 
     async function submitEmail(email, displayName, marketingConsent) {
@@ -455,7 +506,10 @@
           className:
             'situation-map-choice situation-map-choice--' +
             (q.type === 'multi' ? 'multi' : 'single') +
-            (isOn ? ' is-selected' : ''),
+            (isOn ? ' is-selected' : '') +
+            (isOn && isAdvancing ? ' is-confirming' : ''),
+          'aria-pressed': q.type === 'single' ? (isOn ? 'true' : 'false') : undefined,
+          disabled: isAdvancing && !isOn,
           onClick: function () {
             if (q.type === 'multi') toggleMulti(q, opt.value);
             else selectSingle(q, opt.value);
@@ -466,27 +520,33 @@
         ]);
       });
 
-      var bodyKids = [el('p', { className: 'assessment-question-text', text: q.text })];
+      var bodyKids = [];
+      if (q.nudge) {
+        bodyKids.push(el('p', { className: 'situation-map-nudge', text: q.nudge }));
+      }
+      bodyKids.push(el('p', { className: 'assessment-question-text', text: q.text }));
       if (q.hint) bodyKids.push(el('p', { className: 'situation-map-hint', text: q.hint }));
 
       if (q.type === 'textarea') {
         var maxLen = q.maxLength || 800;
         var value = String(state.answers[q.field] || '');
-        bodyKids.push(
-          el('textarea', {
-            className: 'situation-map-textarea',
-            maxlength: String(maxLen),
-            value: value,
-            onInput: function (ev) {
-              state.answers[q.field] = ev.target.value;
-              persist();
-              var counter = mount.querySelector('.situation-map-count');
-              if (counter) {
-                counter.textContent = ev.target.value.length + ' / ' + maxLen;
-              }
-            },
-          })
-        );
+        var rows = Number(q.rows) || 0;
+        var textareaAttrs = {
+          className:
+            'situation-map-textarea' + (rows > 0 && rows <= 3 ? ' situation-map-textarea--compact' : ''),
+          maxlength: String(maxLen),
+          value: value,
+          onInput: function (ev) {
+            state.answers[q.field] = ev.target.value;
+            persist();
+            var counter = mount.querySelector('.situation-map-count');
+            if (counter) {
+              counter.textContent = ev.target.value.length + ' / ' + maxLen;
+            }
+          },
+        };
+        if (rows > 0) textareaAttrs.rows = String(rows);
+        bodyKids.push(el('textarea', textareaAttrs));
         bodyKids.push(
           el('p', {
             className: 'situation-map-count',
@@ -502,16 +562,18 @@
         bodyKids.push(el('p', { className: 'assessment-error', text: state.error }));
       }
 
-      bodyKids.push(
-        el('div', { className: 'assessment-actions' }, [
-          el('button', {
-            type: 'button',
-            className: 'assessment-btn assessment-btn--block',
-            text: ui.continue || 'Pokračovať',
-            onClick: advanceFromQuestion,
-          }),
-        ])
-      );
+      if (needsContinue(q)) {
+        bodyKids.push(
+          el('div', { className: 'assessment-actions' }, [
+            el('button', {
+              type: 'button',
+              className: 'assessment-btn assessment-btn--block',
+              text: ui.continue || 'Pokračovať',
+              onClick: advanceFromQuestion,
+            }),
+          ])
+        );
+      }
 
       var resume = null;
       if (state.showResume && ui.resumeBanner) {

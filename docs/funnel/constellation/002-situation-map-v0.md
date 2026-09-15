@@ -11,12 +11,25 @@ Working copy lives in `src/config/situationMap.js`. Prefer the config when docs 
 ## Flow
 
 ```
-Intro → Q1–Q8 (one screen each) → name + email → deterministic recap
+Intro → 8 screens (config order) → name + email → deterministic recap
 ```
 
-No scoring, no AI, no paid offer in the Map core. Result page includes an empty `#situation-map-offer` slot for a later CTA component.
+Question **ids** (`Q1`…`Q8`) are stable analytics identities, not screen numbers. Semantic answer keys (`topic`, `situationDescription`, …) and DB columns are unchanged.
 
-Q8 is `experimental: true` / `enabled: true` in config. Set `enabled: false` to drop it without a DB migration (`perceived_barrier` is nullable).
+Current screen order:
+
+1. `Q1` topic — oblasť
+2. `Q3` situationType — jedna situácia / opakuje sa
+3. `Q4` duration — ako dlho
+4. `Q5` peopleInvolved — koho sa týka
+5. `Q2` situationDescription — otvorený text (po jednoduchých klikoch)
+6. `Q6` attempts — čo už skúšal/a
+7. `Q7` desiredChange — čo by malo byť inak
+8. `Q8` perceivedBarrier — prekážka (`experimental: true` / `enabled: true`; `enabled: false` drops it without a migration)
+
+Single-choice screens auto-advance on tap (except **iné**, which still needs the extra field + Pokračovať). Multi and open text keep Pokračovať.
+
+No scoring, no AI, no paid offer in the Map core. Result page includes an empty `#situation-map-offer` slot for a later CTA component.
 
 ---
 
@@ -41,6 +54,6 @@ Marketing consent is stored on the submission row only. v0 does **not** enroll A
 1. `FUNNEL_MAPA_MODE=test` in `.env`
 2. `yarn db:migrate`
 3. Open `/mapa-test`
-4. Walk Q1–Q8, back-edit, submit email, read recap
+4. Walk all 8 screens (open text is step 5), back-edit, submit email, read recap
 
 Next: content/UX testing on model situations — not ads.

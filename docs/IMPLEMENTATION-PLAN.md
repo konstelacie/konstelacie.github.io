@@ -117,7 +117,7 @@
 | | |
 |---|--|
 | **Item** | **Mapa situácie** (`mapa`) — qualitative acquisition map |
-| **Current state** | **v0 prototype** — intro → Q1–Q8 → email → recap. Docs: `docs/funnel/constellation/002-situation-map-v0.md`. |
+| **Current state** | **v0 prototype** — intro → 8 screens (open text on step 5) → email → recap. Docs: `docs/funnel/constellation/002-situation-map-v0.md`. |
 | **Target (later)** | Content/UX lock; swappable CTA/offer; optional result email; ads. |
 | **Dependencies** | Operator testing on model situations. |
 | **Definition of done (v0)** | `/mapa-test` walkthrough; structured persist; deterministic recap; funnel events. |

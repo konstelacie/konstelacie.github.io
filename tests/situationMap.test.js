@@ -29,11 +29,32 @@ test('validateEmail and display name', () => {
 test('validateAnswers stores structured fields and constellation flag', () => {
   const out = validateAnswers(validAnswers());
   assert.equal(out.topic, 'relationship');
+  assert.equal(out.situationDescription, 'Opakujú sa hádky o blízkosti.');
   assert.equal(out.situationType, 'repeating');
   assert.equal(out.duration, 'over_3_years');
   assert.deepEqual(out.peopleInvolved, ['self', 'partner']);
   assert.equal(out.constellationExperience, true);
   assert.equal(out.perceivedBarrier, 'depends_on_other');
+});
+
+test('presentation order puts open description after easy clicks; ids stay semantic', () => {
+  const enabled = situationMap.getEnabledQuestions();
+  assert.deepEqual(
+    enabled.map((q) => q.field),
+    [
+      'topic',
+      'situationType',
+      'duration',
+      'peopleInvolved',
+      'situationDescription',
+      'attempts',
+      'desiredChange',
+      'perceivedBarrier',
+    ]
+  );
+  assert.equal(enabled[4].id, 'Q2');
+  assert.equal(situationMap.getQuestionById('Q2').field, 'situationDescription');
+  assert.equal(situationMap.getQuestionByField('situationDescription').id, 'Q2');
 });
 
 test('validateAnswers requires other text when other is selected', () => {

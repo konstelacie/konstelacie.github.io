@@ -44,55 +44,58 @@ function buildSituationMapRecap(input) {
   const config = input.config;
   const answers = input.answers || {};
   const copy = config.recapCopy || {};
-  const byId = {};
+  const byField = {};
   for (const q of config.getEnabledQuestions()) {
-    byId[q.id] = q;
+    byField[q.field] = q;
   }
 
-  const q1 = byId.Q1;
-  const q3 = byId.Q3;
-  const q4 = byId.Q4;
-  const q5 = byId.Q5;
-  const q6 = byId.Q6;
-  const q8 = byId.Q8;
+  const qTopic = byField.topic;
+  const qType = byField.situationType;
+  const qDuration = byField.duration;
+  const qPeople = byField.peopleInvolved;
+  const qAttempts = byField.attempts;
+  const qBarrier = byField.perceivedBarrier;
 
   const topicLabel =
-    q1 && answers.topic === q1.otherValue && String(answers.topicOther || '').trim()
+    qTopic && answers.topic === qTopic.otherValue && String(answers.topicOther || '').trim()
       ? String(answers.topicOther).trim()
-      : optionLabel(q1, answers.topic);
+      : optionLabel(qTopic, answers.topic);
 
   const perception = [];
-  if (q3 && answers.situationType) {
-    perception.push(fill(copy.perceptionType, { label: optionLabel(q3, answers.situationType) }));
+  if (qType && answers.situationType) {
+    perception.push(fill(copy.perceptionType, { label: optionLabel(qType, answers.situationType) }));
   }
-  if (q4 && answers.duration) {
-    perception.push(fill(copy.perceptionDuration, { label: optionLabel(q4, answers.duration) }));
+  if (qDuration && answers.duration) {
+    perception.push(fill(copy.perceptionDuration, { label: optionLabel(qDuration, answers.duration) }));
   }
-  if (q5 && Array.isArray(answers.peopleInvolved) && answers.peopleInvolved.length) {
-    const people = joinSkList(peopleLabels(q5, answers.peopleInvolved, answers.peopleInvolvedOther));
+  if (qPeople && Array.isArray(answers.peopleInvolved) && answers.peopleInvolved.length) {
+    const people = joinSkList(
+      peopleLabels(qPeople, answers.peopleInvolved, answers.peopleInvolvedOther)
+    );
     if (people) {
       perception.push(fill(copy.perceptionPeople, { people }));
     }
   }
 
   const attemptItems = [];
-  if (q6 && Array.isArray(answers.attempts)) {
+  if (qAttempts && Array.isArray(answers.attempts)) {
     for (const code of answers.attempts) {
-      if (q6.otherValue && code === q6.otherValue) {
+      if (qAttempts.otherValue && code === qAttempts.otherValue) {
         const extra = String(answers.attemptsOther || '').trim();
-        attemptItems.push(extra || optionLabel(q6, code));
+        attemptItems.push(extra || optionLabel(qAttempts, code));
       } else {
-        attemptItems.push(optionLabel(q6, code));
+        attemptItems.push(optionLabel(qAttempts, code));
       }
     }
   }
 
   let barrierLine = null;
-  if (q8 && answers.perceivedBarrier) {
+  if (qBarrier && answers.perceivedBarrier) {
     const barrierLabel =
-      answers.perceivedBarrier === q8.otherValue && String(answers.perceivedBarrierOther || '').trim()
+      answers.perceivedBarrier === qBarrier.otherValue &&
+      String(answers.perceivedBarrierOther || '').trim()
         ? String(answers.perceivedBarrierOther).trim()
-        : optionLabel(q8, answers.perceivedBarrier);
+        : optionLabel(qBarrier, answers.perceivedBarrier);
     barrierLine = fill(copy.barrierLead, { label: barrierLabel });
   }
 
