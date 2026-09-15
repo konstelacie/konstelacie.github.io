@@ -47,6 +47,23 @@
       .replace('{total}', String(total));
   }
 
+  /** Keep in sync with src/lib/situationMapAnalytics.js — never send raw text. */
+  function answerLengthBucket(length) {
+    var n = Number(length);
+    var size = isFinite(n) && n > 0 ? n : 0;
+    if (size <= 0) return '0';
+    if (size <= 50) return '1-50';
+    if (size <= 150) return '51-150';
+    if (size <= 400) return '151-400';
+    return '401+';
+  }
+
+  function isSafeOfferCtaUrl(url) {
+    var s = String(url || '').trim();
+    if (s.indexOf('/') === 0 && s.indexOf('//') !== 0) return true;
+    return /^https:\/\//i.test(s);
+  }
+
   function isValidEmail(value) {
     return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(value || '').trim());
   }
@@ -163,6 +180,7 @@
     var lastViewedQuestionId = null;
     var advanceTimer = null;
     var isAdvancing = false;
+    var offerViewedTracked = false;
     var SELECTION_FEEDBACK_MS = 140;
     var EXIT_TRANSITION_MS = 170;
 
@@ -175,6 +193,7 @@
       marketingConsent: false,
       completed: false,
       recap: null,
+      submissionId: null,
       showResume: false,
       error: '',
     };
@@ -215,14 +234,18 @@
       render();
     }
 
-    function track(eventType, questionId) {
+    function track(eventType, extra) {
+      extra = extra || {};
       var payload = {
         sessionId: sessionId,
         funnelName: funnelName,
         funnelCampaign: funnelCampaign,
         eventType: eventType,
       };
-      if (questionId) payload.questionId = questionId;
+      if (state.submissionId) payload.submissionId = state.submissionId;
+      if (extra.questionId) payload.questionId = extra.questionId;
+      if (extra.stepNumber) payload.stepNumber = extra.stepNumber;
+      if (extra.properties) payload.properties = extra.properties;
       fetch('/api/situation-map/event', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -231,6 +254,23 @@
       }).catch(function () {
         /* analytics must not block */
       });
+    }
+
+    function trackQuestion(eventType, question) {
+      if (!question) return;
+      var extra = {
+        questionId: question.id,
+        stepNumber: state.questionIndex + 1,
+      };
+      if (eventType === 'map_question_answered') {
+        extra.properties = { answered: true };
+        if (question.type === 'textarea') {
+          extra.properties.answerLengthBucket = answerLengthBucket(
+            String(state.answers[question.field] || '').trim().length
+          );
+        }
+      }
+      track(eventType, extra);
     }
 
     function cancelAdvance() {
@@ -249,9 +289,10 @@
       state.answers = {};
       state.completed = false;
       state.recap = null;
+      state.submissionId = null;
       state.showResume = false;
       persist();
-      track('map_started');
+      track('map_started', {});
       render();
     }
 
@@ -326,7 +367,7 @@
     function goToNextQuestion() {
       state.error = '';
       if (state.questionIndex >= total - 1) {
-        track('map_completed');
+        track('map_completed', {});
         setPhase('email');
         return;
       }
@@ -335,7 +376,7 @@
       render();
     }
 
-    function advanceFromQuestion() {
+    function advanceFromQuestion(options) {
       var q = currentQuestion();
       if (!isQuestionComplete(q)) {
         state.error =
@@ -349,7 +390,9 @@
         render();
         return;
       }
-      track('map_question_answered', q.id);
+      if (!options || !options.skipTrack) {
+        trackQuestion('map_question_answered', q);
+      }
       goToNextQuestion();
     }
 
@@ -360,7 +403,7 @@
         state.answers[q.field] = '';
       }
       persist();
-      track('map_question_skipped', q.id);
+      trackQuestion('map_question_skipped', q);
       goToNextQuestion();
     }
 
@@ -375,7 +418,7 @@
           advanceTimer = null;
           if (mount) mount.classList.remove('assessment-mount--exit');
           isAdvancing = false;
-          advanceFromQuestion();
+          advanceFromQuestion({ skipTrack: true });
         }, EXIT_TRANSITION_MS);
       }, SELECTION_FEEDBACK_MS);
     }
@@ -410,6 +453,7 @@
         if (otherInput && typeof otherInput.focus === 'function') otherInput.focus();
         return;
       }
+      trackQuestion('map_question_answered', question);
       scheduleAdvanceFromQuestion();
     }
 
@@ -451,9 +495,11 @@
       state.displayName = displayName;
       state.marketingConsent = marketingConsent;
       state.recap = payload.recap;
+      state.submissionId = payload.submissionId || null;
       state.completed = true;
+      offerViewedTracked = false;
       clearSession(funnelName);
-      track('result_viewed');
+      track('result_viewed', {});
       setPhase('results');
     }
 
@@ -505,7 +551,7 @@
       if (!q) return el('p', { text: 'Chýba otázka.' });
       if (lastViewedQuestionId !== q.id) {
         lastViewedQuestionId = q.id;
-        track('map_question_viewed', q.id);
+        trackQuestion('map_question_viewed', q);
       }
       var ui = config.ui || {};
       var current = state.questionIndex + 1;
@@ -767,7 +813,7 @@
         kids.push(el('p', { text: s.desired.barrierLine }));
       }
       kids.push(el('p', { className: 'situation-map-disclaimer', text: recap.disclaimer || '' }));
-      kids.push(el('div', { id: 'situation-map-offer', className: 'situation-map-offer' }));
+      kids.push(renderOffer());
       kids.push(
         el('div', { className: 'assessment-actions' }, [
           el('button', {
@@ -778,6 +824,8 @@
               state.answers = {};
               state.recap = null;
               state.completed = false;
+              state.submissionId = null;
+              offerViewedTracked = false;
               startMap();
             },
           }),
@@ -785,6 +833,48 @@
       );
 
       return el('section', { className: 'assessment-phase situation-map-recap' }, kids);
+    }
+
+    function renderOffer() {
+      var offer = config.offer;
+      if (!offer || !offer.id) return null;
+      var kids = [];
+      if (offer.headline) {
+        kids.push(el('h2', { className: 'situation-map-offer__headline', text: offer.headline }));
+      }
+      if (offer.body) {
+        kids.push(el('p', { className: 'situation-map-offer__body', text: offer.body }));
+      }
+      if (offer.price) {
+        kids.push(el('p', { className: 'situation-map-offer__price', text: offer.price }));
+      }
+      if (offer.ctaLabel && offer.ctaUrl && isSafeOfferCtaUrl(offer.ctaUrl)) {
+        kids.push(
+          el('div', { className: 'assessment-actions' }, [
+            el('a', {
+              className: 'assessment-btn assessment-btn--block',
+              href: offer.ctaUrl,
+              text: offer.ctaLabel,
+              onClick: function () {
+                var props = { offerId: offer.id };
+                if (offer.variant) props.offerVariant = offer.variant;
+                track('offer_clicked', { properties: props });
+              },
+            }),
+          ])
+        );
+      }
+      if (!kids.length) return null;
+      if (!offerViewedTracked) {
+        offerViewedTracked = true;
+        var viewedProps = { offerId: offer.id };
+        if (offer.variant) viewedProps.offerVariant = offer.variant;
+        track('offer_viewed', { properties: viewedProps });
+      }
+      return el('aside', {
+        id: 'situation-map-offer',
+        className: 'situation-map-offer',
+      }, kids);
     }
 
     function render() {

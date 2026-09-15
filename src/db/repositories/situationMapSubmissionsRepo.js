@@ -43,6 +43,7 @@ function mapRow(row) {
     sourceUrl: row.source_url,
     marketingConsent: row.marketing_consent == null ? null : Boolean(row.marketing_consent),
     marketingConsentAt: row.marketing_consent_at ?? null,
+    marketingConsentVersion: row.marketing_consent_version ?? null,
     createdAt: row.created_at,
   };
 }
@@ -57,6 +58,9 @@ async function createSubmission(input) {
   const marketingConsent =
     input.marketingConsent == null ? null : input.marketingConsent ? 1 : 0;
   const marketingConsentAt = marketingConsent === 1 ? new Date() : null;
+  const marketingConsentVersion = input.marketingConsentVersion
+    ? String(input.marketingConsentVersion).trim().slice(0, 64)
+    : null;
 
   const [result] = await pool.execute(
     `INSERT INTO situation_map_submissions
@@ -64,8 +68,8 @@ async function createSubmission(input) {
        topic, topic_other, situation_description, situation_type, duration,
        people_involved_json, people_involved_other, attempts_json, attempts_other,
        constellation_experience, desired_change, perceived_barrier, perceived_barrier_other,
-       source_url, marketing_consent, marketing_consent_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+       source_url, marketing_consent, marketing_consent_at, marketing_consent_version)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     [
       input.sessionId || null,
       normalizeEmail(input.email),
@@ -88,6 +92,7 @@ async function createSubmission(input) {
       input.sourceUrl || null,
       marketingConsent,
       marketingConsentAt,
+      marketingConsentVersion,
     ]
   );
 

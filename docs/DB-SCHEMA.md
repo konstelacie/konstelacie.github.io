@@ -309,7 +309,7 @@ Does **not** FK to `users`.
 
 ### situation_map_submissions
 
-Mapa situácie v0 email-unlock rows (migration `010`). Structured columns for segment analysis (`topic`, `duration`, `constellation_experience`). `perceived_barrier` (question id `Q8`) is nullable so it can be disabled in config without a migration. Question ids are stable identities, not screen order.
+Mapa situácie email-unlock rows (migrations `010`, `011`). Structured columns for segment analysis (`topic`, `duration`, `constellation_experience`). `perceived_barrier` (question id `Q8`) is nullable so it can be disabled in config without a migration. Question ids are stable identities, not screen order. **No** product/offer recommendation column — offer exposure/action live in `situation_map_events`.
 
 | Column | Type | Description |
 |--------|------|-------------|
@@ -333,15 +333,16 @@ Mapa situácie v0 email-unlock rows (migration `010`). Structured columns for se
 | perceived_barrier | VARCHAR(32) | NULL (`Q8` experimental) |
 | perceived_barrier_other | VARCHAR(200) | NULL |
 | source_url | VARCHAR(2048) | NULL |
-| marketing_consent | TINYINT(1) | NULL — snapshot only, no nurture in v0 |
-| marketing_consent_at | DATETIME(3) | NULL |
+| marketing_consent | TINYINT(1) | NULL — snapshot only, not implied by email; no nurture in v0 |
+| marketing_consent_at | DATETIME(3) | NULL — set when consent is granted |
+| marketing_consent_version | VARCHAR(64) | NULL — checkbox copy version (`mapa-consent-v1`), stored even if unchecked |
 | created_at | DATETIME(3) | |
 
 **Indexes:** `(email, created_at)`, `(funnel_name, created_at)`, `(topic, created_at)`, `(duration, created_at)`, `(constellation_experience, created_at)`, `(session_id)`.
 
 ### situation_map_events
 
-Pre-email funnel steps (migration `010`). `lead_events.email` is NOT NULL, so these do not use that table.
+Pre-email funnel steps (migrations `010`, `011`). `lead_events.email` is NOT NULL, so these do not use that table. Offer viewed/clicked/converted are rows here, not columns on the submission.
 
 | Column | Type | Description |
 |--------|------|-------------|
@@ -349,12 +350,14 @@ Pre-email funnel steps (migration `010`). `lead_events.email` is NOT NULL, so th
 | session_id | VARCHAR(64) | NOT NULL |
 | funnel_name | VARCHAR(64) | NOT NULL |
 | funnel_campaign | VARCHAR(64) | NULL |
-| event_type | VARCHAR(64) | e.g. `map_started`, `map_question_viewed`, `map_question_skipped` |
+| event_type | VARCHAR(64) | e.g. `map_started`, `map_question_skipped`, `offer_viewed` |
 | question_id | VARCHAR(16) | NULL (`Q1`…`Q8` identities, not screen order) |
-| submission_id | BIGINT UNSIGNED | NULL — set on `email_submitted` |
+| step_number | TINYINT UNSIGNED | NULL — 1-based screen index among enabled questions |
+| submission_id | BIGINT UNSIGNED | NULL — set on `email_submitted` and later client events |
+| properties_json | JSON | NULL — allowlisted: `answered`, `answerLengthBucket`, `offerId`, `offerVariant` |
 | created_at | DATETIME(3) | |
 
-**Related lead event:** `situation_map_email_submitted` in `lead_event_types` (same migration).
+**Related lead event:** `situation_map_email_submitted` in `lead_event_types` (migration `010`).
 
 ---
 

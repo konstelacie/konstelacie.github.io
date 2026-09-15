@@ -198,10 +198,27 @@
   line-height: 1.45;
 }
 
-.situation-map-offer:empty {
-  display: none;
+.situation-map-offer {
+  margin-top: var(--spacing-section);
+  padding-top: var(--spacing-gap);
+  border-top: 1px solid var(--color-border);
 }
 
-.situation-map-offer:not(:empty) {
-  margin-top: var(--spacing-section);
+.situation-map-offer__headline {
+  margin: 0;
+  font-size: 1.15rem;
+}
+
+.situation-map-offer__body,
+.situation-map-offer__price {
+  margin: 0.5rem 0 0;
+  line-height: 1.5;
+}
+
+.situation-map-offer__price {
+  color: var(--color-text-muted);
+}
+
+.situation-map-offer .assessment-actions {
+  margin-top: var(--spacing-gap);
 }

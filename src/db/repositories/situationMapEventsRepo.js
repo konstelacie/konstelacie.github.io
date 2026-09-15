@@ -10,6 +10,8 @@ const ALLOWED_EVENT_TYPES = new Set([
   'result_viewed',
   'offer_viewed',
   'offer_clicked',
+  // Reserved: do not fire until conversion meaning is decided (booking vs intro vs purchase).
+  'offer_converted',
 ]);
 
 function isAllowedEventType(eventType) {
@@ -18,6 +20,7 @@ function isAllowedEventType(eventType) {
 
 /**
  * Fire-and-forget insert. Missing DB is a no-op for v0 analytics.
+ * Offer exposure/action live here — not on the Map submission row.
  * @returns {Promise<{ id: number }|null>}
  */
 async function recordEvent(input) {
@@ -28,17 +31,25 @@ async function recordEvent(input) {
   const sessionId = String(input.sessionId || '').trim().slice(0, 64);
   if (!sessionId) return null;
 
+  const properties =
+    input.properties && typeof input.properties === 'object' && !Array.isArray(input.properties)
+      ? input.properties
+      : null;
+
   const [result] = await pool.execute(
     `INSERT INTO situation_map_events
-      (session_id, funnel_name, funnel_campaign, event_type, question_id, submission_id)
-     VALUES (?, ?, ?, ?, ?, ?)`,
+      (session_id, funnel_name, funnel_campaign, event_type, question_id,
+       step_number, submission_id, properties_json)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
     [
       sessionId,
       String(input.funnelName || 'mapa').trim().slice(0, 64),
       input.funnelCampaign ? String(input.funnelCampaign).trim().slice(0, 64) : null,
       input.eventType,
       input.questionId ? String(input.questionId).trim().slice(0, 16) : null,
+      input.stepNumber != null ? Number(input.stepNumber) : null,
       input.submissionId != null ? Number(input.submissionId) : null,
+      properties ? JSON.stringify(properties) : null,
     ]
   );
 

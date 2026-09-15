@@ -119,3 +119,84 @@ test('Q8 can be disabled without changing other validation', () => {
     q8.enabled = prev;
   }
 });
+
+test('marketing consent is versioned separately from email capture', () => {
+  assert.equal(typeof situationMap.emailGate.consentVersion, 'string');
+  assert.match(situationMap.emailGate.consentVersion, /^mapa-consent-v\d+$/);
+  assert.equal(situationMap.getClientConfig().emailGate.consentVersion, situationMap.emailGate.consentVersion);
+});
+
+test('offer slot stays off until an enabled offer is configured', () => {
+  assert.equal(situationMap.offer, null);
+  assert.equal(situationMap.getActiveOffer(), null);
+  assert.equal(situationMap.getClientConfig().offer, null);
+  assert.equal(situationMap.resolveOffer(null), null);
+  assert.equal(situationMap.resolveOffer({ id: 'intro-call', enabled: false, headline: 'x' }), null);
+  const active = situationMap.resolveOffer({
+    id: 'intro-call',
+    variant: 'B',
+    headline: 'Intro hovor',
+    body: '20 minút.',
+    ctaLabel: 'Rezervovať',
+    ctaUrl: '/rezervacia',
+    price: 'zdarma',
+    enabled: true,
+  });
+  assert.deepEqual(active, {
+    id: 'intro-call',
+    variant: 'B',
+    headline: 'Intro hovor',
+    body: '20 minút.',
+    ctaLabel: 'Rezervovať',
+    ctaUrl: '/rezervacia',
+    price: 'zdarma',
+  });
+  assert.equal(situationMap.resolveOffer({
+    id: 'bad',
+    enabled: true,
+    ctaUrl: 'javascript:alert(1)',
+  }).ctaUrl, '');
+});
+
+test('analytics helpers keep question IDs and drop free-text / PII', () => {
+  const {
+    answerLengthBucket,
+    sanitizeEventProperties,
+    sanitizeStepNumber,
+    sanitizeSubmissionId,
+  } = require('../src/lib/situationMapAnalytics');
+  const { ALLOWED_EVENT_TYPES } = require('../src/db/repositories/situationMapEventsRepo');
+
+  assert.equal(answerLengthBucket(0), '0');
+  assert.equal(answerLengthBucket(12), '1-50');
+  assert.equal(answerLengthBucket(80), '51-150');
+  assert.equal(answerLengthBucket(200), '151-400');
+  assert.equal(answerLengthBucket(900), '401+');
+  assert.equal(sanitizeStepNumber(5), 5);
+  assert.equal(sanitizeStepNumber(0), null);
+  assert.equal(sanitizeSubmissionId(12), 12);
+
+  const cleaned = sanitizeEventProperties({
+    answered: true,
+    answerLengthBucket: '51-150',
+    offerId: 'intro-call',
+    offerVariant: 'B',
+    email: 'a@b.sk',
+    displayName: 'Jana',
+    text: 'veľmi osobný opis situácie',
+    situationDescription: 'tajomstvo',
+  });
+  assert.deepEqual(cleaned, {
+    answered: true,
+    answerLengthBucket: '51-150',
+    offerId: 'intro-call',
+    offerVariant: 'B',
+  });
+  assert.equal(sanitizeEventProperties({ answerLengthBucket: 'secret-text' }), null);
+
+  assert.equal(situationMap.getQuestionById('Q1').id, 'Q1');
+  assert.ok(ALLOWED_EVENT_TYPES.has('map_question_skipped'));
+  assert.ok(ALLOWED_EVENT_TYPES.has('offer_viewed'));
+  assert.ok(ALLOWED_EVENT_TYPES.has('offer_clicked'));
+  assert.ok(ALLOWED_EVENT_TYPES.has('offer_converted'));
+});

@@ -180,6 +180,10 @@ async function submitSituationMap(input) {
   const funnelCampaign = validateCampaign(input.funnelCampaign);
   const sessionId = validateSessionId(input.sessionId);
   const marketingConsent = Boolean(input.marketingConsent);
+  const marketingConsentVersion =
+    typeof situationMap.emailGate?.consentVersion === 'string'
+      ? situationMap.emailGate.consentVersion.trim().slice(0, 64)
+      : null;
   const sourceUrl =
     typeof input.sourceUrl === 'string' && input.sourceUrl.trim()
       ? input.sourceUrl.trim().slice(0, 2048)
@@ -210,6 +214,7 @@ async function submitSituationMap(input) {
       perceivedBarrierOther: answers.perceivedBarrierOther,
       sourceUrl,
       marketingConsent,
+      marketingConsentVersion,
     });
   } catch (err) {
     if (err && err.message === 'Database not configured') {

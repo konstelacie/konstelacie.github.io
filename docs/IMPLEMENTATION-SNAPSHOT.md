@@ -200,13 +200,13 @@ All JSON APIs use `requestId` middleware. Base: `src/routes/api/index.js`.
 
 ### Situation map (`mapa`)
 
-**Product:** Mapa situácie v0 — qualitative intro → 8 screens (open description on step 5; ids `Q1`…`Q8` are identities, not order) → email → deterministic recap. `Q2`/`Q7` are a soft skip (`map_question_skipped` + `questionId`). Internal prototype; no paid offer, no nurture, no result email.
+**Product:** Mapa situácie v0.1 — qualitative intro → 8 screens (open description on step 5; ids `Q1`…`Q8` are identities, not order) → email → deterministic recap. Single-select auto-advances; Q2/Q7 soft skip (`map_question_skipped` + `questionId`). Generic offer slot is **null**. Internal prototype; no paid offer, no nurture, no result email.
 
 **Template / assets:** `src/views/funnels/mapa.ejs`, `/assets/css/assessment.css` + `/assets/css/situation-map.css`, `/assets/js/situation-map.js`.
 
 **Config / copy:** `src/config/situationMap.js`. Recap: `src/lib/situationMapRecap.js`.
 
-**API / DB:** `POST /api/situation-map/submit` → `situation_map_submissions`; `POST /api/situation-map/event` → `situation_map_events` (migration `010`). Lead event `situation_map_email_submitted`. Marketing consent snapshot only. Docs: `docs/funnel/constellation/002-situation-map-v0.md`.
+**API / DB:** `POST /api/situation-map/submit` → `situation_map_submissions`; `POST /api/situation-map/event` → `situation_map_events` (migrations `010`, `011`). Lead event `situation_map_email_submitted`. Marketing consent snapshot + version. Docs: `docs/funnel/constellation/002-situation-map-v0.md`.
 
 **Sitemap:** dynamic — `/` when `SITE_HOME_MODE=prod`, plus legal pages. Funnel URLs never listed.
 

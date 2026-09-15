@@ -1,5 +1,5 @@
 /**
- * Mapa situácie v0 — qualitative funnel `mapa`.
+ * Mapa situácie v0.1 — qualitative funnel `mapa`.
  * Wording is working copy; edit here after internal tests.
  * Spec: docs/funnel/constellation/002-situation-map-v0.md
  */
@@ -154,6 +154,8 @@ const emailGate = {
   emailLabel: 'E-mail',
   emailPlaceholder: 'vas@email.sk',
   consentOptional: 'Chcem dostávať e-maily o možnostiach ďalšej práce. (nepovinné)',
+  /** Bump when `consentOptional` copy changes. Stored even if the box is unchecked. */
+  consentVersion: 'mapa-consent-v1',
   privacyNoteHtml:
     'E-mail použijeme na poskytnutie tvojej Mapy. Marketingové správy posielame len so súhlasom. Viac v <a href="/ochrana-udajov">ochrane údajov</a>.',
   cta: 'Zobraziť moju Mapu',
@@ -193,8 +195,58 @@ const recapCopy = {
     'Táto Mapa nie je diagnózou ani vysvetlením príčiny tvojej situácie. Zachytáva to, ako svoju situáciu vnímaš dnes, na základe odpovedí, ktoré si uviedol/a.',
 };
 
-/** v0: no paid offer. Keep slot in the UI for a later config-only CTA. */
+/**
+ * Generic CTA slot on the result page. Independent of Map answers.
+ * null or `enabled: false` → nothing rendered, no offer events.
+ *
+ * Shape (keep offer off the Map submission row — no recommended_product):
+ * {
+ *   id: string,          // stable analytics identity
+ *   variant: string,     // A | B | C | …
+ *   headline: string,
+ *   body: string,
+ *   ctaLabel: string,
+ *   ctaUrl: string,      // root-relative or https
+ *   price: string|null,  // optional display only
+ *   enabled: boolean,
+ * }
+ */
 const offer = null;
+
+function isSafeOfferCtaUrl(url) {
+  const s = String(url || '').trim();
+  if (s.startsWith('/') && !s.startsWith('//')) return true;
+  if (/^https:\/\//i.test(s)) return true;
+  return false;
+}
+
+/**
+ * @param {object|null|undefined} offerConfig
+ * @returns {object|null} public offer for the result page, or null when hidden
+ */
+function resolveOffer(offerConfig) {
+  if (!offerConfig || typeof offerConfig !== 'object') return null;
+  if (offerConfig.enabled === false) return null;
+  const id = String(offerConfig.id || '').trim();
+  if (!id) return null;
+  const variant = offerConfig.variant != null ? String(offerConfig.variant).trim() : '';
+  const ctaUrlRaw = String(offerConfig.ctaUrl || '').trim();
+  return {
+    id,
+    variant: variant || null,
+    headline: String(offerConfig.headline || ''),
+    body: String(offerConfig.body || ''),
+    ctaLabel: String(offerConfig.ctaLabel || ''),
+    ctaUrl: isSafeOfferCtaUrl(ctaUrlRaw) ? ctaUrlRaw : '',
+    price: offerConfig.price != null && String(offerConfig.price).trim()
+      ? String(offerConfig.price).trim()
+      : null,
+  };
+}
+
+function getActiveOffer() {
+  return resolveOffer(offer);
+}
 
 function isQuestionEnabled(question) {
   return question && question.enabled !== false;
@@ -220,7 +272,7 @@ function getClientConfig() {
     emailGate,
     ui,
     recapCopy,
-    offer,
+    offer: getActiveOffer(),
   };
 }
 
@@ -232,6 +284,9 @@ module.exports = {
   ui,
   recapCopy,
   offer,
+  isSafeOfferCtaUrl,
+  resolveOffer,
+  getActiveOffer,
   isQuestionEnabled,
   getEnabledQuestions,
   getQuestionById,

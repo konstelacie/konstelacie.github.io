@@ -9,6 +9,11 @@ const { leadContextFromRequest } = require('../../lib/leadEventContext');
 const { scheduleLeadEvent } = require('../../db/repositories/leadEventsRepo');
 const situationMapService = require('../../services/situationMapService');
 const situationMapEventsRepo = require('../../db/repositories/situationMapEventsRepo');
+const {
+  sanitizeEventProperties,
+  sanitizeStepNumber,
+  sanitizeSubmissionId,
+} = require('../../lib/situationMapAnalytics');
 const { FUNNEL_INSTANCES, getFunnelPageType } = require('../../config/funnelInstances');
 
 const router = express.Router();
@@ -42,6 +47,9 @@ router.post(
       typeof body.questionId === 'string' && /^[A-Za-z0-9]{1,16}$/.test(body.questionId.trim())
         ? body.questionId.trim()
         : null;
+    const stepNumber = sanitizeStepNumber(body.stepNumber);
+    const submissionId = sanitizeSubmissionId(body.submissionId);
+    const properties = sanitizeEventProperties(body.properties);
 
     try {
       await situationMapEventsRepo.recordEvent({
@@ -50,6 +58,9 @@ router.post(
         funnelCampaign,
         eventType: body.eventType,
         questionId,
+        stepNumber,
+        submissionId,
+        properties,
       });
     } catch (err) {
       console.error('[situation-map] event write failed:', err.message || err);

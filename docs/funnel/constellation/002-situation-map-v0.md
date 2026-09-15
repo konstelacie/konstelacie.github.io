@@ -1,6 +1,6 @@
 # 002 — Mapa situácie v0 (validation prototype)
 
-**Status:** Implemented as internal prototype. **Not** a public ad launch.  
+**Status:** Implemented as internal prototype (v0.1 UX/analytics/offer-slot). **Not** a public ad launch.  
 **Funnel:** `mapa` · test URL `/mapa-test` when `FUNNEL_MAPA_MODE=test` · prod `/mapa`  
 **Index:** [`README.md`](README.md)
 
@@ -18,20 +18,46 @@ Question **ids** (`Q1`…`Q8`) are stable analytics identities, not screen numbe
 
 Current screen order:
 
-1. `Q1` topic — oblasť
-2. `Q3` situationType — jedna situácia / opakuje sa
-3. `Q4` duration — ako dlho
-4. `Q5` peopleInvolved — koho sa týka
-5. `Q2` situationDescription — otvorený text (po jednoduchých klikoch); **soft skip** (`Radšej preskočím`)
-6. `Q6` attempts — čo už skúšal/a
-7. `Q7` desiredChange — čo by malo byť inak; **soft skip** (same UI, skip tracked separately)
-8. `Q8` perceivedBarrier — prekážka (`experimental: true` / `enabled: true`; `enabled: false` drops it without a migration)
+1. `Q1` topic — oblasť — **single-select, auto-advance** (`iné` still needs the extra field + Pokračovať)
+2. `Q3` situationType — **single-select, auto-advance**
+3. `Q4` duration — **single-select, auto-advance**
+4. `Q5` peopleInvolved — **multi-select, Pokračovať**
+5. `Q2` situationDescription — textarea; Pokračovať + quieter **Preskočiť**; help is on-screen microcopy, not an extra step
+6. `Q6` attempts — **multi-select, Pokračovať**
+7. `Q7` desiredChange — textarea; same skip UI as Q2
+8. `Q8` perceivedBarrier — **single-select, auto-advance** (`experimental: true` / `enabled: true`; `enabled: false` drops it without a migration)
 
-Single-choice screens auto-advance on tap (except **iné**, which still needs the extra field + Pokračovať). Multi and open text keep Pokračovať.
+Progress is **Krok X z 8**. Back keeps the previous answer and leaves it editable. No quote/info interstitial.
 
-Open text is a **soft requirement**: Pokračovať still expects a few sentences. Skip is quieter, below the CTA, and does **not** label the field optional. Empty skip stores `''` in `situation_description` / `desired_change` (columns stay NOT NULL). Event `map_question_skipped` + `questionId` (`Q2` vs `Q7`) is how to measure skip rate after ~30–50 completions — not a guess in the UI.
+`map_question_answered` is written **before** the auto-advance animation/navigation so a fast tap does not drop the event.
 
-No scoring, no AI, no paid offer in the Map core. Result page includes an empty `#situation-map-offer` slot for a later CTA component.
+Open text is a **soft requirement**: Pokračovať still expects a few sentences. Skip does **not** label the field optional. Empty skip stores `''` in `situation_description` / `desired_change` (columns stay NOT NULL). Event `map_question_skipped` + `questionId` (`Q2` vs `Q7`) is how to measure skip rate after ~30–50 completions.
+
+No scoring, no AI, no paid offer in the Map core. Result page has a **generic nullable offer slot**: `offer = null` (or `enabled: false`) renders nothing; a later A/B/C config object can appear **below** the full recap + disclaimer without changing Map answers.
+
+---
+
+## Offer layer (prepared, not on)
+
+Offer is a separate layer from the Map submission. Do **not** store `recommended_product` (or similar) on `situation_map_submissions`.
+
+Config shape (`src/config/situationMap.js`): `id`, `variant`, `headline`, `body`, `ctaLabel`, `ctaUrl`, optional `price`, `enabled`.
+
+When an offer is enabled, client fires `offer_viewed` / `offer_clicked` with `offerId`, `offerVariant`, campaign. `offer_converted` is an allowed event type for later — **not** wired, until conversion means booking, intro call, or purchase.
+
+Join path for analysis: Map answers (e.g. `topic`) ↔ `situation_map_events` via `session_id` (and `submission_id` after email).
+
+---
+
+## Consent & email
+
+Marketing consent is a snapshot on the submission row, **not** implied by capturing email:
+
+- `marketing_consent` true/false
+- `marketing_consent_at` (set only when granted)
+- `marketing_consent_version` (checkbox copy version, stored even if unchecked)
+
+v0.1 does **not** enroll nurture, send a result email, or create a permanent result link (access/token model is still open).
 
 ---
 
@@ -41,13 +67,12 @@ No scoring, no AI, no paid offer in the Map core. Result page includes an empty 
 |-------|------|
 | Config / wording | `src/config/situationMap.js` |
 | Recap | `src/lib/situationMapRecap.js` |
+| Analytics allowlist | `src/lib/situationMapAnalytics.js` |
 | Page | `src/views/funnels/mapa.ejs` |
 | Client | `public/assets/js/situation-map.js`, `public/assets/css/situation-map.css` (plus `assessment.css` tokens) |
 | API | `POST /api/situation-map/submit`, `POST /api/situation-map/event` |
-| DB | migration `010_situation_map.sql` — `situation_map_submissions`, `situation_map_events` |
+| DB | migrations `010_situation_map.sql`, `011_situation_map_v01.sql` — `situation_map_submissions`, `situation_map_events` |
 | Lead KPI | `situation_map_email_submitted` (email required; pre-email steps live in `situation_map_events`) |
-
-Marketing consent is stored on the submission row only. v0 does **not** enroll Autopilot nurture or send a result email.
 
 ---
 
@@ -56,6 +81,8 @@ Marketing consent is stored on the submission row only. v0 does **not** enroll A
 1. `FUNNEL_MAPA_MODE=test` in `.env`
 2. `yarn db:migrate`
 3. Open `/mapa-test`
-4. Walk all 8 screens (open text is step 5), skip Q2 once, back-edit, skip Q7, submit email, read recap without empty quotes
+4. Walk all 8 screens (open text is step 5): auto-advance on Q1/Q3/Q4/Q8, Pokračovať on Q5/Q6, skip Q2 once, back-edit, skip Q7, submit email, read recap without empty quotes and **without** an offer block
 
-Next: content/UX testing on model situations — not ads.
+Web analytics must not include Q2/Q7 textarea content, name, or email — only `questionId`, `stepNumber`, `answered`, optional `answerLengthBucket`.
+
+Next: content/UX testing on model situations — not ads, not a concrete product, not checkout/nurture.
