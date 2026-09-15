@@ -80,6 +80,30 @@ test('recap reflects answers without diagnostic language', () => {
   assert.match(recap.disclaimer, /nie je diagnózou/);
 });
 
+test('Q2 and Q7 are skippable; empty text is stored as empty string', () => {
+  assert.equal(situationMap.getQuestionById('Q2').skippable, true);
+  assert.equal(situationMap.getQuestionById('Q7').skippable, true);
+  const out = validateAnswers(
+    validAnswers({ situationDescription: '   ', desiredChange: '' })
+  );
+  assert.equal(out.situationDescription, '');
+  assert.equal(out.desiredChange, '');
+});
+
+test('recap without Q2/Q7 still names the situation and notes the skip', () => {
+  const recap = buildSituationMapRecap({
+    answers: validateAnswers(validAnswers({ situationDescription: '', desiredChange: '' })),
+    config: situationMap,
+  });
+  assert.equal(recap.sections.situation.topicLabel, 'partnerský vzťah');
+  assert.equal(recap.sections.situation.description, '');
+  assert.match(recap.sections.situation.skippedNote, /nevyplnil/);
+  assert.equal(recap.sections.desired.text, '');
+  assert.match(recap.sections.desired.skippedNote, /nevyplnil/);
+  assert.ok(recap.sections.perception.paragraphs.length > 0);
+  assert.match(recap.sections.desired.barrierLine, /závisí to aj od druhého človeka/);
+});
+
 test('Q8 can be disabled without changing other validation', () => {
   const q8 = situationMap.getQuestionById('Q8');
   const prev = q8.enabled;

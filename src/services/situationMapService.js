@@ -117,6 +117,7 @@ function validateTextarea(question, answers) {
   const raw = answers[question.field];
   const text = typeof raw === 'string' ? raw.trim() : '';
   if (!text) {
+    if (question.skippable) return '';
     throw new ApiError('VALIDATION_ERROR', `Text je povinný: ${question.id}`, 400);
   }
   const max = question.maxLength || 800;

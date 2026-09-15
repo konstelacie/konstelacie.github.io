@@ -132,6 +132,33 @@
   text-align: right;
 }
 
+.situation-map-skip {
+  display: block;
+  width: 100%;
+  margin: 0.35rem 0 0;
+  padding: 0.5rem 0.25rem;
+  border: 0;
+  background: transparent;
+  color: var(--color-text-muted);
+  font: inherit;
+  font-size: 0.88rem;
+  line-height: 1.4;
+  text-align: center;
+  cursor: pointer;
+}
+
+.situation-map-skip:hover,
+.situation-map-skip:focus-visible {
+  color: var(--color-text);
+  text-decoration: underline;
+  text-underline-offset: 0.18em;
+}
+
+.situation-map-skip:focus-visible {
+  outline: 2px solid var(--color-booking-accent);
+  outline-offset: 2px;
+}
+
 .situation-map-recap h2 {
   margin: 1.6rem 0 0.5rem;
   font-size: 1.15rem;
@@ -148,6 +175,13 @@
   border-left: 3px solid var(--color-booking-accent);
   background: var(--color-booking-surface);
   white-space: pre-wrap;
+}
+
+.situation-map-recap__skipped {
+  margin: 0.4rem 0 0;
+  color: var(--color-text-muted);
+  font-size: 0.95rem;
+  line-height: 1.5;
 }
 
 .situation-map-recap ul {

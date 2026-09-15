@@ -99,13 +99,17 @@ function buildSituationMapRecap(input) {
     barrierLine = fill(copy.barrierLead, { label: barrierLabel });
   }
 
+  const description = String(answers.situationDescription || '').trim();
+  const desiredText = String(answers.desiredChange || '').trim();
+
   return {
     sections: {
       situation: {
         title: copy.situationTitle,
         topicLabel,
-        lead: copy.situationLead,
-        description: String(answers.situationDescription || '').trim(),
+        lead: description ? copy.situationLead : null,
+        description,
+        skippedNote: description ? null : copy.situationSkipped || null,
       },
       perception: {
         title: copy.perceptionTitle,
@@ -117,7 +121,8 @@ function buildSituationMapRecap(input) {
       },
       desired: {
         title: copy.desiredTitle,
-        text: String(answers.desiredChange || '').trim(),
+        text: desiredText,
+        skippedNote: desiredText ? null : copy.desiredSkipped || null,
         barrierLine,
       },
     },

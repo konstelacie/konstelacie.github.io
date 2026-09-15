@@ -574,7 +574,9 @@ Anonymous funnel step for Mapa situácie (`mapa`). Email is **not** required (`l
 
 **Body (JSON):** `sessionId` (8–64 `[a-zA-Z0-9_-]`), `eventType`, optional `questionId` (stable identity `Q1`…`Q8`, not screen order), `funnelName`, `funnelCampaign`.
 
-Allowed `eventType`: `map_started`, `map_question_viewed`, `map_question_answered`, `map_completed`, `email_submitted`, `result_viewed`, `offer_viewed`, `offer_clicked`.
+Allowed `eventType`: `map_started`, `map_question_viewed`, `map_question_answered`, `map_question_skipped`, `map_completed`, `email_submitted`, `result_viewed`, `offer_viewed`, `offer_clicked`.
+
+`map_question_skipped` is for skippable open text (`Q2`, `Q7`); send `questionId` so skip rates can be compared. Pokračovať with text still uses `map_question_answered`.
 
 **Response 200:** `{ "ok": true }`. Invalid body → 400. Rate limit 80/min/IP.
 
@@ -600,7 +602,7 @@ Unlock Mapa situácie recap. Server validates structured answers and builds a de
 | `marketingConsent` | boolean | no | Snapshot only — **no** nurture enroll in v0 |
 | `sourceUrl` | string | no | Else `Referer` |
 
-**`answers` fields:** `topic`, `topicOther`, `situationDescription`, `situationType`, `duration`, `peopleInvolved[]`, `peopleInvolvedOther`, `attempts[]`, `attemptsOther`, `desiredChange`, `perceivedBarrier`, `perceivedBarrierOther`. Codes come from `src/config/situationMap.js`. Server sets `constellationExperience` from `attempts`.
+**`answers` fields:** `topic`, `topicOther`, `situationDescription`, `situationType`, `duration`, `peopleInvolved[]`, `peopleInvolvedOther`, `attempts[]`, `attemptsOther`, `desiredChange`, `perceivedBarrier`, `perceivedBarrierOther`. Codes come from `src/config/situationMap.js`. Server sets `constellationExperience` from `attempts`. `situationDescription` (`Q2`) and `desiredChange` (`Q7`) may be empty strings when skipped.
 
 **Response 200:** `{ "ok": true, "submissionId": 1, "recap": { "sections": { … }, "disclaimer": "…" } }`
 

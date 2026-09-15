@@ -4,6 +4,7 @@ const ALLOWED_EVENT_TYPES = new Set([
   'map_started',
   'map_question_viewed',
   'map_question_answered',
+  'map_question_skipped',
   'map_completed',
   'email_submitted',
   'result_viewed',

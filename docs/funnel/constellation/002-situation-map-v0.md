@@ -22,12 +22,14 @@ Current screen order:
 2. `Q3` situationType — jedna situácia / opakuje sa
 3. `Q4` duration — ako dlho
 4. `Q5` peopleInvolved — koho sa týka
-5. `Q2` situationDescription — otvorený text (po jednoduchých klikoch)
+5. `Q2` situationDescription — otvorený text (po jednoduchých klikoch); **soft skip** (`Radšej preskočím`)
 6. `Q6` attempts — čo už skúšal/a
-7. `Q7` desiredChange — čo by malo byť inak
+7. `Q7` desiredChange — čo by malo byť inak; **soft skip** (same UI, skip tracked separately)
 8. `Q8` perceivedBarrier — prekážka (`experimental: true` / `enabled: true`; `enabled: false` drops it without a migration)
 
 Single-choice screens auto-advance on tap (except **iné**, which still needs the extra field + Pokračovať). Multi and open text keep Pokračovať.
+
+Open text is a **soft requirement**: Pokračovať still expects a few sentences. Skip is quieter, below the CTA, and does **not** label the field optional. Empty skip stores `''` in `situation_description` / `desired_change` (columns stay NOT NULL). Event `map_question_skipped` + `questionId` (`Q2` vs `Q7`) is how to measure skip rate after ~30–50 completions — not a guess in the UI.
 
 No scoring, no AI, no paid offer in the Map core. Result page includes an empty `#situation-map-offer` slot for a later CTA component.
 
@@ -54,6 +56,6 @@ Marketing consent is stored on the submission row only. v0 does **not** enroll A
 1. `FUNNEL_MAPA_MODE=test` in `.env`
 2. `yarn db:migrate`
 3. Open `/mapa-test`
-4. Walk all 8 screens (open text is step 5), back-edit, submit email, read recap
+4. Walk all 8 screens (open text is step 5), skip Q2 once, back-edit, skip Q7, submit email, read recap without empty quotes
 
 Next: content/UX testing on model situations — not ads.

@@ -323,6 +323,18 @@
       return isQuestionComplete(question);
     }
 
+    function goToNextQuestion() {
+      state.error = '';
+      if (state.questionIndex >= total - 1) {
+        track('map_completed');
+        setPhase('email');
+        return;
+      }
+      state.questionIndex += 1;
+      persist();
+      render();
+    }
+
     function advanceFromQuestion() {
       var q = currentQuestion();
       if (!isQuestionComplete(q)) {
@@ -338,15 +350,18 @@
         return;
       }
       track('map_question_answered', q.id);
-      state.error = '';
-      if (state.questionIndex >= total - 1) {
-        track('map_completed');
-        setPhase('email');
-        return;
+      goToNextQuestion();
+    }
+
+    function skipFromQuestion() {
+      var q = currentQuestion();
+      if (!q || !q.skippable) return;
+      if (q.type === 'textarea') {
+        state.answers[q.field] = '';
       }
-      state.questionIndex += 1;
       persist();
-      render();
+      track('map_question_skipped', q.id);
+      goToNextQuestion();
     }
 
     function scheduleAdvanceFromQuestion() {
@@ -574,6 +589,16 @@
           ])
         );
       }
+      if (q.skippable) {
+        bodyKids.push(
+          el('button', {
+            type: 'button',
+            className: 'situation-map-skip',
+            text: ui.skip || 'Radšej preskočím',
+            onClick: skipFromQuestion,
+          })
+        );
+      }
 
       var resume = null;
       if (state.showResume && ui.resumeBanner) {
@@ -703,10 +728,18 @@
         el('p', { className: 'assessment-kicker', text: config.landing.kicker || 'Mapa situácie' }),
         el('h1', { className: 'assessment-title', text: s.situation.title || '' }),
         el('p', { className: 'assessment-lead', text: s.situation.topicLabel || '' }),
-        el('p', { text: s.situation.lead || '' }),
-        el('div', { className: 'situation-map-recap__quote', text: s.situation.description || '' }),
-        el('h2', { text: s.perception.title || '' }),
       ];
+      if (s.situation.description) {
+        kids.push(el('p', { text: s.situation.lead || '' }));
+        kids.push(
+          el('div', { className: 'situation-map-recap__quote', text: s.situation.description })
+        );
+      } else if (s.situation.skippedNote) {
+        kids.push(
+          el('p', { className: 'situation-map-recap__skipped', text: s.situation.skippedNote })
+        );
+      }
+      kids.push(el('h2', { text: s.perception.title || '' }));
       (s.perception.paragraphs || []).forEach(function (p) {
         kids.push(el('p', { text: p }));
       });
@@ -723,7 +756,13 @@
         );
       }
       kids.push(el('h2', { text: s.desired.title || '' }));
-      kids.push(el('div', { className: 'situation-map-recap__quote', text: s.desired.text || '' }));
+      if (s.desired.text) {
+        kids.push(el('div', { className: 'situation-map-recap__quote', text: s.desired.text }));
+      } else if (s.desired.skippedNote) {
+        kids.push(
+          el('p', { className: 'situation-map-recap__skipped', text: s.desired.skippedNote })
+        );
+      }
       if (s.desired.barrierLine) {
         kids.push(el('p', { text: s.desired.barrierLine }));
       }

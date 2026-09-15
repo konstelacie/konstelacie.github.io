@@ -200,7 +200,7 @@ All JSON APIs use `requestId` middleware. Base: `src/routes/api/index.js`.
 
 ### Situation map (`mapa`)
 
-**Product:** Mapa situácie v0 — qualitative intro → 8 screens (open description on step 5; ids `Q1`…`Q8` are identities, not order) → email → deterministic recap. Internal prototype; no paid offer, no nurture, no result email.
+**Product:** Mapa situácie v0 — qualitative intro → 8 screens (open description on step 5; ids `Q1`…`Q8` are identities, not order) → email → deterministic recap. `Q2`/`Q7` are a soft skip (`map_question_skipped` + `questionId`). Internal prototype; no paid offer, no nurture, no result email.
 
 **Template / assets:** `src/views/funnels/mapa.ejs`, `/assets/css/assessment.css` + `/assets/css/situation-map.css`, `/assets/js/situation-map.js`.
 
