@@ -235,6 +235,16 @@ async function submitSituationMap(input) {
     console.error('[situation-map] event email_submitted failed:', err.message || err);
   }
 
+  try {
+    const situationMapResponseService = require('./situationMapResponseService');
+    const submission = await situationMapSubmissionsRepo.findById(row.id);
+    if (submission) {
+      await situationMapResponseService.createPendingForSubmission(submission);
+    }
+  } catch (err) {
+    console.error('[situation-map] pending response create failed:', err.message || err);
+  }
+
   return {
     submissionId: row.id,
     email,

@@ -130,6 +130,8 @@ test('offer slot stays off until an enabled offer is configured', () => {
   assert.equal(situationMap.offer, null);
   assert.equal(situationMap.getActiveOffer(), null);
   assert.equal(situationMap.getClientConfig().offer, null);
+  assert.match(situationMap.getClientConfig().resultPage.acknowledgement, /Ďakujem/);
+  assert.match(situationMap.getClientConfig().resultPage.pendingBody, /osobne pozriem/);
   assert.equal(situationMap.resolveOffer(null), null);
   assert.equal(situationMap.resolveOffer({ id: 'intro-call', enabled: false, headline: 'x' }), null);
   const active = situationMap.resolveOffer({
@@ -165,7 +167,7 @@ test('analytics helpers keep question IDs and drop free-text / PII', () => {
     sanitizeStepNumber,
     sanitizeSubmissionId,
   } = require('../src/lib/situationMapAnalytics');
-  const { ALLOWED_EVENT_TYPES } = require('../src/db/repositories/situationMapEventsRepo');
+  const { ALLOWED_EVENT_TYPES, isClientEventType } = require('../src/db/repositories/situationMapEventsRepo');
 
   assert.equal(answerLengthBucket(0), '0');
   assert.equal(answerLengthBucket(12), '1-50');
@@ -199,4 +201,22 @@ test('analytics helpers keep question IDs and drop free-text / PII', () => {
   assert.ok(ALLOWED_EVENT_TYPES.has('offer_viewed'));
   assert.ok(ALLOWED_EVENT_TYPES.has('offer_clicked'));
   assert.ok(ALLOWED_EVENT_TYPES.has('offer_converted'));
+  assert.ok(ALLOWED_EVENT_TYPES.has('personal_response_created'));
+  assert.equal(isClientEventType('personal_response_sent'), false);
+  assert.equal(isClientEventType('result_viewed'), true);
+
+  const droppedSensitive = sanitizeEventProperties({
+    responseStatus: 'sent',
+    timeToResponseBucket: '4-24h',
+    promptVersion: 'ai-summary-v1',
+    email: 'a@b.sk',
+    response: 'toto je osobná odpoveď',
+    situationDescription: 'tajomstvo',
+    humanSummary: 'interný text',
+  });
+  assert.deepEqual(droppedSensitive, {
+    responseStatus: 'sent',
+    timeToResponseBucket: '4-24h',
+    promptVersion: 'ai-summary-v1',
+  });
 });

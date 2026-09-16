@@ -1,0 +1,184 @@
+<div class="admin-wrap admin-wrap--wide">
+  <header class="admin-header admin-header--bar">
+    <h1 class="admin-title">Mapa situácie #<%= bundle && bundle.submission ? bundle.submission.id : '' %></h1>
+    <div class="admin-header__actions">
+      <a class="admin-btn admin-btn--ghost" href="/admin/situation-map">Späť na zoznam</a>
+      <form method="post" action="/admin/logout">
+        <button type="submit" class="admin-btn admin-btn--ghost">Odhlásiť sa</button>
+      </form>
+    </div>
+  </header>
+
+  <% if (typeof flash !== 'undefined' && flash) { %>
+    <p class="admin-flash admin-flash--<%= flash.level %>" role="status"><%= flash.message %></p>
+  <% } %>
+
+  <% if (typeof loadError !== 'undefined' && loadError) { %>
+    <p class="admin-error" role="alert">Nepodarilo sa načítať záznam.</p>
+  <% } %>
+
+  <% if (typeof dbConfigured !== 'undefined' && !dbConfigured) { %>
+    <p class="admin-error" role="alert">Databáza nie je nakonfigurovaná.</p>
+  <% } %>
+
+  <% if (typeof bundle !== 'undefined' && bundle && bundle.submission) { %>
+  <% const s = bundle.submission; const r = bundle.response; const recap = bundle.recap; %>
+
+  <section class="admin-detail" aria-labelledby="smap-meta">
+    <h2 id="smap-meta" class="admin-detail__subtitle">Submission</h2>
+    <dl class="admin-dl">
+      <div class="admin-dl__row"><dt>ID</dt><dd><%= s.id %></dd></div>
+      <div class="admin-dl__row"><dt>Meno</dt><dd><%= s.displayName %></dd></div>
+      <div class="admin-dl__row"><dt>E-mail</dt><dd><%= s.email %></dd></div>
+      <div class="admin-dl__row"><dt>Funnel / kampaň</dt><dd><%= s.funnelName %><% if (s.funnelCampaign) { %> / <%= s.funnelCampaign %><% } %></dd></div>
+      <div class="admin-dl__row"><dt>Vytvorené</dt><dd><%= createdAtLabel %></dd></div>
+      <div class="admin-dl__row"><dt>Marketingový súhlas</dt><dd><%= s.marketingConsent ? 'áno' : 'nie' %> — neblokuje osobnú odpoveď</dd></div>
+      <div class="admin-dl__row"><dt>Stav response</dt><dd><span class="admin-status admin-status--<%= r.status %>"><%= statusLabels[r.status] || r.status %></span></dd></div>
+      <div class="admin-dl__row"><dt>Upravil/a</dt><dd><%= r.editedBy || '—' %></dd></div>
+      <div class="admin-dl__row"><dt>Review</dt><dd><%= r.reviewedBy || '—' %> · <%= reviewedAtLabel %></dd></div>
+      <div class="admin-dl__row"><dt>Odoslané</dt><dd><%= sentAtLabel %></dd></div>
+    </dl>
+  </section>
+
+  <section class="admin-detail admin-detail--section-gap" aria-labelledby="smap-answers">
+    <h2 id="smap-answers" class="admin-detail__subtitle">Odpovede Q1–Q8</h2>
+    <div class="admin-table-wrap">
+      <table class="admin-table">
+        <thead>
+          <tr>
+            <th scope="col">ID</th>
+            <th scope="col">Otázka</th>
+            <th scope="col">Odpoveď</th>
+          </tr>
+        </thead>
+        <tbody>
+          <% for (const q of bundle.questions) { %>
+          <tr>
+            <td><code><%= q.id %></code></td>
+            <td><%= q.text %></td>
+            <td class="admin-prewrap"><%= q.skipped ? '(preskočené)' : (q.value || '—') %></td>
+          </tr>
+          <% } %>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section class="admin-detail admin-detail--section-gap" aria-labelledby="smap-recap">
+    <h2 id="smap-recap" class="admin-detail__subtitle">Deterministický recap</h2>
+    <p><strong><%= recap.sections.situation.title %></strong> — <%= recap.sections.situation.topicLabel %></p>
+    <% if (recap.sections.situation.description) { %>
+    <p class="admin-prewrap"><%= recap.sections.situation.description %></p>
+    <% } else if (recap.sections.situation.skippedNote) { %>
+    <p><%= recap.sections.situation.skippedNote %></p>
+    <% } %>
+    <% for (const p of recap.sections.perception.paragraphs) { %>
+    <p><%= p %></p>
+    <% } %>
+    <% if (recap.sections.attempts.items && recap.sections.attempts.items.length) { %>
+    <ul>
+      <% for (const item of recap.sections.attempts.items) { %>
+      <li><%= item %></li>
+      <% } %>
+    </ul>
+    <% } %>
+    <% if (recap.sections.desired.text) { %>
+    <p class="admin-prewrap"><%= recap.sections.desired.text %></p>
+    <% } else if (recap.sections.desired.skippedNote) { %>
+    <p><%= recap.sections.desired.skippedNote %></p>
+    <% } %>
+    <% if (recap.sections.desired.barrierLine) { %>
+    <p><%= recap.sections.desired.barrierLine %></p>
+    <% } %>
+    <p class="admin-bulk__hint"><%= recap.disclaimer %></p>
+  </section>
+
+  <section class="admin-detail admin-detail--section-gap" aria-labelledby="smap-ai">
+    <h2 id="smap-ai" class="admin-detail__subtitle">AI summary draft (interný, write-once)</h2>
+    <p class="admin-bulk__hint">
+      Tretí poskytovateľ AI nie je zapnutý. Mock je lokálne faktické zhrnutie z odpovedí.
+      AI draft sa nikdy neprepíše ľudskou verziou. Prompt verzia: <code><%= bundle.aiConfig.promptVersion %></code>,
+      mód: <code><%= bundle.aiConfig.mode %></code>.
+    </p>
+    <% if (r.aiSummaryDraft) { %>
+    <p class="admin-bulk__hint">Zdroj: <%= r.aiSummarySource || '—' %> · prompt: <%= r.aiSummaryPromptVersion || '—' %></p>
+    <div class="admin-readonly-box"><%= r.aiSummaryDraft %></div>
+    <% } else { %>
+    <form method="post" action="/admin/situation-map/<%= s.id %>/ai-mock" class="admin-detail__form">
+      <button type="submit" class="admin-btn admin-btn--ghost">Vložiť faktický interný draft (mock)</button>
+    </form>
+    <form method="post" action="/admin/situation-map/<%= s.id %>/ai-draft" class="admin-detail__form">
+      <label class="admin-field" for="ai-summary-draft">Alebo vlož draft ručne</label>
+      <textarea id="ai-summary-draft" name="aiSummaryDraft" class="admin-detail__textarea admin-detail__textarea--wide" rows="8"></textarea>
+      <div class="admin-detail__actions">
+        <button type="submit" class="admin-btn admin-btn--primary">Uložiť AI draft</button>
+      </div>
+    </form>
+    <% } %>
+  </section>
+
+  <section class="admin-detail admin-detail--section-gap" aria-labelledby="smap-edit">
+    <h2 id="smap-edit" class="admin-detail__subtitle">Ľudská summary, odpoveď a poznámky</h2>
+    <p class="admin-bulk__hint">Plain text. Štruktúru (rada / otázka / pohľad) nelockujeme. Najprv ulož, potom schvaľ alebo odošli.</p>
+    <form method="post" action="/admin/situation-map/<%= s.id %>/save" class="admin-detail__form">
+      <div class="admin-field admin-field--full">
+        <label for="human-summary">Human summary</label>
+        <textarea id="human-summary" name="humanSummary" class="admin-detail__textarea admin-detail__textarea--wide" rows="6"><%= r.humanSummary || '' %></textarea>
+      </div>
+      <div class="admin-field admin-field--full">
+        <label for="response-draft">Response draft (plain text)</label>
+        <textarea id="response-draft" name="responseDraft" class="admin-detail__textarea admin-detail__textarea--wide" rows="12"><%= r.responseDraft || '' %></textarea>
+      </div>
+      <div class="admin-field admin-field--full">
+        <label for="internal-notes">Internal notes</label>
+        <textarea id="internal-notes" name="internalNotes" class="admin-detail__textarea admin-detail__textarea--wide" rows="4"><%= r.internalNotes || '' %></textarea>
+      </div>
+      <div class="admin-field">
+        <label for="response-status">Status</label>
+        <select id="response-status" name="status" <%= r.status === 'sent' ? 'disabled' : '' %>>
+          <% for (const key of ['pending', 'drafting', 'ready_for_review', 'approved']) { %>
+          <option value="<%= key %>" <%= r.status === key ? 'selected' : '' %>><%= statusLabels[key] || key %></option>
+          <% } %>
+        </select>
+        <% if (r.status === 'sent') { %>
+        <input type="hidden" name="status" value="sent">
+        <% } %>
+      </div>
+      <div class="admin-detail__actions">
+        <button type="submit" class="admin-btn admin-btn--primary">Uložiť</button>
+      </div>
+    </form>
+  </section>
+
+  <% if (r.finalResponse) { %>
+  <section class="admin-detail admin-detail--section-gap" aria-labelledby="smap-final">
+    <h2 id="smap-final" class="admin-detail__subtitle">Final response (snapshot, oddelený od AI draftu)</h2>
+    <div class="admin-readonly-box"><%= r.finalResponse %></div>
+  </section>
+  <% } %>
+
+  <section class="admin-detail admin-detail--section-gap" aria-labelledby="smap-actions">
+    <h2 id="smap-actions" class="admin-detail__subtitle">Schválenie a odoslanie</h2>
+    <p class="admin-bulk__hint">
+      Personal-response e-mail je súčasť free produktu, nie nurture.
+      Marketingový súhlas sa nekontroluje.
+      <% if (!emailConfigured) { %>Resend nie je nakonfigurovaný — odošli mimo systému a označ ako odoslané.<% } %>
+    </p>
+    <div class="admin-detail__actions admin-detail__actions--split">
+      <% if (r.status !== 'sent') { %>
+      <form method="post" action="/admin/situation-map/<%= s.id %>/approve">
+        <button type="submit" class="admin-btn admin-btn--ghost">Označiť ako approved</button>
+      </form>
+      <form method="post" action="/admin/situation-map/<%= s.id %>/send" onsubmit="return confirm('Odoslať osobnú odpoveď na <%= s.email %>?');">
+        <button type="submit" class="admin-btn admin-btn--primary" <%= emailConfigured ? '' : 'disabled' %>>Odoslať e-mail</button>
+      </form>
+      <form method="post" action="/admin/situation-map/<%= s.id %>/mark-sent" onsubmit="return confirm('Označiť ako odoslané bez e-mailu z tohto systému?');">
+        <button type="submit" class="admin-btn admin-btn--ghost">Označiť ako sent (mimo systému)</button>
+      </form>
+      <% } else { %>
+      <p>Odpoveď je v stave sent. AI draft aj final response ostávajú zachované.</p>
+      <% } %>
+    </div>
+  </section>
+  <% } %>
+</div>

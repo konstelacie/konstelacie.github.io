@@ -641,6 +641,69 @@ async function sendAssessmentNurtureEmail(params, metadata = {}) {
   return result;
 }
 
+function formatPlainEmailBodyHtml(plain) {
+  const t = typeof plain === 'string' ? plain.trim() : '';
+  if (!t) return '';
+  const blocks = t.split(/\n{2,}/);
+  const parts = [];
+  for (const block of blocks) {
+    const b = block.trim();
+    if (!b) continue;
+    const withBr = escapeHtml(b).replace(/\n/g, '<br>');
+    parts.push(`<p style="margin:0 0 16px;">${withBr}</p>`);
+  }
+  return parts.join('');
+}
+
+/**
+ * Send the free personal-response email for a Map submission.
+ * Service delivery — does not check marketing consent.
+ */
+async function sendSituationMapPersonalResponse(
+  { to, displayName, bodyText, subject },
+  metadata = {}
+) {
+  const personalResponse = require('../config/situationMapPersonalResponse');
+  const copy = personalResponse.emailCopy;
+  const templateId = personalResponse.TEMPLATE_ID;
+  const entityType = metadata.entity_type || personalResponse.ENTITY_TYPE;
+  const entityId = metadata.entity_id;
+
+  if (entityType && entityId != null && (await emailSentLogRepo.wasAlreadySent(templateId, entityType, entityId))) {
+    return { ok: false, alreadySent: true };
+  }
+
+  const bodyHtml = formatPlainEmailBodyHtml(bodyText);
+  if (!bodyHtml) {
+    return { ok: false, empty: true };
+  }
+
+  const finalSubject = String(subject || copy.subject || '').trim();
+  const html = await ejs.renderFile(path.join(EMAIL_TEMPLATES_DIR, 'situation-map-personal-response.ejs'), {
+    subject: finalSubject,
+    greeting: personalResponse.fillDisplayName(copy.greeting, displayName),
+    intro: copy.intro,
+    bodyHtml,
+    signoff: copy.signoff,
+    footerNote: copy.footerNote,
+  });
+
+  const result = await emailProvider.sendEmail(to, finalSubject, html, metadata);
+
+  if (result.ok && result.messageId) {
+    await emailSentLogRepo.log({
+      recipientEmail: to,
+      templateId,
+      entityType,
+      entityId,
+      providerMessageId: result.messageId,
+      actorType: metadata.actorType || 'admin',
+    });
+  }
+
+  return result;
+}
+
 module.exports = {
   sendReservationConfirmation,
   sendPreSessionReminder,
@@ -652,6 +715,7 @@ module.exports = {
   sendBalancePayInviteEmail,
   sendBillingDelayedEmail,
   sendAssessmentNurtureEmail,
+  sendSituationMapPersonalResponse,
   DEFAULT_BALANCE_PAY_INVITE_SUBJECT,
   MAX_BALANCE_PAY_INVITE_MESSAGE_LEN,
 };

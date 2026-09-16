@@ -770,11 +770,20 @@
         return el('p', { text: 'Chýba výsledok.' });
       }
       var s = recap.sections;
+      var resultPage = config.resultPage || {};
       var kids = [
-        el('p', { className: 'assessment-kicker', text: config.landing.kicker || 'Mapa situácie' }),
-        el('h1', { className: 'assessment-title', text: s.situation.title || '' }),
-        el('p', { className: 'assessment-lead', text: s.situation.topicLabel || '' }),
+        el('p', {
+          className: 'assessment-kicker',
+          text: resultPage.kicker || (config.landing && config.landing.kicker) || 'Mapa situácie',
+        }),
       ];
+      if (resultPage.acknowledgement) {
+        kids.push(
+          el('h1', { className: 'assessment-title', text: resultPage.acknowledgement })
+        );
+      }
+      kids.push(el('h2', { text: s.situation.title || '' }));
+      kids.push(el('p', { className: 'assessment-lead', text: s.situation.topicLabel || '' }));
       if (s.situation.description) {
         kids.push(el('p', { text: s.situation.lead || '' }));
         kids.push(
@@ -811,6 +820,18 @@
       }
       if (s.desired.barrierLine) {
         kids.push(el('p', { text: s.desired.barrierLine }));
+      }
+      if (resultPage.pendingHeadline || resultPage.pendingBody) {
+        kids.push(
+          el('section', { className: 'situation-map-pending' }, [
+            resultPage.pendingHeadline
+              ? el('h2', { text: resultPage.pendingHeadline })
+              : null,
+            resultPage.pendingBody
+              ? el('p', { className: 'situation-map-pending__body', text: resultPage.pendingBody })
+              : null,
+          ])
+        );
       }
       kids.push(el('p', { className: 'situation-map-disclaimer', text: recap.disclaimer || '' }));
       kids.push(renderOffer());

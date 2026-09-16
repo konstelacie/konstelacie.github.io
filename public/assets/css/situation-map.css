@@ -222,3 +222,14 @@
 .situation-map-offer .assessment-actions {
   margin-top: var(--spacing-gap);
 }
+
+.situation-map-pending {
+  margin-top: var(--spacing-section);
+  padding-top: var(--spacing-gap);
+  border-top: 1px solid var(--color-border);
+}
+
+.situation-map-pending__body {
+  margin: 0.5rem 0 0;
+  line-height: 1.5;
+}

@@ -574,11 +574,13 @@ Anonymous funnel step for Mapa situácie (`mapa`). Email is **not** required (`l
 
 **Body (JSON):** `sessionId` (8–64 `[a-zA-Z0-9_-]`), `eventType`, optional `questionId` (stable identity `Q1`…`Q8`, not screen order), `stepNumber` (1-based screen index), `funnelName`, `funnelCampaign`, `submissionId` (after email unlock), `properties` (allowlisted only).
 
-Allowed `eventType`: `map_started`, `map_question_viewed`, `map_question_answered`, `map_question_skipped`, `map_completed`, `email_submitted`, `result_viewed`, `offer_viewed`, `offer_clicked`. `offer_converted` is reserved and **not** fired by the client.
+Allowed `eventType` (client): `map_started`, `map_question_viewed`, `map_question_answered`, `map_question_skipped`, `map_completed`, `email_submitted`, `result_viewed`, `offer_viewed`, `offer_clicked`. `offer_converted` is reserved and **not** fired by the client.
+
+Server-only types (not accepted on this endpoint): `personal_response_created`, `personal_response_reviewed`, `personal_response_sent`.
 
 `map_question_skipped` is for skippable open text (`Q2`, `Q7`); send `questionId` + `stepNumber`. Pokračovať with text still uses `map_question_answered` (`answered: true`, `answerLengthBucket` only — **never** textarea content, name, or email).
 
-`properties` allowlist: `answered`, `answerLengthBucket` (`0` \| `1-50` \| `51-150` \| `151-400` \| `401+`), `offerId`, `offerVariant`. Unknown keys are dropped.
+`properties` allowlist: `answered`, `answerLengthBucket` (`0` \| `1-50` \| `51-150` \| `151-400` \| `401+`), `offerId`, `offerVariant`, plus internal-only `responseStatus`, `timeToResponseBucket`, `promptVersion`, `responseSource`. Unknown keys are dropped. Never send textarea content, names, emails, AI summaries, or response bodies.
 
 Offer events are stored on `situation_map_events`, not on the Map submission row.
 
@@ -614,7 +616,7 @@ Unlock Mapa situácie recap. Server validates structured answers and builds a de
 
 **Rate limit:** 20 / 15 min per IP+email. **Captcha:** `situation_map_submit` (same threshold as assessment).
 
-Persists to `situation_map_submissions`. Consent version is stamped from `emailGate.consentVersion` (`mapa-consent-v1`). Lead event `situation_map_email_submitted`. Does **not** email the recap (on-page only). No product/offer field on the submission row.
+Persists to `situation_map_submissions` and a pending `situation_map_responses` row (migration `012`). Consent version is stamped from `emailGate.consentVersion` (`mapa-consent-v1`). Lead event `situation_map_email_submitted`. Recap is on-page; a later personal-response email is **service delivery** (admin send), not nurture. Marketing consent does not gate that email. No product/offer field on the submission row.
 
 ---
 
@@ -652,7 +654,7 @@ INSERT INTO slots (local_date, grid_index, timezone, start_at_utc, end_at_utc, s
 
 **Not a JSON API.** The internal admin is **HTML + form posts** under **`/admin`**, with cookie session (`admin.sid`). Credentials: `ADMIN_USERNAME` / `ADMIN_PASSWORD`; `SESSION_SECRET` signs the session in production.
 
-**Purpose:** Slot management (create, bulk, block/unblock/cancel), reservation list/detail, operator actions (confirm/cancel reservation, notes, external-handling note), **billing documents** (list, export CSV, detail, regenerate PDF, resend invoice mail, notes), and **`/admin/maintenance`** (batched purge of expired `slot_locks`; batched delete of past slots with no `reservations` row). Full route list and UX: `docs/ui-ux/admin-interface.md` and `docs/IMPLEMENTATION-SNAPSHOT.md` — Admin section.
+**Purpose:** Slot management (create, bulk, block/unblock/cancel), reservation list/detail, operator actions (confirm/cancel reservation, notes, external-handling note), **billing documents** (list, export CSV, detail, regenerate PDF, resend invoice mail, notes), **Mapa situácie personal-response review** (`/admin/situation-map`), and **`/admin/maintenance`**. Full route list and UX: `docs/ui-ux/admin-interface.md` and `docs/IMPLEMENTATION-SNAPSHOT.md` — Admin section.
 
 There is **no** public **`/api/admin/*`** or REST surface for these actions today.
 

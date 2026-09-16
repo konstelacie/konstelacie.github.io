@@ -148,7 +148,8 @@ const questions = [
 
 const emailGate = {
   headline: 'Kam ti môžeme poslať tvoju Mapu situácie?',
-  subhead: 'Mapu uvidíš hneď na ďalšej obrazovke. E-mail slúži na doručenie a na to, aby sme Mapu vedeli spárovať s tebou.',
+  subhead:
+    'Mapu uvidíš hneď na ďalšej obrazovke. E-mail slúži na doručenie jednej osobnej odpovede k tvojej situácii a na to, aby sme Mapu vedeli spárovať s tebou.',
   nameLabel: 'Meno / oslovenie',
   namePlaceholder: 'Tvoje meno',
   emailLabel: 'E-mail',
@@ -157,7 +158,7 @@ const emailGate = {
   /** Bump when `consentOptional` copy changes. Stored even if the box is unchecked. */
   consentVersion: 'mapa-consent-v1',
   privacyNoteHtml:
-    'E-mail použijeme na poskytnutie tvojej Mapy. Marketingové správy posielame len so súhlasom. Viac v <a href="/ochrana-udajov">ochrane údajov</a>.',
+    'E-mail použijeme na poskytnutie tvojej Mapy a jednej osobnej odpovede. Marketingové správy posielame len so súhlasom. Viac v <a href="/ochrana-udajov">ochrane údajov</a>.',
   cta: 'Zobraziť moju Mapu',
   errorName: 'Zadaj meno alebo oslovenie.',
   errorRequired: 'Zadaj platný e-mail.',
@@ -177,6 +178,19 @@ const ui = {
   requiredMulti: 'Vyber aspoň jednu možnosť.',
   requiredText: 'Toto pole je povinné.',
   requiredOther: 'Dopíš, čo znamená „iné“.',
+};
+
+/**
+ * Result page meaning: acknowledgement + recap + pending personal response.
+ * Working placeholder; change here without a submission migration.
+ * Do not put “rada” / “poradenstvo” into status names or schema.
+ */
+const resultPage = {
+  kicker: 'Mapa situácie',
+  acknowledgement: 'Ďakujem. Toto sú informácie, ktoré si mi poslal/a.',
+  pendingHeadline: 'Čo bude ďalej',
+  pendingBody:
+    'Na tvoju situáciu sa osobne pozriem a pripravím ti jednu odpoveď. Dostaneš ju na uvedený e-mail.',
 };
 
 const recapCopy = {
@@ -272,6 +286,7 @@ function getClientConfig() {
     emailGate,
     ui,
     recapCopy,
+    resultPage,
     offer: getActiveOffer(),
   };
 }
@@ -283,6 +298,7 @@ module.exports = {
   emailGate,
   ui,
   recapCopy,
+  resultPage,
   offer,
   isSafeOfferCtaUrl,
   resolveOffer,

@@ -76,6 +76,14 @@
 | POST | `/admin/billing/:id/regenerate-pdf` | Regenerate PDF on disk. |
 | POST | `/admin/billing/:id/resend-email` | Resend invoice email (`billing-invoice-resend`). |
 | POST | `/admin/billing/:id/note` | Operator notes on document. |
+| GET | `/admin/situation-map` | Map submissions + personal-response status. |
+| GET | `/admin/situation-map/:id` | Review: Q1–Q8, recap, AI draft, human response. |
+| POST | `/admin/situation-map/:id/save` | Save human summary / response draft / notes / status. |
+| POST | `/admin/situation-map/:id/ai-mock` | Insert in-process factual AI-draft placeholder (write-once). |
+| POST | `/admin/situation-map/:id/ai-draft` | Manual AI-draft insert (write-once). |
+| POST | `/admin/situation-map/:id/approve` | Mark response approved. |
+| POST | `/admin/situation-map/:id/send` | Send personal-response email (Resend; not marketing). |
+| POST | `/admin/situation-map/:id/mark-sent` | Mark sent without sending (operator-assisted). |
 
 There is **no** public **`/api/admin/*`** JSON surface; operator actions are form posts to `/admin/*`.
 
@@ -200,13 +208,13 @@ All JSON APIs use `requestId` middleware. Base: `src/routes/api/index.js`.
 
 ### Situation map (`mapa`)
 
-**Product:** Mapa situácie v0.1 — qualitative intro → 8 screens (open description on step 5; ids `Q1`…`Q8` are identities, not order) → email → deterministic recap. Single-select auto-advances; Q2/Q7 soft skip (`map_question_skipped` + `questionId`). Generic offer slot is **null**. Internal prototype; no paid offer, no nurture, no result email.
+**Product:** Mapa situácie v0.1 intake + personal-response v1. Intro → 8 screens → email → deterministic recap + pending personal-response copy. Offer slot is **null**. No paid offer, no nurture. Admin review at `/admin/situation-map`. Docs: `docs/funnel/constellation/002-situation-map-v0.md`, `003-personal-response-v1.md`.
 
 **Template / assets:** `src/views/funnels/mapa.ejs`, `/assets/css/assessment.css` + `/assets/css/situation-map.css`, `/assets/js/situation-map.js`.
 
-**Config / copy:** `src/config/situationMap.js`. Recap: `src/lib/situationMapRecap.js`.
+**Config / copy:** `src/config/situationMap.js` (incl. `resultPage`). Recap: `src/lib/situationMapRecap.js`. Email wrapper: `src/config/situationMapPersonalResponse.js`. AI prompt version: `src/config/situationMapAiSummary.js` (default **off**, no third-party provider).
 
-**API / DB:** `POST /api/situation-map/submit` → `situation_map_submissions`; `POST /api/situation-map/event` → `situation_map_events` (migrations `010`, `011`). Lead event `situation_map_email_submitted`. Marketing consent snapshot + version. Docs: `docs/funnel/constellation/002-situation-map-v0.md`.
+**API / DB:** `POST /api/situation-map/submit` → `situation_map_submissions` + pending `situation_map_responses` (migration `012`). `POST /api/situation-map/event` → `situation_map_events` (migrations `010`, `011`; internal `personal_response_*` are server-only). Lead event `situation_map_email_submitted`. Marketing consent snapshot + version — does **not** gate the personal-response email.
 
 **Sitemap:** dynamic — `/` when `SITE_HOME_MODE=prod`, plus legal pages. Funnel URLs never listed.
 
@@ -230,16 +238,17 @@ Assessment pages load `assessment.css` / `assessment.js` instead (no booking wid
 ## Email
 
 - **Provider:** Resend (`src/email/provider.js`).
-- **Templates (EJS):** `reservation-confirmation.ejs`, `pre-session-reminder.ejs`, `billing-invoice.ejs`, `billing-invoice-resend.ejs` under `src/templates/emails/`.
+- **Templates (EJS):** `reservation-confirmation.ejs`, `pre-session-reminder.ejs`, `billing-invoice.ejs`, `billing-invoice-resend.ejs`, `situation-map-personal-response.ejs` under `src/templates/emails/`.
 - **Sent from code:**
   - After `checkout.session.completed` — `emailService.sendReservationConfirmation` (async; when payment has reservation).
   - Same webhook path — `billingDeliveryService.processBillingDocumentDelivery` → `sendBillingInvoiceEmail` (initial invoice, PDF attach) unless disabled / invalid recipient.
   - Admin **`POST /admin/billing/:id/resend-email`** — `resendBillingInvoiceEmailAdmin` → `sendBillingInvoiceEmail` with `resend: true`.
+  - Admin **`POST /admin/situation-map/:id/send`** — `emailService.sendSituationMapPersonalResponse` (free product / service; not nurture).
   - Cron **`pre-session-reminder`** — `emailService.sendPreSessionReminder` (`reservationsRepo.findDueForPreSessionReminder`).
 
-**Template IDs (logging):** `reservation-confirmation`, `pre-session-reminder`, `billing-invoice`, `billing-invoice-resend` — see `docs/EMAILING.md` (parity table).
+**Template IDs (logging):** `reservation-confirmation`, `pre-session-reminder`, `billing-invoice`, `billing-invoice-resend`, `situation-map-personal-response` — see `docs/EMAILING.md` (parity table).
 
-**Operator free-form email** from admin is **not** implemented; **invoice resend** is (see above).
+**Operator free-form email** from admin is **not** implemented; **invoice resend** and **Map personal-response send** are.
 
 ---
 

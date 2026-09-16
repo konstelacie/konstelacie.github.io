@@ -15,7 +15,7 @@
 | `email_sent_log` table | **Yes** — audit for sends with template id, entity link, `provider_message_id` when available; **`delivery_status`** (`accepted`, `delivered`, `bounced`, `complained`) updated via Resend webhook. |
 | Resend delivery webhook | **Yes** — `POST /api/resend/webhook` (Svix-signed). Updates `email_sent_log`; creates **`email_bounced`** admin alert for `reservation-confirmation` only. |
 | Queue / worker | **No** — confirmation and invoice pipelines use fire-and-forget `async` from webhook or admin redirects (errors logged). |
-| Operator manual send UI | **No** — still external / future. Admin **resend invoice** for an existing billing document: **`POST /admin/billing/:id/resend-email`**. |
+| Operator manual send UI | **Partial** — invoice resend; **personal-response send** from `/admin/situation-map/:id` (service email, not marketing). Generic operator compose UI still future. |
 
 ### Implemented sends (parity with code)
 
@@ -26,12 +26,13 @@
 | `billing-invoice-resend.ejs` | `billing-invoice-resend` | `Platobný doklad {documentNumber} (znova) — citimtedasom.sk` | Admin **`resendBillingInvoiceEmailAdmin`** → **`POST /admin/billing/:id/resend-email`** | `billing_document` / document id | **`admin`** |
 | `pre-session-reminder.ejs` | `pre-session-reminder` | `Pripomienka sedenia zajtra` | Cron **`pre-session-reminder`**: `confirmed` reservations whose slot **`start_at_utc`** falls in **`[NOW+23:30h, NOW+24:30h)`** (`reservationsRepo.findDueForPreSessionReminder`) | `reservation` / reservation id | `system` |
 | `billing-delayed.ejs` | `billing-delayed` | `Doklad k platbe pošleme dodatočne` | Cron **`billing-deliver-stuck`** when KROS webhook missing and reservation **`confirmed`** (`BILLING_DELAYED_EMAIL_ENABLED`); idempotent via `email_delivery_tasks` + `email_sent_log` | `billing_document` / document id | `system` |
+| `situation-map-personal-response.ejs` | `situation-map-personal-response` | Configurable in `src/config/situationMapPersonalResponse.js` (placeholder subject) | Admin **`POST /admin/situation-map/:id/send`**. Service delivery for the free Map response — **does not** check marketing consent. Idempotent via `email_sent_log`. | `situation_map_response` / response id | **`admin`** |
 
 **Provider API:** `src/email/provider.js` — **`sendEmail(to, subject, html, metadata, options?)`**. If Resend is not configured (`RESEND_API_KEY` + `RESEND_FROM_EMAIL`), returns **`{ ok: false, skipped: true }`** and nothing is sent. **`options.attachments`** is used for billing PDFs. **`reply_to`** is set to the configured from address.
 
 **Logging:** Rows are written to **`email_sent_log` only when** the provider returns **`ok: true`** and a **`messageId`** (`emailService`); failed sends are not logged there.
 
-**Idempotency:** Pre-session and initial billing invoice use **`emailSentLogRepo.wasAlreadySent`** (template + entity) so cron/webhook retries do not double-send; reservation confirmation has no duplicate guard beyond business rules (one payment flow per reservation).
+**Idempotency:** Pre-session and initial billing invoice use **`emailSentLogRepo.wasAlreadySent`** (template + entity) so cron/webhook retries do not double-send; reservation confirmation has no duplicate guard beyond business rules (one payment flow per reservation). Personal-response send uses the same `wasAlreadySent` guard on `situation-map-personal-response` + `situation_map_response`.
 
 ### KROS webhook missing (stuck `accepted` documents)
 

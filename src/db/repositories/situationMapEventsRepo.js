@@ -1,6 +1,6 @@
 const { getPool } = require('../index');
 
-const ALLOWED_EVENT_TYPES = new Set([
+const CLIENT_EVENT_TYPES = new Set([
   'map_started',
   'map_question_viewed',
   'map_question_answered',
@@ -13,6 +13,18 @@ const ALLOWED_EVENT_TYPES = new Set([
   // Reserved: do not fire until conversion meaning is decided (booking vs intro vs purchase).
   'offer_converted',
 ]);
+
+const INTERNAL_EVENT_TYPES = new Set([
+  'personal_response_created',
+  'personal_response_reviewed',
+  'personal_response_sent',
+]);
+
+const ALLOWED_EVENT_TYPES = new Set([...CLIENT_EVENT_TYPES, ...INTERNAL_EVENT_TYPES]);
+
+function isClientEventType(eventType) {
+  return typeof eventType === 'string' && CLIENT_EVENT_TYPES.has(eventType);
+}
 
 function isAllowedEventType(eventType) {
   return typeof eventType === 'string' && ALLOWED_EVENT_TYPES.has(eventType);
@@ -57,7 +69,10 @@ async function recordEvent(input) {
 }
 
 module.exports = {
+  CLIENT_EVENT_TYPES,
+  INTERNAL_EVENT_TYPES,
   ALLOWED_EVENT_TYPES,
+  isClientEventType,
   isAllowedEventType,
   recordEvent,
 };

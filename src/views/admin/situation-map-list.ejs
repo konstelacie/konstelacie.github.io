@@ -1,0 +1,70 @@
+<div class="admin-wrap admin-wrap--wide">
+  <header class="admin-header admin-header--bar">
+    <h1 class="admin-title">Mapa situácie</h1>
+    <form method="post" action="/admin/logout">
+      <button type="submit" class="admin-btn admin-btn--ghost">Odhlásiť sa</button>
+    </form>
+  </header>
+
+  <% if (typeof flash !== 'undefined' && flash) { %>
+    <p class="admin-flash admin-flash--<%= flash.level %>" role="status"><%= flash.message %></p>
+  <% } %>
+
+  <% if (typeof loadError !== 'undefined' && loadError) { %>
+    <p class="admin-error" role="alert">Nepodarilo sa načítať submissiony. Skúste znova neskôr.</p>
+  <% } %>
+
+  <% if (typeof dbConfigured !== 'undefined' && !dbConfigured) { %>
+    <p class="admin-error" role="alert">Databáza nie je nakonfigurovaná.</p>
+  <% } %>
+
+  <% if (typeof dbConfigured !== 'undefined' && dbConfigured) { %>
+  <p class="admin-bulk__hint">
+    Interný review pre osobnú odpoveď (free produkt). Offer a nurture ostávajú vypnuté.
+    Marketingový súhlas tu nič neblokuje.
+  </p>
+
+  <nav class="admin-filters" aria-label="Filter stavov odpovede">
+    <% const f = typeof filter !== 'undefined' ? filter : 'pending'; %>
+    <% const labels = typeof statusLabels !== 'undefined' ? statusLabels : {}; %>
+    <% for (const key of statusFilters) { %>
+    <a class="admin-btn admin-btn--small <%= f === key ? 'admin-btn--primary' : 'admin-btn--ghost' %>" href="/admin/situation-map?status=<%= key %>"><%= key === 'all' ? 'Všetky' : (labels[key] || key) %></a>
+    <% } %>
+  </nav>
+
+  <% if (typeof rows !== 'undefined' && rows.length) { %>
+  <div class="admin-table-wrap">
+    <table class="admin-table">
+      <thead>
+        <tr>
+          <th scope="col">Vytvorené</th>
+          <th scope="col">Meno</th>
+          <th scope="col">E-mail</th>
+          <th scope="col">Kampaň</th>
+          <th scope="col">Téma</th>
+          <th scope="col">Stav odpovede</th>
+          <th scope="col">AI draft</th>
+          <th scope="col">Odoslané</th>
+        </tr>
+      </thead>
+      <tbody>
+        <% for (const row of rows) { %>
+          <tr>
+            <td><%= row.createdAtLabel %></td>
+            <td><a href="/admin/situation-map/<%= row.id %>"><%= row.displayName %></a></td>
+            <td class="admin-table__email"><%= row.email %></td>
+            <td class="admin-table__funnel-path"><%= row.funnelPath %></td>
+            <td><%= row.topic %></td>
+            <td><span class="admin-status admin-status--<%= row.responseStatus %>"><%= row.responseStatusLabel %></span></td>
+            <td><%= row.hasAiDraft ? 'áno' : '—' %></td>
+            <td><%= row.sentAtLabel %></td>
+          </tr>
+        <% } %>
+      </tbody>
+    </table>
+  </div>
+  <% } else { %>
+  <p class="admin-placeholder">Žiadne záznamy pre tento filter.</p>
+  <% } %>
+  <% } %>
+</div>

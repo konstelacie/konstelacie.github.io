@@ -99,8 +99,76 @@ async function createSubmission(input) {
   return { id: Number(result.insertId) };
 }
 
+async function findById(id) {
+  const pool = getPool();
+  if (!pool) throw new Error('Database not configured');
+  const num = Number(id);
+  if (!Number.isInteger(num) || num < 1) return null;
+  const [rows] = await pool.execute(
+    `SELECT * FROM situation_map_submissions WHERE id = ? LIMIT 1`,
+    [num]
+  );
+  return mapRow(rows[0]);
+}
+
+const ADMIN_LIST_LIMIT = 100;
+
+/**
+ * @param {{ status?: string, limit?: number }} [opts]
+ */
+async function listForAdmin(opts = {}) {
+  const pool = getPool();
+  if (!pool) throw new Error('Database not configured');
+
+  const limitRaw = Number(opts.limit);
+  const limit =
+    Number.isInteger(limitRaw) && limitRaw > 0 ? Math.min(limitRaw, ADMIN_LIST_LIMIT) : ADMIN_LIST_LIMIT;
+  const status = typeof opts.status === 'string' ? opts.status.trim() : '';
+
+  const params = [];
+  let where = '';
+  if (status && status !== 'all') {
+    if (status === 'pending') {
+      where = `WHERE (r.status IS NULL OR r.status = 'pending')`;
+    } else {
+      where = 'WHERE r.status = ?';
+      params.push(status);
+    }
+  }
+
+  const [rows] = await pool.execute(
+    `SELECT s.*,
+            r.id AS response_id,
+            r.status AS response_status,
+            r.updated_at AS response_updated_at,
+            r.sent_at AS response_sent_at,
+            r.ai_summary_draft IS NOT NULL AND TRIM(r.ai_summary_draft) <> '' AS has_ai_draft
+     FROM situation_map_submissions s
+     LEFT JOIN situation_map_responses r ON r.submission_id = s.id
+     ${where}
+     ORDER BY s.created_at DESC
+     LIMIT ${limit}`,
+    params
+  );
+
+  return rows.map((row) => {
+    const submission = mapRow(row);
+    return {
+      ...submission,
+      responseId: row.response_id != null ? Number(row.response_id) : null,
+      responseStatus: row.response_status || 'pending',
+      responseUpdatedAt: row.response_updated_at ?? null,
+      responseSentAt: row.response_sent_at ?? null,
+      hasAiDraft: Boolean(Number(row.has_ai_draft)),
+    };
+  });
+}
+
 module.exports = {
   createSubmission,
+  findById,
+  listForAdmin,
+  ADMIN_LIST_LIMIT,
   mapRow,
   normalizeEmail,
 };

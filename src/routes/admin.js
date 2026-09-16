@@ -129,6 +129,7 @@ router.post('/login', (req, res) => {
   }
 
   req.session.adminLoggedIn = true;
+  req.session.adminUsername = config.admin.username;
   req.session.save((err) => {
     if (err) {
       return res.status(500).render('admin/login', {
@@ -2307,5 +2308,7 @@ router.get('/slots', requireAdmin, async (req, res) => {
     });
   }
 });
+
+router.use(require('./adminSituationMap'));
 
 module.exports = router;

@@ -117,10 +117,10 @@
 | | |
 |---|--|
 | **Item** | **Mapa situácie** (`mapa`) — qualitative acquisition map |
-| **Current state** | **v0.1 prototype** — intro → 8 screens (auto-advance singles; open text on step 5 with skip) → email → recap. Nullable offer slot is off. Docs: `docs/funnel/constellation/002-situation-map-v0.md`. |
-| **Target (later)** | Content/UX lock; first swappable CTA/offer; optional result email after access model; ads (not on `/mapa-test`). |
-| **Dependencies** | Operator testing on model situations; offer A/B/C decision. |
-| **Definition of done (v0)** | `/mapa-test` walkthrough; structured persist; deterministic recap; funnel events. |
+| **Current state** | **v0.1 Map + personal-response v1** — intake unchanged; result page has pending personal-response copy; admin review; Resend send without marketing-consent gate. Offer/nurture/checkout off. Docs: `002`, `003`. |
+| **Target (later)** | Lock personal-response copy after human experiments; optional paid next step; ads (not on `/mapa-test`). |
+| **Dependencies** | Operator testing of what a good personal response is; legal copy if AI provider is enabled. |
+| **Definition of done (this slice)** | Test submission → recap → admin review → AI/mock draft + human response kept separate → status + optional send. |
 
 | | |
 |---|--|

@@ -29,7 +29,7 @@ router.post(
     if (!SESSION_ID_PATTERN.test(sessionId)) {
       return res.status(400).json({ ok: false, error: 'VALIDATION_ERROR' });
     }
-    if (!situationMapEventsRepo.isAllowedEventType(body.eventType)) {
+    if (!situationMapEventsRepo.isClientEventType(body.eventType)) {
       return res.status(400).json({ ok: false, error: 'VALIDATION_ERROR' });
     }
 

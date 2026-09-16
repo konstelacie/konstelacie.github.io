@@ -71,7 +71,7 @@ v0.1 does **not** enroll nurture, send a result email, or create a permanent res
 | Page | `src/views/funnels/mapa.ejs` |
 | Client | `public/assets/js/situation-map.js`, `public/assets/css/situation-map.css` (plus `assessment.css` tokens) |
 | API | `POST /api/situation-map/submit`, `POST /api/situation-map/event` |
-| DB | migrations `010_situation_map.sql`, `011_situation_map_v01.sql` — `situation_map_submissions`, `situation_map_events` |
+| DB | migrations `010`, `011`, `012` — submissions, events, responses |
 | Lead KPI | `situation_map_email_submitted` (email required; pre-email steps live in `situation_map_events`) |
 
 ---
@@ -85,4 +85,6 @@ v0.1 does **not** enroll nurture, send a result email, or create a permanent res
 
 Web analytics must not include Q2/Q7 textarea content, name, or email — only `questionId`, `stepNumber`, `answered`, optional `answerLengthBucket`.
 
-Next: content/UX testing on model situations — not ads, not a concrete product, not checkout/nurture.
+Result page copy (`resultPage` in config) now also acknowledges receipt and a pending personal response. Offer stays off. Human review: [`003-personal-response-v1.md`](003-personal-response-v1.md).
+
+Next: content/UX testing on model situations — not ads, not a concrete paid product, not checkout/nurture.

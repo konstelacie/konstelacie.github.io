@@ -354,10 +354,37 @@ Pre-email funnel steps (migrations `010`, `011`). `lead_events.email` is NOT NUL
 | question_id | VARCHAR(16) | NULL (`Q1`…`Q8` identities, not screen order) |
 | step_number | TINYINT UNSIGNED | NULL — 1-based screen index among enabled questions |
 | submission_id | BIGINT UNSIGNED | NULL — set on `email_submitted` and later client events |
-| properties_json | JSON | NULL — allowlisted: `answered`, `answerLengthBucket`, `offerId`, `offerVariant` |
+| properties_json | JSON | NULL — allowlisted: `answered`, `answerLengthBucket`, `offerId`, `offerVariant`, `responseStatus`, `timeToResponseBucket`, `promptVersion`, `responseSource` |
 | created_at | DATETIME(3) | |
 
 **Related lead event:** `situation_map_email_submitted` in `lead_event_types` (migration `010`).
+
+Internal product events `personal_response_created` / `personal_response_reviewed` / `personal_response_sent` are also rows here (server-only). Extra allowlisted properties: `responseStatus`, `timeToResponseBucket`, `promptVersion`, `responseSource`. Never store Map text, response body, AI summary, name, or email in `properties_json`.
+
+### situation_map_responses
+
+Personal response layer for a Map submission (migration `012`). Separate from the Map row so proposition/copy can change without migrating answers. One response per submission.
+
+| Column | Type | Description |
+|--------|------|-------------|
+| id | BIGINT UNSIGNED PK | Auto-increment |
+| submission_id | BIGINT UNSIGNED | NOT NULL, UNIQUE — FK to `situation_map_submissions.id` |
+| status | VARCHAR(32) | `pending`, `drafting`, `ready_for_review`, `approved`, `sent` |
+| ai_summary_draft | MEDIUMTEXT | NULL — write-once internal draft; never overwritten by the human version |
+| ai_summary_prompt_version | VARCHAR(64) | NULL — e.g. `ai-summary-v1` |
+| ai_summary_source | VARCHAR(32) | NULL — `mock` \| `manual` |
+| human_summary | MEDIUMTEXT | NULL |
+| response_draft | MEDIUMTEXT | NULL — plain text; no locked advice/cause sections |
+| final_response | MEDIUMTEXT | NULL — snapshot at approve/send |
+| internal_notes | TEXT | NULL |
+| edited_by | VARCHAR(80) | NULL — admin username |
+| reviewed_by | VARCHAR(80) | NULL |
+| created_at | DATETIME(3) | |
+| updated_at | DATETIME(3) | Auto-update |
+| reviewed_at | DATETIME(3) | NULL |
+| sent_at | DATETIME(3) | NULL |
+
+**Indexes:** UNIQUE `(submission_id)`, `(status, created_at)`.
 
 ---
 
@@ -431,6 +458,9 @@ audit_logs (standalone)
 assessment_submissions (standalone)
 marketing_consents (standalone, by email)
 email_sequence_enrollments (standalone; links assessment_submission_id)
+situation_map_submissions (standalone)
+situation_map_events (standalone; optional submission_id)
+situation_map_responses → situation_map_submissions
 ```
 
 ---
