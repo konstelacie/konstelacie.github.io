@@ -27,6 +27,14 @@ Current screen order:
 7. `Q7` desiredChange — textarea; same skip UI as Q2
 8. `Q8` perceivedBarrier — **single-select, auto-advance** (`experimental: true` / `enabled: true`; `enabled: false` drops it without a migration)
 
+Q1 is method-agnostic intake (not a “čo sú konštelácie” test). Current `topic` codes for **new** submissions:
+
+`relationship` · `family` · `children_parenting` · `work_business` · `money_finance` · `health_physical` · `loss_change_decision` · `recurring` · `other`
+
+Retired codes stay on historical rows (`parents`, `children`, `extended_family`, `work_money`, `loss_change`). Recap/admin resolve them via `retiredOptions` in config. **No DB rewrite.** Health, work, money, and the other new categories do **not** branch — same Q2–Q8, no medical questionnaire, no extra scoring, no constellation recommendation. Recap shows only the chosen human label.
+
+Join path for analysis is unchanged: `topic` on `situation_map_submissions` ↔ `situation_map_events` (`questionId = Q1`) via `session_id` / `submission_id`. Compare e.g. `topic × map_completed × personal_response_sent` (and later paid conversion) without a new analytics system.
+
 Progress is **Krok X z 8**. Back keeps the previous answer and leaves it editable. No quote/info interstitial.
 
 `map_question_answered` is written **before** the auto-advance animation/navigation so a fast tap does not drop the event.

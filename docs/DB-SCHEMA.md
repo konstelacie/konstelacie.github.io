@@ -319,7 +319,7 @@ Mapa situácie email-unlock rows (migrations `010`, `011`). Structured columns f
 | display_name | VARCHAR(80) | NOT NULL |
 | funnel_name | VARCHAR(64) | NOT NULL (`mapa`) |
 | funnel_campaign | VARCHAR(64) | NULL |
-| topic | VARCHAR(32) | NOT NULL |
+| topic | VARCHAR(32) | NOT NULL. Codes from `src/config/situationMap.js` Q1. New rows use the current taxonomy (`relationship`, `family`, `children_parenting`, `work_business`, `money_finance`, `health_physical`, `loss_change_decision`, `recurring`, `other`). Historical rows may still have retired codes (`parents`, `children`, `extended_family`, `work_money`, `loss_change`); do not rewrite them. |
 | topic_other | VARCHAR(200) | NULL |
 | situation_description | TEXT | NOT NULL (`Q2` / `situationDescription`; screen 5 in v0). Empty string = skipped. |
 | situation_type | VARCHAR(32) | NOT NULL |

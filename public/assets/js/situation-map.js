@@ -4,7 +4,7 @@
 (function () {
   'use strict';
 
-  var STORAGE_PREFIX = 'situation-map:v0-order:';
+  var STORAGE_PREFIX = 'situation-map:v0-q1-topics:';
   var SESSION_ID_KEY = 'situation-map:session-id';
 
   function $(sel, root) {

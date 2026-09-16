@@ -52,7 +52,7 @@ test('AI mock restates user words and does not interpret', () => {
   const draft = buildFactualRestatement(validateAnswers(validAnswers()));
   assert.match(draft, /hádky o blízkosti/);
   assert.match(draft, /vlastné slová používateľa/);
-  assert.match(draft, /partnerský vzťah/);
+  assert.match(draft, /Partnerské vzťahy/);
   assert.doesNotMatch(draft, /príčinou je|diagnóza|odporúčam konšteláciu|systémový vzorec/i);
 });
 

@@ -31,14 +31,26 @@ const questions = [
     otherField: 'topicOther',
     text: 'Ktorej oblasti sa situácia, ktorú chceš preskúmať, týka najviac?',
     options: [
-      { value: 'relationship', label: 'partnerský vzťah' },
+      { value: 'relationship', label: 'Partnerské vzťahy' },
+      { value: 'family', label: 'Rodina a blízke vzťahy' },
+      { value: 'children_parenting', label: 'Deti a rodičovstvo' },
+      { value: 'work_business', label: 'Práca, podnikanie a kariéra' },
+      { value: 'money_finance', label: 'Peniaze a financie' },
+      { value: 'health_physical', label: 'Zdravie a telesné ťažkosti' },
+      { value: 'loss_change_decision', label: 'Strata, zmena alebo dôležité životné rozhodnutie' },
+      { value: 'recurring', label: 'Niečo, čo sa mi v živote opakuje' },
+      { value: 'other', label: 'Iné' },
+    ],
+    /**
+     * Historical Q1 codes kept for recap/admin of existing rows.
+     * Not offered in the UI; new submissions must use `options` above.
+     */
+    retiredOptions: [
       { value: 'parents', label: 'rodičia a pôvodná rodina' },
       { value: 'children', label: 'deti a rodičovstvo' },
       { value: 'extended_family', label: 'širšia rodina' },
       { value: 'work_money', label: 'práca a peniaze' },
       { value: 'loss_change', label: 'strata, odlúčenie alebo veľká zmena' },
-      { value: 'recurring', label: 'niečo, čo sa mi v živote opakuje' },
-      { value: 'other', label: 'iné' },
     ],
   },
   {
@@ -278,11 +290,17 @@ function getQuestionByField(field) {
   return questions.find((q) => q.field === field) || null;
 }
 
+function toClientQuestion(question) {
+  if (!question) return question;
+  const { retiredOptions: _retiredOptions, ...rest } = question;
+  return rest;
+}
+
 function getClientConfig() {
   return {
     funnelName: FUNNEL_NAME,
     landing,
-    questions: getEnabledQuestions(),
+    questions: getEnabledQuestions().map(toClientQuestion),
     emailGate,
     ui,
     recapCopy,

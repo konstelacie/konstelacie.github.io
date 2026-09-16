@@ -6,6 +6,8 @@ const { requireAdmin } = require('../middleware/requireAdmin');
 const situationMapSubmissionsRepo = require('../db/repositories/situationMapSubmissionsRepo');
 const situationMapResponseService = require('../services/situationMapResponseService');
 const { RESPONSE_STATUSES } = require('../lib/situationMapAnalytics');
+const situationMap = require('../config/situationMap');
+const { optionLabel } = require('../lib/situationMapRecap');
 const { formatDateTimeSkForAdmin } = require('../lib/adminLeadEventDisplay');
 
 const router = express.Router();
@@ -60,13 +62,26 @@ function statusFilter(raw) {
   return STATUS_FILTERS.includes(value) ? value : 'pending';
 }
 
+function topicAdminLabel(row) {
+  const question = situationMap.getQuestionByField('topic');
+  if (
+    question &&
+    question.otherValue &&
+    row.topic === question.otherValue &&
+    String(row.topicOther || '').trim()
+  ) {
+    return String(row.topicOther).trim();
+  }
+  return optionLabel(question, row.topic);
+}
+
 function mapListRow(row) {
   return {
     id: row.id,
     email: row.email,
     displayName: row.displayName,
     funnelPath: [row.funnelName, row.funnelCampaign].filter(Boolean).join(' / ') || 'mapa',
-    topic: row.topic,
+    topic: topicAdminLabel(row),
     marketingConsent: row.marketingConsent,
     createdAtLabel: formatDateTimeSkForAdmin(row.createdAt),
     responseStatus: row.responseStatus || 'pending',

@@ -3,9 +3,15 @@
  */
 
 function optionLabel(question, value) {
-  if (!question || !question.options) return value ? String(value) : '';
-  const hit = question.options.find((o) => o.value === value);
-  return hit ? hit.label : String(value);
+  if (value == null || value === '') return '';
+  if (!question) return String(value);
+  const lists = [question.options, question.retiredOptions];
+  for (const list of lists) {
+    if (!Array.isArray(list)) continue;
+    const hit = list.find((o) => o.value === value);
+    if (hit) return hit.label;
+  }
+  return String(value);
 }
 
 function joinSkList(items) {

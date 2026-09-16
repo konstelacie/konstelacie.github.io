@@ -71,7 +71,7 @@ test('recap reflects answers without diagnostic language', () => {
     answers: validateAnswers(validAnswers()),
     config: situationMap,
   });
-  assert.equal(recap.sections.situation.topicLabel, 'partnerský vzťah');
+  assert.equal(recap.sections.situation.topicLabel, 'Partnerské vzťahy');
   assert.match(recap.sections.situation.description, /hádky/);
   assert.ok(recap.sections.perception.paragraphs.some((p) => p.includes('Uviedol/a si')));
   assert.ok(recap.sections.attempts.items.includes('konšteláciu'));
@@ -95,7 +95,7 @@ test('recap without Q2/Q7 still names the situation and notes the skip', () => {
     answers: validateAnswers(validAnswers({ situationDescription: '', desiredChange: '' })),
     config: situationMap,
   });
-  assert.equal(recap.sections.situation.topicLabel, 'partnerský vzťah');
+  assert.equal(recap.sections.situation.topicLabel, 'Partnerské vzťahy');
   assert.equal(recap.sections.situation.description, '');
   assert.match(recap.sections.situation.skippedNote, /nevyplnil/);
   assert.equal(recap.sections.desired.text, '');
@@ -118,6 +118,95 @@ test('Q8 can be disabled without changing other validation', () => {
   } finally {
     q8.enabled = prev;
   }
+});
+
+test('Q1 uses the wider pre-launch topic taxonomy without branching', () => {
+  const q1 = situationMap.getQuestionById('Q1');
+  assert.equal(q1.field, 'topic');
+  assert.deepEqual(
+    q1.options.map((o) => o.value),
+    [
+      'relationship',
+      'family',
+      'children_parenting',
+      'work_business',
+      'money_finance',
+      'health_physical',
+      'loss_change_decision',
+      'recurring',
+      'other',
+    ]
+  );
+  assert.deepEqual(
+    q1.options.map((o) => o.label),
+    [
+      'Partnerské vzťahy',
+      'Rodina a blízke vzťahy',
+      'Deti a rodičovstvo',
+      'Práca, podnikanie a kariéra',
+      'Peniaze a financie',
+      'Zdravie a telesné ťažkosti',
+      'Strata, zmena alebo dôležité životné rozhodnutie',
+      'Niečo, čo sa mi v živote opakuje',
+      'Iné',
+    ]
+  );
+  const clientQ1 = situationMap.getClientConfig().questions.find((q) => q.id === 'Q1');
+  assert.equal(clientQ1.retiredOptions, undefined);
+  assert.equal(clientQ1.options.length, 9);
+  assert.equal(situationMap.getEnabledQuestions().length, 8);
+  assert.equal(situationMap.getEnabledQuestions()[1].id, 'Q3');
+});
+
+test('new Q1 submissions accept current topic codes and reject retired ones', () => {
+  const current = [
+    'relationship',
+    'family',
+    'children_parenting',
+    'work_business',
+    'money_finance',
+    'health_physical',
+    'loss_change_decision',
+    'recurring',
+  ];
+  for (const topic of current) {
+    assert.equal(validateAnswers(validAnswers({ topic })).topic, topic);
+  }
+  const other = validateAnswers(validAnswers({ topic: 'other', topicOther: 'bývanie' }));
+  assert.equal(other.topic, 'other');
+  assert.equal(other.topicOther, 'bývanie');
+  for (const topic of ['parents', 'children', 'extended_family', 'work_money', 'loss_change']) {
+    assert.throws(
+      () => validateAnswers(validAnswers({ topic })),
+      (err) => err instanceof ApiError
+    );
+  }
+});
+
+test('recap and admin labels stay factual for new and retired Q1 topics', () => {
+  const health = buildSituationMapRecap({
+    answers: validateAnswers(validAnswers({ topic: 'health_physical' })),
+    config: situationMap,
+  });
+  assert.equal(health.sections.situation.topicLabel, 'Zdravie a telesné ťažkosti');
+  assert.doesNotMatch(
+    JSON.stringify(health),
+    /rodinným systémom|finančným problémom|vhodná na váš zdravotný|konštelácia je vhodná/i
+  );
+
+  const legacy = buildSituationMapRecap({
+    answers: { ...validateAnswers(validAnswers()), topic: 'parents' },
+    config: situationMap,
+  });
+  assert.equal(legacy.sections.situation.topicLabel, 'rodičia a pôvodná rodina');
+
+  const { listQuestionAnswers } = require('../src/lib/situationMapAnswers');
+  const listed = listQuestionAnswers(
+    { ...validateAnswers(validAnswers()), topic: 'work_money' },
+    situationMap
+  );
+  assert.equal(listed[0].id, 'Q1');
+  assert.equal(listed[0].value, 'práca a peniaze');
 });
 
 test('marketing consent is versioned separately from email capture', () => {
